@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+@theme {
+  /* 🌳 Injetando a paleta orgânica do AVLE no motor do Tailwind 4 */
+  --color-avle-bege: #F7F4EB;
+  --color-avle-terracotta: #C05A3E;
+  --color-avle-verde: #1C3F24;
+  --color-avle-texto: #2C2A29;
+}
