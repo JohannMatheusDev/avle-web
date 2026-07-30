@@ -12,16 +12,14 @@ export default function Home() {
   const [deveAnimar, setDeveAnimar] = useState(false);
 
   useEffect(() => {
-    // A linha "sessionStorage.clear()" foi removida daqui.
-    // Agora o estado persiste perfeitamente ao dar Reload (F5).
     const jaVisualizou = sessionStorage.getItem('@avle:splash-visualizado');
     
     if (jaVisualizou === 'true') {
       setStatus('login');
-      setDeveAnimar(false); // No F5 entra direto e sem atrasos
+      setDeveAnimar(false);
     } else {
       setStatus('intro');
-      setDeveAnimar(true);  // Ativa a transição suave pós-vídeo
+      setDeveAnimar(true);
     }
   }, []);
 
@@ -54,7 +52,7 @@ export default function Home() {
 }
 
 // -------------------------------------------------------------
-// COMPONENTE DE AUTENTICAÇÃO (MANTIDO INTACTO)
+// COMPONENTE DE AUTENTICAÇÃO
 // -------------------------------------------------------------
 function Autenticacao() {
   const router = useRouter();
@@ -82,6 +80,10 @@ function Autenticacao() {
   const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const emailValido = regexEmail.test(email);
 
+  // Validação flexível para e-mail e telefone opcionais no cadastro
+  const emailPreenchido = email.trim().length > 0;
+  const emailValidoOuVazio = !emailPreenchido || regexEmail.test(email);
+
   const temMaiuscula = /[A-Z]/.test(senha);
   const temNumero = /[0-9]/.test(senha);
   const temCaracterEspecial = /[^A-Za-z0-9]/.test(senha);
@@ -97,11 +99,13 @@ function Autenticacao() {
   const tamanhoDocumentoValido = cpf.length === (tipoUsuario === 'LOJA' ? 14 : 11);
   
   const telefoneLimpo = telefone.replace(/\D/g, '');
-  const telefoneValido = telefoneLimpo.length === 10 || telefoneLimpo.length === 11;
 
+  // =========================================================================
+  // AJUSTADO: E-mail e Telefone não são obrigatórios no cadastro
+  // =========================================================================
   const formularioValido = isLogin 
     ? (emailValido && senha.length > 0)
-    : (emailValido && senhaForte && nome.trim() !== '' && tamanhoDocumentoValido && telefoneValido);
+    : (emailValidoOuVazio && senhaForte && nome.trim() !== '' && tamanhoDocumentoValido);
 
   const aplicarMascaraTelefone = (valor: string) => {
     const apenasNumeros = valor.replace(/\D/g, '');
@@ -117,7 +121,7 @@ function Autenticacao() {
     setCarregando(true);
 
     if (!formularioValido) {
-      setMensagem({ tipo: 'erro', texto: 'Por favor, preencha todos os requisitos obrigatórios corretamente!' });
+      setMensagem({ tipo: 'erro', texto: 'Por favor, preencha todos os campos obrigatórios corretamente!' });
       setCarregando(false);
       return;
     }
@@ -131,7 +135,7 @@ function Autenticacao() {
         });
 
         if (resposta.status === 403) {
-          setMensagem({ tipo: 'erro', texto: 'Sua conta ainda não foi verificada. Insira o código enviado ao seu e-mail.' });
+          setMensagem({ tipo: 'erro', texto: 'Sua conta ainda não foi verificada.' });
           setIsVerificando(true);
           return;
         }
@@ -146,13 +150,32 @@ function Autenticacao() {
         const resposta = await fetch('http://localhost:8080/api/usuarios/cadastro', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome, email, cpf, senha, tipoUsuario, telefone }),
+          body: JSON.stringify({ 
+            nome, 
+            email: email.trim() !== '' ? email : null, 
+            cpf, 
+            senha, 
+            tipoUsuario, 
+            telefone: telefoneLimpo !== '' ? telefoneLimpo : null 
+          }),
         });
 
-        if (!resposta.ok) throw new Error('Erro ao realizar cadastro. Verifique se o e-mail ou documento já existem.');
+        if (!resposta.ok) throw new Error('Erro ao realizar cadastro. Verifique se o documento já existe.');
 
-        setMensagem({ tipo: 'sucesso', texto: 'Cadastro realizado! Digite o código de 6 dígitos enviado para o seu e-mail.' });
-        setIsVerificando(true);
+        // =========================================================================
+        // AJUSTADO: Não exige verificação OTP pós-cadastro
+        // =========================================================================
+        setMensagem({ tipo: 'sucesso', texto: 'Cliente cadastrado e conta ativada com sucesso!' });
+        
+        setTimeout(() => {
+          setIsLogin(true);
+          setNome('');
+          setCpf('');
+          setEmail('');
+          setTelefone('');
+          setSenha('');
+          setMensagem({ tipo: '', texto: '' });
+        }, 1500);
       }
     } catch (erro: any) {
       setMensagem({ tipo: 'erro', texto: erro.message });
@@ -340,7 +363,7 @@ function Autenticacao() {
                   <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Criar Nova Senha</h3>
                   <p className="text-xs text-stone-400 mt-1">Insira o token de 6 números que chegou em seu e-mail e defina sua nova credencial forte.</p>
                 </div>
-                {mensagem.texto && <div className={`p-3 rounded-xl text-xs font-bold ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>{mensagem.texto}</div>}
+                {mensagem.texto && <div className={`p-3 rounded-xl text-xs font-bold ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>{mensagem.texto}</div>}
                 
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Token de Verificação (6 dígitos)</label>
@@ -400,22 +423,23 @@ function Autenticacao() {
                       <input type="text" maxLength={tipoUsuario === 'LOJA' ? 14 : 11} placeholder={tipoUsuario === 'LOJA' ? "00000000000000" : "00000000000"} value={cpf} onChange={(e) => setCpf(e.target.value.replace(/\D/g, ''))} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                     </div>
 
+                    {/* Telefone opcional no cadastro */}
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <label className="block text-[10px] font-bold uppercase text-stone-500">Telefone / Celular *</label>
-                        {telefone.length > 0 && <span className={`text-[10px] font-bold ${telefoneValido ? 'text-emerald-600' : 'text-rose-500'}`}>{telefoneValido ? '✓ Válido' : '✗ Inválido'}</span>}
+                        <label className="block text-[10px] font-bold uppercase text-stone-500">Telefone / Celular (Opcional)</label>
                       </div>
-                      <input type="text" placeholder="(45) 99999-9999" value={telefone} onChange={(e) => setTelefone(aplicarMascaraTelefone(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                      <input type="text" placeholder="(45) 99999-9999" value={telefone} onChange={(e) => setTelefone(aplicarMascaraTelefone(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]" disabled={carregando} />
                     </div>
                   </div>
                 )}
 
+                {/* E-mail opcional no cadastro / Obrigatório no Login */}
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="block text-[10px] font-bold uppercase text-stone-500">E-mail *</label>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500">{isLogin ? 'E-mail *' : 'E-mail (Opcional)'}</label>
                     {email.length > 0 && <span className={`text-[10px] font-bold ${emailValido ? 'text-emerald-600' : 'text-rose-500'}`}>{emailValido ? '✓ Válido' : '✗ Inválido'}</span>}
                   </div>
-                  <input type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                  <input type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]" required={isLogin} disabled={carregando} />
                 </div>
 
                 <div>
