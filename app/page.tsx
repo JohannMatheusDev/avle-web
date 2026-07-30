@@ -52,7 +52,7 @@ export default function Home() {
 }
 
 // -------------------------------------------------------------
-// COMPONENTE DE AUTENTICAÇÃO
+// COMPONENTE DE AUTENTICACIÓN
 // -------------------------------------------------------------
 function Autenticacao() {
   const router = useRouter();
@@ -100,9 +100,6 @@ function Autenticacao() {
   
   const telefoneLimpo = telefone.replace(/\D/g, '');
 
-  // =========================================================================
-  // AJUSTADO: E-mail e Telefone não são obrigatórios no cadastro
-  // =========================================================================
   const formularioValido = isLogin 
     ? (emailValido && senha.length > 0)
     : (emailValidoOuVazio && senhaForte && nome.trim() !== '' && tamanhoDocumentoValido);
@@ -128,7 +125,7 @@ function Autenticacao() {
 
     try {
       if (isLogin) {
-        const resposta = await fetch('http://localhost:8080/api/auth/login', {
+        const resposta = await fetch('https://api.avle.com.br/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, senha }),
@@ -147,7 +144,7 @@ function Autenticacao() {
         router.push('/dashboard');
 
       } else {
-        const resposta = await fetch('http://localhost:8080/api/usuarios/cadastro', {
+        const resposta = await fetch('https://api.avle.com.br/api/usuarios/cadastro', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -162,9 +159,6 @@ function Autenticacao() {
 
         if (!resposta.ok) throw new Error('Erro ao realizar cadastro. Verifique se o documento já existe.');
 
-        // =========================================================================
-        // AJUSTADO: Não exige verificação OTP pós-cadastro
-        // =========================================================================
         setMensagem({ tipo: 'sucesso', texto: 'Cliente cadastrado e conta ativada com sucesso!' });
         
         setTimeout(() => {
@@ -190,7 +184,7 @@ function Autenticacao() {
     setCarregando(true);
 
     try {
-      const resposta = await fetch('http://localhost:8080/api/usuarios/verificar', {
+      const resposta = await fetch('https://api.avle.com.br/api/usuarios/verificar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, codigo: codigoOtp }),
@@ -225,7 +219,7 @@ function Autenticacao() {
     }
 
     try {
-      const resposta = await fetch('http://localhost:8080/api/auth/esqueceu-senha', {
+      const resposta = await fetch('https://api.avle.com.br/api/auth/esqueceu-senha', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -260,7 +254,7 @@ function Autenticacao() {
     }
 
     try {
-      const resposta = await fetch('http://localhost:8080/api/auth/redefinir-senha', {
+      const resposta = await fetch('https://api.avle.com.br/api/auth/redefinir-senha', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, codigo: codigoOtp, novaSenha })
