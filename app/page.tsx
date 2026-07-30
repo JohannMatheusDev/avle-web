@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TelaCarregamento from './dashboard/components/TelaCarregamento';
 
+// Configuração da URL da API vinda do .env.local
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
+
 // -------------------------------------------------------------
 // COMPONENTE PRINCIPAL DA PÁGINA (GERENCIADOR DE FLUXO E F5)
 // -------------------------------------------------------------
@@ -52,7 +55,7 @@ export default function Home() {
 }
 
 // -------------------------------------------------------------
-// COMPONENTE DE AUTENTICACIÓN
+// COMPONENTE DE AUTENTICAÇÃO
 // -------------------------------------------------------------
 function Autenticacao() {
   const router = useRouter();
@@ -125,7 +128,7 @@ function Autenticacao() {
 
     try {
       if (isLogin) {
-        const resposta = await fetch('https://api.avle.com.br/api/auth/login', {
+        const resposta = await fetch(`${API_URL}/api/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, senha }),
@@ -144,7 +147,7 @@ function Autenticacao() {
         router.push('/dashboard');
 
       } else {
-        const resposta = await fetch('https://api.avle.com.br/api/usuarios/cadastro', {
+        const resposta = await fetch(`${API_URL}/api/usuarios/cadastro`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -157,9 +160,12 @@ function Autenticacao() {
           }),
         });
 
-        if (!resposta.ok) throw new Error('Erro ao realizar cadastro. Verifique se o documento já existe.');
+        if (!resposta.ok) {
+          const textoErro = await resposta.text();
+          throw new Error(textoErro || 'Erro ao realizar cadastro.');
+        }
 
-        setMensagem({ tipo: 'sucesso', texto: 'Cliente cadastrado e conta ativada com sucesso!' });
+        setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso!' });
         
         setTimeout(() => {
           setIsLogin(true);
@@ -184,7 +190,7 @@ function Autenticacao() {
     setCarregando(true);
 
     try {
-      const resposta = await fetch('https://api.avle.com.br/api/usuarios/verificar', {
+      const resposta = await fetch(`${API_URL}/api/usuarios/verificar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, codigo: codigoOtp }),
@@ -219,7 +225,7 @@ function Autenticacao() {
     }
 
     try {
-      const resposta = await fetch('https://api.avle.com.br/api/auth/esqueceu-senha', {
+      const resposta = await fetch(`${API_URL}/api/auth/esqueceu-senha`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -254,7 +260,7 @@ function Autenticacao() {
     }
 
     try {
-      const resposta = await fetch('https://api.avle.com.br/api/auth/redefinir-senha', {
+      const resposta = await fetch(`${API_URL}/api/auth/redefinir-senha`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, codigo: codigoOtp, novaSenha })
@@ -310,12 +316,12 @@ function Autenticacao() {
             <form onSubmit={handleConfirmarCodigo} className="p-6 flex-1 flex flex-col justify-between space-y-4 animate-fade-in text-left">
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificacao de Conta</h3>
-                  <p className="text-xs text-stone-400 mt-1">Insira o codigo verificador de 6 digitos enviado para o e-mail: <br /><strong className="text-[#BD6B42] font-semibold">{email}</strong></p>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificação de Conta</h3>
+                  <p className="text-xs text-stone-400 mt-1">Insira o código verificador de 6 dígitos enviado para o e-mail: <br /><strong className="text-[#BD6B42] font-semibold">{email}</strong></p>
                 </div>
                 {mensagem.texto && <div className={`p-3 rounded-xl text-xs font-bold border ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>{mensagem.texto}</div>}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Codigo de Confirmacao (6 digitos)</label>
+                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Código de Confirmação (6 dígitos)</label>
                   <input type="text" maxLength={6} placeholder="000000" value={codigoOtp} onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))} className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} />
                 </div>
               </div>
@@ -417,7 +423,6 @@ function Autenticacao() {
                       <input type="text" maxLength={tipoUsuario === 'LOJA' ? 14 : 11} placeholder={tipoUsuario === 'LOJA' ? "00000000000000" : "00000000000"} value={cpf} onChange={(e) => setCpf(e.target.value.replace(/\D/g, ''))} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                     </div>
 
-                    {/* Telefone opcional no cadastro */}
                     <div>
                       <div className="flex justify-between items-center mb-1">
                         <label className="block text-[10px] font-bold uppercase text-stone-500">Telefone / Celular (Opcional)</label>
@@ -427,7 +432,6 @@ function Autenticacao() {
                   </div>
                 )}
 
-                {/* E-mail opcional no cadastro / Obrigatório no Login */}
                 <div>
                   <div className="flex justify-between items-center mb-1">
                     <label className="block text-[10px] font-bold uppercase text-stone-500">{isLogin ? 'E-mail *' : 'E-mail (Opcional)'}</label>
