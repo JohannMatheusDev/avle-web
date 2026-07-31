@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+// Configuração da URL da API vinda do .env.local
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
+
 export default function DashboardCliente({ usuario: usuarioInicial }: { usuario: any }) {
   const router = useRouter();
   
@@ -55,15 +58,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   const aplicarMascaraTelefone = (valor: string) => {
     const apenasNumeros = valor.replace(/\D/g, '');
-    if (apenasNumeros.length <= 2) {
-      return apenasNumeros;
-    }
-    if (apenasNumeros.length <= 6) {
-      return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2)}`;
-    }
-    if (apenasNumeros.length <= 10) {
-      return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 6)}-${apenasNumeros.slice(6)}`;
-    }
+    if (apenasNumeros.length <= 2) return apenasNumeros;
+    if (apenasNumeros.length <= 6) return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2)}`;
+    if (apenasNumeros.length <= 10) return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 6)}-${apenasNumeros.slice(6)}`;
     return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 7)}-${apenasNumeros.slice(7, 11)}`;
   };
 
@@ -104,7 +101,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     const userId = fallbackUserId || usuario?.id;
     if (!userId) return;
 
-    fetch(`http://localhost:8080/api/usuarios/${userId}/clubes-ativos`)
+    fetch(`${API_URL}/api/usuarios/${userId}/clubes-ativos`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -151,7 +148,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     if (currentUserId) {
       buscarCarteiraDeClubes(undefined, currentUserId);
 
-      fetch(`http://localhost:8080/api/usuarios/${currentUserId}`)
+      fetch(`${API_URL}/api/usuarios/${currentUserId}`)
         .then((res) => {
           if (!res.ok) throw new Error();
           return res.json();
@@ -175,7 +172,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         });
     }
 
-    fetch('http://localhost:8080/api/financeiro/lojas')
+    // 🚀 ROTA CORRIGIDA AQUI:
+    fetch(`${API_URL}/api/lojas/listar-todas`)
       .then((res) => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -196,7 +194,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     setGrupos([]);
     setCarregandoOpcoes(true);
 
-    fetch(`http://localhost:8080/api/grupos/loja/${loja.id}`)
+    fetch(`${API_URL}/api/grupos/loja/${loja.id}`)
       .then((res) => res.json())
       .then((data) => setGrupos(data))
       .catch(() => setGrupos([]))
@@ -205,7 +203,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   const handlePersistirClubeNoBanco = async (grupo: any) => {
     try {
-      const res = await fetch(`http://localhost:8080/api/usuarios/${usuario?.id}/vincular-clube`, {
+      const res = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/vincular-clube`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -249,7 +247,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         const base64String = leitor.result as string;
 
         try {
-          const res = await fetch(`http://localhost:8080/api/usuarios/${usuario?.id}/foto`, {
+          const res = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/foto`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fotoPerfil: base64String }),
@@ -290,7 +288,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     }
 
     try {
-      const res = await fetch(`http://localhost:8080/api/usuarios/${userId}`, {
+      const res = await fetch(`${API_URL}/api/usuarios/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -674,7 +672,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
                 <button 
                   type="button"
-                  onClick={() => window.open(`http://localhost:8080/api/lojas/${lojaSelecionada.id}/regras`, '_blank')}
+                  onClick={() => window.open(`${API_URL}/api/lojas/${lojaSelecionada.id}/regras`, '_blank')}
                   className="px-4 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-opacity-90 cursor-pointer transition-all"
                 >
                   Visualizar Contrato PDF
@@ -769,7 +767,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               <div className="bg-stone-50 p-4 rounded-xl border border-dashed border-stone-200 space-y-2 max-w-sm">
                 <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider flex items-center justify-between">
                   <span>CPF / CNPJ do Titular</span>
-                  <span className="text-xs text-stone-400" title="Informacao imutavel por seguranca contratual">Protegido</span>
+                  <span className="text-xs text-[#0B1E14]" title="Informacao imutavel por seguranca contratual">Protegido</span>
                 </label>
                 <input 
                   type="text" 
@@ -904,7 +902,7 @@ function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number
   useEffect(() => {
     if (!cotaId) return;
     setCarregandoPix(true);
-    fetch('http://localhost:8080/api/pagamentos/gerar-pix', {
+    fetch(`${API_URL}/api/pagamentos/gerar-pix`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ valor, cotaId }),
