@@ -173,6 +173,33 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   };
 
+  const handleExcluirGrupo = async (grupoId: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+
+    if (!confirm('Tem certeza que deseja excluir este grupo de compras? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/grupos/${grupoId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const textoErro = await res.text();
+        throw new Error(textoErro || 'Falha ao excluir grupo.');
+      }
+
+      mostrarAviso('Grupo Removido', 'O grupo foi excluído com sucesso do sistema.', false);
+      if (grupoSelecionado?.id === grupoId) {
+        setGrupoSelecionado(null);
+      }
+      carregarGruposDoBanco();
+    } catch (err: any) {
+      mostrarAviso('Erro ao Excluir', err.message, true);
+    }
+  };
+
   const handleLancarPagamentoManual = async (e: React.FormEvent) => {
     e.preventDefault();
     if (idOperacao === 'Nenhuma') {
@@ -364,7 +391,16 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
         {grupoSelecionado ? (
           <div className="space-y-6 animate-fadeIn">
-            <button onClick={() => setGrupoSelecionado(null)} className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] transition-all bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs"> Voltar para a Listagem</button>
+            <div className="flex justify-between items-center">
+              <button onClick={() => setGrupoSelecionado(null)} className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] transition-all bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs"> Voltar para a Listagem</button>
+              
+              <button 
+                onClick={(e) => handleExcluirGrupo(grupoSelecionado.id, e)}
+                className="text-xs font-bold text-rose-700 hover:text-white hover:bg-rose-700 transition-all bg-rose-50 border border-rose-200 px-4 py-2 rounded-xl cursor-pointer shadow-xs"
+              >
+                Excluir Grupo
+              </button>
+            </div>
 
             <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
               <div>
@@ -485,7 +521,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <div 
                       key={grupo.id} 
                       onClick={() => setGrupoSelecionado(grupo)}
-                      className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs hover:border-[#BD6B42] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
+                      className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs hover:border-[#BD6B42] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group relative"
                     >
                       <div className="flex justify-between items-start">
                         <div>
@@ -498,7 +534,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       </div>
                       <div className="flex justify-between items-center text-xs border-t pt-3">
                         <span className="text-stone-400 font-medium">Parcela: <strong className="text-[#0B1E14]">R$ {grupo.valorParcela.toFixed(2)}</strong></span>
-                        <span className="text-[10px] text-[#BD6B42] font-bold uppercase tracking-wider">Ver Participantes</span>
+                        
+                        <div className="flex items-center gap-3">
+                          <button 
+                            type="button"
+                            onClick={(e) => handleExcluirGrupo(grupo.id, e)}
+                            className="text-[10px] text-rose-600 hover:text-rose-800 font-bold uppercase tracking-wider hover:underline z-10"
+                          >
+                            Excluir
+                          </button>
+                          <span className="text-[10px] text-[#BD6B42] font-bold uppercase tracking-wider">Ver Participantes</span>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -693,7 +739,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </div>
               </div>
               <div className="flex space-x-2 pt-2 border-t w-full">
-                <button type="button" onClick={() => setModalNovoGrupoAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold transition-colors hover:bg-stone-50">Cancelar</button>
+                <button type="button" onClick={() => setModalNovoGrupoAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer">Cancelar</button>
                 <button 
                   type="submit"
                   className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold"
