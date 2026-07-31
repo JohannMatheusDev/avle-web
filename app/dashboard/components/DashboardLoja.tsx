@@ -14,7 +14,7 @@ interface Grupo {
 export default function DashboardLoja({ usuario }: { usuario: any }) {
   const router = useRouter();
   
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
   
   const [abaLoja, setAbaLoja] = useState<'geral' | 'grupos' | 'sorteios' | 'financeiro' | 'relatorios' | 'configuracoes'>('geral');
   const [obrigacoesFuturas, setObrigacoesFuturas] = useState<number>(0);
