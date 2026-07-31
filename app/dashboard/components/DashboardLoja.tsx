@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation'; 
 
+// Configuração da URL da API vinda do .env.local
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
+
 interface Grupo {
   id: number;
   nome: string;
@@ -13,8 +16,6 @@ interface Grupo {
 
 export default function DashboardLoja({ usuario }: { usuario: any }) {
   const router = useRouter();
-  
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
   
   const [abaLoja, setAbaLoja] = useState<'geral' | 'grupos' | 'sorteios' | 'financeiro' | 'relatorios' | 'configuracoes'>('geral');
   const [obrigacoesFuturas, setObrigacoesFuturas] = useState<number>(0);
@@ -28,6 +29,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [listaGrupos, setListaGrupos] = useState<Grupo[]>([]);
   const [modalNovoGrupoAberto, setModalNovoGrupoAberto] = useState(false);
   const [modalSaqueAberto, setModalSaqueAberto] = useState(false);
+
+  // Estados para Baixa Manual de Parcelas
+  const [modalPagamentoManualAberto, setModalPagamentoManualAberto] = useState(false);
+  const [qtdParcelasManual, setQtdParcelasManual] = useState('1');
+  const [processandoPagamentoManual, setProcessandoPagamentoManual] = useState(false);
   
   const [chavePix, setChavePix] = useState('');
 
@@ -153,7 +159,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       });
       
       if (!res.ok) {
-        throw new Error('Falha ao registrar novo clube de compras.');
+        const erroServidor = await res.text();
+        throw new Error(erroServidor || 'Falha ao registrar novo clube de compras.');
       }
       
       mostrarAviso('Sucesso Comercial', 'Clube de Compras lançado com sucesso!', false);
@@ -166,13 +173,48 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   };
 
+  const handleLancarPagamentoManual = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (idOperacao === 'Nenhuma') {
+      mostrarAviso('Seleção Necessária', 'Selecione uma cota na tabela antes de lançar o pagamento.', true);
+      return;
+    }
+
+    setProcessandoPagamentoManual(true);
+    try {
+      const res = await fetch(`${API_URL}/api/entregas/${idOperacao}/pagamento-manual`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quantidadeParcelas: parseInt(qtdParcelasManual)
+        })
+      });
+
+      if (!res.ok) {
+        const textoErro = await res.text();
+        throw new Error(textoErro || 'Falha ao registrar pagamento manual.');
+      }
+
+      const mensagemSucesso = await res.text();
+      mostrarAviso('Baixa Efetuada', mensagemSucesso, false);
+      setModalPagamentoManualAberto(false);
+      setQtdParcelasManual('1');
+      recarregarParticipantesDoGrupo();
+    } catch (err: any) {
+      mostrarAviso('Erro de Lançamento', err.message, true);
+    } finally {
+      setProcessandoPagamentoManual(false);
+    }
+  };
+
   const ejecutarSorteioLoja = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoadingSorteio(true);
     try {
       const res = await fetch(`${API_URL}/api/usuarios/sorteios/executar/${grupoSorteioId}`, { method: 'POST' });
       if (!res.ok) {
-        throw new Error('Nenhum participante adimplente apto encontrado neste ciclo.');
+        const textoErro = await res.text();
+        throw new Error(textoErro || 'Nenhum participante adimplente apto encontrado neste ciclo.');
       }
       
       const data = await res.json();
@@ -200,8 +242,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       return;
     }
     try {
-      const res = await fetch(`${API_URL}/api/usuarios/entregas/${idOperacao}/${endpoint}${query}`, { method: 'PUT' });
-      if (!res.ok) throw new Error('Falha ao atualizar o status operacional no sistema.');
+      const res = await fetch(`${API_URL}/api/entregas/${idOperacao}/${endpoint}${query}`, { method: 'PUT' });
+      if (!res.ok) {
+        const textoErro = await res.text();
+        throw new Error(textoErro || 'Falha ao atualizar o status operacional no sistema.');
+      }
       mostrarAviso('Fluxo Atualizado', 'Status de controle logístico atualizado com sucesso!', false);
       if (grupoSelecionado) recarregarParticipantesDoGrupo();
     } catch (err: any) { 
@@ -341,9 +386,25 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             </div>
 
             <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
-              <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex justify-between items-center">
-                <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Mapeamento de Integrantes (Selecione uma linha para liberar o fluxo de entrega)</h3>
-                {idOperacao !== 'Nenhuma' && <span className="text-xs bg-[#BD6B42] text-white px-3 py-1 rounded-lg font-mono font-bold">Cota Alvo: #{idOperacao}</span>}
+              <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                  <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Mapeamento de Integrantes</h3>
+                  <p className="text-[10px] text-stone-400 font-medium">Selecione uma linha para registrar baixas manuais ou liberar entregas.</p>
+                </div>
+                
+                {idOperacao !== 'Nenhuma' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs bg-[#BD6B42] text-white px-3 py-1.5 rounded-lg font-mono font-bold">
+                      Cota Alvo: #{idOperacao}
+                    </span>
+                    <button 
+                      onClick={() => setModalPagamentoManualAberto(true)}
+                      className="bg-[#0B1E14] text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer shadow-xs"
+                    >
+                      + Baixa Manual
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
@@ -645,6 +706,63 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         </div>
       )}
 
+      {modalPagamentoManualAberto && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center border-b pb-3">
+              <div>
+                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Lançar Pagamento Manual</h3>
+                <p className="text-[10px] text-stone-400 font-mono">Cota selecionada: #{idOperacao}</p>
+              </div>
+              <button onClick={() => setModalPagamentoManualAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
+            </div>
+
+            <form onSubmit={handleLancarPagamentoManual} className="space-y-4 text-xs">
+              <p className="text-stone-500 bg-stone-50 p-3 rounded-xl border border-dashed text-[11px] leading-relaxed">
+                Utilize esta opção para dar baixa nas parcelas que a participante já pagou presencialmente na loja (dinheiro, PIX direto ou cartão).
+              </p>
+
+              <div>
+                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">
+                  Quantidade de Parcelas a Quitar
+                </label>
+                <input 
+                  type="number" 
+                  min="1"
+                  max={grupoSelecionado?.duracaoMeses || 48}
+                  value={qtdParcelasManual}
+                  onChange={(e) => setQtdParcelasManual(e.target.value)}
+                  className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-bold focus:outline-none focus:border-[#BD6B42]"
+                  required 
+                />
+                {grupoSelecionado && (
+                  <p className="text-[10px] text-emerald-700 font-mono font-bold mt-1.5">
+                    Valor Total a Injetar: R$ {(Number(qtdParcelasManual) * Number(grupoSelecionado.valorParcela)).toFixed(2)}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex space-x-2 pt-2 border-t w-full">
+                <button 
+                  type="button" 
+                  onClick={() => setModalPagamentoManualAberto(false)} 
+                  className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  disabled={processandoPagamentoManual}
+                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
+                >
+                  {processandoPagamentoManual ? 'Gravando...' : 'Confirmar Baixa'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {modalSaqueAberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
@@ -663,7 +781,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
 
               <div className="flex space-x-2 pt-2 border-t w-full">
-                <button type="button" onClick={() => setModalSaqueAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold">Cancelar</button>
+                <button type="button" onClick={() => setModalSaqueAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold cursor-pointer">Cancelar</button>
                 <button 
                   type="button" 
                   onClick={async () => {
