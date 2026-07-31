@@ -68,7 +68,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   });
 
   const carregarGruposDoBanco = () => {
-    fetch(`${baseUrl}/api/grupos/loja/${usuario?.lojaId || 1}`)
+    fetch(`${API_URL}/api/grupos/loja/${usuario?.lojaId || 1}`)
       .then((res) => res.ok ? res.json() : [])
       .then((data) => {
         if (Array.isArray(data)) {
@@ -83,12 +83,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   };
 
   const carregarDadosFinanceiros = () => {
-    fetch(`${baseUrl}/api/financeiro/obrigacoes/loja/${usuario?.lojaId || 1}`)
+    fetch(`${API_URL}/api/financeiro/obrigacoes/loja/${usuario?.lojaId || 1}`)
       .then(res => res.ok ? res.json() : 0)
       .then(valor => setObrigacoesFuturas(Number(valor) || 0))
       .catch(() => setObrigacoesFuturas(0.00));
 
-    fetch(`${baseUrl}/api/financeiro/loja/${usuario?.lojaId || 1}/resumo`)
+    fetch(`${API_URL}/api/financeiro/loja/${usuario?.lojaId || 1}/resumo`)
       .then(res => res.ok ? res.json() : { recebidoEsteMes: 0, aReceberContemplados: 0, emNegociacao: 0, acordosAtivos: 0, repasses: [] })
       .then(data => {
         setDadosFinanceiros(data);
@@ -97,7 +97,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   };
 
   const carregarContagemClientes = (lojaId: number) => {
-    fetch(`${baseUrl}/api/lojas/${lojaId}/clientes/contagem`)
+    fetch(`${API_URL}/api/lojas/${lojaId}/clientes/contagem`)
       .then((res) => res.ok ? res.json() : { totalClientes: 0 })
       .then((data) => {
         setTotalClientes(Number(data.totalClientes) || 0);
@@ -109,7 +109,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   const recarregarParticipantesDoGrupo = () => {
     if (!grupoSelecionado) return;
-    fetch(`${baseUrl}/api/usuarios/comunidade/${grupoSelecionado.id}/participantes`)
+    fetch(`${API_URL}/api/usuarios/comunidade/${grupoSelecionado.id}/participantes`)
       .then((res) => res.ok ? res.json() : [])
       .then((data) => {
         if (Array.isArray(data)) setParticipantesDoGrupo(data);
@@ -123,7 +123,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     carregarDadosFinanceiros();
     carregarContagemClientes(lojaId);
 
-    fetch(`${baseUrl}/api/financeiro/loja/${lojaId}/relatorios`)
+    fetch(`${API_URL}/api/financeiro/loja/${lojaId}/relatorios`)
       .then(res => res.ok ? res.json() : { marginEsteMes: 0, marginAcumulada: 0, cohort: [], auditoria: [] })
       .then(data => setDadosRelatorios(data))
       .catch(() => {});
@@ -146,7 +146,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         lojaId: usuario?.lojaId || 1 
       };
       
-      const res = await fetch(`${baseUrl}/api/grupos/criar`, { 
+      const res = await fetch(`${API_URL}/api/grupos/criar`, { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
         body: JSON.stringify(payload) 
@@ -170,7 +170,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     e.preventDefault();
     setLoadingSorteio(true);
     try {
-      const res = await fetch(`${baseUrl}/api/usuarios/sorteios/executar/${grupoSorteioId}`, { method: 'POST' });
+      const res = await fetch(`${API_URL}/api/usuarios/sorteios/executar/${grupoSorteioId}`, { method: 'POST' });
       if (!res.ok) {
         throw new Error('Nenhum participante adimplente apto encontrado neste ciclo.');
       }
@@ -200,7 +200,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       return;
     }
     try {
-      const res = await fetch(`${baseUrl}/api/usuarios/entregas/${idOperacao}/${endpoint}${query}`, { method: 'PUT' });
+      const res = await fetch(`${API_URL}/api/usuarios/entregas/${idOperacao}/${endpoint}${query}`, { method: 'PUT' });
       if (!res.ok) throw new Error('Falha ao atualizar o status operacional no sistema.');
       mostrarAviso('Fluxo Atualizado', 'Status de controle logístico atualizado com sucesso!', false);
       if (grupoSelecionado) recarregarParticipantesDoGrupo();
@@ -233,7 +233,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     formData.append('file', arquivoPdf);
 
     try {
-      const res = await fetch(`${baseUrl}/api/lojas/${usuario?.lojaId || 1}/regras`, {
+      const res = await fetch(`${API_URL}/api/lojas/${usuario?.lojaId || 1}/regras`, {
         method: 'POST',
         body: formData,
       });
@@ -515,7 +515,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       onClick={async () => {
                         if (!chavePix.trim()) { mostrarAviso('Campo Obrigatório', 'Por favor, digite uma chave PIX válida.', true); return; }
                         try {
-                          const res = await fetch(`${baseUrl}/api/financeiro/loja/${usuario?.lojaId || 1}/configurar-pix`, {
+                          const res = await fetch(`${API_URL}/api/financeiro/loja/${usuario?.lojaId || 1}/configurar-pix`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ chavePix: chavePix })
@@ -668,7 +668,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   type="button" 
                   onClick={async () => {
                     try {
-                      const res = await fetch(`${baseUrl}/api/financeiro/loja/${usuario?.lojaId || 1}/solicitar-saque`, {
+                      const res = await fetch(`${API_URL}/api/financeiro/loja/${usuario?.lojaId || 1}/solicitar-saque`, {
                         method: 'POST'
                       });
                       
