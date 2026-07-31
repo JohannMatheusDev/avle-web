@@ -1,719 +1,964 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation'; 
+import { useRouter } from 'next/navigation';
 
-interface Grupo {
-  id: number;
-  nome: string;
-  valorParcela: number;
-  duracaoMeses: number;
-  quantidadeMaxCotas: number;
-}
+// Configuração da URL da API vinda do .env.local
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
-export default function DashboardLoja({ usuario }: { usuario: any }) {
+export default function DashboardCliente({ usuario: usuarioInicial }: { usuario: any }) {
   const router = useRouter();
   
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
+  const [usuario, setUsuario] = useState(usuarioInicial);
   
-  const [abaLoja, setAbaLoja] = useState<'geral' | 'grupos' | 'sorteios' | 'financeiro' | 'relatorios' | 'configuracoes'>('geral');
-  const [obrigacoesFuturas, setObrigacoesFuturas] = useState<number>(0);
-  const [idOperacao, setIdOperacao] = useState('Nenhuma');
-  const [grupoSorteioId, setGrupoSorteioId] = useState('');
-  const [loadingSorteio, setLoadingSorteio] = useState(false);
+  const [nomeInput, setNomeInput] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  const [cpfInput, setCpfInput] = useState('');
+  const [telefoneInput, setTelefoneInput] = useState(''); 
+  const [fotoPerfil, setFotoPerfil] = useState<string | null>(null);
 
-  const [grupoSelecionado, setGrupoSelecionado] = useState<Grupo | null>(null);
-  const [participantesDoGrupo, setParticipantesDoGrupo] = useState<any[]>([]);
+  const [abaAtiva, setAbaAtiva] = useState<'inicio' | 'extrato' | 'regras' | 'ajuda' | 'perfil'>('inicio');
+  const [saldoPoupanca, setSaldoPoupanca] = useState<number>(0);
+  const [modalCheckoutAberto, setModalCheckoutAberto] = useState(false);
 
-  const [listaGrupos, setListaGrupos] = useState<Grupo[]>([]);
-  const [modalNovoGrupoAberto, setModalNovoGrupoAberto] = useState(false);
-  const [modalSaqueAberto, setModalSaqueAberto] = useState(false);
+  const [lojas, setLojas] = useState<any[]>([]);
+  const [grupos, setGrupos] = useState<any[]>([]);
   
-  const [chavePix, setChavePix] = useState('');
+  const [lojaSelecionada, setLojaSelecionada] = useState<any | null>(null);
+  const [grupoSelecionado, setGrupoSelecionado] = useState<any | null>(null);
+  const [carregandoOpcoes, setCarregandoOpcoes] = useState(false);
+  const [erroConexao, setErroConexao] = useState(false);
 
-  const [arquivoPdf, setArquivoPdf] = useState<File | null>(null);
-  const [enviandoPdf, setEnviandoPdf] = useState(false);
+  const [dropdownLojaAberto, setDropdownLojaAberto] = useState(false);
 
-  const [totalClientes, setTotalClientes] = useState<number>(0);
+  const [clubesAtivos, setClubesAtivos] = useState<any[]>([]);
+  const [clubeAtualSelecionado, setClubeAtualSelecionado] = useState<any | null>(null);
 
-  const [notificacao, setNotificacao] = useState<{
-    aberto: boolean;
-    titulo: string;
-    mensagem: string;
-    isError?: boolean;
-  }>({ aberto: false, titulo: '', mensagem: '', isError: false });
+  const [exibindoPaginaClube, setExibindoPaginaClube] = useState(false);
 
-  const mostrarAviso = (titulo: string, mensagem: string, isError: boolean = false) => {
-    setNotificacao({ aberto: true, titulo, mensagem, isError });
+  const [salvandoPerfil, setSalvandoPerfil] = useState(false);
+  const [carregandoDados, setCarregandoDados] = useState(true); 
+  const [statusSalvar, setStatusSalvar] = useState<'sucesso' | 'erro' | null>(null);
+
+  const totalObjetivo = grupoSelecionado ? Number(grupoSelecionado.valorParcela) * Number(grupoSelecionado.duracaoMeses) : 0;
+  const valorMensalidade = grupoSelecionado ? Number(grupoSelecionado.valorParcela) : 0;
+
+  const [dataVencimentoCota, setDataVencimentoCota] = useState('');
+  const [diasRestantesVencimento, setDiasRestantesVencimento] = useState(0);
+  const [exibirBannerAlerta, setExibirBannerAlerta] = useState(false);
+
+  const percentual = totalObjetivo > 0 ? Math.min(Math.round((saldoPoupanca / totalObjetivo) * 100), 100) : 0;
+
+  let etapaAtual = 1; 
+  if (saldoPoupanca > 0 && saldoPoupanca < totalObjetivo) {
+    etapaAtual = 2;   
+  } else if (saldoPoupanca >= totalObjetivo) {
+    etapaAtual = 4;   
+  }
+
+  const aplicarMascaraTelefone = (valor: string) => {
+    const apenasNumeros = valor.replace(/\D/g, '');
+    if (apenasNumeros.length <= 2) {
+      return apenasNumeros;
+    }
+    if (apenasNumeros.length <= 6) {
+      return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2)}`;
+    }
+    if (apenasNumeros.length <= 10) {
+      return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 6)}-${apenasNumeros.slice(6)}`;
+    }
+    return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 7)}-${apenasNumeros.slice(7, 11)}`;
   };
-  
-  const [nomeGrupo, setNomeGrupo] = useState('');
-  const [valorParcela, setValorParcela] = useState('');
-  const [duracaoMeses, setDuracaoMeses] = useState('24');
-  const [maxCotas, setMaxCotas] = useState('40');
 
-  const [dadosFinanceiros, setDadosFinanceiros] = useState<any>({
-    recebidoEsteMes: 0.00, 
-    aReceberContemplados: 0.00, 
-    emNegociacao: 0.00, 
-    acordosAtivos: 0, 
-    repasses: []
-  });
+  const aplicarMascaraCpfCnpj = (valor: string) => {
+    const apenasNumeros = valor.replace(/\D/g, '');
+    if (apenasNumeros.length <= 11) {
+      return apenasNumeros.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/g, "$1.$2.$3-$4");
+    }
+    return apenasNumeros.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/g, "$1.$2.$3/$4-$5");
+  };
 
-  const [dadosRelatorios, setDadosRelatorios] = useState<any>({
-    marginEsteMes: 0.00, 
-    marginAcumulada: 0.00, 
-    cohort: [], 
-    auditoria: []
-  });
+  useEffect(() => {
+    const hoje = new Date();
+    const diaAtual = hoje.getDate();
+    let ano = hoje.getFullYear();
+    let mes = hoje.getMonth() + 1;
 
-  const carregarGruposDoBanco = () => {
-    fetch(`${API_URL}/api/grupos/loja/${usuario?.lojaId || 1}`)
-      .then((res) => res.ok ? res.json() : [])
+    if (diaAtual > 10) {
+      mes += 1;
+      if (mes > 12) { mes = 1; ano += 1; }
+    }
+
+    const dataVencimento = new Date(ano, mes - 1, 10);
+    const diffTime = dataVencimento.getTime() - hoje.getTime();
+    const diasCalculados = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    setDiasRestantesVencimento(diasCalculados);
+    setDataVencimentoCota(`10/${mes < 10 ? '0' + mes : mes}/${ano}`);
+
+    if ([1, 5, 8, 9, 10].includes(diaAtual) && diaAtual <= 10) {
+      setExibirBannerAlerta(true);
+    } else {
+      setExibirBannerAlerta(false);
+    }
+  }, [abaAtiva]);
+
+  const buscarCarteiraDeClubes = (forcedId?: number, fallbackUserId?: number) => {
+    const userId = fallbackUserId || usuario?.id;
+    if (!userId) return;
+
+    fetch(`${API_URL}/api/usuarios/${userId}/clubes-ativos`)
+      .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setListaGrupos(data);
-        } else {
-          setListaGrupos([]);
+          setClubesAtivos(data);
+          if (data.length > 0) {
+            const clubeParaFocar = forcedId ? data.find(c => c.grupo.id === forcedId) || data[0] : data[0];
+            setClubeAtualSelecionado(clubeParaFocar);
+            setLojaSelecionada(clubeParaFocar.loja);
+            setGrupoSelecionado(clubeParaFocar.grupo);
+            setSaldoPoupanca(Number(clubeParaFocar.saldoPoupanca) || 0);
+          } else {
+            setClubeAtualSelecionado(null);
+            setLojaSelecionada(null);
+            setGrupoSelecionado(null);
+            setSaldoPoupanca(0);
+          }
         }
       })
       .catch(() => {
-        setListaGrupos([]);
+        setClubesAtivos([]);
       });
   };
 
-  const carregarDadosFinanceiros = () => {
-    fetch(`${API_URL}/api/financeiro/obrigacoes/loja/${usuario?.lojaId || 1}`)
-      .then(res => res.ok ? res.json() : 0)
-      .then(valor => setObrigacoesFuturas(Number(valor) || 0))
-      .catch(() => setObrigacoesFuturas(0.00));
-
-    fetch(`${API_URL}/api/financeiro/loja/${usuario?.lojaId || 1}/resumo`)
-      .then(res => res.ok ? res.json() : { recebidoEsteMes: 0, aReceberContemplados: 0, emNegociacao: 0, acordosAtivos: 0, repasses: [] })
-      .then(data => {
-        setDadosFinanceiros(data);
-      })
-      .catch(() => {});
+  const handleMudarClubeEmExibicao = (clube: any) => {
+    setClubeAtualSelecionado(clube);
+    setLojaSelecionada(clube.loja);
+    setGrupoSelecionado(clube.grupo);
+    setSaldoPoupanca(Number(clube.saldoPoupanca) || 0);
+    setExibindoPaginaClube(true); 
   };
 
-  const carregarContagemClientes = (lojaId: number) => {
-    fetch(`${API_URL}/api/lojas/${lojaId}/clientes/contagem`)
-      .then((res) => res.ok ? res.json() : { totalClientes: 0 })
+  useEffect(() => {
+    let currentUserId = usuario?.id;
+
+    if (!currentUserId) {
+      const usuarioLogado = localStorage.getItem('@avle:usuario');
+      if (usuarioLogado) {
+        const user = JSON.parse(usuarioLogado);
+        setUsuario(user);
+        currentUserId = user.id;
+      }
+    }
+
+    if (currentUserId) {
+      buscarCarteiraDeClubes(undefined, currentUserId);
+
+      fetch(`${API_URL}/api/usuarios/${currentUserId}`)
+        .then((res) => {
+          if (!res.ok) throw new Error();
+          return res.json();
+        })
+        .then((data) => {
+          if (data) {
+            setNomeInput(data.nome || '');
+            setEmailInput(data.email || '');
+            setTelefoneInput(data.telefone ? aplicarMascaraTelefone(data.telefone) : '');
+            setFotoPerfil(data.fotoPerfil || null);
+            
+            const documento = data.cpf || data.cpfCnpj || data.cpf_cnpj || data.documento || '';
+            setCpfInput(documento ? aplicarMascaraCpfCnpj(documento) : '');
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+        })
+        .finally(() => {
+          setCarregandoDados(false); 
+        });
+    }
+
+    fetch(`${API_URL}/api/financeiro/lojas`)
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
       .then((data) => {
-        setTotalClientes(Number(data.totalClientes) || 0);
+        setLojas(data);
+        setErroConexao(false);
       })
       .catch(() => {
-        setTotalClientes(0);
+        setLojas([]);
+        setErroConexao(true);
       });
+  }, [usuario?.id]);
+
+  const handleSelecionarLojaCustom = (loja: any) => {
+    setLojaSelecionada(loja);
+    setDropdownLojaAberto(false);
+    setGrupos([]);
+    setCarregandoOpcoes(true);
+
+    fetch(`${API_URL}/api/grupos/loja/${loja.id}`)
+      .then((res) => res.json())
+      .then((data) => setGrupos(data))
+      .catch(() => setGrupos([]))
+      .finally(() => setCarregandoOpcoes(false));
   };
 
-  const recarregarParticipantesDoGrupo = () => {
-    if (!grupoSelecionado) return;
-    fetch(`${API_URL}/api/usuarios/comunidade/${grupoSelecionado.id}/participantes`)
-      .then((res) => res.ok ? res.json() : [])
-      .then((data) => {
-        if (Array.isArray(data)) setParticipantesDoGrupo(data);
-      })
-      .catch(() => setParticipantesDoGrupo([]));
-  };
-
-  useEffect(() => {
-    const lojaId = usuario?.lojaId || 1;
-    carregarGruposDoBanco();
-    carregarDadosFinanceiros();
-    carregarContagemClientes(lojaId);
-
-    fetch(`${API_URL}/api/financeiro/loja/${lojaId}/relatorios`)
-      .then(res => res.ok ? res.json() : { marginEsteMes: 0, marginAcumulada: 0, cohort: [], auditoria: [] })
-      .then(data => setDadosRelatorios(data))
-      .catch(() => {});
-  }, [usuario?.lojaId]);
-
-  useEffect(() => {
-    if (grupoSelecionado) {
-      recarregarParticipantesDoGrupo();
-    }
-  }, [grupoSelecionado]);
-
-  const handleCriarGrupo = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePersistirClubeNoBanco = async (grupo: any) => {
     try {
-      const payload = { 
-        nome: nomeGrupo, 
-        valorParcela: parseFloat(valorParcela), 
-        duracaoMeses: parseInt(duracaoMeses), 
-        quantidadeMaxCotas: parseInt(maxCotas), 
-        lojaId: usuario?.lojaId || 1 
-      };
-      
-      const res = await fetch(`${API_URL}/api/grupos/criar`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify(payload) 
+      const res = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/vincular-clube`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lojaId: Number(lojaSelecionada?.id),
+          grupoId: Number(grupo?.id)
+        })
       });
-      
-      if (!res.ok) {
-        throw new Error('Falha ao registrar novo clube de compras.');
-      }
-      
-      mostrarAviso('Sucesso Comercial', 'Clube de Compras lançado com sucesso!', false);
-      setNomeGrupo(''); 
-      setValorParcela(''); 
-      setModalNovoGrupoAberto(false);
-      carregarGruposDoBanco();
-    } catch (err: any) { 
-      mostrarAviso('Erro Operacional', err.message, true); 
+
+      if (!res.ok) throw new Error();
+      buscarCarteiraDeClubes(grupo.id); 
+    } catch {
+      console.error('Falha ao registrar vinculo da cota.');
     }
   };
 
-  const ejecutarSorteioLoja = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoadingSorteio(true);
-    try {
-      const res = await fetch(`${API_URL}/api/usuarios/sorteios/executar/${grupoSorteioId}`, { method: 'POST' });
-      if (!res.ok) {
-        throw new Error('Nenhum participante adimplente apto encontrado neste ciclo.');
-      }
-      
-      const data = await res.json();
-      if (data.cotaPremiadaId) {
-        setIdOperacao(data.cotaPremiadaId.toString());
-      }
-      
-      mostrarAviso(
-        'Sorteio Homologado', 
-        `Contemplado: ${data.vencedorNome}\nContrato da Cota Alvo: #${data.cotaPremiadaId}\n\nAs notificações foram disparadas e o painel de liberação foi atualizado para esta cota.`, 
-        false
-      );
-      setGrupoSorteioId('');
-      if (grupoSelecionado) recarregarParticipantesDoGrupo();
-    } catch (err: any) { 
-      mostrarAviso('Apuração Suspensa', err.message, true); 
-    } finally { 
-      setLoadingSorteio(false); 
-    }
+  const atualizarSaldoAposPagamento = () => {
+    setSaldoPoupanca((prev) => prev + valorMensalidade);
+    setClubesAtivos(prev => prev.map(c => 
+      c.cotaId === clubeAtualSelecionado?.cotaId 
+        ? { ...c, saldoPoupanca: c.saldoPoupanca + valorMensalidade } 
+        : c
+    ));
   };
 
-  const ejecutarFluxoEntrega = async (endpoint: string, query: string = '') => {
-    if (idOperacao === 'Nenhuma') {
-      mostrarAviso('Ação Bloqueada', 'Por favor, selecione uma cota na tabela de integrantes ou realize um sorteio antes de emitir a liberação.', true);
-      return;
-    }
-    try {
-      const res = await fetch(`${API_URL}/api/usuarios/entregas/${idOperacao}/${endpoint}${query}`, { method: 'PUT' });
-      if (!res.ok) throw new Error('Falha ao atualizar o status operacional no sistema.');
-      mostrarAviso('Fluxo Atualizado', 'Status de controle logístico atualizado com sucesso!', false);
-      if (grupoSelecionado) recarregarParticipantesDoGrupo();
-    } catch (err: any) { 
-      mostrarAviso('Erro de Conexão', err.message, true); 
-    }
-  };
-
-  const handleSelecionarArquivo = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.type !== 'application/pdf') {
-        mostrarAviso('Formato Inválido', 'Apenas arquivos em formato PDF são aceitos.', true);
-        setArquivoPdf(null);
+      const arquivo = e.target.files[0];
+      
+      if (!arquivo.type.startsWith('image/')) {
+        alert('Por favor, selecione apenas arquivos de imagem.');
         return;
       }
-      setArquivoPdf(file);
+
+      if (arquivo.size > 2 * 1024 * 1024) {
+        alert('A imagem deve ter no máximo 2MB.');
+        return;
+      }
+
+      const leitor = new FileReader();
+      leitor.onloadend = async () => {
+        const base64String = leitor.result as string;
+
+        try {
+          const res = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/foto`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fotoPerfil: base64String }),
+          });
+
+          if (!res.ok) throw new Error();
+
+          setFotoPerfil(base64String);
+          const localUser = localStorage.getItem('@avle:usuario');
+          if (localUser) {
+            const parsed = JSON.parse(localUser);
+            parsed.fotoPerfil = base64String;
+            localStorage.setItem('@avle:usuario', JSON.stringify(parsed));
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Não foi possível salvar sua foto de perfil.");
+        }
+      };
+
+      leitor.readAsDataURL(arquivo);
     }
   };
 
-  const handleEnviarPdf = async (e: React.FormEvent) => {
+  const handleSalvarPerfil = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!arquivoPdf) {
-      mostrarAviso('Campo Requerido', 'Selecione um arquivo PDF antes de enviar.', true);
+    setSalvandoPerfil(true);
+    setStatusSalvar(null);
+
+    const localUserStorage = localStorage.getItem('@avle:usuario');
+    const parsedUser = localUserStorage ? JSON.parse(localUserStorage) : null;
+    const userId = usuario?.id || parsedUser?.id;
+
+    if (!userId) {
+      setStatusSalvar('erro');
+      setSalvandoPerfil(false);
       return;
     }
 
-    setEnviandoPdf(true);
-    const formData = new FormData();
-    formData.append('file', arquivoPdf);
-
     try {
-      const res = await fetch(`${API_URL}/api/lojas/${usuario?.lojaId || 1}/regras`, {
-        method: 'POST',
-        body: formData,
+      const res = await fetch(`${API_URL}/api/usuarios/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          nome: nomeInput, 
+          email: emailInput, 
+          telefone: telefoneInput.replace(/\D/g, '') 
+        }),
       });
+      
+      if (!res.ok) throw new Error();
 
-      if (!res.ok) {
-        throw new Error('Não foi possível salvar o documento de regras.');
-      }
-
-      mostrarAviso('Regulamento Salvo', 'Regulamento contratual em PDF registrado com sucesso para esta loja!', false);
-      setArquivoPdf(null);
-    } catch (err: any) {
-      mostrarAviso('Erro de Salvamento', err.message, true);
-    } finally {
-      setEnviandoPdf(false);
+      const usuarioAtualizado = { 
+        ...usuario, 
+        nome: nomeInput, 
+        email: emailInput, 
+        telefone: telefoneInput.replace(/\D/g, '') 
+      };
+      setUsuario(usuarioAtualizado);
+      localStorage.setItem('@avle:usuario', JSON.stringify(usuarioAtualizado));
+      setStatusSalvar('sucesso');
+    } catch (err) {
+      console.error(err);
+      setStatusSalvar('erro');
+    } fontally {
+      setSalvandoPerfil(false);
     }
   };
-
-  const recebidoEsteMes = Number(dadosFinanceiros?.recebidoEsteMes) || 0;
-  const aReceberContemplados = Number(dadosFinanceiros?.aReceberContemplados) || 0;
-
-  const totalParticipantesValidos = Array.isArray(participantesDoGrupo) ? participantesDoGrupo.length : 0;
-  const totalGruposValidos = Array.isArray(listaGrupos) ? listaGrupos.length : 0;
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5]">
+      
       <aside className="w-full md:w-64 bg-[#0B1E14] text-[#E3EAE6] flex flex-col justify-between p-6 flex-shrink-0">
         <div>
-          <div className="mb-8 border-b border-white/10 pb-6">
-            <h1 className="text-xl font-serif font-bold text-white tracking-wide">AVLE</h1>
-            <p className="text-xs text-stone-400 font-medium mt-0.5">
-              {usuario?.lojaNome || 'Unidade Administrativa'}
-            </p>
+          <div className="flex flex-col items-center text-center pb-6 border-b border-white/10 mb-6">
+            <div className="w-16 h-16 rounded-full bg-[#EFEAE2] flex items-center justify-center overflow-hidden font-bold text-xl text-[#0B1E14] shadow-md cursor-pointer hover:scale-105 transition-all" onClick={() => { setAbaAtiva('perfil'); setExibindoPaginaClube(false); setStatusSalvar(null); }}>
+              {fotoPerfil ? (
+                <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
+              ) : (
+                usuario?.nome ? usuario.nome.substring(0,2).toUpperCase() : 'AV'
+              )}
+            </div>
+            <h3 className="text-white font-bold text-sm tracking-wide mt-3 uppercase">{usuario?.nome || 'Painel Cliente'}</h3>
+            <p className="text-[11px] text-stone-400 truncate max-w-[180px] mt-0.5">{usuario?.email}</p>
           </div>
-          
+
           <nav className="space-y-1">
             {[
-              { id: 'geral', label: 'Visão geral' },
-              { id: 'grupos', label: 'Grupos' },
-              { id: 'sorteios', label: 'Sorteios / Entrega' },
-              { id: 'financeiro', label: 'Financeiro' },
-              { id: 'relatorios', label: 'Relatórios' }
-            ].map((tab) => (
+              { id: 'inicio', label: 'Home / Meus Clubes' },
+              { id: 'extrato', label: 'Histórico Geral' },
+              { id: 'regras', label: 'Regulamento' },
+              { id: 'ajuda', label: 'Suporte' }
+            ].map((aba) => (
               <button
-                key={tab.id}
-                onClick={() => { setGrupoSelecionado(null); setAbaLoja(tab.id as any); }}
+                key={aba.id}
+                onClick={() => { setAbaAtiva(aba.id as any); if(aba.id !== 'inicio') setExibindoPaginaClube(false); setStatusSalvar(null); }}
                 className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
-                  abaLoja === tab.id && !grupoSelecionado ? 'bg-white/10 text-white font-bold' : 'hover:bg-white/5 opacity-75'
+                  abaAtiva === aba.id ? 'bg-white/10 text-white font-bold' : 'hover:bg-white/5 opacity-75'
                 }`}
               >
-                <span>{tab.label}</span>
+                {aba.label}
               </button>
             ))}
           </nav>
         </div>
-        <div className="pt-4 border-t border-white/10 text-xs text-stone-400 flex justify-between items-center">
-          <button 
-            onClick={() => { setGrupoSelecionado(null); setAbaLoja('configuracoes'); }} 
-            className={`hover:text-white transition-all font-semibold cursor-pointer bg-transparent border-none ${abaLoja === 'configuracoes' ? 'text-white underline' : 'text-stone-400'}`}
-          >
-            Configurações
-          </button>
-          <button 
-            onClick={() => { localStorage.removeItem('@avle:usuario'); window.location.href = '/'; }} 
-            className="text-stone-400 hover:text-red-400 text-xs font-bold transition-all cursor-pointer border border-white/10 px-2.5 py-1 rounded-xl bg-transparent hover:bg-white/5"
-          >
-            Sair
-          </button>
+
+        <div className="pt-4 border-t border-white/10 flex justify-between items-center text-xs">
+          <button onClick={() => { setAbaAtiva('perfil'); setExibindoPaginaClube(false); setStatusSalvar(null); }} className={`hover:text-white transition-all font-semibold cursor-pointer ${abaAtiva === 'perfil' ? 'text-white underline' : 'text-stone-400'}`}>Configurações</button>
+          <button onClick={() => { localStorage.removeItem('@avle:usuario'); router.push('/'); }} className="text-stone-400 hover:text-red-400 font-bold cursor-pointer">Sair</button>
         </div>
       </aside>
 
       <main className="flex-1 p-6 md:p-8 max-w-7xl overflow-x-hidden space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-[#DFD9CE] pb-5">
-          <div>
-            <h2 className="text-xl font-bold tracking-tight text-[#0B1E14] capitalize">
-              {grupoSelecionado ? `Ficha Detalhada: ${grupoSelecionado.nome}` : (abaLoja === 'geral' ? 'Visão geral comercial' : abaLoja === 'configuracoes' ? 'Configurações da Loja' : abaLoja)}
-            </h2>
-            <p className="text-xs text-stone-400 font-medium">Gestão de cotas, faturamento da unidade e controle de entregas.</p>
-          </div>
-          {!grupoSelecionado && (abaLoja === 'geral' || abaLoja === 'grupos') && (
-            <button onClick={() => setModalNovoGrupoAberto(true)} className="bg-[#BD6B42] text-white px-5 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm hover:bg-[#A95A33] transition-all cursor-pointer">Novo grupo</button>
-          )}
-        </div>
-
-        {grupoSelecionado ? (
+        
+        {abaAtiva === 'inicio' && (
           <div className="space-y-6 animate-fadeIn">
-            <button onClick={() => setGrupoSelecionado(null)} className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] transition-all bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs"> Voltar para a Listagem</button>
-
-            <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-              <div>
-                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">ID do Grupo</span>
-                <span className="text-base font-bold text-[#0B1E14] font-mono block mt-1">#{grupoSelecionado.id}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Mensalidade</span>
-                <span className="text-base font-bold text-emerald-700 font-mono block mt-1">R$ {Number(grupoSelecionado.valorParcela).toFixed(2)}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Vigência</span>
-                <span className="text-base font-bold text-[#0B1E14] font-mono block mt-1">{grupoSelecionado.duracaoMeses} M</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Cotas Preenchidas</span>
-                <span className="text-base font-bold text-[#BD6B42] font-mono block mt-1">{totalParticipantesValidos} / {grupoSelecionado.quantidadeMaxCotas}</span>
-              </div>
-            </div>
-
-            <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
-              <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex justify-between items-center">
-                <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Mapeamento de Integrantes (Selecione uma linha para liberar o fluxo de entrega)</h3>
-                {idOperacao !== 'Nenhuma' && <span className="text-xs bg-[#BD6B42] text-white px-3 py-1 rounded-lg font-mono font-bold">Cota Alvo: #{idOperacao}</span>}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-stone-50 text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
-                      <th className="py-3.5 px-5 text-center">Nº DA COTA</th>
-                      <th className="py-3.5 px-5">PARTICIPANTE</th>
-                      <th className="py-3.5 px-5 text-right">SALDO QUITADO</th>
-                      <th className="py-3.5 px-5 text-right">VALOR COBERTO (RISCO LOJA)</th>
-                      <th className="py-3.5 px-5 text-center">STATUS DE ENTREGA / OPERAÇÃO</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
-                    {totalParticipantesValidos === 0 ? (
-                      <tr><td colSpan={5} className="py-6 text-center text-stone-400 italic">Nenhum participante vinculado a este grupo ainda.</td></tr>
-                    ) : (
-                      participantesDoGrupo.map((part) => {
-                        const isSelecionado = idOperacao === part.numeroCota.toString();
-                        return (
-                          <tr key={part.id} onClick={() => setIdOperacao(part.numeroCota.toString())} className={`transition-all cursor-pointer ${isSelecionado ? 'bg-amber-50/70 hover:bg-amber-100/70 font-bold' : 'hover:bg-stone-50/60'}`}>
-                            <td className="py-3.5 px-5 text-center font-mono font-bold text-[#BD6B42]">#0{part.numeroCota}</td>
-                            <td className="py-3.5 px-5">
-                              <span className="block font-bold text-[#0B1E14]">{part.nome}</span>
-                              <span className="text-[10px] text-stone-400 font-mono">{part.email}</span>
-                            </td>
-                            <td className="py-3.5 px-5 text-right font-mono text-emerald-700">R$ {Number(part.saldoPoupanca).toFixed(2)}</td>
-                            <td className="py-3.5 px-5 text-right font-mono text-rose-700">R$ {Number(part.custoFinanciadoLoja).toFixed(2)}</td>
-                            <td className="py-3.5 px-5 text-center">
-                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${
-                                part.statusEntrega === 'AGUARDANDO_SORTEIO' ? 'bg-stone-50 text-stone-500 border-stone-200' :
-                                part.statusEntrega === 'CONTEMPLADO_NO_PRAZO' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                part.statusEntrega === 'PRODUTO_SELECIONADO' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                part.statusEntrega === 'CREDITO_REJEITADO' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                                part.statusEntrega === 'PREPARANDO_ENVIO' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                                part.statusEntrega === 'ENVIADO_OU_RETIRADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                'bg-stone-50 text-stone-500 border-stone-200'
-                              }`}>{part.statusEntrega ? part.statusEntrega.replace(/_/g, ' ') : 'AGUARDANDO SORTEIO'}</span>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
-            {abaLoja === 'geral' && (
-              <div className="space-y-6 animate-fadeIn">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-xs relative overflow-hidden">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Faturamento (90%)</span>
-                    <span className="text-2xl font-bold tracking-tight block mt-2 font-mono">R$ {recebidoEsteMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                    <div className="absolute right-3 top-3 w-2 h-2 rounded-full bg-stone-500"></div>
-                  </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs flex flex-col justify-center">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Clientes Cadastrados</span>
-                    <span className="text-2xl font-bold tracking-tight text-[#0B1E14] font-mono mt-1">{totalClientes}</span>
-                  </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs flex flex-col justify-center">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Clubes Criados</span>
-                    <span className="text-2xl font-bold tracking-tight text-[#0B1E14] font-mono mt-1">{totalGruposValidos}</span>
-                  </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs flex flex-col justify-center">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Taxa Inadimplência</span>
-                    <span className="text-2xl font-bold text-stone-400 font-mono mt-1">0,0%</span>
-                  </div>
+            
+            {!exibindoPaginaClube ? (
+              <div className="space-y-6 text-left">
+                <div>
+                  <h2 className="text-base font-bold uppercase tracking-wide text-stone-400">Meus Clubes Ativos</h2>
+                  <p className="text-xs text-stone-400">Clique em qualquer comunidade de compras abaixo para acessar a pagina interna sucessiva.</p>
                 </div>
-              </div>
-            )}
 
-            {abaLoja === 'grupos' && (
-              <div className="space-y-4 animate-fadeIn text-left">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {listaGrupos.map((grupo) => (
-                    <div 
-                      key={grupo.id} 
-                      onClick={() => setGrupoSelecionado(grupo)}
-                      className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs hover:border-[#BD6B42] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-serif font-bold text-base text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">{grupo.nome}</h3>
-                          <p className="text-[10px] font-mono text-stone-400 mt-0.5">Duração: {grupo.duracaoMeses} Meses</p>
+                {clubesAtivos.length === 0 ? (
+                  <div className="bg-white border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
+                    Você ainda não está participando de nenhum clube. Selecione um estabelecimento abaixo para começar!
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {clubesAtivos.map((clube) => {
+                      const objTotal = Number(clube.grupo.valorParcela) * Number(clube.grupo.duracaoMeses);
+                      const perc = objTotal > 0 ? Math.min(Math.round((clube.saldoPoupanca / objTotal) * 100), 100) : 0;
+                      return (
+                        <div
+                          key={clube.cotaId}
+                          onClick={() => handleMudarClubeEmExibicao(clube)}
+                          className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs hover:border-[#BD6B42] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-serif font-bold text-base text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">{clube.grupo.nome}</h3>
+                              <p className="text-[10px] font-mono text-stone-400 mt-0.5">Unidade: {clube.loja.nomeComercial || clube.loja.nome}</p>
+                            </div>
+                            <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-stone-50 border text-stone-500">
+                              Cota #0{clube.cotaId}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] font-bold text-stone-400">
+                              <span>Progresso</span>
+                              <span>{perc}%</span>
+                            </div>
+                            <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
+                              <div className="bg-[#BD6B42] h-full transition-all" style={{ width: `${perc}%` }}></div>
+                            </div>
+                          </div>
+
+                          <div className="text-[10px] text-[#BD6B42] font-bold uppercase tracking-wider text-right group-hover:translate-x-1 transition-transform">
+                            Acessar Pagina do Clube
+                          </div>
                         </div>
-                        <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-stone-50 border text-stone-500">
-                          ID #{grupo.id}
-                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="border-t border-[#DFD9CE] pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white border border-[#DFD9CE] rounded-xl p-5 shadow-xs space-y-3">
+                    <label className="block text-[10px] text-stone-400 font-bold uppercase tracking-wide">Descobrir Outra Unidade</label>
+                    <button type="button" onClick={() => setDropdownLojaAberto(!dropdownLojaAberto)} className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl flex items-center justify-between text-[#0B1E14] font-bold text-xs cursor-pointer">
+                      <span className="truncate">{lojaSelecionada ? (lojaSelecionada.nomeComercial || lojaSelecionada.nome) : 'Selecione uma loja...'}</span>
+                      <span className="text-[10px] text-stone-400 underline">Filtrar</span>
+                    </button>
+                    {dropdownLojaAberto && (
+                      <div className="bg-white border border-stone-200 rounded-xl mt-1 max-h-36 overflow-y-auto divide-y shadow-md">
+                        {lojas.map((l: any) => (
+                          <button key={l.id} type="button" onClick={() => handleSelecionarLojaCustom(l)} className="w-full text-left px-3 py-2.5 text-xs text-[#0B1E14] hover:bg-[#E6DFD3] transition-all font-bold">
+                            {l.nomeComercial || l.nome}
+                          </button>
+                        ))}
                       </div>
-                      <div className="flex justify-between items-center text-xs border-t pt-3">
-                        <span className="text-stone-400 font-medium">Parcela: <strong className="text-[#0B1E14]">R$ {grupo.valorParcela.toFixed(2)}</strong></span>
-                        <span className="text-[10px] text-[#BD6B42] font-bold uppercase tracking-wider">Ver Participantes</span>
+                    )}
+                  </div>
+
+                  {lojaSelecionada && (
+                    <div className="md:col-span-2 bg-white border border-[#DFD9CE] rounded-xl p-5 shadow-xs space-y-3 animate-fadeIn">
+                      <label className="block text-[10px] text-stone-400 font-bold uppercase tracking-wide">Planos Disponiveis (Toque para Entrar no Grupo)</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                        {grupos.map((g: any) => {
+                          const jaPossuiCota = clubesAtivos.some(c => c.grupo.id === g.id);
+                          return (
+                            <button key={g.id} type="button" onClick={() => handlePersistirClubeNoBanco(g)} className={`text-left p-3 rounded-xl border text-xs transition-all flex flex-col justify-between gap-1 cursor-pointer ${jaPossuiCota ? 'border-emerald-600 bg-emerald-50/40' : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'}`}>
+                              <div className="flex justify-between w-full font-bold">
+                                <span className="truncate">{g.nome}</span>
+                                <span className="text-[#BD6B42]">R$ {Number(g.valorParcela).toFixed(2)}</span>
+                              </div>
+                              <div className="text-[10px] flex justify-between w-full font-medium text-stone-400">
+                                <span>Vigencia: {g.duracaoMeses} Meses</span>
+                                {jaPossuiCota && <span className="text-emerald-700 font-bold">Ja participando</span>}
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
-            )}
+            ) : (
+              
+              <div className="space-y-6 animate-fadeIn text-left">
+                <button 
+                  onClick={() => setExibindoPaginaClube(false)}
+                  className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs transition-all"
+                >
+                  Voltar para Meus Clubes
+                </button>
 
-            {abaLoja === 'sorteios' && (
-              <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl space-y-6 shadow-xs animate-fadeIn">
-                <div className="space-y-1">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">Painel de Contemplação e Liberação</h3>
-                  <p className="text-xs text-stone-500 leading-relaxed">Dispare a apuração de cotas do grupo digitando o identificador correspondente.</p>
-                </div>
-                <form onSubmit={ejecutarSorteioLoja} className="flex space-x-2">
-                  <input type="number" placeholder="ID do Grupo" value={grupoSorteioId} onChange={(e) => setGrupoSorteioId(e.target.value)} className="w-32 px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs font-mono" required />
-                  <button type="submit" disabled={loadingSorteio} className="bg-[#0B1E14] text-white text-xs font-bold px-5 py-2 rounded-xl cursor-pointer disabled:opacity-50 uppercase tracking-wider">{loadingSorteio ? 'Processando...' : 'Rodar Sorteio'}</button>
-                </form>
-                <div className="border-t border-stone-100 pt-4 space-y-3">
-                  <div className="flex justify-between items-center bg-stone-50 p-2.5 rounded-xl border border-dashed">
-                    <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide block">Controles Operacionais de Despacho</span>
-                    <span className="text-[10px] bg-[#0B1E14] text-white px-3 py-1 rounded-md font-mono font-bold">CONTRATO ALVO: {idOperacao === 'Nenhuma' ? 'Nenhum' : `#${idOperacao}`}</span>
+                <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <span className="text-[10px] font-mono font-bold text-[#BD6B42] uppercase bg-[#F5F2EB] px-2 py-1 rounded">Visualizacao do Plano Ativo</span>
+                    <h2 className="text-xl font-serif font-bold text-[#0B1E14] mt-1.5">{grupoSelecionado?.nome}</h2>
+                    <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: {lojaSelecionada?.nomeComercial || lojaSelecionada?.nome} | Cota: #0{clubeAtualSelecionado?.cotaId}</p>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px] font-bold uppercase">
-                    <button onClick={() => ejecutarFluxoEntrega('avaliar-credito', '?aprovado=true')} className="p-2.5 bg-[#0B1E14] text-white rounded-xl shadow-xs cursor-pointer hover:bg-opacity-90">Aprovar Crédito</button>
-                    <button onClick={() => ejecutarFluxoEntrega('avaliar-credito', '?aprovado=false')} className="p-2.5 bg-rose-50 text-rose-700 border-rose-100 rounded-xl shadow-xs cursor-pointer hover:bg-rose-100">Rejeitar Crédito</button>
-                    <button onClick={() => ejecutarFluxoEntrega('concluir')} className="p-2.5 bg-[#BD6B42] text-white rounded-xl shadow-xs cursor-pointer hover:bg-[#A95A33]">Finalizar Entrega</button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {abaLoja === 'financeiro' && (
-              <div className="space-y-6 animate-fadeIn">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-white border border-[#DFD9CE] p-5 rounded-2xl shadow-xs flex flex-col justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-stone-400 block mb-1">SALDO LÍQUIDO DISPONÍVEL (90%)</span>
-                      <span className="text-xl font-bold text-emerald-600">R$ {recebidoEsteMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <button onClick={() => setModalSaqueAberto(true)} className="mt-4 bg-[#0B1E14] text-white py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 cursor-pointer transition-all w-full">Transferir para Conta Bancária</button>
-                  </div>
-
-                  <div className="bg-white border border-[#DFD9CE] p-5 rounded-2xl shadow-xs flex flex-col justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-[#BD6B42] block mb-1">CAPITAL AVANÇADO (RISCO DA LOJA)</span>
-                      <span className="text-xl font-bold text-[#BD6B42]">R$ {aReceberContemplados.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <p className="text-[10px] text-stone-400 mt-2 leading-relaxed border-t pt-2 border-dashed">*Aporte em Haver:* Valor referente a produtos entregues a clientes contemplados. A loja assume o custo contratual imediato e detém o direito de recebimento das parcelas futuras.</p>
-                  </div>
-
-                  <div className="bg-white border border-[#DFD9CE] p-5 rounded-2xl shadow-xs flex flex-col justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-stone-400 block mb-1">CUMPRIMENTO DE ACORDOS</span>
-                      <span className="text-xl font-bold text-stone-600">Ativos</span>
-                    </div>
-                    <p className="text-[10px] text-stone-400 mt-2 leading-relaxed border-t pt-2 border-dashed">Garantia jurídica de alienação fiduciaria ou contrato assinado para resguardo do capital avançado.</p>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl shadow-xs space-y-4">
-                  <div className="space-y-1">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Domicílio Bancário Homologado</h4>
-                    <p className="text-xs text-stone-500">Configure a chave Pix da sua empresa onde os resgates do Abacatepay serão liquidados.</p>
-                  </div>
-                  
-                  <div className="flex flex-col sm:flex-row gap-2 max-w-xl">
-                    <input 
-                      type="text" 
-                      placeholder="Insira seu CNPJ, Telefone ou Chave Aleatória" 
-                      value={chavePix}
-                      onChange={(e) => setChavePix(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs font-mono focus:outline-none focus:border-[#BD6B42]" 
-                    />
+                  {clubesAtivos.length > 1 && (
                     <button 
-                      onClick={async () => {
-                        if (!chavePix.trim()) { mostrarAviso('Campo Obrigatório', 'Por favor, digite uma chave PIX válida.', true); return; }
-                        try {
-                          const res = await fetch(`${API_URL}/api/financeiro/loja/${usuario?.lojaId || 1}/configurar-pix`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ chavePix: chavePix })
-                          });
-                          
-                          if (!res.ok) throw new Error('Erro ao salvar as informações.');
-                          mostrarAviso('Vínculo Concluído', 'Chave PIX vinculada e homologada com sucesso para saques do Abacatepay!', false);
-                        } catch {
-                          mostrarAviso('Erro de Conexão', 'Falha ao conectar com o sistema para salvar a chave.', true);
-                        }
-                      }}
-                      className="bg-[#0B1E14] text-white text-[10px] font-bold px-6 py-2.5 rounded-xl cursor-pointer uppercase tracking-wider hover:bg-opacity-90 transition-all sm:w-auto w-full"
+                      onClick={() => setExibindoPaginaClube(false)}
+                      className="text-[10px] uppercase font-bold border px-3 py-2 bg-stone-50 rounded-xl text-stone-500 hover:text-[#BD6B42]"
                     >
-                      Vincular Conta
+                      Alternar de Grupo
+                    </button>
+                  )}
+                </div>
+
+                {grupoSelecionado && etapaAtual !== 4 && exibirBannerAlerta && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-xs">
+                    <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                      Aviso: Sua proxima parcela vence in <strong>{dataVencimentoCota}</strong> (restam {diasRestantesVencimento} dias). Mantenha sua cota ativa para os sorteios.
+                    </p>
+                    <button onClick={() => setModalCheckoutAberto(true)} className="px-4 py-2 bg-amber-950 text-white text-[11px] font-bold rounded-lg uppercase tracking-wide whitespace-nowrap">
+                      Regularizar Cota
                     </button>
                   </div>
-                </div>
-              </div>
-            )}
+                )}
 
-            {abaLoja === 'configuracoes' && (
-              <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6 text-left max-w-xl animate-fadeIn">
-                <div>
-                  <h3 className="font-serif font-bold text-lg text-[#0B1E14] uppercase tracking-wide">Regulamento Operacional da Loja</h3>
-                  <p className="text-stone-400 text-xs mt-1 leading-relaxed">
-                    Envie os termos de contrato e políticas específicas para a sua comunidade de compras planejadas. Cada estabelecimento atua com total independência jurídica.
-                  </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-xs">
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Saldo Poupanca Individual</span>
+                    <span className="text-2xl font-bold tracking-tight block mt-2 font-mono">R$ {saldoPoupanca.toFixed(2)}</span>
+                  </div>
+                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Vencimento da Parcela</span>
+                    <span className="text-2xl font-bold text-[#BD6B42] block mt-2 font-mono">{dataVencimentoCota || '--/--'}</span>
+                  </div>
+                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Vigencia de Sorteios</span>
+                    <span className="text-2xl font-bold text-[#0B1E14] block mt-2 font-mono">{grupoSelecionado?.duracaoMeses || 0} Meses</span>
+                  </div>
+                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Aptidao Coletiva</span>
+                    <span className="text-2xl font-bold text-emerald-600 block mt-2 uppercase tracking-wide text-sm font-semibold">Fase 0{etapaAtual}</span>
+                  </div>
                 </div>
 
-                <form onSubmit={handleEnviarPdf} className="space-y-4 text-xs">
-                  <div className="border border-dashed border-[#DFD9CE] rounded-xl p-5 bg-stone-50/50 flex flex-col items-center justify-center">
-                    <input 
-                      type="file" 
-                      accept="application/pdf"
-                      onChange={handleSelecionarArquivo}
-                      className="hidden"
-                      id="loja-pdf-upload"
-                    />
-                    <label 
-                      htmlFor="loja-pdf-upload"
-                      className="px-4 py-2.5 bg-stone-200 text-[#0B1E14] font-bold rounded-lg cursor-pointer hover:bg-stone-300 transition-colors inline-block text-center"
-                    >
-                      Selecionar PDF
-                    </label>
-                    <span className="text-[10px] text-stone-400 mt-2 font-mono text-center block max-w-xs truncate">
-                      {arquivoPdf ? arquivoPdf.name : 'Nenhum regulamento PDF selecionado para envio.'}
-                    </span>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2 bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between min-h-[260px]">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Historico de Quitacao da Cota</span>
+                      <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded font-bold font-mono">Evolucao</span>
+                    </div>
+                    <div className="flex items-end justify-between h-40 pt-4 border-b border-stone-100 px-2">
+                      {['Mes 1', 'Mes 2', 'Mes 3', 'Mes 4', 'Mes 5', 'Mes 6', 'Mes 7'].map((mes, i) => {
+                        const parcelaQuitada = saldoPoupanca >= (valorMensalidade * (i + 1));
+                        return (
+                          <div key={i} className="flex flex-col items-center w-full max-w-[40px]">
+                            <span className="text-[8px] font-mono text-stone-400 mb-1">R$ {parcelaQuitada ? valorMensalidade : 0}</span>
+                            <div className={`w-full rounded-t-sm transition-all ${parcelaQuitada ? 'bg-[#0B1E14] h-24' : 'bg-stone-100 h-2'}`}></div>
+                            <span className="text-[10px] text-stone-400 font-bold mt-2 whitespace-nowrap">{mes}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  <button 
-                    type="submit" 
-                    disabled={!arquivoPdf || enviandoPdf}
-                    className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50 hover:bg-opacity-95 transition-all"
-                  >
-                    {enviandoPdf ? 'Processando e Gravando...' : 'Salvar Regulamento Contratual'}
-                  </button>
-                </form>
+                  <div className="bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-xs flex flex-col items-center justify-between min-h-[260px]">
+                    <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block w-full text-left">Progresso do Objetivo</span>
+                    <div className="relative w-32 h-32 flex items-center justify-center my-auto">
+                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#E6E2D8" strokeWidth="4" />
+                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#BD6B42" strokeWidth="4" strokeDasharray={`${percentual} ${100 - percentual}`} strokeDashoffset="0" className="transition-all duration-500" />
+                      </svg>
+                      <div className="absolute text-center">
+                        <span className="text-xl font-bold tracking-tight font-mono text-[#0B1E14]">{percentual}%</span>
+                        <span className="block text-[8px] uppercase text-stone-400 font-bold tracking-wider">Concluido</span>
+                      </div>
+                    </div>
+                    <div className="w-full text-center border-t border-stone-50 pt-3 text-[11px] font-semibold text-stone-500">
+                      Meta Coletiva: <span className="font-mono text-[#0B1E14] font-bold">R$ {totalObjetivo.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
+                  <div className="px-5 py-4 border-b bg-stone-50/50 flex justify-between items-center">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Regua de Vencimentos desta Cota</h3>
+                    {etapaAtual !== 4 && (
+                      <button 
+                        onClick={() => setModalCheckoutAberto(true)}
+                        className="bg-[#0B1E14] text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90"
+                      >
+                        Liquidar Parcela via Pix
+                      </button>
+                    )}
+                  </div>
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-stone-50 text-stone-400 font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
+                        <th className="py-3.5 px-5">VENCIMENTO</th>
+                        <th className="py-3.5 px-5">DESCRIÇÃO</th>
+                        <th className="py-3.5 px-5 text-right">VALOR REQUERIDO</th>
+                        <th className="py-3.5 px-5 text-center">SITUAÇÃO</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
+                      {saldoPoupanca === 0 ? (
+                        <tr><td colSpan={4} className="py-6 text-center text-stone-400 italic">Nenhum aporte registrado nesta conta ainda.</td></tr>
+                      ) : (
+                        Array.from({ length: Math.ceil(saldoPoupanca / valorMensalidade) }).map((_, index) => (
+                          <tr key={index} className="hover:bg-stone-50/50 transition-all">
+                            <td className="py-3.5 px-5 text-stone-400">{dataVencimentoCota}</td>
+                            <td className="py-3.5 px-5 text-[#0B1E14] font-bold">Mensalidade Coletiva (Parcela 0{index + 1})</td>
+                            <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">R$ {valorMensalidade.toFixed(2)}</td>
+                            <td className="py-3.5 px-5 text-center">
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold text-[9px] uppercase">
+                                Liquidado
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
               </div>
             )}
-          </>
-        )}
-      </main>
 
-      {modalNovoGrupoAberto && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Lançar Novo Grupo de Compras</h3>
-              <button onClick={() => setModalNovoGrupoAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
+          </div>
+        )}
+
+        {abaAtiva === 'extrato' && (
+          <div className="space-y-6 animate-fadeIn text-left">
+            <div>
+              <h2 className="text-xl font-bold text-[#0B1E14]">Histórico Financeiro Consolidado</h2>
+              <p className="text-xs text-stone-400 mt-1">Extrato detalhado de cada aporte e parcela liquidada em todas as suas unidades ativas.</p>
             </div>
-            <form onSubmit={handleCriarGrupo} className="space-y-3.5 text-xs text-[#0B1E14]">
+            <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-stone-50 text-stone-400 font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
+                    <th className="py-3.5 px-5">PROVEDOR / LOJA</th>
+                    <th className="py-3.5 px-5">PLANO / IDENTIFICAÇÃO</th>
+                    <th className="py-3.5 px-5 text-right">VOLUME APORTADO</th>
+                    <th className="py-3.5 px-5 text-center">STATUS DIGITAL</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
+                  {clubesAtivos.length === 0 ? (
+                    <tr><td colSpan={4} className="py-6 text-center text-stone-400 italic">Nenhuma cota vinculada a esta conta ainda.</td></tr>
+                  ) : (
+                    clubesAtivos.flatMap((clube) => {
+                      const vMensalidade = Number(clube.grupo.valorParcela) || 0;
+                      const sPoupanca = Number(clube.saldoPoupanca) || 0;
+                      const parcelasPagas = vMensalidade > 0 ? Math.ceil(sPoupanca / vMensalidade) : 0;
+                      
+                      if (parcelasPagas === 0) return [];
+                      
+                      return Array.from({ length: parcelasPagas }).map((_, index) => ({
+                        lojaNome: clube.loja.nomeComercial || clube.loja.nome,
+                        grupoNome: clube.grupo.nome,
+                        cotaId: clube.cotaId,
+                        parcela: index + 1,
+                        valor: vMensalidade,
+                      }));
+                    }).map((item, idx) => (
+                      <tr key={idx} className="hover:bg-stone-50/50 transition-all">
+                        <td className="py-3.5 px-5 text-[#0B1E14] font-bold">{item.lojaNome}</td>
+                        <td className="py-3.5 px-5 text-stone-500">{item.grupoNome} (Parcela #0{item.parcela})</td>
+                        <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">R$ {item.valor.toFixed(2)}</td>
+                        <td className="py-3.5 px-5 text-center">
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[9px] uppercase">
+                            Liquidado
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {abaAtiva === 'regras' && (
+          <div className="bg-white border border-[#DFD9CE] rounded-xl p-6 space-y-4 text-xs text-stone-600 leading-relaxed animate-fadeIn text-left max-w-2xl shadow-xs">
+            <div>
+              <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Regulamento AVLE</h3>
+              <p className="text-stone-400 mt-1">Confira as diretrizes da comunidade estruturada de compras programadas de móveis e decorações.</p>
+            </div>
+            
+            <p className="bg-stone-50 p-3 rounded-xl border border-dashed text-stone-500">
+              * Compra Planejada: A AVLE nao atua como consorcio tradicional ou fundo financeiro. Trata-se de uma comunidade estruturada de compras programadas de moveis e decoracoes corporativas ou residenciais.
+            </p>
+
+            {lojaSelecionada ? (
+              <div className="pt-4 border-t border-stone-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h4 className="font-bold text-[#0B1E14] uppercase text-[11px]">Termos Específicos da Unidade</h4>
+                  <p className="text-stone-400 text-[10px] mt-0.5">Regulamento de termos contratuais enviado por: <strong>{lojaSelecionada.nomeComercial || lojaSelecionada.nome}</strong></p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => window.open(`${API_URL}/api/lojas/${lojaSelecionada.id}/regras`, '_blank')}
+                  className="px-4 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-opacity-90 cursor-pointer transition-all"
+                >
+                  Visualizar Contrato PDF
+                </button>
+              </div>
+            ) : (
+              <p className="text-[10px] text-stone-400 italic pt-2">
+                * Acesse um dos seus clubes ativos na aba inicial para habilitar a visualização do documento de termos específicos em PDF desta unidade parceira.
+              </p>
+            )}
+          </div>
+        )}
+
+        {abaAtiva === 'perfil' && (
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6 animate-fadeIn max-w-2xl text-left shadow-xs">
+            <div>
+              <h2 className="text-xl font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Meus Dados Cadastrais</h2>
+              <p className="text-xs text-stone-400 mt-1">Gerencie suas informacoes de conta salvas na plataforma e sincronizadas com o gateway do Asaas.</p>
+            </div>
+
+            <div className="flex items-center space-x-4 border-b border-stone-100 pb-5">
+              <div className="relative group w-20 h-20 rounded-full overflow-hidden border border-stone-200 bg-stone-50 flex items-center justify-center flex-shrink-0 shadow-xs">
+                {fotoPerfil ? (
+                  <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-lg font-bold text-stone-400 font-mono">
+                    {nomeInput ? nomeInput.substring(0,2).toUpperCase() : 'AV'}
+                  </span>
+                )}
+                <label htmlFor="perfil-foto-upload" className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white text-[9px] font-bold uppercase tracking-wider text-center p-1">
+                  Alterar
+                </label>
+                <input id="perfil-foto-upload" type="file" accept="image/*" onChange={handleUploadFoto} className="hidden" />
+              </div>
               <div>
-                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Nome Comercial do Grupo</label>
+                <h4 className="text-xs font-bold uppercase text-stone-500">Foto de Perfil</h4>
+                <p className="text-[11px] text-stone-400 mt-0.5">Selecione uma imagem quadrada de ate 2MB nos formatos comuns de imagem.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSalvarPerfil} className="space-y-5 text-xs">
+              {statusSalvar === 'sucesso' && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold rounded-xl">
+                  Alteracoes gravadas com sucesso no sistema!
+                </div>
+              )}
+              {statusSalvar === 'erro' && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 font-bold rounded-xl">
+                  Não foi possível salvar as alterações. Tente novamente mais tarde.
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Nome Completo</label>
+                  <input 
+                    type="text" 
+                    value={nomeInput} 
+                    onChange={(e) => setNomeInput(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                    required
+                    disabled={carregandoDados || salvandoPerfil}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">E-mail de Notificacao</label>
+                  <input 
+                    type="email" 
+                    value={emailInput} 
+                    onChange={(e) => setEmailInput(e.target.value)} 
+                    className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                    required
+                    disabled={carregandoDados || salvandoPerfil}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Telefone / Celular</label>
+                  <input 
+                    type="text" 
+                    value={telefoneInput} 
+                    onChange={(e) => setTelefoneInput(aplicarMascaraTelefone(e.target.value))} 
+                    placeholder="(45) 99999-9999"
+                    className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                    required
+                    disabled={carregandoDados || salvandoPerfil}
+                  />
+                </div>
+              </div>
+
+              <div className="bg-stone-50 p-4 rounded-xl border border-dashed border-stone-200 space-y-2 max-w-sm">
+                <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>CPF / CNPJ do Titular</span>
+                  <span className="text-xs text-stone-400" title="Informacao imutavel por seguranca contratual">Protegido</span>
+                </label>
                 <input 
                   type="text" 
-                  value={nomeGrupo}
-                  onChange={(e) => setNomeGrupo(e.target.value)}
-                  className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
-                  required 
+                  value={carregandoDados ? "Aguardando carregamento do perfil..." : (cpfInput || "Sem documento cadastrado")} 
+                  disabled
+                  placeholder="Aguardando carregamento do perfil..."
+                  className="w-full px-3 py-2 border border-stone-200 rounded-xl bg-stone-100 text-stone-500 h-[40px] text-sm font-mono cursor-not-allowed font-bold" 
                 />
+                <p className="text-[10px] text-stone-400 leading-relaxed pt-1">
+                  * Este documento esta atrelado as faturas e regras de sorteio coletivo. Alteracoes cadastrais exigem auditoria direta com o administrador.
+                </p>
               </div>
-              <div>
-                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Valor da Parcela Mensal (R$)</label>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  placeholder="0.00" 
-                  value={valorParcela}
-                  onChange={(e) => setValorParcela(e.target.value)}
-                  className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
-                  required 
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Duração total (Meses)</label>
-                  <input 
-                    type="number" 
-                    value={duracaoMeses}
-                    onChange={(e) => setDuracaoMeses(e.target.value)}
-                    className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
-                    required 
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Quantidade Máxima de Cotas</label>
-                  <input 
-                    type="number" 
-                    value={maxCotas}
-                    onChange={(e) => setMaxCotas(e.target.value)}
-                    className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
-                    required 
-                  />
-                </div>
-              </div>
-              <div className="flex space-x-2 pt-2 border-t w-full">
-                <button type="button" onClick={() => setModalNovoGrupoAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold transition-colors hover:bg-stone-50">Cancelar</button>
+
+              <div className="flex justify-end pt-4 border-t border-stone-100">
                 <button 
-                  type="submit"
-                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold"
+                  type="submit" 
+                  disabled={carregandoDados || salvandoPerfil}
+                  className="px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 disabled:opacity-50 transition-all"
                 >
-                  Registrar Grupo
+                  {salvandoPerfil ? 'Salvando...' : 'Salvar Novas Informacoes'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+        )}
 
-      {modalSaqueAberto && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+        {abaAtiva === 'ajuda' && (
+          <div className="bg-white border border-[#DFD9CE] rounded-xl p-6 space-y-6 animate-fadeIn text-left max-w-2xl shadow-xs">
+            <div>
+              <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Central de Atendimento e Suporte</h3>
+              <p className="text-stone-400 mt-1">Escolha o canal de atendimento ideal para resolver a sua dúvida ou problema rapidamente.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              
+              {/* 1. SUPORTE DA PLATAFORMA (TÉCNICO / SITE) */}
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col justify-between space-y-4">
+                <div>
+                  <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#0B1E14]/10 text-[#0B1E14] uppercase">
+                    Suporte do Site
+                  </span>
+                  <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase">Atendimento Técnico</h4>
+                  <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">
+                    Para dúvidas sobre acesso à conta, faturas Pix, dificuldades de navegação, atualização de dados pessoais ou instabilidades no sistema.
+                  </p>
+                </div>
+                <div className="pt-2 border-t border-stone-200/60">
+                  <p className="text-stone-500 font-bold text-xs font-mono mb-2">(42) 98411-7768</p>
+                  <button 
+                    type="button"
+                    onClick={() => window.open('https://wa.me/5542984117768', '_blank')}
+                    className="w-full text-center py-2.5 bg-[#0B1E14] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    Chamar Suporte Técnico
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. SUPORTE DA LOJA PARCEIRA (COMERCIAL / PRODUTOS) */}
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col justify-between space-y-4">
+                {lojaSelecionada ? (
+                  <>
+                    <div>
+                      <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#BD6B42]/10 text-[#BD6B42] uppercase">
+                        Suporte da Loja
+                      </span>
+                      <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase truncate max-w-[180px]">
+                        {lojaSelecionada.nomeComercial || lojaSelecionada.nome}
+                      </h4>
+                      <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">
+                        Para tratar diretamente sobre especificações de produtos, datas de assembleias locais, andamento de entregas ou retiradas de mercadorias.
+                      </p>
+                    </div>
+                    <div className="pt-2 border-t border-stone-200/60">
+                      <p className="text-stone-500 font-bold text-xs font-mono mb-2">
+                        {lojaSelecionada.telefone ? aplicarMascaraTelefone(lojaSelecionada.telefone) : 'Contato no estabelecimento'}
+                      </p>
+                      <button 
+                        type="button"
+                        disabled={!lojaSelecionada.telefone}
+                        onClick={() => {
+                          if (lojaSelecionada.telefone) {
+                            const numLimpo = lojaSelecionada.telefone.replace(/\D/g, '');
+                            window.open(`https://wa.me/55${numLimpo}`, '_blank');
+                          }
+                        }}
+                        className="w-full text-center py-2.5 bg-[#BD6B42] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {lojaSelecionada.telefone ? 'Falar com Atendimento' : 'Telefone não cadastrado'}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="h-full flex flex-col justify-center items-center text-center p-4">
+                    <p className="text-[11px] text-stone-400 font-medium italic leading-relaxed">
+                      Acesse um de seus clubes ativos na página inicial para visualizar as opções de contato direto e suporte da loja parceira correspondente.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+        )}
+      </main>
+
+      {modalCheckoutAberto && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn text-left">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Solicitar Resgate de Saldo</h3>
-              <button onClick={() => setModalSaqueAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
+              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Ambiente de Checkout Secure</h3>
+              <button onClick={() => setModalCheckoutAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
             </div>
-            <div className="space-y-3.5 text-xs">
-              <p className="text-stone-500 bg-stone-50 p-3 rounded-xl border border-dashed leading-relaxed">
-                O saldo disponível acumulado das suas vendas líquidas (90%) será transferido da sua conta digital Abacatepay de forma totalmente segura diretamente para a sua Chave Pix corporativa cadastrada no sistema.
-              </p>
-              
-              <div className="bg-stone-50 p-3 rounded-xl border flex justify-between items-center text-xs">
-                <span className="text-stone-400 font-bold uppercase tracking-wider text-[9px]">Valor a ser resgatado:</span>
-                <span className="font-mono font-bold text-emerald-700 text-sm">R$ {recebidoEsteMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-              </div>
-
-              <div className="flex space-x-2 pt-2 border-t w-full">
-                <button type="button" onClick={() => setModalSaqueAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold">Cancelar</button>
-                <button 
-                  type="button" 
-                  onClick={async () => {
-                    try {
-                      const res = await fetch(`${API_URL}/api/financeiro/loja/${usuario?.lojaId || 1}/solicitar-saque`, {
-                        method: 'POST'
-                      });
-                      
-                      if (!res.ok) {
-                        const textoErro = await res.text();
-                        throw new Error(textoErro || 'Falha ao processar resgate de saldo.');
-                      }
-                      
-                      const data = await res.json();
-                      mostrarAviso(
-                        'Resgate Homologado', 
-                        `Mensagem: ${data.mensagem}\n\nValor Sacado: R$ ${data.valorSacado}\nDestino Pix: ${data.chavePixDestino}\nID de Transferência: ${data.comprovanteId}`, 
-                        false
-                      );
-                      setModalSaqueAberto(false);
-                      carregarDadosFinanceiros();
-                    } catch (err: any) {
-                      mostrarAviso('Erro no Resgate', err.message, true);
-                    }
-                  }}
-                  className="flex-1 py-2.5 bg-emerald-700 text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-emerald-800 transition-all font-bold"
-                >
-                  Confirmar Resgate Pix
-                </button>
-              </div>
-            </div>
+            <CheckoutForm 
+              valor={valorMensalidade} 
+              cotaId={clubeAtualSelecionado?.cotaId} 
+              onSuccess={atualizarSaldoAposPagamento} 
+              fecharModal={() => setModalCheckoutAberto(false)} 
+            />
           </div>
         </div>
       )}
 
-      {notificacao.aberto && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl border-t-4" style={{ borderTopColor: notificacao.isError ? '#be123c' : '#047857' }}>
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className={`text-xs font-serif font-bold uppercase tracking-wider ${notificacao.isError ? 'text-rose-700' : 'text-emerald-800'}`}>{notificacao.titulo}</h3>
-              <button onClick={() => setNotificacao({ ...notificacao, aberto: false })} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
-            </div>
-            <div className="text-xs text-stone-600 leading-relaxed whitespace-pre-wrap font-medium">{notificacao.mensagem}</div>
-            <div className="pt-3 border-t flex justify-end">
-              <button onClick={() => setNotificacao({ ...notificacao, aberto: false })} className={`px-5 py-2 text-white font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer shadow-sm transition-all ${notificacao.isError ? 'bg-rose-700 hover:bg-rose-800' : 'bg-[#0B1E14] hover:bg-opacity-90'}`}>Entendido</button>
-            </div>
-          </div>
-        </div>
-      )}
+    </div>
+  );
+}
 
+function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number; cotaId: number; onSuccess: () => void; fecharModal: () => void }) {
+  const [dadosPix, setDadosPix] = useState<{ paymentUrl: string } | null>(null);
+  const [carregandoPix, setCarregandoPix] = useState(false);
+
+  useEffect(() => {
+    if (!cotaId) return;
+    setCarregandoPix(true);
+    fetch(`${API_URL}/api/pagamentos/gerar-pix`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ valor, cotaId }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then((data) => setDadosPix(data))
+      .catch((err) => {
+        console.error(err);
+      })
+      .finally(() => setCarregandoPix(false));
+  }, [valor, cotaId]);
+
+  return (
+    <div className="space-y-5 text-[#0B1E14]">
+      <div className="bg-[#F5F2EB] p-3 rounded-xl text-center text-xs font-bold border border-[#DFD9CE]">
+        Fatura Instantanea via PIX
+      </div>
+      <div className="text-center space-y-4 pt-2">
+        <div className="p-5 bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl text-center text-xs min-h-[100px] flex items-center justify-center">
+          {carregandoPix ? (
+            <span className="animate-pulse block font-bold text-stone-400">Gerando link de checkout seguro...</span>
+          ) : dadosPix?.paymentUrl ? (
+            <div className="space-y-1.5">
+              <p className="text-[11px] text-emerald-700 font-bold">Processamento concluido com sucesso!</p>
+              <p className="text-[10px] text-stone-400 font-medium">Clique no botao abaixo para abrir o ambiente de pagamento seguro e concluir o seu Pix.</p>
+            </div>
+          ) : (
+            <span className="block font-semibold text-rose-500 leading-relaxed">
+              Nao foi possivel gerar a sua faturamento Pix neste momento. Por favor, tente novamente em instantes ou entre em contato com o nosso suporte.
+            </span>
+          )}
+        </div>
+        
+        <button 
+          type="button" 
+          disabled={!dadosPix?.paymentUrl} 
+          onClick={() => { 
+            if (dadosPix?.paymentUrl) { 
+              window.open(dadosPix.paymentUrl, '_blank');
+              onSuccess(); 
+              fecharModal();
+            } 
+          }} 
+          className="w-full py-3.5 bg-[#0B1E14] text-white font-bold text-xs rounded-xl tracking-wide cursor-pointer uppercase text-[10px] disabled:opacity-40 transition-opacity"
+        >
+          {carregandoPix ? 'Processando...' : 'Ir para o Pagamento Seguro'}
+        </button>
+      </div>
     </div>
   );
 }
