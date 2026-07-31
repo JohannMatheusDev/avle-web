@@ -30,6 +30,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [modalNovoGrupoAberto, setModalNovoGrupoAberto] = useState(false);
   const [modalSaqueAberto, setModalSaqueAberto] = useState(false);
 
+  // Estados para Cadastro de Nova Cliente pelas Funcionárias
+  const [modalNovoClienteAberto, setModalNovoClienteAberto] = useState(false);
+  const [nomeCliente, setNomeCliente] = useState('');
+  const [emailCliente, setEmailCliente] = useState('');
+  const [cpfCliente, setCpfCliente] = useState('');
+  const [telefoneCliente, setTelefoneCliente] = useState('');
+  const [processandoCliente, setProcessandoCliente] = useState(false);
+
   // Estados para Baixa Manual de Parcelas
   const [modalPagamentoManualAberto, setModalPagamentoManualAberto] = useState(false);
   const [qtdParcelasManual, setQtdParcelasManual] = useState('1');
@@ -72,6 +80,23 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     cohort: [], 
     auditoria: []
   });
+
+  const aplicarMascaraTelefone = (valor: string) => {
+    const apenasNumeros = valor.replace(/\D/g, '');
+    if (apenasNumeros.length <= 2) return apenasNumeros;
+    if (apenasNumeros.length <= 6) return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2)}`;
+    if (apenasNumeros.length <= 10) return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 6)}-${apenasNumeros.slice(6)}`;
+    return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 7)}-${apenasNumeros.slice(7, 11)}`;
+  };
+
+  const aplicarMascaraCpf = (valor: string) => {
+    const apenasNumeros = valor.replace(/\D/g, '');
+    return apenasNumeros
+      .slice(0, 11)
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  };
 
   const carregarGruposDoBanco = () => {
     fetch(`${API_URL}/api/grupos/loja/${usuario?.lojaId || 1}`)
@@ -140,6 +165,49 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       recarregarParticipantesDoGrupo();
     }
   }, [grupoSelecionado]);
+
+  const handleCadastrarCliente = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProcessandoCliente(true);
+    try {
+      const payload = {
+        nome: nomeCliente,
+        email: emailCliente,
+        cpf: cpfCliente.replace(/\D/g, ''),
+        telefone: telefoneCliente.replace(/\D/g, ''),
+        lojaId: usuario?.lojaId || 1
+      };
+
+      const res = await fetch(`${API_URL}/api/usuarios/cadastrar-cliente`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const textoErro = await res.text();
+        throw new Error(textoErro || 'Falha ao cadastrar cliente no sistema.');
+      }
+
+      const data = await res.json();
+      mostrarAviso(
+        'Cliente Registrada', 
+        `${data.mensagem}\n\nLogin / E-mail: ${data.email}\nSenha Padrão Inicial: ${data.senhaPadrao}\n\nA cliente já pode acessar o Dashboard do Cliente utilizando estas credenciais.`, 
+        false
+      );
+
+      setNomeCliente('');
+      setEmailCliente('');
+      setCpfCliente('');
+      setTelefoneCliente('');
+      setModalNovoClienteAberto(false);
+      carregarContagemClientes(usuario?.lojaId || 1);
+    } catch (err: any) {
+      mostrarAviso('Erro de Cadastro', err.message, true);
+    } finally {
+      setProcessandoCliente(false);
+    }
+  };
 
   const handleCriarGrupo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -384,8 +452,22 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             </h2>
             <p className="text-xs text-stone-400 font-medium">Gestão de cotas, faturamento da unidade e controle de entregas.</p>
           </div>
+          
           {!grupoSelecionado && (abaLoja === 'geral' || abaLoja === 'grupos') && (
-            <button onClick={() => setModalNovoGrupoAberto(true)} className="bg-[#BD6B42] text-white px-5 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm hover:bg-[#A95A33] transition-all cursor-pointer">Novo grupo</button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setModalNovoClienteAberto(true)} 
+                className="bg-[#0B1E14] text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm hover:bg-opacity-90 transition-all cursor-pointer"
+              >
+                + Nova Cliente
+              </button>
+              <button 
+                onClick={() => setModalNovoGrupoAberto(true)} 
+                className="bg-[#BD6B42] text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm hover:bg-[#A95A33] transition-all cursor-pointer"
+              >
+                + Novo grupo
+              </button>
+            </div>
           )}
         </div>
 
@@ -685,6 +767,85 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           </>
         )}
       </main>
+
+      {/* MODAL: CADASTRO DE NOVA CLIENTE PELA FUNCIONÁRIA */}
+      {modalNovoClienteAberto && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center border-b pb-3">
+              <div>
+                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Cadastrar Nova Cliente</h3>
+                <p className="text-[10px] text-stone-400">Atribuição de credencial de acesso inicial no sistema.</p>
+              </div>
+              <button onClick={() => setModalNovoClienteAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
+            </div>
+
+            <form onSubmit={handleCadastrarCliente} className="space-y-3.5 text-xs text-[#0B1E14]">
+              <div>
+                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Nome Completo da Cliente</label>
+                <input 
+                  type="text" 
+                  value={nomeCliente}
+                  onChange={(e) => setNomeCliente(e.target.value)}
+                  className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
+                  required 
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">E-mail de Notificação / Login</label>
+                <input 
+                  type="email" 
+                  value={emailCliente}
+                  onChange={(e) => setEmailCliente(e.target.value)}
+                  className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
+                  required 
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">CPF da Titular</label>
+                  <input 
+                    type="text" 
+                    value={cpfCliente}
+                    onChange={(e) => setCpfCliente(aplicarMascaraCpf(e.target.value))}
+                    placeholder="000.000.000-00"
+                    className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Telefone / WhatsApp</label>
+                  <input 
+                    type="text" 
+                    value={telefoneCliente}
+                    onChange={(e) => setTelefoneCliente(aplicarMascaraTelefone(e.target.value))}
+                    placeholder="(00) 00000-0000"
+                    className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
+                    required 
+                  />
+                </div>
+              </div>
+
+              <div className="bg-stone-50 p-3 rounded-xl border border-dashed text-[10px] text-stone-500 leading-relaxed">
+                * A cliente receberá a senha padrão inicial <strong>Avle123</strong> para realizar o primeiro acesso ao Dashboard do Cliente e poderá alterá-la posteriormente nas suas configurações.
+              </div>
+
+              <div className="flex space-x-2 pt-2 border-t w-full">
+                <button type="button" onClick={() => setModalNovoClienteAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer">Cancelar</button>
+                <button 
+                  type="submit"
+                  disabled={processandoCliente}
+                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold disabled:opacity-50"
+                >
+                  {processandoCliente ? 'Cadastrando...' : 'Confirmar Cadastro'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {modalNovoGrupoAberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">

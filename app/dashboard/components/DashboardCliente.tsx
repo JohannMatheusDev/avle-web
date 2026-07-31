@@ -17,6 +17,13 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [telefoneInput, setTelefoneInput] = useState(''); 
   const [fotoPerfil, setFotoPerfil] = useState<string | null>(null);
 
+  // Estados para Alteração de Senha
+  const [senhaAtualInput, setSenhaAtualInput] = useState('');
+  const [novaSenhaInput, setNovaSenhaInput] = useState('');
+  const [confirmarNovaSenhaInput, setConfirmarNovaSenhaInput] = useState('');
+  const [salvandoSenha, setSalvandoSenha] = useState(false);
+  const [statusSalvarSenha, setStatusSalvarSenha] = useState<{ tipo: 'sucesso' | 'erro'; mensagem: string } | null>(null);
+
   const [abaAtiva, setAbaAtiva] = useState<'inicio' | 'extrato' | 'regras' | 'ajuda' | 'perfil'>('inicio');
   const [saldoPoupanca, setSaldoPoupanca] = useState<number>(0);
   const [modalCheckoutAberto, setModalCheckoutAberto] = useState(false);
@@ -172,7 +179,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         });
     }
 
-    // 🚀 ROTA CORRIGIDA AQUI:
     fetch(`${API_URL}/api/lojas/listar-todas`)
       .then((res) => {
         if (!res.ok) throw new Error();
@@ -317,13 +323,65 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     }
   };
 
+  const handleAlterarSenha = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatusSalvarSenha(null);
+
+    if (novaSenhaInput !== confirmarNovaSenhaInput) {
+      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'A nova senha e a confirmação não coincidem.' });
+      return;
+    }
+
+    if (novaSenhaInput.length < 6) {
+      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'A nova senha deve ter no mínimo 6 caracteres.' });
+      return;
+    }
+
+    setSalvandoSenha(true);
+
+    const localUserStorage = localStorage.getItem('@avle:usuario');
+    const parsedUser = localUserStorage ? JSON.parse(localUserStorage) : null;
+    const userId = usuario?.id || parsedUser?.id;
+
+    if (!userId) {
+      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'Usuário não identificado.' });
+      setSalvandoSenha(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/usuarios/${userId}/alterar-senha`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senhaAtual: senhaAtualInput,
+          novaSenha: novaSenhaInput
+        })
+      });
+
+      if (!res.ok) {
+        const textoErro = await res.text();
+        throw new Error(textoErro || 'Erro ao alterar a senha.');
+      }
+
+      setStatusSalvarSenha({ tipo: 'sucesso', mensagem: 'Sua senha foi alterada com sucesso!' });
+      setSenhaAtualInput('');
+      setNovaSenhaInput('');
+      setConfirmarNovaSenhaInput('');
+    } catch (err: any) {
+      setStatusSalvarSenha({ tipo: 'erro', mensagem: err.message || 'Falha ao alterar senha.' });
+    } finally {
+      setSalvandoSenha(false);
+    }
+  };
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5]">
       
       <aside className="w-full md:w-64 bg-[#0B1E14] text-[#E3EAE6] flex flex-col justify-between p-6 flex-shrink-0">
         <div>
           <div className="flex flex-col items-center text-center pb-6 border-b border-white/10 mb-6">
-            <div className="w-16 h-16 rounded-full bg-[#EFEAE2] flex items-center justify-center overflow-hidden font-bold text-xl text-[#0B1E14] shadow-md cursor-pointer hover:scale-105 transition-all" onClick={() => { setAbaAtiva('perfil'); setExibindoPaginaClube(false); setStatusSalvar(null); }}>
+            <div className="w-16 h-16 rounded-full bg-[#EFEAE2] flex items-center justify-center overflow-hidden font-bold text-xl text-[#0B1E14] shadow-md cursor-pointer hover:scale-105 transition-all" onClick={() => { setAbaAtiva('perfil'); setExibindoPaginaClube(false); setStatusSalvar(null); setStatusSalvarSenha(null); }}>
               {fotoPerfil ? (
                 <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
               ) : (
@@ -343,7 +401,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             ].map((aba) => (
               <button
                 key={aba.id}
-                onClick={() => { setAbaAtiva(aba.id as any); if(aba.id !== 'inicio') setExibindoPaginaClube(false); setStatusSalvar(null); }}
+                onClick={() => { setAbaAtiva(aba.id as any); if(aba.id !== 'inicio') setExibindoPaginaClube(false); setStatusSalvar(null); setStatusSalvarSenha(null); }}
                 className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                   abaAtiva === aba.id ? 'bg-white/10 text-white font-bold' : 'hover:bg-white/5 opacity-75'
                 }`}
@@ -355,7 +413,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         </div>
 
         <div className="pt-4 border-t border-white/10 flex justify-between items-center text-xs">
-          <button onClick={() => { setAbaAtiva('perfil'); setExibindoPaginaClube(false); setStatusSalvar(null); }} className={`hover:text-white transition-all font-semibold cursor-pointer ${abaAtiva === 'perfil' ? 'text-white underline' : 'text-stone-400'}`}>Configurações</button>
+          <button onClick={() => { setAbaAtiva('perfil'); setExibindoPaginaClube(false); setStatusSalvar(null); setStatusSalvarSenha(null); }} className={`hover:text-white transition-all font-semibold cursor-pointer ${abaAtiva === 'perfil' ? 'text-white underline' : 'text-stone-400'}`}>Configurações</button>
           <button onClick={() => { localStorage.removeItem('@avle:usuario'); router.push('/'); }} className="text-stone-400 hover:text-red-400 font-bold cursor-pointer">Sair</button>
         </div>
       </aside>
@@ -687,110 +745,189 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         )}
 
         {abaAtiva === 'perfil' && (
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6 animate-fadeIn max-w-2xl text-left shadow-xs">
-            <div>
-              <h2 className="text-xl font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Meus Dados Cadastrais</h2>
-              <p className="text-xs text-stone-400 mt-1">Gerencie suas informacoes de conta salvas na plataforma e sincronizadas com o gateway do Asaas.</p>
-            </div>
-
-            <div className="flex items-center space-x-4 border-b border-stone-100 pb-5">
-              <div className="relative group w-20 h-20 rounded-full overflow-hidden border border-stone-200 bg-stone-50 flex items-center justify-center flex-shrink-0 shadow-xs">
-                {fotoPerfil ? (
-                  <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-lg font-bold text-stone-400 font-mono">
-                    {nomeInput ? nomeInput.substring(0,2).toUpperCase() : 'AV'}
-                  </span>
-                )}
-                <label htmlFor="perfil-foto-upload" className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white text-[9px] font-bold uppercase tracking-wider text-center p-1">
-                  Alterar
-                </label>
-                <input id="perfil-foto-upload" type="file" accept="image/*" onChange={handleUploadFoto} className="hidden" />
-              </div>
+          <div className="space-y-6 max-w-2xl text-left animate-fadeIn">
+            
+            {/* CARTÃO 1: DADOS CADASTRAIS */}
+            <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6 shadow-xs">
               <div>
-                <h4 className="text-xs font-bold uppercase text-stone-500">Foto de Perfil</h4>
-                <p className="text-[11px] text-stone-400 mt-0.5">Selecione uma imagem quadrada de ate 2MB nos formatos comuns de imagem.</p>
+                <h2 className="text-xl font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Meus Dados Cadastrais</h2>
+                <p className="text-xs text-stone-400 mt-1">Gerencie suas informacoes de conta salvas na plataforma e sincronizadas com o gateway do Asaas.</p>
               </div>
+
+              <div className="flex items-center space-x-4 border-b border-stone-100 pb-5">
+                <div className="relative group w-20 h-20 rounded-full overflow-hidden border border-stone-200 bg-stone-50 flex items-center justify-center flex-shrink-0 shadow-xs">
+                  {fotoPerfil ? (
+                    <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-lg font-bold text-stone-400 font-mono">
+                      {nomeInput ? nomeInput.substring(0,2).toUpperCase() : 'AV'}
+                    </span>
+                  )}
+                  <label htmlFor="perfil-foto-upload" className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white text-[9px] font-bold uppercase tracking-wider text-center p-1">
+                    Alterar
+                  </label>
+                  <input id="perfil-foto-upload" type="file" accept="image/*" onChange={handleUploadFoto} className="hidden" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold uppercase text-stone-500">Foto de Perfil</h4>
+                  <p className="text-[11px] text-stone-400 mt-0.5">Selecione uma imagem quadrada de ate 2MB nos formatos comuns de imagem.</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSalvarPerfil} className="space-y-5 text-xs">
+                {statusSalvar === 'sucesso' && (
+                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold rounded-xl">
+                    Alteracoes gravadas com sucesso no sistema!
+                  </div>
+                )}
+                {statusSalvar === 'erro' && (
+                  <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 font-bold rounded-xl">
+                    Não foi possível salvar as alterações. Tente novamente mais tarde.
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Nome Completo</label>
+                    <input 
+                      type="text" 
+                      value={nomeInput} 
+                      onChange={(e) => setNomeInput(e.target.value)} 
+                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                      required
+                      disabled={carregandoDados || salvandoPerfil}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">E-mail de Notificacao</label>
+                    <input 
+                      type="email" 
+                      value={emailInput} 
+                      onChange={(e) => setEmailInput(e.target.value)} 
+                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                      required
+                      disabled={carregandoDados || salvandoPerfil}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Telefone / Celular</label>
+                    <input 
+                      type="text" 
+                      value={telefoneInput} 
+                      onChange={(e) => setTelefoneInput(aplicarMascaraTelefone(e.target.value))} 
+                      placeholder="(45) 99999-9999"
+                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                      required
+                      disabled={carregandoDados || salvandoPerfil}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-stone-50 p-4 rounded-xl border border-dashed border-stone-200 space-y-2 max-w-sm">
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>CPF / CNPJ do Titular</span>
+                    <span className="text-xs text-[#0B1E14]" title="Informacao imutavel por seguranca contratual">Protegido</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    value={carregandoDados ? "Aguardando carregamento do perfil..." : (cpfInput || "Sem documento cadastrado")} 
+                    disabled
+                    placeholder="Aguardando carregamento do perfil..."
+                    className="w-full px-3 py-2 border border-stone-200 rounded-xl bg-stone-100 text-stone-500 h-[40px] text-sm font-mono cursor-not-allowed font-bold" 
+                  />
+                  <p className="text-[10px] text-stone-400 leading-relaxed pt-1">
+                    * Este documento esta atrelado as faturas e regras de sorteio coletivo. Alteracoes cadastrais exigem auditoria direta com o administrador.
+                  </p>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-stone-100">
+                  <button 
+                    type="submit" 
+                    disabled={carregandoDados || salvandoPerfil}
+                    className="px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 disabled:opacity-50 transition-all"
+                  >
+                    {salvandoPerfil ? 'Salvando...' : 'Salvar Novas Informacoes'}
+                  </button>
+                </div>
+              </form>
             </div>
 
-            <form onSubmit={handleSalvarPerfil} className="space-y-5 text-xs">
-              {statusSalvar === 'sucesso' && (
-                <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold rounded-xl">
-                  Alteracoes gravadas com sucesso no sistema!
-                </div>
-              )}
-              {statusSalvar === 'erro' && (
-                <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 font-bold rounded-xl">
-                  Não foi possível salvar as alterações. Tente novamente mais tarde.
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Nome Completo</label>
-                  <input 
-                    type="text" 
-                    value={nomeInput} 
-                    onChange={(e) => setNomeInput(e.target.value)} 
-                    className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
-                    required
-                    disabled={carregandoDados || salvandoPerfil}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">E-mail de Notificacao</label>
-                  <input 
-                    type="email" 
-                    value={emailInput} 
-                    onChange={(e) => setEmailInput(e.target.value)} 
-                    className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
-                    required
-                    disabled={carregandoDados || salvandoPerfil}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Telefone / Celular</label>
-                  <input 
-                    type="text" 
-                    value={telefoneInput} 
-                    onChange={(e) => setTelefoneInput(aplicarMascaraTelefone(e.target.value))} 
-                    placeholder="(45) 99999-9999"
-                    className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
-                    required
-                    disabled={carregandoDados || salvandoPerfil}
-                  />
-                </div>
-              </div>
-
-              <div className="bg-stone-50 p-4 rounded-xl border border-dashed border-stone-200 space-y-2 max-w-sm">
-                <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider flex items-center justify-between">
-                  <span>CPF / CNPJ do Titular</span>
-                  <span className="text-xs text-[#0B1E14]" title="Informacao imutavel por seguranca contratual">Protegido</span>
-                </label>
-                <input 
-                  type="text" 
-                  value={carregandoDados ? "Aguardando carregamento do perfil..." : (cpfInput || "Sem documento cadastrado")} 
-                  disabled
-                  placeholder="Aguardando carregamento do perfil..."
-                  className="w-full px-3 py-2 border border-stone-200 rounded-xl bg-stone-100 text-stone-500 h-[40px] text-sm font-mono cursor-not-allowed font-bold" 
-                />
-                <p className="text-[10px] text-stone-400 leading-relaxed pt-1">
-                  * Este documento esta atrelado as faturas e regras de sorteio coletivo. Alteracoes cadastrais exigem auditoria direta com o administrador.
+            {/* CARTÃO 2: ALTERAÇÃO DE SENHA (REQUISITO DA SENHA PADRÃO INITIAL) */}
+            <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-5 shadow-xs">
+              <div>
+                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Segurança da Conta & Alteração de Senha</h3>
+                <p className="text-xs text-stone-400 mt-0.5">
+                  Se você utilizou uma senha temporária/padrão fornecida pelo estabelecimento no seu primeiro cadastro, atualize-a abaixo por uma senha pessoal.
                 </p>
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-stone-100">
-                <button 
-                  type="submit" 
-                  disabled={carregandoDados || salvandoPerfil}
-                  className="px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 disabled:opacity-50 transition-all"
-                >
-                  {salvandoPerfil ? 'Salvando...' : 'Salvar Novas Informacoes'}
-                </button>
-              </div>
-            </form>
+              <form onSubmit={handleAlterarSenha} className="space-y-4 text-xs">
+                {statusSalvarSenha?.tipo === 'sucesso' && (
+                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold rounded-xl">
+                    {statusSalvarSenha.mensagem}
+                  </div>
+                )}
+                {statusSalvarSenha?.tipo === 'erro' && (
+                  <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 font-bold rounded-xl">
+                    {statusSalvarSenha.mensagem}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Senha Atual (ou Senha Padrão Inicial)</label>
+                  <input 
+                    type="password" 
+                    placeholder="Digite sua senha atual ou Avle123"
+                    value={senhaAtualInput}
+                    onChange={(e) => setSenhaAtualInput(e.target.value)}
+                    className="w-full max-w-md px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                    required
+                    disabled={salvandoSenha}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
+                  <div>
+                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Nova Senha</label>
+                    <input 
+                      type="password" 
+                      placeholder="Mínimo de 6 caracteres"
+                      value={novaSenhaInput}
+                      onChange={(e) => setNovaSenhaInput(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                      required
+                      disabled={salvandoSenha}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Confirmar Nova Senha</label>
+                    <input 
+                      type="password" 
+                      placeholder="Repita a nova senha"
+                      value={confirmarNovaSenhaInput}
+                      onChange={(e) => setConfirmarNovaSenhaInput(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                      required
+                      disabled={salvandoSenha}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-start pt-2 border-t border-stone-100">
+                  <button 
+                    type="submit" 
+                    disabled={salvandoSenha}
+                    className="px-6 py-3 bg-[#BD6B42] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-[#A95A33] disabled:opacity-50 transition-all"
+                  >
+                    {salvandoSenha ? 'Processando...' : 'Atualizar Minha Senha'}
+                  </button>
+                </div>
+              </form>
+            </div>
+
           </div>
         )}
 
@@ -883,7 +1020,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             </div>
             <CheckoutForm 
               valor={valorMensalidade} 
-              cotaId={clubeAtualSelecionado?.cotaId} 
+              cotaId={clubeAtualSelecionado?.cotaId || clubeAtualSelecionado?.id || clubeAtualSelecionado?.numeroCota} 
               onSuccess={atualizarSaldoAposPagamento} 
               fecharModal={() => setModalCheckoutAberto(false)} 
             />
