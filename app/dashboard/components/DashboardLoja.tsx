@@ -317,7 +317,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     } catch (err) {
       console.error(err);
       setStatusSalvar('erro');
-    } fontally {
+    } finally {
       setSalvandoPerfil(false);
     }
   };
