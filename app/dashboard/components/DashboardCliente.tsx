@@ -63,10 +63,15 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     etapaAtual = 4;   
   }
 
-  // Função auxiliar para resolver o nome da loja independentemente dos campos do banco
+  // 🚀 Função ajustada: Resolve o nome comercial priorizando a marca real da loja
   const obterNomeLoja = (lojaObj: any) => {
-    if (!lojaObj) return 'Unidade Parceira';
-    return lojaObj.nomeComercial || lojaObj.nome || lojaObj.nomeLoja || lojaObj.razaoSocial || lojaObj.nome_comercial || `Unidade #${lojaObj.id}`;
+    if (!lojaObj) return 'Loja Parceira';
+    const nomeComercial = lojaObj.nomeComercial || lojaObj.nome || lojaObj.nomeLoja || lojaObj.razaoSocial || lojaObj.nome_comercial;
+    
+    if (nomeComercial && !nomeComercial.toLowerCase().includes('unidade parceira')) {
+      return nomeComercial;
+    }
+    return `Loja #${lojaObj.id || ''}`;
   };
 
   const aplicarMascaraTelefone = (valor: string) => {
@@ -454,7 +459,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                           <div className="flex justify-between items-start">
                             <div>
                               <h3 className="font-serif font-bold text-base text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">{clube.grupo.nome}</h3>
-                              <p className="text-[10px] font-mono text-stone-400 mt-0.5">Unidade: {obterNomeLoja(clube.loja)}</p>
+                              <p className="text-[10px] font-mono text-stone-400 mt-0.5">Loja: <strong className="text-stone-600 font-bold">{obterNomeLoja(clube.loja)}</strong></p>
                             </div>
                             <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-stone-50 border text-stone-500">
                               Cota #0{clube.cotaId}
@@ -481,9 +486,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 )}
 
                 <div className="border-t border-[#DFD9CE] pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* BLOCO: DESCOBRIR OUTRA UNIDADE COM DROPDOWN CORRIGIDO */}
+                  {/* BLOCO: DESCOBRIR OUTRA LOJA */}
                   <div className="bg-white border border-[#DFD9CE] rounded-xl p-5 shadow-xs space-y-3 relative">
-                    <label className="block text-[10px] text-stone-400 font-bold uppercase tracking-wide">Descobrir Outra Unidade</label>
+                    <label className="block text-[10px] text-stone-400 font-bold uppercase tracking-wide">Descobrir Outra Loja Parceira</label>
                     
                     <button 
                       type="button" 
@@ -559,7 +564,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   <div>
                     <span className="text-[10px] font-mono font-bold text-[#BD6B42] uppercase bg-[#F5F2EB] px-2 py-1 rounded">Visualizacao do Plano Ativo</span>
                     <h2 className="text-xl font-serif font-bold text-[#0B1E14] mt-1.5">{grupoSelecionado?.nome}</h2>
-                    <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: {obterNomeLoja(lojaSelecionada)} | Cota: #0{clubeAtualSelecionado?.cotaId}</p>
+                    <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: <strong className="text-stone-700 font-bold">{obterNomeLoja(lojaSelecionada)}</strong> | Cota: #0{clubeAtualSelecionado?.cotaId}</p>
                   </div>
                   {clubesAtivos.length > 1 && (
                     <button 
@@ -697,7 +702,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-stone-50 text-stone-400 font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
-                    <th className="py-3.5 px-5">PROVEDOR / LOJA</th>
+                    <th className="py-3.5 px-5">LOJA PARCEIRA</th>
                     <th className="py-3.5 px-5">PLANO / IDENTIFICAÇÃO</th>
                     <th className="py-3.5 px-5 text-right">VOLUME APORTADO</th>
                     <th className="py-3.5 px-5 text-center">STATUS DIGITAL</th>
@@ -883,7 +888,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               </form>
             </div>
 
-            {/* CARTÃO 2: ALTERAÇÃO DE SENHA (REQUISITO DA SENHA PADRÃO INITIAL) */}
+            {/* CARTÃO 2: ALTERAÇÃO DE SENHA */}
             <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-5 shadow-xs">
               <div>
                 <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Segurança da Conta & Alteração de Senha</h3>
@@ -992,7 +997,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
               </div>
 
-              {/* 2. SUPORTE DA LOJA PARCEIRA (COMERCIAL / PRODUTOS) */}
+              {/* 2. SUPORTE DA LOJA PARCEIRA */}
               <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col justify-between space-y-4">
                 {lojaSelecionada ? (
                   <>
