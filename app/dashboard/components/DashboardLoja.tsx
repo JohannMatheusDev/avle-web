@@ -127,7 +127,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       .catch(() => {});
   };
 
-  // 🚀 ROTA CORRIGIDA AQUI: Incluído /usuarios/ no caminho do endpoint
   const carregarContagemClientes = (lojaId: number) => {
     fetch(`${API_URL}/api/usuarios/lojas/${lojaId}/clientes/contagem`)
       .then((res) => res.ok ? res.json() : { totalClientes: 0 })
@@ -166,6 +165,37 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       recarregarParticipantesDoGrupo();
     }
   }, [grupoSelecionado]);
+
+  // 🔴 NOVO: Função para remover participante do grupo (deletar cota)
+  const handleRemoverParticipanteDoGrupo = async (cotaId: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+
+    if (!confirm('Tem certeza que deseja remover este participante do grupo? A cota e o histórico de participação dele neste clube serão cancelados.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/cotas/${cotaId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const textoErro = await res.text();
+        throw new Error(textoErro || 'Falha ao remover participante.');
+      }
+
+      mostrarAviso('Participante Removido', 'O cliente foi desligado deste grupo de compras com sucesso.', false);
+      
+      if (idOperacao === cotaId.toString()) {
+        setIdOperacao('Nenhuma');
+      }
+
+      recarregarParticipantesDoGrupo();
+      carregarContagemClientes(usuario?.lojaId || 1);
+    } catch (err: any) {
+      mostrarAviso('Erro ao Remover', err.message, true);
+    }
+  };
 
   const handleCadastrarCliente = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -534,11 +564,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <th className="py-3.5 px-5 text-right">SALDO QUITADO</th>
                       <th className="py-3.5 px-5 text-right">VALOR COBERTO (RISCO LOJA)</th>
                       <th className="py-3.5 px-5 text-center">STATUS DE ENTREGA / OPERAÇÃO</th>
+                      <th className="py-3.5 px-5 text-center">AÇÕES</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
                     {totalParticipantesValidos === 0 ? (
-                      <tr><td colSpan={5} className="py-6 text-center text-stone-400 italic">Nenhum participante vinculado a este grupo ainda.</td></tr>
+                      <tr><td colSpan={6} className="py-6 text-center text-stone-400 italic">Nenhum participante vinculado a este grupo ainda.</td></tr>
                     ) : (
                       participantesDoGrupo.map((part) => {
                         const isSelecionado = idOperacao === part.numeroCota.toString();
@@ -561,6 +592,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                 part.statusEntrega === 'ENVIADO_OU_RETIRADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                                 'bg-stone-50 text-stone-500 border-stone-200'
                               }`}>{part.statusEntrega ? part.statusEntrega.replace(/_/g, ' ') : 'AGUARDANDO SORTEIO'}</span>
+                            </td>
+                            
+                            {/* 🔴 BOTÃO DE REMOVER PARTICIPANTE DO GRUPO */}
+                            <td className="py-3.5 px-5 text-center">
+                              <button
+                                type="button"
+                                onClick={(e) => handleRemoverParticipanteDoGrupo(part.id, e)}
+                                className="px-2.5 py-1 bg-rose-50 border border-rose-200 text-rose-700 font-bold rounded-lg text-[10px] uppercase hover:bg-rose-700 hover:text-white transition-all cursor-pointer shadow-xs"
+                              >
+                                Remover
+                              </button>
                             </td>
                           </tr>
                         );
