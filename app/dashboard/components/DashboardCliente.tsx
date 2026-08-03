@@ -63,6 +63,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     etapaAtual = 4;   
   }
 
+  // Função auxiliar para resolver o nome da loja independentemente dos campos do banco
+  const obterNomeLoja = (lojaObj: any) => {
+    if (!lojaObj) return 'Unidade Parceira';
+    return lojaObj.nomeComercial || lojaObj.nome || lojaObj.nomeLoja || lojaObj.razaoSocial || lojaObj.nome_comercial || `Unidade #${lojaObj.id}`;
+  };
+
   const aplicarMascaraTelefone = (valor: string) => {
     const apenasNumeros = valor.replace(/\D/g, '');
     if (apenasNumeros.length <= 2) return apenasNumeros;
@@ -448,7 +454,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                           <div className="flex justify-between items-start">
                             <div>
                               <h3 className="font-serif font-bold text-base text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">{clube.grupo.nome}</h3>
-                              <p className="text-[10px] font-mono text-stone-400 mt-0.5">Unidade: {clube.loja.nomeComercial || clube.loja.nome}</p>
+                              <p className="text-[10px] font-mono text-stone-400 mt-0.5">Unidade: {obterNomeLoja(clube.loja)}</p>
                             </div>
                             <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-stone-50 border text-stone-500">
                               Cota #0{clube.cotaId}
@@ -475,19 +481,42 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 )}
 
                 <div className="border-t border-[#DFD9CE] pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white border border-[#DFD9CE] rounded-xl p-5 shadow-xs space-y-3">
+                  {/* BLOCO: DESCOBRIR OUTRA UNIDADE COM DROPDOWN CORRIGIDO */}
+                  <div className="bg-white border border-[#DFD9CE] rounded-xl p-5 shadow-xs space-y-3 relative">
                     <label className="block text-[10px] text-stone-400 font-bold uppercase tracking-wide">Descobrir Outra Unidade</label>
-                    <button type="button" onClick={() => setDropdownLojaAberto(!dropdownLojaAberto)} className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl flex items-center justify-between text-[#0B1E14] font-bold text-xs cursor-pointer">
-                      <span className="truncate">{lojaSelecionada ? (lojaSelecionada.nomeComercial || lojaSelecionada.nome) : 'Selecione uma loja...'}</span>
+                    
+                    <button 
+                      type="button" 
+                      onClick={() => setDropdownLojaAberto(!dropdownLojaAberto)} 
+                      className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl flex items-center justify-between text-[#0B1E14] font-bold text-xs cursor-pointer hover:border-[#BD6B42] transition-colors"
+                    >
+                      <span className="truncate">
+                        {lojaSelecionada ? obterNomeLoja(lojaSelecionada) : 'Selecione uma loja...'}
+                      </span>
                       <span className="text-[10px] text-stone-400 underline">Filtrar</span>
                     </button>
+
                     {dropdownLojaAberto && (
-                      <div className="bg-white border border-stone-200 rounded-xl mt-1 max-h-36 overflow-y-auto divide-y shadow-md">
-                        {lojas.map((l: any) => (
-                          <button key={l.id} type="button" onClick={() => handleSelecionarLojaCustom(l)} className="w-full text-left px-3 py-2.5 text-xs text-[#0B1E14] hover:bg-[#E6DFD3] transition-all font-bold">
-                            {l.nomeComercial || l.nome}
-                          </button>
-                        ))}
+                      <div className="absolute left-0 right-0 top-[80px] bg-white border border-[#DFD9CE] rounded-xl max-h-48 overflow-y-auto divide-y divide-[#DFD9CE] shadow-lg z-30">
+                        {lojas.length === 0 ? (
+                          <div className="px-3 py-2.5 text-xs text-stone-400 italic">
+                            Nenhuma loja encontrada.
+                          </div>
+                        ) : (
+                          lojas.map((l: any) => {
+                            const nomeExibicao = obterNomeLoja(l);
+                            return (
+                              <button 
+                                key={l.id} 
+                                type="button" 
+                                onClick={() => handleSelecionarLojaCustom(l)} 
+                                className="w-full text-left px-3 py-2.5 text-xs text-[#0B1E14] hover:bg-[#F5F2EB] transition-all font-bold block"
+                              >
+                                {nomeExibicao}
+                              </button>
+                            );
+                          })
+                        )}
                       </div>
                     )}
                   </div>
@@ -530,7 +559,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   <div>
                     <span className="text-[10px] font-mono font-bold text-[#BD6B42] uppercase bg-[#F5F2EB] px-2 py-1 rounded">Visualizacao do Plano Ativo</span>
                     <h2 className="text-xl font-serif font-bold text-[#0B1E14] mt-1.5">{grupoSelecionado?.nome}</h2>
-                    <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: {lojaSelecionada?.nomeComercial || lojaSelecionada?.nome} | Cota: #0{clubeAtualSelecionado?.cotaId}</p>
+                    <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: {obterNomeLoja(lojaSelecionada)} | Cota: #0{clubeAtualSelecionado?.cotaId}</p>
                   </div>
                   {clubesAtivos.length > 1 && (
                     <button 
@@ -686,7 +715,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       if (parcelasPagas === 0) return [];
                       
                       return Array.from({ length: parcelasPagas }).map((_, index) => ({
-                        lojaNome: clube.loja.nomeComercial || clube.loja.nome,
+                        lojaNome: obterNomeLoja(clube.loja),
                         grupoNome: clube.grupo.nome,
                         cotaId: clube.cotaId,
                         parcela: index + 1,
@@ -726,7 +755,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               <div className="pt-4 border-t border-stone-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h4 className="font-bold text-[#0B1E14] uppercase text-[11px]">Termos Específicos da Unidade</h4>
-                  <p className="text-stone-400 text-[10px] mt-0.5">Regulamento de termos contratuais enviado por: <strong>{lojaSelecionada.nomeComercial || lojaSelecionada.nome}</strong></p>
+                  <p className="text-stone-400 text-[10px] mt-0.5">Regulamento de termos contratuais enviado por: <strong>{obterNomeLoja(lojaSelecionada)}</strong></p>
                 </div>
                 <button 
                   type="button"
@@ -972,7 +1001,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         Suporte da Loja
                       </span>
                       <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase truncate max-w-[180px]">
-                        {lojaSelecionada.nomeComercial || lojaSelecionada.nome}
+                        {obterNomeLoja(lojaSelecionada)}
                       </h4>
                       <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">
                         Para tratar diretamente sobre especificações de produtos, datas de assembleias locais, andamento de entregas ou retiradas de mercadorias.
