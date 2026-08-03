@@ -127,8 +127,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       .catch(() => {});
   };
 
+  // 🚀 ROTA CORRIGIDA AQUI: Incluído /usuarios/ no caminho do endpoint
   const carregarContagemClientes = (lojaId: number) => {
-    fetch(`${API_URL}/api/lojas/${lojaId}/clientes/contagem`)
+    fetch(`${API_URL}/api/usuarios/lojas/${lojaId}/clientes/contagem`)
       .then((res) => res.ok ? res.json() : { totalClientes: 0 })
       .then((data) => {
         setTotalClientes(Number(data.totalClientes) || 0);
@@ -750,7 +751,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       Selecionar PDF
                     </label>
                     <span className="text-[10px] text-stone-400 mt-2 font-mono text-center block max-w-xs truncate">
-                      {arquivoPdf ? arquivoPdf.name : 'Nenhum regulamento PDF selecionado para envio.'}
+                      {arquivoPdf ? arquivoPdf.name : 'Nenum regulamento PDF selecionado para envio.'}
                     </span>
                   </div>
 
