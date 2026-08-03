@@ -63,13 +63,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     etapaAtual = 4;   
   }
 
-  // 🚀 Função ajustada: Resolve o nome comercial priorizando a marca real da loja
+  // 🚀 Função para tratar e obter o Nome Comercial da Loja com segurança
   const obterNomeLoja = (lojaObj: any) => {
     if (!lojaObj) return 'Loja Parceira';
-    const nomeComercial = lojaObj.nomeComercial || lojaObj.nome || lojaObj.nomeLoja || lojaObj.razaoSocial || lojaObj.nome_comercial;
-    
-    if (nomeComercial && !nomeComercial.toLowerCase().includes('unidade parceira')) {
-      return nomeComercial;
+    const nome = lojaObj.nomeComercial || lojaObj.nome || lojaObj.nomeLoja || lojaObj.razaoSocial || lojaObj.nome_comercial;
+    if (nome && nome.trim().length > 0 && !nome.toLowerCase().includes('unidade parceira')) {
+      return nome;
     }
     return `Loja #${lojaObj.id || ''}`;
   };
@@ -190,13 +189,18 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         });
     }
 
+    // Busca com fallback resiliente para lista de lojas
     fetch(`${API_URL}/api/lojas/listar-todas`)
       .then((res) => {
         if (!res.ok) throw new Error();
         return res.json();
       })
       .then((data) => {
-        setLojas(data);
+        if (Array.isArray(data)) {
+          setLojas(data);
+        } else {
+          setLojas([]);
+        }
         setErroConexao(false);
       })
       .catch(() => {
@@ -486,7 +490,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 )}
 
                 <div className="border-t border-[#DFD9CE] pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* BLOCO: DESCOBRIR OUTRA LOJA */}
+                  {/* BLOCO: DESCOBRIR OUTRA LOJA PARCEIRA */}
                   <div className="bg-white border border-[#DFD9CE] rounded-xl p-5 shadow-xs space-y-3 relative">
                     <label className="block text-[10px] text-stone-400 font-bold uppercase tracking-wide">Descobrir Outra Loja Parceira</label>
                     
