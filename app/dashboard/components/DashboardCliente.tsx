@@ -67,7 +67,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const obterNomeLoja = (lojaObj: any) => {
     if (!lojaObj) return 'Loja Parceira';
     const nome = lojaObj.nomeComercial || lojaObj.nome || lojaObj.nomeLoja || lojaObj.razaoSocial || lojaObj.nome_comercial;
-    if (nome && nome.trim().length > 0 && !nome.toLowerCase().includes('unidade parceira')) {
+    if (nome && nome.trim().length > 0) {
       return nome;
     }
     return `Loja #${lojaObj.id || ''}`;
@@ -1111,7 +1111,7 @@ function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number
             <span className="block font-semibold text-rose-500 leading-relaxed">
               Nao foi possivel gerar a sua faturamento Pix neste momento. Por favor, tente novamente em instantes ou entre em contato com o nosso suporte.
             </span>
-          )}
+          )}   
         </div>
         
         <button 
