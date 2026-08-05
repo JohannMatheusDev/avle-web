@@ -4,12 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TelaCarregamento from './dashboard/components/TelaCarregamento';
 
-// Configuração da URL da API vinda do .env.local
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
-// -------------------------------------------------------------
-// COMPONENTE PRINCIPAL DA PÁGINA (GERENCIADOR DE FLUXO E F5)
-// -------------------------------------------------------------
 export default function Home() {
   const [status, setStatus] = useState<'inicial' | 'intro' | 'login'>('inicial');
   const [deveAnimar, setDeveAnimar] = useState(false);
@@ -54,9 +50,7 @@ export default function Home() {
   );
 }
 
-// -------------------------------------------------------------
-// COMPONENTE DE AUTENTICAÇÃO
-// -------------------------------------------------------------
+
 function Autenticacao() {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
@@ -83,9 +77,11 @@ function Autenticacao() {
   const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const emailValido = regexEmail.test(email);
 
-  // Validação flexível para e-mail e telefone opcionais no cadastro
+  // Validação flexível: Obrigatório para LOJA, Opcional para CLIENTE
   const emailPreenchido = email.trim().length > 0;
-  const emailValidoOuVazio = !emailPreenchido || regexEmail.test(email);
+  const emailValidoOuVazio = tipoUsuario === 'LOJA' 
+    ? emailValido 
+    : (!emailPreenchido || emailValido);
 
   const temMaiuscula = /[A-Z]/.test(senha);
   const temNumero = /[0-9]/.test(senha);
@@ -102,10 +98,11 @@ function Autenticacao() {
   const tamanhoDocumentoValido = cpf.length === (tipoUsuario === 'LOJA' ? 14 : 11);
   
   const telefoneLimpo = telefone.replace(/\D/g, '');
+  const telefoneValidoSeLoja = tipoUsuario === 'LOJA' ? telefoneLimpo.length >= 10 : true;
 
   const formularioValido = isLogin 
     ? (emailValido && senha.length > 0)
-    : (emailValidoOuVazio && senhaForte && nome.trim() !== '' && tamanhoDocumentoValido);
+    : (emailValidoOuVazio && telefoneValidoSeLoja && senhaForte && nome.trim() !== '' && tamanhoDocumentoValido);
 
   const aplicarMascaraTelefone = (valor: string) => {
     const apenasNumeros = valor.replace(/\D/g, '');
@@ -400,7 +397,7 @@ function Autenticacao() {
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-stone-400 mb-1.5 tracking-wider">Tipo de Conta *</label>
                       <div className="relative">
-                        <select value={tipoUsuario} onChange={(e) => { setTipoUsuario(e.target.value); setCpf(''); }} className="w-full h-[42px] px-3.5 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-[#0B1E14] font-bold text-xs cursor-pointer appearance-none focus:outline-none focus:border-[#BD6B42] pr-10 transition-colors" disabled={carregando}>
+                        <select value={tipoUsuario} onChange={(e) => { setTipoUsuario(e.target.value); setCpf(''); setTelefone(''); setEmail(''); }} className="w-full h-[42px] px-3.5 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-[#0B1E14] font-bold text-xs cursor-pointer appearance-none focus:outline-none focus:border-[#BD6B42] pr-10 transition-colors" disabled={carregando}>
                           <option value="CLIENTE">Sou Cliente (Quero participar de clubes)</option>
                           <option value="LOJA">Sou Loja (Quero gerenciar meus clientes)</option>
                         </select>
@@ -411,8 +408,8 @@ function Autenticacao() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">{tipoUsuario === 'LOJA' ? 'Razão Social *' : 'Nome Completo *'}</label>
-                      <input type="text" placeholder={tipoUsuario === 'LOJA' ? "Ex: Loja Centro Celulares LTDA" : "Ex: João Silva"} value={nome} onChange={(e) => setNome(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                      <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">{tipoUsuario === 'LOJA' ? 'Nome / Razão Social da Loja *' : 'Nome Completo *'}</label>
+                      <input type="text" placeholder={tipoUsuario === 'LOJA' ? "Ex: Caza Liz Decor" : "Ex: João Silva"} value={nome} onChange={(e) => setNome(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                     </div>
 
                     <div>
@@ -425,19 +422,24 @@ function Autenticacao() {
 
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <label className="block text-[10px] font-bold uppercase text-stone-500">Telefone / Celular (Opcional)</label>
+                        <label className="block text-[10px] font-bold uppercase text-stone-500">{tipoUsuario === 'LOJA' ? 'Telefone / WhatsApp da Loja *' : 'Telefone / Celular (Opcional)'}</label>
+                        {tipoUsuario === 'LOJA' && telefoneLimpo.length > 0 && (
+                          <span className={`text-[10px] font-bold ${telefoneLimpo.length >= 10 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            {telefoneLimpo.length >= 10 ? '✓ Válido' : '✗ Mínimo 10 dígitos'}
+                          </span>
+                        )}
                       </div>
-                      <input type="text" placeholder="(45) 99999-9999" value={telefone} onChange={(e) => setTelefone(aplicarMascaraTelefone(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]" disabled={carregando} />
+                      <input type="text" placeholder="(42) 99999-9999" value={telefone} onChange={(e) => setTelefone(aplicarMascaraTelefone(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
                     </div>
                   </div>
                 )}
 
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="block text-[10px] font-bold uppercase text-stone-500">{isLogin ? 'E-mail *' : 'E-mail (Opcional)'}</label>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500">{isLogin || tipoUsuario === 'LOJA' ? 'E-mail *' : 'E-mail (Opcional)'}</label>
                     {email.length > 0 && <span className={`text-[10px] font-bold ${emailValido ? 'text-emerald-600' : 'text-rose-500'}`}>{emailValido ? '✓ Válido' : '✗ Inválido'}</span>}
                   </div>
-                  <input type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]" required={isLogin} disabled={carregando} />
+                  <input type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]" required={isLogin || tipoUsuario === 'LOJA'} disabled={carregando} />
                 </div>
 
                 <div>
