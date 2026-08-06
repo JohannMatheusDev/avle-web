@@ -79,7 +79,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   }
 
   // Fallback padrão sem expor o ID
-  return '';
+  return item.grupo?nome || item.nomeGrupo || 'Loja Parceira': 'Loja Parceira';
 };
 
   const aplicarMascaraTelefone = (valor: string) => {
