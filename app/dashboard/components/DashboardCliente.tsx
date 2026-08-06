@@ -8,13 +8,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function DashboardCliente({ usuario: usuarioInicial }: { usuario: any }) {
   const router = useRouter();
-  
+
   const [usuario, setUsuario] = useState(usuarioInicial);
-  
+
   const [nomeInput, setNomeInput] = useState('');
   const [emailInput, setEmailInput] = useState('');
   const [cpfInput, setCpfInput] = useState('');
-  const [telefoneInput, setTelefoneInput] = useState(''); 
+  const [telefoneInput, setTelefoneInput] = useState('');
   const [fotoPerfil, setFotoPerfil] = useState<string | null>(null);
 
   // Estados para Alteração de Senha
@@ -30,7 +30,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   const [lojas, setLojas] = useState<any[]>([]);
   const [grupos, setGrupos] = useState<any[]>([]);
-  
+
   const [lojaSelecionada, setLojaSelecionada] = useState<any | null>(null);
   const [grupoSelecionado, setGrupoSelecionado] = useState<any | null>(null);
   const [carregandoOpcoes, setCarregandoOpcoes] = useState(false);
@@ -44,7 +44,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [exibindoPaginaClube, setExibindoPaginaClube] = useState(false);
 
   const [salvandoPerfil, setSalvandoPerfil] = useState(false);
-  const [carregandoDados, setCarregandoDados] = useState(true); 
+  const [carregandoDados, setCarregandoDados] = useState(true);
   const [statusSalvar, setStatusSalvar] = useState<'sucesso' | 'erro' | null>(null);
 
   const totalObjetivo = grupoSelecionado ? Number(grupoSelecionado.valorParcela) * Number(grupoSelecionado.duracaoMeses) : 0;
@@ -56,31 +56,40 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   const percentual = totalObjetivo > 0 ? Math.min(Math.round((saldoPoupanca / totalObjetivo) * 100), 100) : 0;
 
-  let etapaAtual = 1; 
+  let etapaAtual = 1;
   if (saldoPoupanca > 0 && saldoPoupanca < totalObjetivo) {
-    etapaAtual = 2;   
+    etapaAtual = 2;
   } else if (saldoPoupanca >= totalObjetivo) {
-    etapaAtual = 4;   
+    etapaAtual = 4;
   }
 
- const obterNomeLoja = (item: any) => {
-  if (!item) return '';
-  if (typeof item === 'string' && item.trim().length > 0) {
-    return item;
-  }
-  const nome =
-    item.nomeComercial ||
-    item.nome ||
-    item.nomeLoja ||
-    item.razaoSocial ||
-    item.nome_comercial;
-  if (nome && typeof nome === 'string' && nome.trim().length > 0) {
-    return nome;
-  }
+  // 🟢 FUNÇÃO EXTRAÇÃO DE NOME DA LOJA RESILIENTE
+  const obterNomeLoja = (item: any) => {
+    if (!item) return 'Loja Parceira';
 
-  // Fallback padrão sem expor o ID
-  return item.grupo?nome || item.nomeGrupo || 'Loja Parceira': 'Loja Parceira';
-};
+    if (typeof item === 'string' && item.trim().length > 0) {
+      return item;
+    }
+
+    // Tenta capturar o objeto de loja esteja ele direto ou aninhado
+    const objLoja = item.loja || item.grupo?.loja || item;
+
+    const nome =
+      objLoja.nomeComercial ||
+      objLoja.nome_comercial ||
+      objLoja.nome ||
+      objLoja.nomeLoja ||
+      objLoja.razaoSocial ||
+      item.nomeComercial ||
+      item.nome_comercial ||
+      item.nome;
+
+    if (nome && typeof nome === 'string' && nome.trim().length > 0) {
+      return nome.trim();
+    }
+
+    return item.grupo?.nome || item.nomeGrupo || 'Loja Parceira';
+  };
 
   const aplicarMascaraTelefone = (valor: string) => {
     const apenasNumeros = valor.replace(/\D/g, '');
@@ -112,7 +121,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     const dataVencimento = new Date(ano, mes - 1, 10);
     const diffTime = dataVencimento.getTime() - hoje.getTime();
     const diasCalculados = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     setDiasRestantesVencimento(diasCalculados);
     setDataVencimentoCota(`10/${mes < 10 ? '0' + mes : mes}/${ano}`);
 
@@ -156,7 +165,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     setLojaSelecionada(clube.loja);
     setGrupoSelecionado(clube.grupo);
     setSaldoPoupanca(Number(clube.saldoPoupanca) || 0);
-    setExibindoPaginaClube(true); 
+    setExibindoPaginaClube(true);
   };
 
   useEffect(() => {
@@ -185,7 +194,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             setEmailInput(data.email || '');
             setTelefoneInput(data.telefone ? aplicarMascaraTelefone(data.telefone) : '');
             setFotoPerfil(data.fotoPerfil || null);
-            
+
             const documento = data.cpf || data.cpfCnpj || data.cpf_cnpj || data.documento || '';
             setCpfInput(documento ? aplicarMascaraCpfCnpj(documento) : '');
           }
@@ -194,11 +203,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           console.error(err);
         })
         .finally(() => {
-          setCarregandoDados(false); 
+          setCarregandoDados(false);
         });
     }
 
-    // Busca com fallback resiliente para lista de lojas
+    // Busca de lojas
     fetch(`${API_URL}/api/lojas/listar-todas`)
       .then((res) => {
         if (!res.ok) throw new Error();
@@ -243,7 +252,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       });
 
       if (!res.ok) throw new Error();
-      buscarCarteiraDeClubes(grupo.id); 
+      buscarCarteiraDeClubes(grupo.id);
     } catch {
       console.error('Falha ao registrar vinculo da cota.');
     }
@@ -251,9 +260,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   const atualizarSaldoAposPagamento = () => {
     setSaldoPoupanca((prev) => prev + valorMensalidade);
-    setClubesAtivos(prev => prev.map(c => 
-      c.cotaId === clubeAtualSelecionado?.cotaId 
-        ? { ...c, saldoPoupanca: c.saldoPoupanca + valorMensalidade } 
+    setClubesAtivos(prev => prev.map(c =>
+      c.cotaId === clubeAtualSelecionado?.cotaId
+        ? { ...c, saldoPoupanca: c.saldoPoupanca + valorMensalidade }
         : c
     ));
   };
@@ -261,7 +270,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const handleUploadFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const arquivo = e.target.files[0];
-      
+
       if (!arquivo.type.startsWith('image/')) {
         alert('Por favor, selecione apenas arquivos de imagem.');
         return;
@@ -321,20 +330,20 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       const res = await fetch(`${API_URL}/api/usuarios/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          nome: nomeInput, 
-          email: emailInput, 
-          telefone: telefoneInput.replace(/\D/g, '') 
+        body: JSON.stringify({
+          nome: nomeInput,
+          email: emailInput,
+          telefone: telefoneInput.replace(/\D/g, '')
         }),
       });
-      
+
       if (!res.ok) throw new Error();
 
-      const usuarioAtualizado = { 
-        ...usuario, 
-        nome: nomeInput, 
-        email: emailInput, 
-        telefone: telefoneInput.replace(/\D/g, '') 
+      const usuarioAtualizado = {
+        ...usuario,
+        nome: nomeInput,
+        email: emailInput,
+        telefone: telefoneInput.replace(/\D/g, '')
       };
       setUsuario(usuarioAtualizado);
       localStorage.setItem('@avle:usuario', JSON.stringify(usuarioAtualizado));
@@ -401,7 +410,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5]">
-      
+
       <aside className="w-full md:w-64 bg-[#0B1E14] text-[#E3EAE6] flex flex-col justify-between p-6 flex-shrink-0">
         <div>
           <div className="flex flex-col items-center text-center pb-6 border-b border-white/10 mb-6">
@@ -443,10 +452,10 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       </aside>
 
       <main className="flex-1 p-6 md:p-8 max-w-7xl overflow-x-hidden space-y-6">
-        
+
         {abaAtiva === 'inicio' && (
           <div className="space-y-6 animate-fadeIn">
-            
+
             {!exibindoPaginaClube ? (
               <div className="space-y-6 text-left">
                 <div>
@@ -502,10 +511,10 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   {/* BLOCO: DESCOBRIR OUTRA LOJA PARCEIRA */}
                   <div className="bg-white border border-[#DFD9CE] rounded-xl p-5 shadow-xs space-y-3 relative">
                     <label className="block text-[10px] text-stone-400 font-bold uppercase tracking-wide">Descobrir Outra Loja Parceira</label>
-                    
-                    <button 
-                      type="button" 
-                      onClick={() => setDropdownLojaAberto(!dropdownLojaAberto)} 
+
+                    <button
+                      type="button"
+                      onClick={() => setDropdownLojaAberto(!dropdownLojaAberto)}
                       className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl flex items-center justify-between text-[#0B1E14] font-bold text-xs cursor-pointer hover:border-[#BD6B42] transition-colors"
                     >
                       <span className="truncate">
@@ -524,10 +533,10 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                           lojas.map((l: any) => {
                             const nomeExibicao = obterNomeLoja(l);
                             return (
-                              <button 
-                                key={l.id} 
-                                type="button" 
-                                onClick={() => handleSelecionarLojaCustom(l)} 
+                              <button
+                                key={l.id}
+                                type="button"
+                                onClick={() => handleSelecionarLojaCustom(l)}
                                 className="w-full text-left px-3 py-2.5 text-xs text-[#0B1E14] hover:bg-[#F5F2EB] transition-all font-bold block"
                               >
                                 {nomeExibicao}
@@ -564,9 +573,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
               </div>
             ) : (
-              
+
               <div className="space-y-6 animate-fadeIn text-left">
-                <button 
+                <button
                   onClick={() => setExibindoPaginaClube(false)}
                   className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs transition-all"
                 >
@@ -580,7 +589,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: <strong className="text-stone-700 font-bold">{obterNomeLoja(lojaSelecionada)}</strong> | Cota: #0{clubeAtualSelecionado?.cotaId}</p>
                   </div>
                   {clubesAtivos.length > 1 && (
-                    <button 
+                    <button
                       onClick={() => setExibindoPaginaClube(false)}
                       className="text-[10px] uppercase font-bold border px-3 py-2 bg-stone-50 rounded-xl text-stone-500 hover:text-[#BD6B42]"
                     >
@@ -661,7 +670,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   <div className="px-5 py-4 border-b bg-stone-50/50 flex justify-between items-center">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Regua de Vencimentos desta Cota</h3>
                     {etapaAtual !== 4 && (
-                      <button 
+                      <button
                         onClick={() => setModalCheckoutAberto(true)}
                         className="bg-[#0B1E14] text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90"
                       >
@@ -729,9 +738,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       const vMensalidade = Number(clube.grupo.valorParcela) || 0;
                       const sPoupanca = Number(clube.saldoPoupanca) || 0;
                       const parcelasPagas = vMensalidade > 0 ? Math.ceil(sPoupanca / vMensalidade) : 0;
-                      
+
                       if (parcelasPagas === 0) return [];
-                      
+
                       return Array.from({ length: parcelasPagas }).map((_, index) => ({
                         lojaNome: obterNomeLoja(clube.loja),
                         grupoNome: clube.grupo.nome,
@@ -764,7 +773,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Regulamento AVLE</h3>
               <p className="text-stone-400 mt-1">Confira as diretrizes da comunidade estruturada de compras programadas de móveis e decorações.</p>
             </div>
-            
+
             <p className="bg-stone-50 p-3 rounded-xl border border-dashed text-stone-500">
               * Compra Planejada: A AVLE nao atua como consorcio tradicional ou fundo financeiro. Trata-se de uma comunidade estruturada de compras programadas de moveis e decoracoes corporativas ou residenciais.
             </p>
@@ -775,7 +784,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   <h4 className="font-bold text-[#0B1E14] uppercase text-[11px]">Termos Específicos da Unidade</h4>
                   <p className="text-stone-400 text-[10px] mt-0.5">Regulamento de termos contratuais enviado por: <strong>{obterNomeLoja(lojaSelecionada)}</strong></p>
                 </div>
-                <button 
+                <button
                   type="button"
                   onClick={() => window.open(`${API_URL}/api/lojas/${lojaSelecionada.id}/regras`, '_blank')}
                   className="px-4 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-opacity-90 cursor-pointer transition-all"
@@ -793,7 +802,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
         {abaAtiva === 'perfil' && (
           <div className="space-y-6 max-w-2xl text-left animate-fadeIn">
-            
+
             {/* CARTÃO 1: DADOS CADASTRAIS */}
             <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6 shadow-xs">
               <div>
@@ -836,11 +845,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Nome Completo</label>
-                    <input 
-                      type="text" 
-                      value={nomeInput} 
-                      onChange={(e) => setNomeInput(e.target.value)} 
-                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                    <input
+                      type="text"
+                      value={nomeInput}
+                      onChange={(e) => setNomeInput(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"
                       required
                       disabled={carregandoDados || salvandoPerfil}
                     />
@@ -848,11 +857,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
                   <div>
                     <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">E-mail de Notificacao</label>
-                    <input 
-                      type="email" 
-                      value={emailInput} 
-                      onChange={(e) => setEmailInput(e.target.value)} 
-                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                    <input
+                      type="email"
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"
                       required
                       disabled={carregandoDados || salvandoPerfil}
                     />
@@ -860,12 +869,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
                   <div>
                     <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Telefone / Celular</label>
-                    <input 
-                      type="text" 
-                      value={telefoneInput} 
-                      onChange={(e) => setTelefoneInput(aplicarMascaraTelefone(e.target.value))} 
+                    <input
+                      type="text"
+                      value={telefoneInput}
+                      onChange={(e) => setTelefoneInput(aplicarMascaraTelefone(e.target.value))}
                       placeholder="(45) 99999-9999"
-                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"
                       required
                       disabled={carregandoDados || salvandoPerfil}
                     />
@@ -877,12 +886,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     <span>CPF / CNPJ do Titular</span>
                     <span className="text-xs text-[#0B1E14]" title="Informacao imutavel por seguranca contratual">Protegido</span>
                   </label>
-                  <input 
-                    type="text" 
-                    value={carregandoDados ? "Aguardando carregamento do perfil..." : (cpfInput || "Sem documento cadastrado")} 
+                  <input
+                    type="text"
+                    value={carregandoDados ? "Aguardando carregamento do perfil..." : (cpfInput || "Sem documento cadastrado")}
                     disabled
                     placeholder="Aguardando carregamento do perfil..."
-                    className="w-full px-3 py-2 border border-stone-200 rounded-xl bg-stone-100 text-stone-500 h-[40px] text-sm font-mono cursor-not-allowed font-bold" 
+                    className="w-full px-3 py-2 border border-stone-200 rounded-xl bg-stone-100 text-stone-500 h-[40px] text-sm font-mono cursor-not-allowed font-bold"
                   />
                   <p className="text-[10px] text-stone-400 leading-relaxed pt-1">
                     * Este documento esta atrelado as faturas e regras de sorteio coletivo. Alteracoes cadastrais exigem auditoria direta com o administrador.
@@ -890,8 +899,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
 
                 <div className="flex justify-end pt-4 border-t border-stone-100">
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     disabled={carregandoDados || salvandoPerfil}
                     className="px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 disabled:opacity-50 transition-all"
                   >
@@ -924,12 +933,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
                 <div>
                   <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Senha Atual (ou Senha Padrão Inicial)</label>
-                  <input 
-                    type="password" 
+                  <input
+                    type="password"
                     placeholder="Digite sua senha atual ou Avle123"
                     value={senhaAtualInput}
                     onChange={(e) => setSenhaAtualInput(e.target.value)}
-                    className="w-full max-w-md px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                    className="w-full max-w-md px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"
                     required
                     disabled={salvandoSenha}
                   />
@@ -938,12 +947,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
                   <div>
                     <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Nova Senha</label>
-                    <input 
-                      type="password" 
+                    <input
+                      type="password"
                       placeholder="Mínimo de 6 caracteres"
                       value={novaSenhaInput}
                       onChange={(e) => setNovaSenhaInput(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"
                       required
                       disabled={salvandoSenha}
                     />
@@ -951,12 +960,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
                   <div>
                     <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Confirmar Nova Senha</label>
-                    <input 
-                      type="password" 
+                    <input
+                      type="password"
                       placeholder="Repita a nova senha"
                       value={confirmarNovaSenhaInput}
                       onChange={(e) => setConfirmarNovaSenhaInput(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors" 
+                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"
                       required
                       disabled={salvandoSenha}
                     />
@@ -964,8 +973,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
 
                 <div className="flex justify-start pt-2 border-t border-stone-100">
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     disabled={salvandoSenha}
                     className="px-6 py-3 bg-[#BD6B42] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-[#A95A33] disabled:opacity-50 transition-all"
                   >
@@ -986,8 +995,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              
-              {/* 1. SUPORTE DA PLATAFORMA (TÉCNICO / SITE) */}
+
+              {/* 1. SUPORTE DA PLATAFORMA */}
               <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col justify-between space-y-4">
                 <div>
                   <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#0B1E14]/10 text-[#0B1E14] uppercase">
@@ -1000,7 +1009,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
                 <div className="pt-2 border-t border-stone-200/60">
                   <p className="text-stone-500 font-bold text-xs font-mono mb-2">(42) 98411-7768</p>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => window.open('https://wa.me/5542984117768', '_blank')}
                     className="w-full text-center py-2.5 bg-[#0B1E14] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer flex items-center justify-center gap-1.5"
@@ -1029,7 +1038,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       <p className="text-stone-500 font-bold text-xs font-mono mb-2">
                         {lojaSelecionada.telefone ? aplicarMascaraTelefone(lojaSelecionada.telefone) : 'Contato no estabelecimento'}
                       </p>
-                      <button 
+                      <button
                         type="button"
                         disabled={!lojaSelecionada.telefone}
                         onClick={() => {
@@ -1065,11 +1074,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Ambiente de Checkout Secure</h3>
               <button onClick={() => setModalCheckoutAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
             </div>
-            <CheckoutForm 
-              valor={valorMensalidade} 
-              cotaId={clubeAtualSelecionado?.cotaId || clubeAtualSelecionado?.id || clubeAtualSelecionado?.numeroCota} 
-              onSuccess={atualizarSaldoAposPagamento} 
-              fecharModal={() => setModalCheckoutAberto(false)} 
+            <CheckoutForm
+              valor={valorMensalidade}
+              cotaId={clubeAtualSelecionado?.cotaId || clubeAtualSelecionado?.id || clubeAtualSelecionado?.numeroCota}
+              onSuccess={atualizarSaldoAposPagamento}
+              fecharModal={() => setModalCheckoutAberto(false)}
             />
           </div>
         </div>
@@ -1120,19 +1129,19 @@ function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number
             <span className="block font-semibold text-rose-500 leading-relaxed">
               Nao foi possivel gerar a sua faturamento Pix neste momento. Por favor, tente novamente em instantes ou entre em contato com o nosso suporte.
             </span>
-          )}   
+          )}
         </div>
-        
-        <button 
-          type="button" 
-          disabled={!dadosPix?.paymentUrl} 
-          onClick={() => { 
-            if (dadosPix?.paymentUrl) { 
+
+        <button
+          type="button"
+          disabled={!dadosPix?.paymentUrl}
+          onClick={() => {
+            if (dadosPix?.paymentUrl) {
               window.open(dadosPix.paymentUrl, '_blank');
-              onSuccess(); 
+              onSuccess();
               fecharModal();
-            } 
-          }} 
+            }
+          }}
           className="w-full py-3.5 bg-[#0B1E14] text-white font-bold text-xs rounded-xl tracking-wide cursor-pointer uppercase text-[10px] disabled:opacity-40 transition-opacity"
         >
           {carregandoPix ? 'Processando...' : 'Ir para o Pagamento Seguro'}
