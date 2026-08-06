@@ -742,30 +742,61 @@ function Autenticacao() {
                 {/* Seção Exclusiva de Cadastro */}
                 {!isLogin && (
                   <div className="space-y-4 animate-fade-in">
+                    {/* 🟢 SELEÇÃO DE TIPO DE CONTA (SEGMENTED CONTROL CUSTOMIZADO) */}
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-stone-400 mb-1.5 tracking-wider">
                         Tipo de Conta *
                       </label>
-                      <div className="relative">
-                        <select
-                          value={tipoUsuario}
-                          onChange={(e) => {
-                            setTipoUsuario(e.target.value);
+                      <div className="grid grid-cols-2 gap-2 p-1 bg-stone-100 rounded-2xl border border-stone-200/80">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTipoUsuario('CLIENTE');
                             setCpf('');
                             setTelefone('');
                             setEmail('');
                           }}
-                          className="w-full h-[42px] px-3.5 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-[#0B1E14] font-bold text-xs cursor-pointer appearance-none focus:outline-none focus:border-[#BD6B42] pr-10 transition-colors"
+                          className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-200 flex flex-col items-center justify-center text-center ${
+                            tipoUsuario === 'CLIENTE'
+                              ? 'bg-[#0B1E14] text-white shadow-md'
+                              : 'text-stone-500 hover:text-stone-800 bg-transparent'
+                          }`}
                           disabled={carregando}
                         >
-                          <option value="CLIENTE">Sou Cliente (Quero participar de clubes)</option>
-                          <option value="LOJA">Sou Loja (Quero gerenciar meus clientes)</option>
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-stone-400">
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </div>
+                          <span>Sou Cliente</span>
+                          <span
+                            className={`text-[9px] font-normal mt-0.5 ${
+                              tipoUsuario === 'CLIENTE' ? 'text-stone-300' : 'text-stone-400'
+                            }`}
+                          >
+                            Quero participar de clubes
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTipoUsuario('LOJA');
+                            setCpf('');
+                            setTelefone('');
+                            setEmail('');
+                          }}
+                          className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-200 flex flex-col items-center justify-center text-center ${
+                            tipoUsuario === 'LOJA'
+                              ? 'bg-[#0B1E14] text-white shadow-md'
+                              : 'text-stone-500 hover:text-stone-800 bg-transparent'
+                          }`}
+                          disabled={carregando}
+                        >
+                          <span>Sou Loja</span>
+                          <span
+                            className={`text-[9px] font-normal mt-0.5 ${
+                              tipoUsuario === 'LOJA' ? 'text-stone-300' : 'text-stone-400'
+                            }`}
+                          >
+                            Quero gerenciar clientes
+                          </span>
+                        </button>
                       </div>
                     </div>
 
