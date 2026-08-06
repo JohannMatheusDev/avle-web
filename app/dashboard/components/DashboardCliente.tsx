@@ -63,17 +63,17 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     etapaAtual = 4;   
   }
 
- const obterNomeLoja = (lojaObj: any) => {
-  if (!lojaObj) return 'Loja Parceira';
-  if (typeof lojaObj === 'string' && lojaObj.trim().length > 0) {
-    return lojaObj;
+ const obterNomeLoja = (item: any) => {
+  if (!item) return '';
+  if (typeof item === 'string' && item.trim().length > 0) {
+    return item;
   }
   const nome =
-    lojaObj.nomeComercial ||
-    lojaObj.nome ||
-    lojaObj.nomeLoja ||
-    lojaObj.razaoSocial ||
-    lojaObj.nome_comercial;
+    item.nomeComercial ||
+    item.nome ||
+    item.nomeLoja ||
+    item.razaoSocial ||
+    item.nome_comercial;
   if (nome && typeof nome === 'string' && nome.trim().length > 0) {
     return nome;
   }
