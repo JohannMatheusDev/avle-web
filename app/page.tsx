@@ -742,12 +742,20 @@ function Autenticacao() {
                 {/* Seção Exclusiva de Cadastro */}
                 {!isLogin && (
                   <div className="space-y-4 animate-fade-in">
-                    {/* 🟢 SELEÇÃO DE TIPO DE CONTA (SEGMENTED CONTROL CUSTOMIZADO) */}
+                    {/* 🟢 SELEÇÃO DE TIPO DE CONTA COM PILL DESLIZANTE DE TRANSIÇÃO SUAVE */}
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-stone-400 mb-1.5 tracking-wider">
                         Tipo de Conta *
                       </label>
-                      <div className="grid grid-cols-2 gap-2 p-1 bg-stone-100 rounded-2xl border border-stone-200/80">
+                      <div className="relative grid grid-cols-2 p-1 bg-stone-100 rounded-2xl border border-stone-200/80">
+                        {/* Fundo escuro animado que desliza suavemente */}
+                        <div
+                          className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#0B1E14] rounded-xl shadow-md transition-all duration-300 ease-in-out ${
+                            tipoUsuario === 'CLIENTE' ? 'left-1' : 'left-[calc(50%+3px)]'
+                          }`}
+                        />
+
+                        {/* Botão Sou Cliente */}
                         <button
                           type="button"
                           onClick={() => {
@@ -756,16 +764,14 @@ function Autenticacao() {
                             setTelefone('');
                             setEmail('');
                           }}
-                          className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-200 flex flex-col items-center justify-center text-center ${
-                            tipoUsuario === 'CLIENTE'
-                              ? 'bg-[#0B1E14] text-white shadow-md'
-                              : 'text-stone-500 hover:text-stone-800 bg-transparent'
+                          className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${
+                            tipoUsuario === 'CLIENTE' ? 'text-white' : 'text-stone-500 hover:text-stone-800'
                           }`}
                           disabled={carregando}
                         >
                           <span>Sou Cliente</span>
                           <span
-                            className={`text-[9px] font-normal mt-0.5 ${
+                            className={`text-[9px] font-normal mt-0.5 transition-colors duration-300 ${
                               tipoUsuario === 'CLIENTE' ? 'text-stone-300' : 'text-stone-400'
                             }`}
                           >
@@ -773,6 +779,7 @@ function Autenticacao() {
                           </span>
                         </button>
 
+                        {/* Botão Sou Loja */}
                         <button
                           type="button"
                           onClick={() => {
@@ -781,16 +788,14 @@ function Autenticacao() {
                             setTelefone('');
                             setEmail('');
                           }}
-                          className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-200 flex flex-col items-center justify-center text-center ${
-                            tipoUsuario === 'LOJA'
-                              ? 'bg-[#0B1E14] text-white shadow-md'
-                              : 'text-stone-500 hover:text-stone-800 bg-transparent'
+                          className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${
+                            tipoUsuario === 'LOJA' ? 'text-white' : 'text-stone-500 hover:text-stone-800'
                           }`}
                           disabled={carregando}
                         >
                           <span>Sou Loja</span>
                           <span
-                            className={`text-[9px] font-normal mt-0.5 ${
+                            className={`text-[9px] font-normal mt-0.5 transition-colors duration-300 ${
                               tipoUsuario === 'LOJA' ? 'text-stone-300' : 'text-stone-400'
                             }`}
                           >
@@ -862,7 +867,7 @@ function Autenticacao() {
 
                     {/* CAMPOS ADICIONAIS DE HOMOLOGAÇÃO DA LOJA (ASAAS) */}
                     {tipoUsuario === 'LOJA' && (
-                      <div className="space-y-3 p-3.5 bg-stone-50/80 border border-stone-200 rounded-2xl">
+                      <div className="space-y-3 p-3.5 bg-stone-50/80 border border-stone-200 rounded-2xl transition-all duration-300">
                         <p className="text-[10px] font-bold uppercase text-[#BD6B42] tracking-wider">
                           Dados da Loja (Homologação Asaas)
                         </p>
