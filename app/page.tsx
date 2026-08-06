@@ -775,7 +775,7 @@ function Autenticacao() {
                       </label>
                       <input
                         type="text"
-                        placeholder={tipoUsuario === 'LOJA' ? 'Ex: Caza Liz Decor' : 'Ex: João Silva'}
+                        placeholder={tipoUsuario === 'LOJA' ? 'Nome/Razão Social da Loja' : 'Ex: João Silva'}
                         value={nome}
                         onChange={(e) => setNome(e.target.value)}
                         className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
