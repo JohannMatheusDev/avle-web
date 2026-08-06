@@ -63,15 +63,24 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     etapaAtual = 4;   
   }
 
-  // 🚀 Função para tratar e obter o Nome Comercial da Loja com segurança
-  const obterNomeLoja = (lojaObj: any) => {
-    if (!lojaObj) return 'Loja Parceira';
-    const nome = lojaObj.nomeComercial || lojaObj.nome || lojaObj.nomeLoja || lojaObj.razaoSocial || lojaObj.nome_comercial;
-    if (nome && nome.trim().length > 0) {
-      return nome;
-    }
-    return `Loja #${lojaObj.id || ''}`;
-  };
+ const obterNomeLoja = (lojaObj: any) => {
+  if (!lojaObj) return 'Loja Parceira';
+  if (typeof lojaObj === 'string' && lojaObj.trim().length > 0) {
+    return lojaObj;
+  }
+  const nome =
+    lojaObj.nomeComercial ||
+    lojaObj.nome ||
+    lojaObj.nomeLoja ||
+    lojaObj.razaoSocial ||
+    lojaObj.nome_comercial;
+  if (nome && typeof nome === 'string' && nome.trim().length > 0) {
+    return nome;
+  }
+
+  // Fallback padrão sem expor o ID
+  return 'Loja Parceira';
+};
 
   const aplicarMascaraTelefone = (valor: string) => {
     const apenasNumeros = valor.replace(/\D/g, '');
