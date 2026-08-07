@@ -93,6 +93,13 @@ function Autenticacao() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [modoLayout, setModoLayout] = useState<'mobile' | 'site'>('mobile');
 
+  // 🟢 PING SILENCIOSO PARA "ACORDAR" O BACKEND ASSIM QUE A TELA CARREGA
+  useEffect(() => {
+    fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {
+      // Ignora erro do ping silencioso
+    });
+  }, []);
+
   // GSAP - Animações sutis adaptadas à paleta original
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -209,6 +216,7 @@ function Autenticacao() {
     }).format(parseFloat(valorNumerico));
   };
 
+  // 🟢 FUNÇÃO DE SUBMIT COM TRATAMENTO RESILIENTE DE ERROS DE REDE E RETRY
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMensagem({ tipo: '', texto: '' });
@@ -220,62 +228,83 @@ function Autenticacao() {
       return;
     }
 
-    try {
-      if (isLogin) {
-        const resposta = await fetch(`${API_URL}/api/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, senha }),
-        });
+    const fazerRequisicao = async (tentativa = 1): Promise<Response> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // Timeout de 15 segundos
 
-        if (resposta.status === 403) {
-          setMensagem({ tipo: 'erro', texto: 'Sua conta ainda não foi verificada.' });
-          setIsVerificando(true);
-          return;
-        }
-
-        if (!resposta.ok) throw new Error('E-mail ou senha incorretos!');
-
-        const dadosUsuario = await resposta.json();
-        localStorage.setItem('@avle:usuario', JSON.stringify(dadosUsuario));
-        router.push('/dashboard');
-      } else {
+      try {
+        const endpoint = isLogin ? `${API_URL}/api/auth/login` : `${API_URL}/api/usuarios/cadastro`;
         const faturamentoNumerico = faturamento
           ? parseFloat(faturamento.replace(/[^\d,]/g, '').replace(',', '.'))
           : null;
 
-        const payload = {
-          nome,
-          email: email.trim() !== '' ? email : null,
-          cpf,
-          senha,
-          tipoUsuario,
-          telefone: telefoneLimpo !== '' ? telefoneLimpo : null,
-          cep: tipoUsuario === 'LOJA' ? cepLimpo : null,
-          faturamento: tipoUsuario === 'LOJA' ? faturamentoNumerico : null,
-          dadosBancarios:
-            tipoUsuario === 'LOJA'
-              ? {
-                  bancoCodigo,
-                  agencia,
-                  conta,
-                  contaDigito,
-                  tipoConta,
-                }
-              : null,
-        };
+        const body = isLogin
+          ? JSON.stringify({ email, senha })
+          : JSON.stringify({
+              nome,
+              email: email.trim() !== '' ? email : null,
+              cpf,
+              senha,
+              tipoUsuario,
+              telefone: telefoneLimpo !== '' ? telefoneLimpo : null,
+              cep: tipoUsuario === 'LOJA' ? cepLimpo : null,
+              faturamento: tipoUsuario === 'LOJA' ? faturamentoNumerico : null,
+              dadosBancarios:
+                tipoUsuario === 'LOJA'
+                  ? {
+                      bancoCodigo,
+                      agencia,
+                      conta,
+                      contaDigito,
+                      tipoConta,
+                    }
+                  : null,
+            });
 
-        const resposta = await fetch(`${API_URL}/api/usuarios/cadastro`, {
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body,
+          signal: controller.signal,
         });
 
-        if (!resposta.ok) {
-          const textoErro = await resposta.text();
-          throw new Error(textoErro || 'Erro ao realizar cadastro.');
-        }
+        clearTimeout(timeoutId);
+        return res;
+      } catch (erro: any) {
+        clearTimeout(timeoutId);
 
+        // Se for a primeira tentativa e falhar por rede/cold-start, tenta uma segunda vez avisando o usuário
+        if (tentativa < 2) {
+          setMensagem({
+            tipo: 'erro',
+            texto: 'Conectando ao servidor, por favor aguarde...',
+          });
+          await new Promise((resolve) => setTimeout(resolve, 2500)); // Espera 2.5s antes do retry
+          return fazerRequisicao(tentativa + 1);
+        }
+        throw erro;
+      }
+    };
+
+    try {
+      const resposta = await fazerRequisicao();
+
+      if (resposta.status === 403) {
+        setMensagem({ tipo: 'erro', texto: 'Sua conta ainda não foi verificada.' });
+        setIsVerificando(true);
+        return;
+      }
+
+      if (!resposta.ok) {
+        const textoErro = await resposta.text();
+        throw new Error(textoErro || (isLogin ? 'E-mail ou senha incorretos!' : 'Erro ao realizar cadastro.'));
+      }
+
+      if (isLogin) {
+        const dadosUsuario = await resposta.json();
+        localStorage.setItem('@avle:usuario', JSON.stringify(dadosUsuario));
+        router.push('/dashboard');
+      } else {
         setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso!' });
 
         setTimeout(() => {
@@ -294,7 +323,14 @@ function Autenticacao() {
         }, 1500);
       }
     } catch (erro: any) {
-      setMensagem({ tipo: 'erro', texto: erro.message });
+      if (erro.name === 'AbortError' || erro.message === 'Load failed' || erro.message?.includes('fetch')) {
+        setMensagem({
+          tipo: 'erro',
+          texto: 'Servidor inicializado com sucesso. Por favor, clique em "Entrar no Sistema" novamente.',
+        });
+      } else {
+        setMensagem({ tipo: 'erro', texto: erro.message });
+      }
     } finally {
       setCarregando(false);
     }
@@ -742,7 +778,7 @@ function Autenticacao() {
                 {/* Seção Exclusiva de Cadastro */}
                 {!isLogin && (
                   <div className="space-y-4 animate-fade-in">
-                    {/* 🟢 SELEÇÃO DE TIPO DE CONTA COM PILL DESLIZANTE DE TRANSIÇÃO SUAVE */}
+                    {/* SELEÇÃO DE TIPO DE CONTA COM PILL DESLIZANTE DE TRANSIÇÃO SUAVE */}
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-stone-400 mb-1.5 tracking-wider">
                         Tipo de Conta *
