@@ -28,7 +28,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   const [listaGrupos, setListaGrupos] = useState<Grupo[]>([]);
   const [modalNovoGrupoAberto, setModalNovoGrupoAberto] = useState(false);
-  const [modalSaqueAberto, setModalSaqueAberto] = useState(false);
 
   // Estados para Cadastro de Nova Cliente pelas Funcionárias
   const [modalNovoClienteAberto, setModalNovoClienteAberto] = useState(false);
@@ -42,8 +41,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [modalPagamentoManualAberto, setModalPagamentoManualAberto] = useState(false);
   const [qtdParcelasManual, setQtdParcelasManual] = useState('1');
   const [processandoPagamentoManual, setProcessandoPagamentoManual] = useState(false);
-  
-  const [chavePix, setChavePix] = useState('');
 
   const [arquivoPdf, setArquivoPdf] = useState<File | null>(null);
   const [enviandoPdf, setEnviandoPdf] = useState(false);
@@ -166,7 +163,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   }, [grupoSelecionado]);
 
-  // 🔴 NOVO: Função para remover participante do grupo (deletar cota)
+  // Função para remover participante do grupo
   const handleRemoverParticipanteDoGrupo = async (cotaId: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
 
@@ -445,7 +442,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               { id: 'grupos', label: 'Grupos' },
               { id: 'sorteios', label: 'Sorteios / Entrega' },
               { id: 'financeiro', label: 'Financeiro' },
-              { id: 'relatorios', label: 'Relatórios' }
+              { id: 'relatorios', label: 'Relatorios' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -594,7 +591,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                               }`}>{part.statusEntrega ? part.statusEntrega.replace(/_/g, ' ') : 'AGUARDANDO SORTEIO'}</span>
                             </td>
                             
-                            {/* 🔴 BOTÃO DE REMOVER PARTICIPANTE DO GRUPO */}
                             <td className="py-3.5 px-5 text-center">
                               <button
                                 type="button"
@@ -706,10 +702,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="bg-white border border-[#DFD9CE] p-5 rounded-2xl shadow-xs flex flex-col justify-between">
                     <div>
-                      <span className="text-[10px] font-bold text-stone-400 block mb-1">SALDO LÍQUIDO DISPONÍVEL (90%)</span>
+                      <span className="text-[10px] font-bold text-stone-400 block mb-1">REPASSE DIRETO VIA SPLIT (90%)</span>
                       <span className="text-xl font-bold text-emerald-600">R$ {recebidoEsteMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <button onClick={() => setModalSaqueAberto(true)} className="mt-4 bg-[#0B1E14] text-white py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 cursor-pointer transition-all w-full">Transferir para Conta Bancária</button>
+                    <p className="text-[10px] text-stone-400 mt-3 border-t pt-2 border-dashed leading-relaxed">
+                      * Split Automático Asaas: Os 90% são creditados e liquidados diretamente na subconta bancária homologada da sua empresa.
+                    </p>
                   </div>
 
                   <div className="bg-white border border-[#DFD9CE] p-5 rounded-2xl shadow-xs flex flex-col justify-between">
@@ -725,45 +723,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <span className="text-[10px] font-bold text-stone-400 block mb-1">CUMPRIMENTO DE ACORDOS</span>
                       <span className="text-xl font-bold text-stone-600">Ativos</span>
                     </div>
-                    <p className="text-[10px] text-stone-400 mt-2 leading-relaxed border-t pt-2 border-dashed">Garantia jurídica de alienação fiduciaria ou contrato assinado para resguardo do capital avançado.</p>
+                    <p className="text-[10px] text-stone-400 mt-2 leading-relaxed border-t pt-2 border-dashed">Garantia jurídica de alienação fiduciária ou contrato assinado para resguardo do capital avançado.</p>
                   </div>
                 </div>
 
-                <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl shadow-xs space-y-4">
-                  <div className="space-y-1">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Domicílio Bancário Homologado</h4>
-                    <p className="text-xs text-stone-500">Configure a chave Pix da sua empresa onde os resgates do Abacatepay serão liquidados.</p>
-                  </div>
-                  
-                  <div className="flex flex-col sm:flex-row gap-2 max-w-xl">
-                    <input 
-                      type="text" 
-                      placeholder="Insira seu CNPJ, Telefone ou Chave Aleatória" 
-                      value={chavePix}
-                      onChange={(e) => setChavePix(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs font-mono focus:outline-none focus:border-[#BD6B42]" 
-                    />
-                    <button 
-                      onClick={async () => {
-                        if (!chavePix.trim()) { mostrarAviso('Campo Obrigatório', 'Por favor, digite uma chave PIX válida.', true); return; }
-                        try {
-                          const res = await fetch(`${API_URL}/api/financeiro/loja/${usuario?.lojaId || 1}/configurar-pix`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ chavePix: chavePix })
-                          });
-                          
-                          if (!res.ok) throw new Error('Erro ao salvar as informações.');
-                          mostrarAviso('Vínculo Concluído', 'Chave PIX vinculada e homologada com sucesso para saques do Abacatepay!', false);
-                        } catch {
-                          mostrarAviso('Erro de Conexão', 'Falha ao conectar com o sistema para salvar a chave.', true);
-                        }
-                      }}
-                      className="bg-[#0B1E14] text-white text-[10px] font-bold px-6 py-2.5 rounded-xl cursor-pointer uppercase tracking-wider hover:bg-opacity-90 transition-all sm:w-auto w-full"
-                    >
-                      Vincular Conta
-                    </button>
-                  </div>
+                <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl shadow-xs space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Fluxo de Caixa Integrado Asaas</h4>
+                  <p className="text-xs text-stone-500 leading-relaxed">
+                    Sua conta bancária cadastrada no formulário de homologação recebe automaticamente os repasses das mensalidades pagas via Pix. Nenhuma solicitação de saque manual é necessária.
+                  </p>
                 </div>
               </div>
             )}
@@ -793,7 +761,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       Selecionar PDF
                     </label>
                     <span className="text-[10px] text-stone-400 mt-2 font-mono text-center block max-w-xs truncate">
-                      {arquivoPdf ? arquivoPdf.name : 'Nenum regulamento PDF selecionado para envio.'}
+                      {arquivoPdf ? arquivoPdf.name : 'Nenhum regulamento PDF selecionado para envio.'}
                     </span>
                   </div>
 
@@ -1009,60 +977,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {modalSaqueAberto && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Solicitar Resgate de Saldo</h3>
-              <button onClick={() => setModalSaqueAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
-            </div>
-            <div className="space-y-3.5 text-xs">
-              <p className="text-stone-500 bg-stone-50 p-3 rounded-xl border border-dashed leading-relaxed">
-                O saldo disponível acumulado das suas vendas líquidas (90%) será transferido da sua conta digital Abacatepay de forma totalmente segura diretamente para a sua Chave Pix corporativa cadastrada no sistema.
-              </p>
-              
-              <div className="bg-stone-50 p-3 rounded-xl border flex justify-between items-center text-xs">
-                <span className="text-stone-400 font-bold uppercase tracking-wider text-[9px]">Valor a ser resgatado:</span>
-                <span className="font-mono font-bold text-emerald-700 text-sm">R$ {recebidoEsteMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-              </div>
-
-              <div className="flex space-x-2 pt-2 border-t w-full">
-                <button type="button" onClick={() => setModalSaqueAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold cursor-pointer">Cancelar</button>
-                <button 
-                  type="button" 
-                  onClick={async () => {
-                    try {
-                      const res = await fetch(`${API_URL}/api/financeiro/loja/${usuario?.lojaId || 1}/solicitar-saque`, {
-                        method: 'POST'
-                      });
-                      
-                      if (!res.ok) {
-                        const textoErro = await res.text();
-                        throw new Error(textoErro || 'Falha ao processar resgate de saldo.');
-                      }
-                      
-                      const data = await res.json();
-                      mostrarAviso(
-                        'Resgate Homologado', 
-                        `Mensagem: ${data.mensagem}\n\nValor Sacado: R$ ${data.valorSacado}\nDestino Pix: ${data.chavePixDestino}\nID de Transferência: ${data.comprovanteId}`, 
-                        false
-                      );
-                      setModalSaqueAberto(false);
-                      carregarDadosFinanceiros();
-                    } catch (err: any) {
-                      mostrarAviso('Erro no Resgate', err.message, true);
-                    }
-                  }}
-                  className="flex-1 py-2.5 bg-emerald-700 text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-emerald-800 transition-all font-bold"
-                >
-                  Confirmar Resgate Pix
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}
