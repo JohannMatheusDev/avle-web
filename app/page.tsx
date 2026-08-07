@@ -81,9 +81,10 @@ function Autenticacao() {
   const [codigoOtp, setCodigoOtp] = useState('');
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
 
-  // CAMPOS ADICIONAIS PARA LOJA (COMPLIANCE ASAAS)
+  // CAMPOS ADICIONAIS PARA LOJA (COMPLIANCE E INTEGRACAO ASAAS)
   const [cep, setCep] = useState('');
   const [faturamento, setFaturamento] = useState('');
+  const [walletIdInput, setWalletIdInput] = useState(''); // 🟢 Wallet ID Opcional da Loja
   const [bancoCodigo, setBancoCodigo] = useState('001'); // Padrão Banco do Brasil
   const [agencia, setAgencia] = useState('');
   const [conta, setConta] = useState('');
@@ -249,6 +250,7 @@ function Autenticacao() {
               telefone: telefoneLimpo !== '' ? telefoneLimpo : null,
               cep: tipoUsuario === 'LOJA' ? cepLimpo : null,
               faturamento: tipoUsuario === 'LOJA' ? faturamentoNumerico : null,
+              walletId: tipoUsuario === 'LOJA' && walletIdInput.trim() !== '' ? walletIdInput.trim() : null,
               dadosBancarios:
                 tipoUsuario === 'LOJA'
                   ? {
@@ -298,6 +300,7 @@ function Autenticacao() {
             setTelefone('');
             setCep('');
             setFaturamento('');
+            setWalletIdInput('');
             setAgencia('');
             setConta('');
             setContaDigito('');
@@ -901,7 +904,7 @@ function Autenticacao() {
                     {tipoUsuario === 'LOJA' && (
                       <div className="space-y-3 p-3.5 bg-stone-50/80 border border-stone-200 rounded-2xl transition-all duration-300">
                         <p className="text-[10px] font-bold uppercase text-[#BD6B42] tracking-wider">
-                          Dados da Loja (Homologação Asaas)
+                          Dados da Loja (Homologação e Split Asaas)
                         </p>
 
                         <div className="grid grid-cols-2 gap-2">
@@ -935,6 +938,25 @@ function Autenticacao() {
                               disabled={carregando}
                             />
                           </div>
+                        </div>
+
+                        {/* CAMPO OPCIONAL DE WALLET ID */}
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between">
+                            <span>Wallet ID Asaas</span>
+                            <span className="text-stone-400 font-normal">Opcional</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Deixe em branco para criar automaticamente"
+                            value={walletIdInput}
+                            onChange={(e) => setWalletIdInput(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[40px] font-mono"
+                            disabled={carregando}
+                          />
+                          <p className="text-[9px] text-stone-400 mt-1">
+                            * Se você não possui conta no Asaas, o sistema criará sua subconta integrada automaticamente ao finalizar o cadastro.
+                          </p>
                         </div>
 
                         {/* Dados Bancários */}
