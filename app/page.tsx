@@ -777,8 +777,6 @@ function Autenticacao() {
                     {mensagem.texto}
                   </div>
                 )}
-
-                {/* Seção Exclusiva de Cadastro */}
                 {!isLogin && (
                   <div className="space-y-4 animate-fade-in">
                     <div>
@@ -899,12 +897,10 @@ function Autenticacao() {
                         disabled={carregando}
                       />
                     </div>
-
-                    {/* CAMPOS ADICIONAIS DE HOMOLOGAÇÃO DA LOJA (ASAAS) */}
                     {tipoUsuario === 'LOJA' && (
                       <div className="space-y-3 p-3.5 bg-stone-50/80 border border-stone-200 rounded-2xl transition-all duration-300">
                         <p className="text-[10px] font-bold uppercase text-[#BD6B42] tracking-wider">
-                          Dados da Loja (Homologação e Split Asaas)
+                          Dados da Loja 
                         </p>
 
                         <div className="grid grid-cols-2 gap-2">
@@ -962,7 +958,7 @@ function Autenticacao() {
                         {/* Dados Bancários */}
                         <div className="pt-2 border-t border-stone-200">
                           <p className="text-[10px] font-bold uppercase text-[#0B1E14] mb-2">
-                            Conta Bancária para Receber Vendas (Split)
+                            Conta Bancária para Receber Vendas
                           </p>
 
                           <div className="space-y-2">
