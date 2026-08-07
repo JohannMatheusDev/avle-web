@@ -93,11 +93,9 @@ function Autenticacao() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [modoLayout, setModoLayout] = useState<'mobile' | 'site'>('mobile');
 
-  // 🟢 PING SILENCIOSO PARA "ACORDAR" O BACKEND ASSIM QUE A TELA CARREGA
+  // Ping silencioso no carregamento da página
   useEffect(() => {
-    fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {
-      // Ignora erro do ping silencioso
-    });
+    fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
   }, []);
 
   // GSAP - Animações sutis adaptadas à paleta original
@@ -216,7 +214,7 @@ function Autenticacao() {
     }).format(parseFloat(valorNumerico));
   };
 
-  // 🟢 FUNÇÃO DE SUBMIT COM TRATAMENTO RESILIENTE DE ERROS DE REDE E RETRY
+  // LOGIN TRANSPARENTE COM RETRY SILENCIOSO
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMensagem({ tipo: '', texto: '' });
@@ -228,9 +226,11 @@ function Autenticacao() {
       return;
     }
 
-    const fazerRequisicao = async (tentativa = 1): Promise<Response> => {
+    const maxTentativas = 4;
+
+    for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // Timeout de 15 segundos
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
 
       try {
         const endpoint = isLogin ? `${API_URL}/api/auth/login` : `${API_URL}/api/usuarios/cadastro`;
@@ -261,7 +261,7 @@ function Autenticacao() {
                   : null,
             });
 
-        const res = await fetch(endpoint, {
+        const resposta = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body,
@@ -269,70 +269,70 @@ function Autenticacao() {
         });
 
         clearTimeout(timeoutId);
-        return res;
+
+        if (resposta.status === 403) {
+          setMensagem({ tipo: 'erro', texto: 'Sua conta ainda não foi verificada.' });
+          setIsVerificando(true);
+          setCarregando(false);
+          return;
+        }
+
+        if (!resposta.ok) {
+          const textoErro = await resposta.text();
+          throw new Error(textoErro || (isLogin ? 'E-mail ou senha incorretos!' : 'Erro ao realizar cadastro.'));
+        }
+
+        // Sucesso de Login -> Redirecionamento Direto
+        if (isLogin) {
+          const dadosUsuario = await resposta.json();
+          localStorage.setItem('@avle:usuario', JSON.stringify(dadosUsuario));
+          router.push('/dashboard');
+          return;
+        } else {
+          setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso!' });
+          setTimeout(() => {
+            setIsLogin(true);
+            setNome('');
+            setCpf('');
+            setEmail('');
+            setTelefone('');
+            setCep('');
+            setFaturamento('');
+            setAgencia('');
+            setConta('');
+            setContaDigito('');
+            setSenha('');
+            setMensagem({ tipo: '', texto: '' });
+          }, 1500);
+          setCarregando(false);
+          return;
+        }
       } catch (erro: any) {
         clearTimeout(timeoutId);
 
-        // Se for a primeira tentativa e falhar por rede/cold-start, tenta uma segunda vez avisando o usuário
-        if (tentativa < 2) {
-          setMensagem({
-            tipo: 'erro',
-            texto: 'Conectando ao servidor, por favor aguarde...',
-          });
-          await new Promise((resolve) => setTimeout(resolve, 2500)); // Espera 2.5s antes do retry
-          return fazerRequisicao(tentativa + 1);
+        // Erro explícito de credencial incorreta ou verificação
+        if (
+          erro.message === 'E-mail ou senha incorretos!' ||
+          (erro.message && !erro.message.includes('fetch') && erro.name !== 'AbortError' && erro.message !== 'Load failed')
+        ) {
+          setMensagem({ tipo: 'erro', texto: erro.message });
+          setCarregando(false);
+          return;
         }
-        throw erro;
-      }
-    };
 
-    try {
-      const resposta = await fazerRequisicao();
+        // Se o servidor estiver acordando (falha de rede/timeout) e houver tentativas, tenta em silêncio
+        if (tentativa < maxTentativas) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          continue;
+        }
 
-      if (resposta.status === 403) {
-        setMensagem({ tipo: 'erro', texto: 'Sua conta ainda não foi verificada.' });
-        setIsVerificando(true);
-        return;
-      }
-
-      if (!resposta.ok) {
-        const textoErro = await resposta.text();
-        throw new Error(textoErro || (isLogin ? 'E-mail ou senha incorretos!' : 'Erro ao realizar cadastro.'));
-      }
-
-      if (isLogin) {
-        const dadosUsuario = await resposta.json();
-        localStorage.setItem('@avle:usuario', JSON.stringify(dadosUsuario));
-        router.push('/dashboard');
-      } else {
-        setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso!' });
-
-        setTimeout(() => {
-          setIsLogin(true);
-          setNome('');
-          setCpf('');
-          setEmail('');
-          setTelefone('');
-          setCep('');
-          setFaturamento('');
-          setAgencia('');
-          setConta('');
-          setContaDigito('');
-          setSenha('');
-          setMensagem({ tipo: '', texto: '' });
-        }, 1500);
-      }
-    } catch (erro: any) {
-      if (erro.name === 'AbortError' || erro.message === 'Load failed' || erro.message?.includes('fetch')) {
+        // Se todas as tentativas falharem
         setMensagem({
           tipo: 'erro',
-          texto: 'Servidor inicializado com sucesso. Por favor, clique em "Entrar no Sistema" novamente.',
+          texto: 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.',
         });
-      } else {
-        setMensagem({ tipo: 'erro', texto: erro.message });
+        setCarregando(false);
       }
-    } finally {
-      setCarregando(false);
     }
   };
 
@@ -448,7 +448,7 @@ function Autenticacao() {
         className="absolute w-[550px] h-[550px] bg-[#BD6B42] rounded-full blur-[140px] pointer-events-none -z-10"
       />
 
-      {/* SVG da Árvore AVLE (Estilo Raízes Organicas na Paleta Verde/Terracota) */}
+      {/* SVG da Árvore AVLE */}
       <svg
         className="absolute inset-0 w-full h-full pointer-events-none -z-10 opacity-20"
         viewBox="0 0 1000 1000"
@@ -778,20 +778,17 @@ function Autenticacao() {
                 {/* Seção Exclusiva de Cadastro */}
                 {!isLogin && (
                   <div className="space-y-4 animate-fade-in">
-                    {/* SELEÇÃO DE TIPO DE CONTA COM PILL DESLIZANTE DE TRANSIÇÃO SUAVE */}
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-stone-400 mb-1.5 tracking-wider">
                         Tipo de Conta *
                       </label>
                       <div className="relative grid grid-cols-2 p-1 bg-stone-100 rounded-2xl border border-stone-200/80">
-                        {/* Fundo escuro animado que desliza suavemente */}
                         <div
                           className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#0B1E14] rounded-xl shadow-md transition-all duration-300 ease-in-out ${
                             tipoUsuario === 'CLIENTE' ? 'left-1' : 'left-[calc(50%+3px)]'
                           }`}
                         />
 
-                        {/* Botão Sou Cliente */}
                         <button
                           type="button"
                           onClick={() => {
@@ -815,7 +812,6 @@ function Autenticacao() {
                           </span>
                         </button>
 
-                        {/* Botão Sou Loja */}
                         <button
                           type="button"
                           onClick={() => {
