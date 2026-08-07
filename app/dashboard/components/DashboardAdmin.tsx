@@ -330,7 +330,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                     onClick={carregarDadosDoBanco}
                     className="text-xs font-bold text-[#0B1E14] bg-white border border-[#DFD9CE] px-3 py-1.5 rounded-xl hover:bg-stone-50 transition-all cursor-pointer"
                   >
-                    🔄 Atualizar Dados
+                    Atualizar Dados
                   </button>
                 </div>
 
