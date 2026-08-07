@@ -377,7 +377,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               </div>
             )}
 
-            {/* FINANCEIRO */}
+            {/* ABA FINANCEIRO */}
             {abaExibida === 'financeiro' && (
               <div className="space-y-6 animate-fadeIn">
                 <div>
@@ -396,18 +396,25 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                     </thead>
                     <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
                       {listaLojas.map((loja, idx) => {
-                        const fat = Number(loja.faturamento) || 0;
-                        const taxaApp = fat * 0.10;
-                        const repasseLoja = fat * 0.90;
+                        const volumeBrutoReal = Number(loja.volumeBruto) || Number(loja.totalTransacionado) || 0;
+                        const taxaApp = volumeBrutoReal * 0.10;
+                        const repasseLoja = volumeBrutoReal * 0.90;
+
                         return (
                           <tr key={loja.id || idx} className="hover:bg-stone-50/50 transition-all">
                             <td className="py-4 px-5">
                               <span className="block font-bold text-[#0B1E14]">{loja.nomeComercial}</span>
                               <span className="text-[10px] text-stone-400 font-mono">{loja.cnpj}</span>
                             </td>
-                            <td className="py-4 px-5 text-right font-mono font-bold text-[#0B1E14]">R$ {fat.toFixed(2)}</td>
-                            <td className="py-4 px-5 text-right font-mono text-emerald-700 font-bold">R$ {taxaApp.toFixed(2)}</td>
-                            <td className="py-4 px-5 text-right font-mono text-stone-600 font-bold">R$ {repasseLoja.toFixed(2)}</td>
+                            <td className="py-4 px-5 text-right font-mono font-bold text-[#0B1E14]">
+                              R$ {volumeBrutoReal.toFixed(2)}
+                            </td>
+                            <td className="py-4 px-5 text-right font-mono text-emerald-700 font-bold">
+                              R$ {taxaApp.toFixed(2)}
+                            </td>
+                            <td className="py-4 px-5 text-right font-mono text-stone-600 font-bold">
+                              R$ {repasseLoja.toFixed(2)}
+                            </td>
                           </tr>
                         );
                       })}
