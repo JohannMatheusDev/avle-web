@@ -28,19 +28,23 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [saldoPoupanca, setSaldoPoupanca] = useState<number>(0);
   const [modalCheckoutAberto, setModalCheckoutAberto] = useState(false);
 
-  // 🟢 NOVOS ESTADOS: Controle de Navegação em Cascata (Lojas -> Grupos -> Dashboard)
-  const [nivelVisao, setNivelVisao] = useState<'lojas' | 'grupos' | 'dashboard'>('lojas');
-  const [lojaEmFoco, setLojaEmFoco] = useState<any | null>(null);
-  const [gruposDaLoja, setGruposDaLoja] = useState<any[]>([]);
-  const [carregandoGrupos, setCarregandoGrupos] = useState(false);
-
   const [lojas, setLojas] = useState<any[]>([]);
+  const [grupos, setGrupos] = useState<any[]>([]);
+
+  const [lojaSelecionada, setLojaSelecionada] = useState<any | null>(null);
+  const [grupoSelecionado, setGrupoSelecionado] = useState<any | null>(null);
+  const [carregandoOpcoes, setCarregandoOpcoes] = useState(false);
   const [erroConexao, setErroConexao] = useState(false);
+
+  const [dropdownLojaAberto, setDropdownLojaAberto] = useState(false);
+
+  // 🟢 NOVO ESTADO: Guarda as permissões (tickets) que o cliente tem nas lojas
+  const [acessosLoja, setAcessosLoja] = useState<any[]>([]);
 
   const [clubesAtivos, setClubesAtivos] = useState<any[]>([]);
   const [clubeAtualSelecionado, setClubeAtualSelecionado] = useState<any | null>(null);
-  const [grupoSelecionado, setGrupoSelecionado] = useState<any | null>(null);
-  const [lojaSelecionada, setLojaSelecionada] = useState<any | null>(null);
+
+  const [exibindoPaginaClube, setExibindoPaginaClube] = useState(false);
 
   const [salvandoPerfil, setSalvandoPerfil] = useState(false);
   const [carregandoDados, setCarregandoDados] = useState(true);
@@ -64,10 +68,27 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   const obterNomeLoja = (item: any) => {
     if (!item) return 'Loja Parceira';
-    if (typeof item === 'string' && item.trim().length > 0) return item;
+
+    if (typeof item === 'string' && item.trim().length > 0) {
+      return item;
+    }
+
     const objLoja = item.loja || item.grupo?.loja || item;
-    const nome = objLoja.nomeComercial || objLoja.nome_comercial || objLoja.nome || objLoja.nomeLoja || objLoja.razaoSocial || item.nomeComercial || item.nome_comercial || item.nome;
-    if (nome && typeof nome === 'string' && nome.trim().length > 0) return nome.trim();
+
+    const nome =
+      objLoja.nomeComercial ||
+      objLoja.nome_comercial ||
+      objLoja.nome ||
+      objLoja.nomeLoja ||
+      objLoja.razaoSocial ||
+      item.nomeComercial ||
+      item.nome_comercial ||
+      item.nome;
+
+    if (nome && typeof nome === 'string' && nome.trim().length > 0) {
+      return nome.trim();
+    }
+
     return item.grupo?.nome || item.nomeGrupo || 'Loja Parceira';
   };
 
@@ -112,18 +133,40 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     }
   }, [abaAtiva]);
 
-  const buscarCarteiraDeClubes = async (forcedId?: number, fallbackUserId?: number) => {
+  const buscarCarteiraDeClubes = (forcedId?: number, fallbackUserId?: number) => {
     const userId = fallbackUserId || usuario?.id;
     if (!userId) return;
 
+    fetch(`${API_URL}/api/usuarios/${userId}/clubes-ativos`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setClubesAtivos(data);
+          if (data.length > 0) {
+            const clubeParaFocar = forcedId ? data.find(c => c.grupo.id === forcedId) || data[0] : data[0];
+            setClubeAtualSelecionado(clubeParaFocar);
+            setGrupoSelecionado(clubeParaFocar.grupo);
+            setSaldoPoupanca(Number(clubeParaFocar.saldoPoupanca) || 0);
+          } else {
+            setClubeAtualSelecionado(null);
+            setGrupoSelecionado(null);
+            setSaldoPoupanca(0);
+          }
+        }
+      })
+      .catch(() => {
+        setClubesAtivos([]);
+      });
+  };
+
+  // 🟢 NOVO: Função para buscar o status de acesso às lojas
+  const buscarAcessosLoja = async (userId: number) => {
     try {
-      const res = await fetch(`${API_URL}/api/usuarios/${userId}/clubes-ativos`);
+      const res = await fetch(`${API_URL}/api/usuarios/${userId}/acessos-loja`);
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setClubesAtivos(data);
-      }
-    } catch {
-      setClubesAtivos([]);
+      if (Array.isArray(data)) setAcessosLoja(data);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -141,6 +184,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
     if (currentUserId) {
       buscarCarteiraDeClubes(undefined, currentUserId);
+      buscarAcessosLoja(currentUserId); // Puxa as permissões de porta da loja
 
       fetch(`${API_URL}/api/usuarios/${currentUserId}`)
         .then((res) => {
@@ -153,22 +197,31 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             setEmailInput(data.email || '');
             setTelefoneInput(data.telefone ? aplicarMascaraTelefone(data.telefone) : '');
             setFotoPerfil(data.fotoPerfil || null);
+
             const documento = data.cpf || data.cpfCnpj || data.cpf_cnpj || data.documento || '';
             setCpfInput(documento ? aplicarMascaraCpfCnpj(documento) : '');
           }
         })
-        .catch((err) => console.error(err))
-        .finally(() => setCarregandoDados(false));
+        .catch((err) => {
+          console.error(err);
+        })
+        .finally(() => {
+          setCarregandoDados(false);
+        });
     }
 
-    // Busca todas as lojas para a vitrine principal
+    // Busca de lojas
     fetch(`${API_URL}/api/lojas/listar-todas`)
       .then((res) => {
         if (!res.ok) throw new Error();
         return res.json();
       })
       .then((data) => {
-        if (Array.isArray(data)) setLojas(data);
+        if (Array.isArray(data)) {
+          setLojas(data);
+        } else {
+          setLojas([]);
+        }
         setErroConexao(false);
       })
       .catch(() => {
@@ -177,58 +230,75 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       });
   }, [usuario?.id]);
 
-  // 🟢 NAVEGAÇÃO 1 -> 2: Clicou na Loja para ver os Grupos
-  const handleAbrirLoja = (loja: any) => {
-    setLojaEmFoco(loja);
-    setNivelVisao('grupos');
-    setCarregandoGrupos(true);
-    setGruposDaLoja([]);
+  // 🟢 ATUALIZADO: Ao selecionar a loja, verifica se ele tem aprovação para carregar os grupos
+  const handleSelecionarLojaCustom = (loja: any) => {
+    setLojaSelecionada(loja);
+    setDropdownLojaAberto(false);
+    setGrupos([]);
 
-    fetch(`${API_URL}/api/grupos/loja/${loja.id}`)
-      .then((res) => res.json())
-      .then((data) => setGruposDaLoja(Array.isArray(data) ? data : []))
-      .catch(() => setGruposDaLoja([]))
-      .finally(() => setCarregandoGrupos(false));
+    const acesso = acessosLoja.find(a => a.lojaId === loja.id);
+    const statusAcesso = acesso ? acesso.status : 'NAO_SOLICITADO';
+
+    if (statusAcesso === 'APROVADO') {
+        setCarregandoOpcoes(true);
+        fetch(`${API_URL}/api/grupos/loja/${loja.id}`)
+          .then((res) => res.json())
+          .then((data) => setGrupos(data))
+          .catch(() => setGrupos([]))
+          .finally(() => setCarregandoOpcoes(false));
+    }
   };
 
-  // 🟢 NAVEGAÇÃO 2 -> 3: Clicou no Grupo (Abre Dashboard se tiver cota, ou entra no clube)
-  const handleAbrirGrupo = async (grupo: any, cotaExistente: any) => {
-    if (cotaExistente) {
-       // Já tem cota, vai direto pro Dashboard
-       setClubeAtualSelecionado(cotaExistente);
-       setGrupoSelecionado(cotaExistente.grupo);
-       setLojaSelecionada(cotaExistente.loja);
-       setSaldoPoupanca(Number(cotaExistente.saldoPoupanca) || 0);
-       setNivelVisao('dashboard');
-    } else {
-       // Não tem cota. Confirma e vincula.
-       if (confirm(`Deseja confirmar sua participação no clube ${grupo.nome} com parcelas de R$ ${Number(grupo.valorParcela).toFixed(2)}?`)) {
-           try {
-              const res = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/vincular-clube`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lojaId: Number(lojaEmFoco?.id), grupoId: Number(grupo?.id) })
-              });
-              
-              if (!res.ok) throw new Error();
-              
-              // Recarrega os clubes para pegar o ID da nova cota gerada
-              const resClubes = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/clubes-ativos`);
-              const dataClubes = await resClubes.json();
-              setClubesAtivos(dataClubes);
-              
-              const novaCota = dataClubes.find((c: any) => c.grupo.id === grupo.id);
-              if (novaCota) {
-                 setClubeAtualSelecionado(novaCota);
-                 setGrupoSelecionado(novaCota.grupo);
-                 setLojaSelecionada(novaCota.loja);
-                 setSaldoPoupanca(Number(novaCota.saldoPoupanca) || 0);
-                 setNivelVisao('dashboard'); // Entra no dashboard do grupo novo
-              }
-           } catch {
-              alert('Falha ao registrar vínculo no clube. Tente novamente.');
-           }
+  // 🟢 NOVO: Função para o cliente pedir acesso à loja
+  const handleSolicitarAcesso = async () => {
+    try {
+       const res = await fetch(`${API_URL}/api/lojas/${lojaSelecionada.id}/solicitar-acesso`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuarioId: usuario?.id })
+       });
+       
+       if(res.ok) {
+          alert('✅ Solicitação enviada! O lojista foi notificado para realizar a análise de crédito.');
+          buscarAcessosLoja(usuario?.id); // Recarrega os acessos para atualizar a tela
+       } else {
+          alert('Não foi possível enviar a solicitação no momento.');
        }
+    } catch(e) {
+       alert('Erro de conexão ao solicitar acesso.');
+    }
+  };
+
+  const handleMudarClubeEmExibicao = (clube: any) => {
+    setClubeAtualSelecionado(clube);
+    setLojaSelecionada(clube.loja);
+    setGrupoSelecionado(clube.grupo);
+    setSaldoPoupanca(Number(clube.saldoPoupanca) || 0);
+    setExibindoPaginaClube(true);
+  };
+
+  const handlePersistirClubeNoBanco = async (grupo: any) => {
+    if (confirm(`Deseja confirmar sua participação no clube ${grupo.nome} com parcelas de R$ ${Number(grupo.valorParcela).toFixed(2)}?`)) {
+        try {
+          const res = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/vincular-clube`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              lojaId: Number(lojaSelecionada?.id),
+              grupoId: Number(grupo?.id)
+            })
+          });
+
+          if (!res.ok) {
+              const erro = await res.text();
+              alert(erro || 'Falha ao entrar no grupo.');
+              return;
+          }
+          
+          buscarCarteiraDeClubes(grupo.id);
+        } catch {
+          alert('Falha de conexão.');
+        }
     }
   };
 
@@ -244,19 +314,30 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const handleUploadFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const arquivo = e.target.files[0];
-      if (!arquivo.type.startsWith('image/')) { alert('Apenas imagens.'); return; }
-      if (arquivo.size > 2 * 1024 * 1024) { alert('Máximo 2MB.'); return; }
+
+      if (!arquivo.type.startsWith('image/')) {
+        alert('Por favor, selecione apenas arquivos de imagem.');
+        return;
+      }
+
+      if (arquivo.size > 2 * 1024 * 1024) {
+        alert('A imagem deve ter no máximo 2MB.');
+        return;
+      }
 
       const leitor = new FileReader();
       leitor.onloadend = async () => {
         const base64String = leitor.result as string;
+
         try {
           const res = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/foto`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fotoPerfil: base64String }),
           });
+
           if (!res.ok) throw new Error();
+
           setFotoPerfil(base64String);
           const localUser = localStorage.getItem('@avle:usuario');
           if (localUser) {
@@ -265,9 +346,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             localStorage.setItem('@avle:usuario', JSON.stringify(parsed));
           }
         } catch (err) {
+          console.error(err);
           alert("Não foi possível salvar sua foto de perfil.");
         }
       };
+
       leitor.readAsDataURL(arquivo);
     }
   };
@@ -300,11 +383,17 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
       if (!res.ok) throw new Error();
 
-      const usuarioAtualizado = { ...usuario, nome: nomeInput, email: emailInput, telefone: telefoneInput.replace(/\D/g, '') };
+      const usuarioAtualizado = {
+        ...usuario,
+        nome: nomeInput,
+        email: emailInput,
+        telefone: telefoneInput.replace(/\D/g, '')
+      };
       setUsuario(usuarioAtualizado);
       localStorage.setItem('@avle:usuario', JSON.stringify(usuarioAtualizado));
       setStatusSalvar('sucesso');
     } catch (err) {
+      console.error(err);
       setStatusSalvar('erro');
     } finally {
       setSalvandoPerfil(false);
@@ -316,22 +405,35 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     setStatusSalvarSenha(null);
 
     if (novaSenhaInput !== confirmarNovaSenhaInput) {
-      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'As senhas não coincidem.' });
+      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'A nova senha e a confirmação não coincidem.' });
       return;
     }
+
     if (novaSenhaInput.length < 6) {
-      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'Mínimo de 6 caracteres.' });
+      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'A nova senha deve ter no mínimo 6 caracteres.' });
       return;
     }
 
     setSalvandoSenha(true);
-    const userId = usuario?.id || JSON.parse(localStorage.getItem('@avle:usuario') || '{}').id;
+
+    const localUserStorage = localStorage.getItem('@avle:usuario');
+    const parsedUser = localUserStorage ? JSON.parse(localUserStorage) : null;
+    const userId = usuario?.id || parsedUser?.id;
+
+    if (!userId) {
+      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'Usuário não identificado.' });
+      setSalvandoSenha(false);
+      return;
+    }
 
     try {
       const res = await fetch(`${API_URL}/api/usuarios/${userId}/alterar-senha`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ senhaAtual: senhaAtualInput, novaSenha: novaSenhaInput })
+        body: JSON.stringify({
+          senhaAtual: senhaAtualInput,
+          novaSenha: novaSenhaInput
+        })
       });
 
       if (!res.ok) {
@@ -356,7 +458,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       <aside className="w-full md:w-64 bg-[#0B1E14] text-[#E3EAE6] flex flex-col justify-between p-6 flex-shrink-0">
         <div>
           <div className="flex flex-col items-center text-center pb-6 border-b border-white/10 mb-6">
-            <div className="w-16 h-16 rounded-full bg-[#EFEAE2] flex items-center justify-center overflow-hidden font-bold text-xl text-[#0B1E14] shadow-md cursor-pointer hover:scale-105 transition-all" onClick={() => { setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }}>
+            <div className="w-16 h-16 rounded-full bg-[#EFEAE2] flex items-center justify-center overflow-hidden font-bold text-xl text-[#0B1E14] shadow-md cursor-pointer hover:scale-105 transition-all" onClick={() => { setAbaAtiva('perfil'); setExibindoPaginaClube(false); setStatusSalvar(null); setStatusSalvarSenha(null); }}>
               {fotoPerfil ? (
                 <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
               ) : (
@@ -369,19 +471,14 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
           <nav className="space-y-1">
             {[
-              { id: 'inicio', label: 'Home / Lojas & Clubes' },
+              { id: 'inicio', label: 'Home / Meus Clubes' },
               { id: 'extrato', label: 'Histórico Geral' },
               { id: 'regras', label: 'Regulamento' },
               { id: 'ajuda', label: 'Suporte' }
             ].map((aba) => (
               <button
                 key={aba.id}
-                onClick={() => { 
-                    setAbaAtiva(aba.id as any); 
-                    if (aba.id === 'inicio') setNivelVisao('lojas'); // Reset da navegação em cascata
-                    setStatusSalvar(null); 
-                    setStatusSalvarSenha(null); 
-                }}
+                onClick={() => { setAbaAtiva(aba.id as any); if(aba.id !== 'inicio') setExibindoPaginaClube(false); setStatusSalvar(null); setStatusSalvarSenha(null); }}
                 className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                   abaAtiva === aba.id ? 'bg-white/10 text-white font-bold' : 'hover:bg-white/5 opacity-75'
                 }`}
@@ -393,7 +490,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         </div>
 
         <div className="pt-4 border-t border-white/10 flex justify-between items-center text-xs">
-          <button onClick={() => { setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }} className={`hover:text-white transition-all font-semibold cursor-pointer ${abaAtiva === 'perfil' ? 'text-white underline' : 'text-stone-400'}`}>Configurações</button>
+          <button onClick={() => { setAbaAtiva('perfil'); setExibindoPaginaClube(false); setStatusSalvar(null); setStatusSalvarSenha(null); }} className={`hover:text-white transition-all font-semibold cursor-pointer ${abaAtiva === 'perfil' ? 'text-white underline' : 'text-stone-400'}`}>Configurações</button>
           <button onClick={() => { localStorage.removeItem('@avle:usuario'); router.push('/'); }} className="text-stone-400 hover:text-red-400 font-bold cursor-pointer">Sair</button>
         </div>
       </aside>
@@ -401,167 +498,214 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       <main className="flex-1 p-6 md:p-8 max-w-7xl overflow-x-hidden space-y-6">
 
         {abaAtiva === 'inicio' && (
-          <div className="animate-fadeIn">
+          <div className="space-y-6 animate-fadeIn">
 
-            {/* 🟢 NÍVEL 1: VISÃO DE LOJAS */}
-            {nivelVisao === 'lojas' && (
+            {!exibindoPaginaClube ? (
               <div className="space-y-6 text-left">
                 <div>
-                  <h2 className="text-base font-bold uppercase tracking-wide text-[#0B1E14]">Rede de Lojas Parceiras</h2>
-                  <p className="text-xs text-stone-500">Selecione uma loja abaixo para visualizar e acessar seus clubes de compras estruturadas.</p>
+                  <h2 className="text-base font-bold uppercase tracking-wide text-stone-400">Meus Clubes Ativos</h2>
+                  <p className="text-xs text-stone-400">Clique em qualquer comunidade de compras abaixo para acessar a pagina interna sucessiva.</p>
                 </div>
 
-                {lojas.length === 0 && !erroConexao ? (
+                {clubesAtivos.length === 0 ? (
                   <div className="bg-white border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
-                    Nenhuma loja parceira cadastrada na plataforma ainda.
+                    Você ainda não está participando de nenhum clube. Selecione um estabelecimento abaixo para começar!
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                    {lojas.map(loja => {
-                        // Verifica se o usuário tem cotas ativas nesta loja para colocar um aviso visual
-                        const cotasNestaLoja = clubesAtivos.filter(c => c.grupo?.loja?.id === loja.id || c.loja?.id === loja.id);
-                        const temClubeAtivo = cotasNestaLoja.length > 0;
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {clubesAtivos.map((clube) => {
+                      const objTotal = Number(clube.grupo.valorParcela) * Number(clube.grupo.duracaoMeses);
+                      const perc = objTotal > 0 ? Math.min(Math.round((clube.saldoPoupanca / objTotal) * 100), 100) : 0;
+                      return (
+                        <div
+                          key={clube.cotaId}
+                          onClick={() => handleMudarClubeEmExibicao(clube)}
+                          className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs hover:border-[#BD6B42] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-serif font-bold text-base text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">{clube.grupo.nome}</h3>
+                              <p className="text-[10px] font-mono text-stone-400 mt-0.5">Loja: <strong className="text-stone-600 font-bold">{obterNomeLoja(clube.loja)}</strong></p>
+                            </div>
+                            <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-stone-50 border text-stone-500">
+                              Cota #0{clube.cotaId}
+                            </span>
+                          </div>
 
-                        return (
-                           <div 
-                             key={loja.id}
-                             onClick={() => handleAbrirLoja(loja)} 
-                             className={`bg-white border rounded-2xl p-6 cursor-pointer flex flex-col items-center justify-center text-center space-y-4 transition-all shadow-xs hover:-translate-y-1 hover:shadow-md ${
-                               temClubeAtivo ? 'border-[#BD6B42] bg-[#F5F2EB]/30' : 'border-[#DFD9CE] hover:border-stone-300'
-                             }`}
-                           >
-                              <div className={`w-16 h-16 rounded-full flex items-center justify-center font-serif font-bold text-2xl transition-colors ${
-                                temClubeAtivo ? 'bg-[#BD6B42] text-white shadow-md' : 'bg-[#F5F2EB] text-[#0B1E14] border border-stone-200'
-                              }`}>
-                                {obterNomeLoja(loja).substring(0, 2).toUpperCase()}
-                              </div>
-                              <div className="w-full">
-                                <h3 className="text-sm font-bold text-[#0B1E14] truncate w-full px-2">{obterNomeLoja(loja)}</h3>
-                                {temClubeAtivo ? (
-                                   <span className="inline-block mt-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                     {cotasNestaLoja.length} {cotasNestaLoja.length === 1 ? 'Clube Ativo' : 'Clubes Ativos'}
-                                   </span>
-                                ) : (
-                                   <span className="inline-block mt-1 text-[9px] font-medium text-stone-400 px-2 py-0.5 uppercase tracking-wider">
-                                     Explorar Planos
-                                   </span>
-                                )}
-                              </div>
-                           </div>
-                        )
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] font-bold text-stone-400">
+                              <span>Progresso</span>
+                              <span>{perc}%</span>
+                            </div>
+                            <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
+                              <div className="bg-[#BD6B42] h-full transition-all" style={{ width: `${perc}%` }}></div>
+                            </div>
+                          </div>
+
+                          <div className="text-[10px] text-[#BD6B42] font-bold uppercase tracking-wider text-right group-hover:translate-x-1 transition-transform">
+                            Acessar Pagina do Clube
+                          </div>
+                        </div>
+                      );
                     })}
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* 🟢 NÍVEL 2: VISÃO DOS GRUPOS DA LOJA ESCOLHIDA */}
-            {nivelVisao === 'grupos' && lojaEmFoco && (
-              <div className="space-y-6 text-left animate-fadeIn">
-                <button
-                  onClick={() => setNivelVisao('lojas')}
-                  className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors"
-                >
-                  ← Voltar para Lojas
-                </button>
+                {/* 🟢 BLOCO INFERIOR RESTAURADO AO DESIGN ORIGINAL COM VALIDAÇÃO POR TRÁS */}
+                <div className="border-t border-[#DFD9CE] pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* ESQUERDA: DESCOBRIR OUTRA LOJA PARCEIRA */}
+                  <div className="bg-white border border-[#DFD9CE] rounded-xl p-5 shadow-xs space-y-3 relative flex flex-col">
+                    <label className="block text-[10px] text-stone-400 font-bold uppercase tracking-wide">Descobrir Outra Loja Parceira</label>
 
-                <div className="bg-[#0B1E14] rounded-2xl p-6 shadow-md text-white flex flex-col md:flex-row items-start md:items-center gap-4">
-                   <div className="w-14 h-14 rounded-full bg-[#F5F2EB] flex items-center justify-center font-serif font-bold text-[#0B1E14] text-xl shrink-0">
-                      {obterNomeLoja(lojaEmFoco).substring(0, 2).toUpperCase()}
-                   </div>
-                   <div>
-                      <h2 className="text-xl font-bold tracking-wide">{obterNomeLoja(lojaEmFoco)}</h2>
-                      <p className="text-xs text-stone-300 mt-0.5">Grupos de compras disponíveis nesta unidade. Clique em um card para acessar seu painel ou registrar participação.</p>
-                   </div>
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => setDropdownLojaAberto(!dropdownLojaAberto)}
+                      className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl flex items-center justify-between text-[#0B1E14] font-bold text-xs cursor-pointer hover:border-[#BD6B42] transition-colors"
+                    >
+                      <span className="truncate">
+                        {lojaSelecionada ? obterNomeLoja(lojaSelecionada) : 'Selecione uma loja...'}
+                      </span>
+                      <span className="text-[10px] text-stone-400 underline">Filtrar</span>
+                    </button>
 
-                {carregandoGrupos ? (
-                   <div className="py-12 text-center text-xs font-bold text-stone-400 animate-pulse">Consultando planos no servidor...</div>
-                ) : gruposDaLoja.length === 0 ? (
-                   <div className="bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
-                      Este estabelecimento ainda não lançou nenhum grupo de compras na plataforma.
-                   </div>
-                ) : (
-                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                      {gruposDaLoja.slice().sort((a, b) => a.id - b.id).map(grupo => {
-                         const cotaExistente = clubesAtivos.find(c => c.grupo?.id === grupo.id);
-                         const isAtivo = !!cotaExistente;
-                         
+                    {dropdownLojaAberto && (
+                      <div className="absolute left-0 right-0 top-[80px] bg-white border border-[#DFD9CE] rounded-xl max-h-48 overflow-y-auto divide-y divide-[#DFD9CE] shadow-lg z-30">
+                        {lojas.length === 0 ? (
+                          <div className="px-3 py-2.5 text-xs text-stone-400 italic">
+                            Nenhuma loja encontrada.
+                          </div>
+                        ) : (
+                          lojas.map((l: any) => {
+                            const nomeExibicao = obterNomeLoja(l);
+                            return (
+                              <button
+                                key={l.id}
+                                type="button"
+                                onClick={() => handleSelecionarLojaCustom(l)}
+                                className="w-full text-left px-3 py-2.5 text-xs text-[#0B1E14] hover:bg-[#F5F2EB] transition-all font-bold block"
+                              >
+                                {nomeExibicao}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* DIREITA: PLANOS DISPONÍVEIS E VALIDAÇÃO DE CRÉDITO ESCONDIDA */}
+                  {lojaSelecionada && (
+                    <div className="md:col-span-2 bg-white border border-[#DFD9CE] rounded-xl p-5 shadow-xs space-y-3 animate-fadeIn flex flex-col min-h-[160px]">
+                      
+                      {(() => {
+                         const acesso = acessosLoja.find(a => a.lojaId === lojaSelecionada.id);
+                         const statusAcesso = acesso ? acesso.status : 'NAO_SOLICITADO';
+
+                         if (statusAcesso === 'APROVADO') {
+                             return (
+                               <>
+                                 <label className="block text-[10px] text-stone-400 font-bold uppercase tracking-wide">Planos Disponiveis (Toque para Entrar no Grupo)</label>
+                                 {carregandoOpcoes ? (
+                                    <div className="py-8 text-center text-xs font-bold text-stone-400 animate-pulse">Buscando planos ativos no servidor...</div>
+                                 ) : grupos.length === 0 ? (
+                                    <div className="py-8 text-center text-xs font-medium text-stone-400 italic bg-stone-50 rounded-xl border border-dashed">
+                                       Esta loja ainda não possui grupos de compras abertos no momento.
+                                    </div>
+                                 ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                                      {grupos.map((g: any) => {
+                                        const jaPossuiCota = clubesAtivos.some(c => c.grupo?.id === g.id);
+                                        return (
+                                          <button key={g.id} type="button" disabled={jaPossuiCota} onClick={() => handlePersistirClubeNoBanco(g)} className={`text-left p-3 rounded-xl border text-xs transition-all flex flex-col justify-between gap-1 ${jaPossuiCota ? 'border-emerald-600 bg-emerald-50/40 cursor-not-allowed' : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100 cursor-pointer'}`}>
+                                            <div className="flex justify-between w-full font-bold">
+                                              <span className="truncate">{g.nome}</span>
+                                              <span className="text-[#BD6B42]">R$ {Number(g.valorParcela).toFixed(2)}</span>
+                                            </div>
+                                            <div className="text-[10px] flex justify-between w-full font-medium text-stone-400">
+                                              <span>Vigencia: {g.duracaoMeses} Meses</span>
+                                              {jaPossuiCota && <span className="text-emerald-700 font-bold">Ja participando</span>}
+                                            </div>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                 )}
+                               </>
+                             );
+                         }
+
+                         if (statusAcesso === 'PENDENTE') {
+                             return (
+                                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-amber-50 rounded-xl border border-dashed border-amber-200 h-full">
+                                   <p className="text-sm font-bold text-amber-700 mb-1">Análise de Crédito em Andamento</p>
+                                   <p className="text-xs text-amber-600/80 font-medium">Sua solicitação está sendo avaliada pela loja. Aguarde a aprovação para visualizar os planos.</p>
+                                </div>
+                             );
+                         }
+
+                         if (statusAcesso === 'REJEITADO') {
+                             return (
+                                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-rose-50 rounded-xl border border-dashed border-rose-200 h-full">
+                                   <p className="text-sm font-bold text-rose-700 mb-1">Acesso Restrito</p>
+                                   <p className="text-xs text-rose-600/80 font-medium">Infelizmente, a loja parceira não liberou o seu acesso aos planos neste momento.</p>
+                                </div>
+                             );
+                         }
+
+                         // NAO_SOLICITADO
                          return (
-                            <div 
-                              key={grupo.id}
-                              onClick={() => handleAbrirGrupo(grupo, cotaExistente)}
-                              className={`rounded-2xl p-5 border cursor-pointer flex flex-col justify-between min-h-[160px] transition-all group hover:-translate-y-1 hover:shadow-md ${
-                                 isAtivo ? 'bg-white border-[#BD6B42] shadow-sm' : 'bg-stone-50/50 border-[#DFD9CE] hover:border-stone-300 hover:bg-white'
-                              }`}
-                            >
-                               <div className="flex justify-between items-start w-full mb-4">
-                                  <div>
-                                     <span className="text-[9px] bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded text-stone-500 font-mono font-bold mb-2 inline-block">Lote #{grupo.id}</span>
-                                     <h3 className={`font-serif font-bold text-base leading-tight pr-2 transition-colors ${isAtivo ? 'text-[#0B1E14]' : 'text-stone-700 group-hover:text-[#0B1E14]'}`}>
-                                        {grupo.nome}
-                                     </h3>
-                                  </div>
-                               </div>
-                               
-                               <div className="flex justify-between items-end w-full border-t border-stone-200/60 pt-3">
-                                  <div className="flex flex-col">
-                                     <span className="text-[10px] text-stone-500 font-medium">Vigência: {grupo.duracaoMeses} Meses</span>
-                                  </div>
-                                  <span className={`text-lg font-bold font-mono ${isAtivo ? 'text-[#BD6B42]' : 'text-stone-500 group-hover:text-[#0B1E14]'}`}>
-                                     R$ {Number(grupo.valorParcela).toFixed(2)}
-                                  </span>
-                               </div>
-
-                               {isAtivo ? (
-                                  <div className="mt-4 pt-3 border-t border-[#BD6B42]/20 w-full text-center text-[10px] font-bold text-[#BD6B42] uppercase tracking-wider group-hover:bg-[#BD6B42] group-hover:text-white rounded-lg transition-colors py-1">
-                                     Acessar Dashboard →
-                                  </div>
-                               ) : (
-                                  <div className="mt-4 pt-3 border-t border-stone-200 w-full text-center text-[10px] font-bold text-stone-400 uppercase tracking-wider group-hover:text-[#0B1E14] transition-colors py-1">
-                                     + Participar do Clube
-                                  </div>
-                               )}
+                            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-stone-50 rounded-xl border border-dashed border-stone-200 h-full">
+                               <p className="text-sm font-bold text-[#0B1E14] mb-2">Autorização Necessária</p>
+                               <p className="text-xs text-stone-500 font-medium max-w-sm mx-auto mb-5">Para visualizar os planos de compras da {obterNomeLoja(lojaSelecionada)}, é necessário solicitar análise cadastral do seu CPF junto ao estabelecimento.</p>
+                               <button onClick={handleSolicitarAcesso} className="px-6 py-2.5 bg-[#0B1E14] text-white text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-opacity-90 transition-all cursor-pointer shadow-sm">Solicitar Acesso à Loja</button>
                             </div>
-                         )
-                      })}
-                   </div>
-                )}
-              </div>
-            )}
+                         );
+                      })()}
 
-            {/* 🟢 NÍVEL 3: DASHBOARD DO GRUPO (A tela que já tínhamos) */}
-            {nivelVisao === 'dashboard' && clubeAtualSelecionado && (
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+
               <div className="space-y-6 animate-fadeIn text-left">
                 <button
-                  onClick={() => setNivelVisao('grupos')}
-                  className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
+                  onClick={() => setExibindoPaginaClube(false)}
+                  className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs transition-all"
                 >
-                  ← Voltar para Grupos da Loja
+                  Voltar para Meus Clubes
                 </button>
 
                 <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
-                    <span className="text-[10px] font-mono font-bold text-[#BD6B42] uppercase bg-[#F5F2EB] px-2 py-1 rounded">Painel de Acompanhamento Financeiro</span>
+                    <span className="text-[10px] font-mono font-bold text-[#BD6B42] uppercase bg-[#F5F2EB] px-2 py-1 rounded">Visualizacao do Plano Ativo</span>
                     <h2 className="text-xl font-serif font-bold text-[#0B1E14] mt-1.5">{grupoSelecionado?.nome}</h2>
-                    <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: <strong className="text-stone-700 font-bold">{obterNomeLoja(lojaSelecionada)}</strong> | Cota Contratual: <strong className="font-mono">#0{clubeAtualSelecionado?.cotaId}</strong></p>
+                    <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: <strong className="text-stone-700 font-bold">{obterNomeLoja(lojaSelecionada)}</strong> | Cota: #0{clubeAtualSelecionado?.cotaId}</p>
                   </div>
+                  {clubesAtivos.length > 1 && (
+                    <button
+                      onClick={() => setExibindoPaginaClube(false)}
+                      className="text-[10px] uppercase font-bold border px-3 py-2 bg-stone-50 rounded-xl text-stone-500 hover:text-[#BD6B42]"
+                    >
+                      Alternar de Grupo
+                    </button>
+                  )}
                 </div>
 
                 {grupoSelecionado && etapaAtual !== 4 && exibirBannerAlerta && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-xs">
                     <p className="text-xs text-amber-900 leading-relaxed font-medium">
-                      Aviso: Sua próxima parcela vence em <strong>{dataVencimentoCota}</strong> (restam {diasRestantesVencimento} dias). Mantenha sua cota ativa para validar a aptidão para os sorteios.
+                      Aviso: Sua proxima parcela vence in <strong>{dataVencimentoCota}</strong> (restam {diasRestantesVencimento} dias). Mantenha sua cota ativa para os sorteios.
                     </p>
-                    <button onClick={() => setModalCheckoutAberto(true)} className="px-4 py-2 bg-amber-950 text-white text-[11px] font-bold rounded-lg uppercase tracking-wide whitespace-nowrap cursor-pointer hover:bg-amber-900">
-                      Regularizar Cota Via Pix
+                    <button onClick={() => setModalCheckoutAberto(true)} className="px-4 py-2 bg-amber-950 text-white text-[11px] font-bold rounded-lg uppercase tracking-wide whitespace-nowrap">
+                      Regularizar Cota
                     </button>
                   </div>
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Saldo Poupança Individual</span>
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Saldo Poupanca Individual</span>
                     <span className="text-2xl font-bold tracking-tight block mt-2 font-mono">R$ {saldoPoupanca.toFixed(2)}</span>
                   </div>
                   <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
@@ -569,11 +713,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     <span className="text-2xl font-bold text-[#BD6B42] block mt-2 font-mono">{dataVencimentoCota || '--/--'}</span>
                   </div>
                   <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Vigência de Sorteios</span>
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Vigencia de Sorteios</span>
                     <span className="text-2xl font-bold text-[#0B1E14] block mt-2 font-mono">{grupoSelecionado?.duracaoMeses || 0} Meses</span>
                   </div>
                   <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Aptidão Coletiva</span>
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Aptidao Coletiva</span>
                     <span className="text-2xl font-bold text-emerald-600 block mt-2 uppercase tracking-wide text-sm font-semibold">Fase 0{etapaAtual}</span>
                   </div>
                 </div>
@@ -581,8 +725,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="lg:col-span-2 bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between min-h-[260px]">
                     <div className="flex justify-between items-center mb-4">
-                      <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Histórico de Quitação da Cota</span>
-                      <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded font-bold font-mono">Evolução</span>
+                      <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Historico de Quitacao da Cota</span>
+                      <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded font-bold font-mono">Evolucao</span>
                     </div>
                     <div className="flex items-end justify-between h-40 pt-4 border-b border-stone-100 px-2">
                       {['Mes 1', 'Mes 2', 'Mes 3', 'Mes 4', 'Mes 5', 'Mes 6', 'Mes 7'].map((mes, i) => {
@@ -607,47 +751,47 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       </svg>
                       <div className="absolute text-center">
                         <span className="text-xl font-bold tracking-tight font-mono text-[#0B1E14]">{percentual}%</span>
-                        <span className="block text-[8px] uppercase text-stone-400 font-bold tracking-wider">Concluído</span>
+                        <span className="block text-[8px] uppercase text-stone-400 font-bold tracking-wider">Concluido</span>
                       </div>
                     </div>
                     <div className="w-full text-center border-t border-stone-50 pt-3 text-[11px] font-semibold text-stone-500">
-                      Meta Coletiva do Círculo: <span className="font-mono text-[#0B1E14] font-bold">R$ {totalObjetivo.toFixed(2)}</span>
+                      Meta Coletiva: <span className="font-mono text-[#0B1E14] font-bold">R$ {totalObjetivo.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
-                  <div className="px-5 py-4 border-b bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Régua de Vencimentos & Aportes Efetuados</h3>
+                  <div className="px-5 py-4 border-b bg-stone-50/50 flex justify-between items-center">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Regua de Vencimentos desta Cota</h3>
                     {etapaAtual !== 4 && (
                       <button
                         onClick={() => setModalCheckoutAberto(true)}
-                        className="bg-[#0B1E14] text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 cursor-pointer shadow-xs"
+                        className="bg-[#0B1E14] text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90"
                       >
-                        Liquidar Nova Parcela
+                        Liquidar Parcela via Pix
                       </button>
                     )}
                   </div>
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-stone-50 text-stone-400 font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
-                        <th className="py-3.5 px-5">CICLO</th>
+                        <th className="py-3.5 px-5">VENCIMENTO</th>
                         <th className="py-3.5 px-5">DESCRIÇÃO</th>
-                        <th className="py-3.5 px-5 text-right">VOLUME APORTADO</th>
+                        <th className="py-3.5 px-5 text-right">VALOR REQUERIDO</th>
                         <th className="py-3.5 px-5 text-center">SITUAÇÃO</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
                       {saldoPoupanca === 0 ? (
-                        <tr><td colSpan={4} className="py-6 text-center text-stone-400 italic font-medium">Nenhum aporte financeiro registrado nesta cota contratual ainda.</td></tr>
+                        <tr><td colSpan={4} className="py-6 text-center text-stone-400 italic">Nenhum aporte registrado nesta conta ainda.</td></tr>
                       ) : (
                         Array.from({ length: Math.ceil(saldoPoupanca / valorMensalidade) }).map((_, index) => (
                           <tr key={index} className="hover:bg-stone-50/50 transition-all">
-                            <td className="py-3.5 px-5 text-stone-400">Parcela 0{index + 1}</td>
-                            <td className="py-3.5 px-5 text-[#0B1E14] font-bold">Aporte Mensal Coletivo</td>
+                            <td className="py-3.5 px-5 text-stone-400">{dataVencimentoCota}</td>
+                            <td className="py-3.5 px-5 text-[#0B1E14] font-bold">Mensalidade Coletiva (Parcela 0{index + 1})</td>
                             <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">R$ {valorMensalidade.toFixed(2)}</td>
                             <td className="py-3.5 px-5 text-center">
-                              <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold text-[9px] uppercase tracking-wider">
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold text-[9px] uppercase">
                                 Liquidado
                               </span>
                             </td>
@@ -664,8 +808,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           </div>
         )}
 
-        {/* ... REGRAS, EXTRATO, PERFIL E AJUDA SEGUEM INALTERADOS ABAIXO ... */}
-        
         {abaAtiva === 'extrato' && (
           <div className="space-y-6 animate-fadeIn text-left">
             <div>
@@ -746,7 +888,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               </div>
             ) : (
               <p className="text-[10px] text-stone-400 italic pt-2">
-                * Acesse um dos seus clubes ativos ou visualize as lojas na aba inicial para habilitar a visualização do documento de termos específicos em PDF.
+                * Acesse um dos seus clubes ativos ou selecione uma loja no Dropdown para habilitar a visualização do documento de termos específicos em PDF.
               </p>
             )}
           </div>
@@ -754,7 +896,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
         {abaAtiva === 'perfil' && (
           <div className="space-y-6 max-w-2xl text-left animate-fadeIn">
-            {/* DADOS CADASTRAIS */}
+
+            {/* CARTÃO 1: DADOS CADASTRAIS */}
             <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6 shadow-xs">
               <div>
                 <h2 className="text-xl font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Meus Dados Cadastrais</h2>
@@ -861,7 +1004,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               </form>
             </div>
 
-            {/* ALTERAÇÃO DE SENHA */}
+            {/* CARTÃO 2: ALTERAÇÃO DE SENHA */}
             <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-5 shadow-xs">
               <div>
                 <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Segurança da Conta & Alteração de Senha</h3>
@@ -934,6 +1077,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
               </form>
             </div>
+
           </div>
         )}
 
@@ -945,31 +1089,44 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+
+              {/* 1. SUPORTE DA PLATAFORMA */}
               <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col justify-between space-y-4">
                 <div>
-                  <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#0B1E14]/10 text-[#0B1E14] uppercase">Suporte do Site</span>
+                  <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#0B1E14]/10 text-[#0B1E14] uppercase">
+                    Suporte do Site
+                  </span>
                   <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase">Atendimento Técnico</h4>
-                  <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">Para dúvidas sobre acesso à conta, faturas Pix, dificuldades de navegação, atualização de dados pessoais ou instabilidades no sistema.</p>
+                  <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">
+                    Para dúvidas sobre acesso à conta, faturas Pix, dificuldades de navegação, atualização de dados pessoais ou instabilidades no sistema.
+                  </p>
                 </div>
                 <div className="pt-2 border-t border-stone-200/60">
                   <p className="text-stone-500 font-bold text-xs font-mono mb-2">(42) 98411-7768</p>
                   <button
                     type="button"
                     onClick={() => window.open('https://wa.me/5542984117768', '_blank')}
-                    className="w-full text-center py-2.5 bg-[#0B1E14] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer"
+                    className="w-full text-center py-2.5 bg-[#0B1E14] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     Chamar Suporte Técnico
                   </button>
                 </div>
               </div>
 
+              {/* 2. SUPORTE DA LOJA PARCEIRA */}
               <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col justify-between space-y-4">
                 {lojaSelecionada ? (
                   <>
                     <div>
-                      <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#BD6B42]/10 text-[#BD6B42] uppercase">Suporte da Loja</span>
-                      <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase truncate max-w-[180px]">{obterNomeLoja(lojaSelecionada)}</h4>
-                      <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">Para tratar diretamente sobre especificações de produtos, datas de assembleias locais, andamento de entregas ou retiradas de mercadorias.</p>
+                      <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#BD6B42]/10 text-[#BD6B42] uppercase">
+                        Suporte da Loja
+                      </span>
+                      <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase truncate max-w-[180px]">
+                        {obterNomeLoja(lojaSelecionada)}
+                      </h4>
+                      <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">
+                        Para tratar diretamente sobre especificações de produtos, datas de assembleias locais, andamento de entregas ou retiradas de mercadorias.
+                      </p>
                     </div>
                     <div className="pt-2 border-t border-stone-200/60">
                       <p className="text-stone-500 font-bold text-xs font-mono mb-2">
@@ -980,10 +1137,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         disabled={!lojaSelecionada.telefone}
                         onClick={() => {
                           if (lojaSelecionada.telefone) {
-                            window.open(`https://wa.me/55${lojaSelecionada.telefone.replace(/\D/g, '')}`, '_blank');
+                            const numLimpo = lojaSelecionada.telefone.replace(/\D/g, '');
+                            window.open(`https://wa.me/55${numLimpo}`, '_blank');
                           }
                         }}
-                        className="w-full text-center py-2.5 bg-[#BD6B42] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer disabled:opacity-40"
+                        className="w-full text-center py-2.5 bg-[#BD6B42] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         {lojaSelecionada.telefone ? 'Falar com Atendimento' : 'Telefone não cadastrado'}
                       </button>
@@ -991,10 +1149,13 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </>
                 ) : (
                   <div className="h-full flex flex-col justify-center items-center text-center p-4">
-                    <p className="text-[11px] text-stone-400 font-medium italic leading-relaxed">Acesse um de seus clubes ou selecione uma loja na página inicial para visualizar as opções de contato direto.</p>
+                    <p className="text-[11px] text-stone-400 font-medium italic leading-relaxed">
+                      Selecione uma loja no Menu Dropdown da página inicial para visualizar as opções de contato direto e suporte.
+                    </p>
                   </div>
                 )}
               </div>
+
             </div>
           </div>
         )}
@@ -1038,13 +1199,17 @@ function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number
         return res.json();
       })
       .then((data) => setDadosPix(data))
-      .catch((err) => console.error(err))
+      .catch((err) => {
+        console.error(err);
+      })
       .finally(() => setCarregandoPix(false));
   }, [valor, cotaId]);
 
   return (
     <div className="space-y-5 text-[#0B1E14]">
-      <div className="bg-[#F5F2EB] p-3 rounded-xl text-center text-xs font-bold border border-[#DFD9CE]">Fatura Instantanea via PIX</div>
+      <div className="bg-[#F5F2EB] p-3 rounded-xl text-center text-xs font-bold border border-[#DFD9CE]">
+        Fatura Instantanea via PIX
+      </div>
       <div className="text-center space-y-4 pt-2">
         <div className="p-5 bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl text-center text-xs min-h-[100px] flex items-center justify-center">
           {carregandoPix ? (
@@ -1055,7 +1220,9 @@ function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number
               <p className="text-[10px] text-stone-400 font-medium">Clique no botao abaixo para abrir o ambiente de pagamento seguro e concluir o seu Pix.</p>
             </div>
           ) : (
-            <span className="block font-semibold text-rose-500 leading-relaxed">Nao foi possivel gerar a sua faturamento Pix neste momento. Por favor, tente novamente em instantes.</span>
+            <span className="block font-semibold text-rose-500 leading-relaxed">
+              Nao foi possivel gerar a sua faturamento Pix neste momento. Por favor, tente novamente em instantes ou entre em contato com o nosso suporte.
+            </span>
           )}
         </div>
 
