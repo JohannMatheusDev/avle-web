@@ -54,14 +54,12 @@ export default function Home() {
 function Autenticacao() {
   const router = useRouter();
 
-  // Elementos do GSAP
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const path1Ref = useRef<SVGPathElement>(null);
   const path2Ref = useRef<SVGPathElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
 
-  // Estados da interface
   const [isLogin, setIsLogin] = useState(true);
   const [isVerificando, setIsVerificando] = useState(false);
   const [carregando, setCarregando] = useState(false);
@@ -72,23 +70,17 @@ function Autenticacao() {
   const [novaSenha, setNovaSenha] = useState('');
   const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false);
 
-  // Dados Básicos
   const [tipoUsuario, setTipoUsuario] = useState('CLIENTE');
   
-  // 🟢 NOVO ESTADO: Campo unificado para login (Email ou Telefone)
   const [identificadorLogin, setIdentificadorLogin] = useState(''); 
-  
-  // Estados separados para cadastro continuam existindo
   const [emailCadastro, setEmailCadastro] = useState('');
   const [telefoneCadastro, setTelefoneCadastro] = useState('');
-  
   const [senha, setSenha] = useState('');
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [codigoOtp, setCodigoOtp] = useState('');
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
 
-  // CAMPOS ADICIONAIS PARA LOJA
   const [cep, setCep] = useState('');
   const [faturamento, setFaturamento] = useState('');
   const [walletIdInput, setWalletIdInput] = useState(''); 
@@ -97,11 +89,12 @@ function Autenticacao() {
   const [conta, setConta] = useState('');
   const [contaDigito, setContaDigito] = useState('');
   const [tipoConta, setTipoConta] = useState('CORRENTE');
+  
+  const [aceitouTermos, setAceitouTermos] = useState(false);
 
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [modoLayout, setModoLayout] = useState<'mobile' | 'site'>('mobile');
 
-  // Ping silencioso no carregamento da página
   useEffect(() => {
     fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
     const intervaloPing = setInterval(() => {
@@ -110,7 +103,6 @@ function Autenticacao() {
     return () => clearInterval(intervaloPing);
   }, []);
 
-  // GSAP - Animações sutis
   useEffect(() => {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
@@ -155,7 +147,6 @@ function Autenticacao() {
     return () => ctx.revert();
   }, [modoLayout]);
 
-  // Máscaras de Input
   const aplicarMascaraTelefone = (valor: string) => {
     const v = valor.replace(/\D/g, '');
     if (v.length <= 2) return v;
@@ -180,7 +171,6 @@ function Autenticacao() {
     }).format(parseFloat(valorNumerico));
   };
 
-  // Lógica dinâmica para o campo de Login (Email vs Telefone)
   const handleIdentificadorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const valor = e.target.value;
     if (/^\d/.test(valor) || valor.startsWith('(')) {
@@ -190,16 +180,13 @@ function Autenticacao() {
     }
   };
 
-  // Validações
   const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   
-  // Validação Login
   const loginLimpo = identificadorLogin.replace(/\D/g, '');
   const isLoginEmailValido = regexEmail.test(identificadorLogin);
   const isLoginTelefoneValido = loginLimpo.length >= 10 && loginLimpo.length <= 11;
   const loginValido = isLoginEmailValido || isLoginTelefoneValido;
 
-  // Validação Cadastro
   const emailCadastroValido = regexEmail.test(emailCadastro);
   const emailCadastroPreenchido = emailCadastro.trim().length > 0;
   const emailCadastroValidoOuVazio = tipoUsuario === 'LOJA' ? emailCadastroValido : !emailCadastroPreenchido || emailCadastroValido;
@@ -229,7 +216,6 @@ function Autenticacao() {
       ? agencia.trim().length >= 3 && conta.trim().length >= 4 && contaDigito.trim().length >= 1
       : true;
 
-  // Habilita o botão baseando-se no estado (Login vs Cadastro)
   const formularioValido = isLogin
     ? loginValido && senha.length > 0
     : emailCadastroValidoOuVazio &&
@@ -239,9 +225,9 @@ function Autenticacao() {
       tamanhoDocumentoValido &&
       cepValidoSeLoja &&
       faturamentoValidoSeLoja &&
-      dadosBancariosValidosSeLoja;
+      dadosBancariosValidosSeLoja &&
+      (tipoUsuario === 'LOJA' ? aceitouTermos : true);
 
-  // LOGIN TRANSPARENTE COM RETRY SILENCIOSO
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMensagem({ tipo: '', texto: '' });
@@ -269,7 +255,6 @@ function Autenticacao() {
         let bodyPayload: any = {};
 
         if (isLogin) {
-            // 🟢 CORREÇÃO: Se tiver '@', é com certeza e-mail. Se não, é telefone.
             if (identificadorLogin.includes('@')) {
                bodyPayload = { email: identificadorLogin.trim(), senha };
             } else {
@@ -330,7 +315,7 @@ function Autenticacao() {
             setIsLogin(true);
             setNome(''); setCpf(''); setEmailCadastro(''); setTelefoneCadastro(''); setCep('');
             setFaturamento(''); setWalletIdInput(''); setAgencia(''); setConta('');
-            setContaDigito(''); setSenha('');
+            setContaDigito(''); setSenha(''); setAceitouTermos(false);
             setMensagem({ tipo: '', texto: '' });
           }, 1500);
           setCarregando(false);
@@ -551,6 +536,7 @@ function Autenticacao() {
                 onClick={() => {
                   setIsLogin(true);
                   setMensagem({ tipo: '', texto: '' });
+                  setAceitouTermos(false);
                 }}
                 className={`flex-1 py-4 font-bold text-xs uppercase tracking-wider transition-all duration-200 ${
                   isLogin ? 'text-[#BD6B42] border-b-2 border-[#BD6B42] bg-white' : 'text-stone-400 hover:text-stone-600'
@@ -564,6 +550,7 @@ function Autenticacao() {
                   setIsLogin(false);
                   setMensagem({ tipo: '', texto: '' });
                   setTipoUsuario('CLIENTE');
+                  setAceitouTermos(false);
                 }}
                 className={`flex-1 py-4 font-bold text-xs uppercase tracking-wider transition-all duration-200 ${
                   !isLogin ? 'text-[#BD6B42] border-b-2 border-[#BD6B42] bg-white' : 'text-stone-400 hover:text-stone-600'
@@ -801,6 +788,7 @@ function Autenticacao() {
                             setCpf('');
                             setTelefoneCadastro('');
                             setEmailCadastro('');
+                            setAceitouTermos(false);
                           }}
                           className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${
                             tipoUsuario === 'CLIENTE' ? 'text-white' : 'text-stone-500 hover:text-stone-800'
@@ -824,6 +812,7 @@ function Autenticacao() {
                             setCpf('');
                             setTelefoneCadastro('');
                             setEmailCadastro('');
+                            setAceitouTermos(false);
                           }}
                           className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${
                             tipoUsuario === 'LOJA' ? 'text-white' : 'text-stone-500 hover:text-stone-800'
@@ -901,6 +890,7 @@ function Autenticacao() {
                         disabled={carregando}
                       />
                     </div>
+                    
                     {tipoUsuario === 'LOJA' && (
                       <div className="space-y-3 p-3.5 bg-stone-50/80 border border-stone-200 rounded-2xl transition-all duration-300">
                         <p className="text-[10px] font-bold uppercase text-[#BD6B42] tracking-wider">
@@ -1193,6 +1183,23 @@ function Autenticacao() {
                     </div>
                   )}
                 </div>
+
+                {!isLogin && tipoUsuario === 'LOJA' && (
+                  <div className="flex items-start space-x-3 p-3 bg-stone-50 border border-stone-200/60 rounded-xl mt-2 animate-fade-in">
+                    <input
+                      type="checkbox"
+                      id="termos-loja"
+                      checked={aceitouTermos}
+                      onChange={(e) => setAceitouTermos(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-[#0B1E14] cursor-pointer"
+                      disabled={carregando}
+                    />
+                    <label htmlFor="termos-loja" className="text-[10px] text-stone-500 leading-relaxed cursor-pointer select-none">
+                      Declaro que li e concordo com os <span className="text-[#BD6B42] font-bold underline">Termos de Uso</span> e o <span className="text-[#BD6B42] font-bold underline">Contrato de Parceria</span> da AVLE. Compreendo que as operações estão sujeitas à auditoria de compliance.
+                    </label>
+                  </div>
+                )}
+
               </div>
 
               <button
