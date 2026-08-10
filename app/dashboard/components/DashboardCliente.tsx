@@ -46,12 +46,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [carregandoDados, setCarregandoDados] = useState(true);
   const [statusSalvar, setStatusSalvar] = useState<'sucesso' | 'erro' | null>(null);
 
-  // 🟢 NOVO ESTADO: Modal de Aprovação de Crédito
-  const [modalAprovacaoAberto, setModalAprovacaoAberto] = useState(false);
-  const [grupoParaAprovacao, setGrupoParaAprovacao] = useState<any | null>(null);
-  const [statusAcessoLoja, setStatusAcessoLoja] = useState<'NAO_SOLICITADO' | 'PENDENTE' | 'APROVADO' | 'REJEITADO'>('NAO_SOLICITADO');
-  const [solicitandoAcesso, setSolicitandoAcesso] = useState(false);
-
   const totalObjetivo = grupoSelecionado ? Number(grupoSelecionado.valorParcela) * Number(grupoSelecionado.duracaoMeses) : 0;
   const valorMensalidade = grupoSelecionado ? Number(grupoSelecionado.valorParcela) : 0;
 
@@ -133,21 +127,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     }
   };
 
-  // 🟢 Busca o status de acesso do usuário à loja
-  const verificarAcessoLoja = async (lojaId: number, userId: number) => {
-      try {
-          const res = await fetch(`${API_URL}/api/usuarios/${userId}/acessos-loja/${lojaId}`);
-          if (res.ok) {
-              const data = await res.json();
-              setStatusAcessoLoja(data.status); // APROVADO, PENDENTE ou REJEITADO
-          } else {
-              setStatusAcessoLoja('NAO_SOLICITADO');
-          }
-      } catch (err) {
-          setStatusAcessoLoja('NAO_SOLICITADO');
-      }
-  }
-
   useEffect(() => {
     let currentUserId = usuario?.id;
 
@@ -198,16 +177,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       });
   }, [usuario?.id]);
 
+  // 🟢 NAVEGAÇÃO 1 -> 2: Clicou na Loja para ver os Grupos
   const handleAbrirLoja = (loja: any) => {
     setLojaEmFoco(loja);
     setNivelVisao('grupos');
     setCarregandoGrupos(true);
     setGruposDaLoja([]);
-
-    // Ao clicar na loja, verifica o status de acesso do cliente
-    if (usuario?.id) {
-        verificarAcessoLoja(loja.id, usuario.id);
-    }
 
     fetch(`${API_URL}/api/grupos/loja/${loja.id}`)
       .then((res) => res.json())
@@ -216,41 +191,44 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       .finally(() => setCarregandoGrupos(false));
   };
 
-  // 🟢 Intercepta o clique no Grupo para solicitar a aprovação de crédito
-  const handleTentarEntrarNoGrupo = async (grupo: any, cotaExistente: any) => {
+  // 🟢 NAVEGAÇÃO 2 -> 3: Clicou no Grupo (Abre Dashboard se tiver cota, ou entra no clube)
+  const handleAbrirGrupo = async (grupo: any, cotaExistente: any) => {
     if (cotaExistente) {
-       // Se já faz parte do grupo e foi aprovado, entra direto no Dashboard
+       // Já tem cota, vai direto pro Dashboard
        setClubeAtualSelecionado(cotaExistente);
        setGrupoSelecionado(cotaExistente.grupo);
        setLojaSelecionada(cotaExistente.loja);
        setSaldoPoupanca(Number(cotaExistente.saldoPoupanca) || 0);
        setNivelVisao('dashboard');
     } else {
-       // Se ainda não faz parte, abre o Modal de Aprovação de Crédito
-       setGrupoParaAprovacao(grupo);
-       setModalAprovacaoAberto(true);
-    }
-  };
-
-  // 🟢 Dispara a solicitação de acesso para a Loja
-  const handleSolicitarAnaliseCredito = async () => {
-    setSolicitandoAcesso(true);
-    try {
-        const res = await fetch(`${API_URL}/api/lojas/${lojaEmFoco?.id}/solicitar-acesso`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuarioId: usuario?.id })
-        });
-        
-        if (!res.ok) throw new Error('Falha ao enviar solicitação.');
-        
-        setStatusAcessoLoja('PENDENTE');
-        alert("Sua solicitação foi enviada para a caixa de mensagens da loja!\nAssim que a consulta for finalizada e o acesso liberado, você será notificado.");
-        setModalAprovacaoAberto(false);
-    } catch (err) {
-        alert("Erro ao conectar com o sistema da loja. Tente novamente.");
-    } finally {
-        setSolicitandoAcesso(false);
+       // Não tem cota. Confirma e vincula.
+       if (confirm(`Deseja confirmar sua participação no clube ${grupo.nome} com parcelas de R$ ${Number(grupo.valorParcela).toFixed(2)}?`)) {
+           try {
+              const res = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/vincular-clube`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lojaId: Number(lojaEmFoco?.id), grupoId: Number(grupo?.id) })
+              });
+              
+              if (!res.ok) throw new Error();
+              
+              // Recarrega os clubes para pegar o ID da nova cota gerada
+              const resClubes = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/clubes-ativos`);
+              const dataClubes = await resClubes.json();
+              setClubesAtivos(dataClubes);
+              
+              const novaCota = dataClubes.find((c: any) => c.grupo.id === grupo.id);
+              if (novaCota) {
+                 setClubeAtualSelecionado(novaCota);
+                 setGrupoSelecionado(novaCota.grupo);
+                 setLojaSelecionada(novaCota.loja);
+                 setSaldoPoupanca(Number(novaCota.saldoPoupanca) || 0);
+                 setNivelVisao('dashboard'); // Entra no dashboard do grupo novo
+              }
+           } catch {
+              alert('Falha ao registrar vínculo no clube. Tente novamente.');
+           }
+       }
     }
   };
 
@@ -372,21 +350,13 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     }
   };
 
-  const handleMudarClubeEmExibicao = (clube: any) => {
-    setClubeAtualSelecionado(clube);
-    setGrupoSelecionado(clube.grupo);
-    setLojaSelecionada(clube.loja);
-    setSaldoPoupanca(Number(clube.saldoPoupanca) || 0);
-    setNivelVisao('dashboard');
-  };
-
   return (
     <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5]">
 
       <aside className="w-full md:w-64 bg-[#0B1E14] text-[#E3EAE6] flex flex-col justify-between p-6 flex-shrink-0">
         <div>
           <div className="flex flex-col items-center text-center pb-6 border-b border-white/10 mb-6">
-            <div className="w-16 h-16 rounded-full bg-[#EFEAE2] flex items-center justify-center overflow-hidden font-bold text-xl text-[#0B1E14] shadow-md cursor-pointer hover:scale-105 transition-all" onClick={() => { setAbaAtiva('perfil'); setExibindoPaginaClube(false); setStatusSalvar(null); setStatusSalvarSenha(null); }}>
+            <div className="w-16 h-16 rounded-full bg-[#EFEAE2] flex items-center justify-center overflow-hidden font-bold text-xl text-[#0B1E14] shadow-md cursor-pointer hover:scale-105 transition-all" onClick={() => { setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }}>
               {fotoPerfil ? (
                 <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
               ) : (
@@ -399,7 +369,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
           <nav className="space-y-1">
             {[
-              { id: 'inicio', label: 'Home / Meus Clubes' },
+              { id: 'inicio', label: 'Home / Lojas & Clubes' },
               { id: 'extrato', label: 'Histórico Geral' },
               { id: 'regras', label: 'Regulamento' },
               { id: 'ajuda', label: 'Suporte' }
@@ -408,7 +378,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 key={aba.id}
                 onClick={() => { 
                     setAbaAtiva(aba.id as any); 
-                    if (aba.id === 'inicio') setNivelVisao('lojas'); 
+                    if (aba.id === 'inicio') setNivelVisao('lojas'); // Reset da navegação em cascata
                     setStatusSalvar(null); 
                     setStatusSalvarSenha(null); 
                 }}
@@ -433,191 +403,148 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         {abaAtiva === 'inicio' && (
           <div className="animate-fadeIn">
 
-            {/* 🟢 NÍVEL 1: VISÃO DE LOJAS COM VISUAL ORIGINAL (LISTA DE CLUBES ATIVOS) */}
+            {/* 🟢 NÍVEL 1: VISÃO DE LOJAS */}
             {nivelVisao === 'lojas' && (
               <div className="space-y-6 text-left">
                 <div>
-                  <h2 className="text-base font-bold uppercase tracking-wide text-stone-400">Meus Clubes Ativos</h2>
-                  <p className="text-xs text-stone-400">Clique em qualquer comunidade de compras abaixo para acessar a pagina interna sucessiva.</p>
+                  <h2 className="text-base font-bold uppercase tracking-wide text-[#0B1E14]">Rede de Lojas Parceiras</h2>
+                  <p className="text-xs text-stone-500">Selecione uma loja abaixo para visualizar e acessar seus clubes de compras estruturadas.</p>
                 </div>
 
-                {clubesAtivos.length === 0 ? (
+                {lojas.length === 0 && !erroConexao ? (
                   <div className="bg-white border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
-                    Você ainda não está participando de nenhum clube. Selecione um estabelecimento abaixo para começar!
+                    Nenhuma loja parceira cadastrada na plataforma ainda.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {clubesAtivos.map((clube) => {
-                      const objTotal = Number(clube.grupo.valorParcela) * Number(clube.grupo.duracaoMeses);
-                      const perc = objTotal > 0 ? Math.min(Math.round((clube.saldoPoupanca / objTotal) * 100), 100) : 0;
-                      return (
-                        <div
-                          key={clube.cotaId}
-                          onClick={() => handleMudarClubeEmExibicao(clube)}
-                          className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs hover:border-[#BD6B42] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="font-serif font-bold text-base text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">{clube.grupo.nome}</h3>
-                              <p className="text-[10px] font-mono text-stone-400 mt-0.5">Loja: <strong className="text-stone-600 font-bold">{obterNomeLoja(clube.loja)}</strong></p>
-                            </div>
-                            <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-stone-50 border text-stone-500">
-                              Cota #0{clube.cotaId}
-                            </span>
-                          </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                    {lojas.map(loja => {
+                        // Verifica se o usuário tem cotas ativas nesta loja para colocar um aviso visual
+                        const cotasNestaLoja = clubesAtivos.filter(c => c.grupo?.loja?.id === loja.id || c.loja?.id === loja.id);
+                        const temClubeAtivo = cotasNestaLoja.length > 0;
 
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-[10px] font-bold text-stone-400">
-                              <span>Progresso</span>
-                              <span>{perc}%</span>
-                            </div>
-                            <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
-                              <div className="bg-[#BD6B42] h-full transition-all" style={{ width: `${perc}%` }}></div>
-                            </div>
-                          </div>
-
-                          <div className="text-[10px] text-[#BD6B42] font-bold uppercase tracking-wider text-right group-hover:translate-x-1 transition-transform">
-                            Acessar Pagina do Clube
-                          </div>
-                        </div>
-                      );
+                        return (
+                           <div 
+                             key={loja.id}
+                             onClick={() => handleAbrirLoja(loja)} 
+                             className={`bg-white border rounded-2xl p-6 cursor-pointer flex flex-col items-center justify-center text-center space-y-4 transition-all shadow-xs hover:-translate-y-1 hover:shadow-md ${
+                               temClubeAtivo ? 'border-[#BD6B42] bg-[#F5F2EB]/30' : 'border-[#DFD9CE] hover:border-stone-300'
+                             }`}
+                           >
+                              <div className={`w-16 h-16 rounded-full flex items-center justify-center font-serif font-bold text-2xl transition-colors ${
+                                temClubeAtivo ? 'bg-[#BD6B42] text-white shadow-md' : 'bg-[#F5F2EB] text-[#0B1E14] border border-stone-200'
+                              }`}>
+                                {obterNomeLoja(loja).substring(0, 2).toUpperCase()}
+                              </div>
+                              <div className="w-full">
+                                <h3 className="text-sm font-bold text-[#0B1E14] truncate w-full px-2">{obterNomeLoja(loja)}</h3>
+                                {temClubeAtivo ? (
+                                   <span className="inline-block mt-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                     {cotasNestaLoja.length} {cotasNestaLoja.length === 1 ? 'Clube Ativo' : 'Clubes Ativos'}
+                                   </span>
+                                ) : (
+                                   <span className="inline-block mt-1 text-[9px] font-medium text-stone-400 px-2 py-0.5 uppercase tracking-wider">
+                                     Explorar Planos
+                                   </span>
+                                )}
+                              </div>
+                           </div>
+                        )
                     })}
                   </div>
                 )}
-
-                {/* 🟢 BLOCO INFERIOR COM AS LOJAS MANTENDO O DESIGN ORIGINAL */}
-                <div className="border-t border-[#DFD9CE] pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* ESQUERDA: DESCOBRIR OUTRA LOJA PARCEIRA */}
-                  <div className="bg-white border border-[#DFD9CE] rounded-xl p-5 shadow-xs space-y-3 relative flex flex-col">
-                    <label className="block text-[10px] text-stone-400 font-bold uppercase tracking-wide">Descobrir Outra Loja Parceira</label>
-
-                    <button
-                      type="button"
-                      onClick={() => setDropdownLojaAberto(!dropdownLojaAberto)}
-                      className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl flex items-center justify-between text-[#0B1E14] font-bold text-xs cursor-pointer hover:border-[#BD6B42] transition-colors"
-                    >
-                      <span className="truncate">
-                        {lojaEmFoco ? obterNomeLoja(lojaEmFoco) : 'Selecione uma loja...'}
-                      </span>
-                      <span className="text-[10px] text-stone-400 underline">Filtrar</span>
-                    </button>
-
-                    {dropdownLojaAberto && (
-                      <div className="absolute left-0 right-0 top-[80px] bg-white border border-[#DFD9CE] rounded-xl max-h-48 overflow-y-auto divide-y divide-[#DFD9CE] shadow-lg z-30">
-                        {lojas.length === 0 ? (
-                          <div className="px-3 py-2.5 text-xs text-stone-400 italic">
-                            Nenhuma loja encontrada.
-                          </div>
-                        ) : (
-                          lojas.map((l: any) => {
-                            const nomeExibicao = obterNomeLoja(l);
-                            return (
-                              <button
-                                key={l.id}
-                                type="button"
-                                onClick={() => {
-                                    handleAbrirLoja(l);
-                                    setDropdownLojaAberto(false);
-                                }}
-                                className="w-full text-left px-3 py-2.5 text-xs text-[#0B1E14] hover:bg-[#F5F2EB] transition-all font-bold block"
-                              >
-                                {nomeExibicao}
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* DIREITA: PLANOS DISPONÍVEIS E VALIDAÇÃO DE CRÉDITO ESCONDIDA */}
-                  {lojaEmFoco && (
-                    <div className="md:col-span-2 bg-white border border-[#DFD9CE] rounded-xl p-5 shadow-xs space-y-3 animate-fadeIn flex flex-col min-h-[160px]">
-                      
-                      {(() => {
-                         if (statusAcessoLoja === 'APROVADO') {
-                             return (
-                               <>
-                                 <label className="block text-[10px] text-stone-400 font-bold uppercase tracking-wide">Planos Disponiveis (Toque para Entrar no Grupo)</label>
-                                 {carregandoGrupos ? (
-                                    <div className="py-8 text-center text-xs font-bold text-stone-400 animate-pulse">Buscando planos ativos no servidor...</div>
-                                 ) : gruposDaLoja.length === 0 ? (
-                                    <div className="py-8 text-center text-xs font-medium text-stone-400 italic bg-stone-50 rounded-xl border border-dashed">
-                                       Esta loja ainda não possui grupos de compras abertos no momento.
-                                    </div>
-                                 ) : (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                                      {gruposDaLoja.map((g: any) => {
-                                        const jaPossuiCota = clubesAtivos.some(c => c.grupo?.id === g.id);
-                                        return (
-                                          <button key={g.id} type="button" disabled={jaPossuiCota} onClick={() => handleTentarEntrarNoGrupo(g, jaPossuiCota ? clubesAtivos.find(c => c.grupo.id === g.id) : null)} className={`text-left p-3 rounded-xl border text-xs transition-all flex flex-col justify-between gap-1 ${jaPossuiCota ? 'border-emerald-600 bg-emerald-50/40 cursor-not-allowed' : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100 cursor-pointer'}`}>
-                                            <div className="flex justify-between w-full font-bold">
-                                              <span className="truncate">{g.nome}</span>
-                                              <span className="text-[#BD6B42]">R$ {Number(g.valorParcela).toFixed(2)}</span>
-                                            </div>
-                                            <div className="text-[10px] flex justify-between w-full font-medium text-stone-400">
-                                              <span>Vigencia: {g.duracaoMeses} Meses</span>
-                                              {jaPossuiCota && <span className="text-emerald-700 font-bold">Ja participando</span>}
-                                            </div>
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                 )}
-                               </>
-                             );
-                         }
-
-                         if (statusAcessoLoja === 'PENDENTE') {
-                             return (
-                                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-amber-50 rounded-xl border border-dashed border-amber-200 h-full">
-                                   <p className="text-sm font-bold text-amber-700 mb-1">Análise de Crédito em Andamento</p>
-                                   <p className="text-xs text-amber-600/80 font-medium">Sua solicitação está sendo avaliada pela loja. Aguarde a aprovação para visualizar os planos.</p>
-                                </div>
-                             );
-                         }
-
-                         if (statusAcessoLoja === 'REJEITADO') {
-                             return (
-                                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-rose-50 rounded-xl border border-dashed border-rose-200 h-full">
-                                   <p className="text-sm font-bold text-rose-700 mb-1">Acesso Restrito</p>
-                                   <p className="text-xs text-rose-600/80 font-medium">Infelizmente, a loja parceira não liberou o seu acesso aos planos neste momento.</p>
-                                </div>
-                             );
-                         }
-
-                         // NAO_SOLICITADO
-                         return (
-                            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-stone-50 rounded-xl border border-dashed border-stone-200 h-full">
-                               <p className="text-sm font-bold text-[#0B1E14] mb-2">Autorização Necessária</p>
-                               <p className="text-xs text-stone-500 font-medium max-w-sm mx-auto mb-5">Para visualizar os planos de compras da {obterNomeLoja(lojaEmFoco)}, é necessário solicitar análise cadastral do seu CPF junto ao estabelecimento.</p>
-                               <button onClick={() => {setGrupoParaAprovacao(null); setModalAprovacaoAberto(true);}} className="px-6 py-2.5 bg-[#0B1E14] text-white text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-opacity-90 transition-all cursor-pointer shadow-sm">Solicitar Acesso à Loja</button>
-                            </div>
-                         );
-                      })()}
-
-                    </div>
-                  )}
-                </div>
-
               </div>
             )}
 
-            {/* 🟢 NÍVEL 3: DASHBOARD DO GRUPO */}
+            {/* 🟢 NÍVEL 2: VISÃO DOS GRUPOS DA LOJA ESCOLHIDA */}
+            {nivelVisao === 'grupos' && lojaEmFoco && (
+              <div className="space-y-6 text-left animate-fadeIn">
+                <button
+                  onClick={() => setNivelVisao('lojas')}
+                  className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors"
+                >
+                  ← Voltar para Lojas
+                </button>
+
+                <div className="bg-[#0B1E14] rounded-2xl p-6 shadow-md text-white flex flex-col md:flex-row items-start md:items-center gap-4">
+                   <div className="w-14 h-14 rounded-full bg-[#F5F2EB] flex items-center justify-center font-serif font-bold text-[#0B1E14] text-xl shrink-0">
+                      {obterNomeLoja(lojaEmFoco).substring(0, 2).toUpperCase()}
+                   </div>
+                   <div>
+                      <h2 className="text-xl font-bold tracking-wide">{obterNomeLoja(lojaEmFoco)}</h2>
+                      <p className="text-xs text-stone-300 mt-0.5">Grupos de compras disponíveis nesta unidade. Clique em um card para acessar seu painel ou registrar participação.</p>
+                   </div>
+                </div>
+
+                {carregandoGrupos ? (
+                   <div className="py-12 text-center text-xs font-bold text-stone-400 animate-pulse">Consultando planos no servidor...</div>
+                ) : gruposDaLoja.length === 0 ? (
+                   <div className="bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
+                      Este estabelecimento ainda não lançou nenhum grupo de compras na plataforma.
+                   </div>
+                ) : (
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {gruposDaLoja.slice().sort((a, b) => a.id - b.id).map(grupo => {
+                         const cotaExistente = clubesAtivos.find(c => c.grupo?.id === grupo.id);
+                         const isAtivo = !!cotaExistente;
+                         
+                         return (
+                            <div 
+                              key={grupo.id}
+                              onClick={() => handleAbrirGrupo(grupo, cotaExistente)}
+                              className={`rounded-2xl p-5 border cursor-pointer flex flex-col justify-between min-h-[160px] transition-all group hover:-translate-y-1 hover:shadow-md ${
+                                 isAtivo ? 'bg-white border-[#BD6B42] shadow-sm' : 'bg-stone-50/50 border-[#DFD9CE] hover:border-stone-300 hover:bg-white'
+                              }`}
+                            >
+                               <div className="flex justify-between items-start w-full mb-4">
+                                  <div>
+                                     <span className="text-[9px] bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded text-stone-500 font-mono font-bold mb-2 inline-block">Lote #{grupo.id}</span>
+                                     <h3 className={`font-serif font-bold text-base leading-tight pr-2 transition-colors ${isAtivo ? 'text-[#0B1E14]' : 'text-stone-700 group-hover:text-[#0B1E14]'}`}>
+                                        {grupo.nome}
+                                     </h3>
+                                  </div>
+                               </div>
+                               
+                               <div className="flex justify-between items-end w-full border-t border-stone-200/60 pt-3">
+                                  <div className="flex flex-col">
+                                     <span className="text-[10px] text-stone-500 font-medium">Vigência: {grupo.duracaoMeses} Meses</span>
+                                  </div>
+                                  <span className={`text-lg font-bold font-mono ${isAtivo ? 'text-[#BD6B42]' : 'text-stone-500 group-hover:text-[#0B1E14]'}`}>
+                                     R$ {Number(grupo.valorParcela).toFixed(2)}
+                                  </span>
+                               </div>
+
+                               {isAtivo ? (
+                                  <div className="mt-4 pt-3 border-t border-[#BD6B42]/20 w-full text-center text-[10px] font-bold text-[#BD6B42] uppercase tracking-wider group-hover:bg-[#BD6B42] group-hover:text-white rounded-lg transition-colors py-1">
+                                     Acessar Dashboard →
+                                  </div>
+                               ) : (
+                                  <div className="mt-4 pt-3 border-t border-stone-200 w-full text-center text-[10px] font-bold text-stone-400 uppercase tracking-wider group-hover:text-[#0B1E14] transition-colors py-1">
+                                     + Participar do Clube
+                                  </div>
+                               )}
+                            </div>
+                         )
+                      })}
+                   </div>
+                )}
+              </div>
+            )}
+
+            {/* 🟢 NÍVEL 3: DASHBOARD DO GRUPO (A tela que já tínhamos) */}
             {nivelVisao === 'dashboard' && clubeAtualSelecionado && (
               <div className="space-y-6 animate-fadeIn text-left">
                 <button
-                  onClick={() => setNivelVisao('lojas')}
+                  onClick={() => setNivelVisao('grupos')}
                   className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
                 >
-                  ← Voltar ao Início
+                  ← Voltar para Grupos da Loja
                 </button>
 
                 <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
                     <span className="text-[10px] font-mono font-bold text-[#BD6B42] uppercase bg-[#F5F2EB] px-2 py-1 rounded">Painel de Acompanhamento Financeiro</span>
                     <h2 className="text-xl font-serif font-bold text-[#0B1E14] mt-1.5">{grupoSelecionado?.nome}</h2>
-                    <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: <strong className="text-stone-700 font-bold">{obterNomeLoja(lojaEmFoco)}</strong> | Cota Contratual: <strong className="font-mono">#0{clubeAtualSelecionado?.cotaId}</strong></p>
+                    <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: <strong className="text-stone-700 font-bold">{obterNomeLoja(lojaSelecionada)}</strong> | Cota Contratual: <strong className="font-mono">#0{clubeAtualSelecionado?.cotaId}</strong></p>
                   </div>
                 </div>
 
@@ -706,7 +633,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       <tr className="bg-stone-50 text-stone-400 font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                         <th className="py-3.5 px-5">CICLO</th>
                         <th className="py-3.5 px-5">DESCRIÇÃO</th>
-                        <th className="py-3.5 px-5 text-right">VALOR REQUERIDO</th>
+                        <th className="py-3.5 px-5 text-right">VOLUME APORTADO</th>
                         <th className="py-3.5 px-5 text-center">SITUAÇÃO</th>
                       </tr>
                     </thead>
@@ -737,7 +664,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           </div>
         )}
 
-        {/* ... EXTRATO, REGRAS, AJUDA E PERFIL CONTINUAM AQUI ... */}
+        {/* ... REGRAS, EXTRATO, PERFIL E AJUDA SEGUEM INALTERADOS ABAIXO ... */}
+        
         {abaAtiva === 'extrato' && (
           <div className="space-y-6 animate-fadeIn text-left">
             <div>
@@ -818,7 +746,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               </div>
             ) : (
               <p className="text-[10px] text-stone-400 italic pt-2">
-                * Acesse um dos seus clubes ativos ou selecione uma loja no Dropdown para habilitar a visualização do documento de termos específicos em PDF.
+                * Acesse um dos seus clubes ativos ou visualize as lojas na aba inicial para habilitar a visualização do documento de termos específicos em PDF.
               </p>
             )}
           </div>
@@ -1072,54 +1000,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         )}
       </main>
 
-      {/* 🟢 MODAL DE APROVAÇÃO DE CRÉDITO */}
-      {modalAprovacaoAberto && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-[60] animate-fadeIn text-left">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-5 shadow-xl">
-            <div className="flex justify-between items-center border-b border-stone-100 pb-3">
-              <div>
-                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Autorização de Crédito</h3>
-                <p className="text-[10px] text-stone-400 mt-0.5">Estabelecimento: {obterNomeLoja(lojaEmFoco)}</p>
-              </div>
-              <button onClick={() => setModalAprovacaoAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer px-2">X</button>
-            </div>
-            
-            <div className="text-xs text-stone-600 leading-relaxed space-y-4">
-                <p>Para visualizar os planos disponíveis e registrar sua cota na <strong>{obterNomeLoja(lojaEmFoco)}</strong>, a loja parceira exige uma análise de crédito prévia do seu CPF.</p>
-                
-                <div className="bg-stone-50 border border-dashed border-stone-300 p-4 rounded-xl space-y-2">
-                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Dados que serão analisados:</p>
-                    <div className="flex justify-between items-center">
-                        <span className="font-bold text-[#0B1E14]">{usuario?.nome}</span>
-                        <span className="font-mono font-bold text-[#0B1E14]">{usuario?.cpf ? aplicarMascaraCpfCnpj(usuario.cpf) : 'Não informado'}</span>
-                    </div>
-                </div>
-
-                <p className="text-[11px] text-stone-500 italic">Ao clicar em confirmar, uma notificação será enviada ao lojista. O processo costuma levar algumas horas.</p>
-            </div>
-
-            <div className="flex space-x-3 pt-3 border-t border-stone-100 w-full">
-              <button 
-                type="button" 
-                onClick={() => setModalAprovacaoAberto(false)} 
-                className="flex-1 py-3 border border-[#DFD9CE] rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer text-xs"
-              >
-                Cancelar
-              </button>
-              <button 
-                type="button"
-                onClick={handleSolicitarAnaliseCredito}
-                disabled={solicitandoAcesso}
-                className="flex-1 py-3 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-xs uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
-              >
-                {solicitandoAcesso ? 'Enviando...' : 'Confirmar e Solicitar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CHECKOUT */}
       {modalCheckoutAberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn text-left">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
