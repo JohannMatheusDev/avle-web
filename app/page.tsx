@@ -530,7 +530,7 @@ function Autenticacao() {
           <h1 className="text-white text-2xl font-bold tracking-wide">AVLE</h1>
           <p className="text-stone-300 text-sm mt-1">Seu clube de compras planejado</p>
           <p className="text-[#BD6B42] text-xs italic mt-3 max-w-xs">
-            "Onde suas escolhas de consumo criam raízes e geram frutos."
+            "Onde suas escolhas criam raízes e geram frutos."
           </p>
         </div>
 
@@ -882,7 +882,7 @@ function Autenticacao() {
                     <div>
                       <div className="flex justify-between items-center mb-1">
                         <label className="block text-[10px] font-bold uppercase text-stone-500">
-                          {tipoUsuario === 'LOJA' ? 'Telefone / WhatsApp da Loja *' : 'Telefone / Celular (Opcional)'}
+                          {tipoUsuario === 'LOJA' ? 'Telefone / WhatsApp da Loja *' : 'Telefone / Celular'}
                         </label>
                         {tipoUsuario === 'LOJA' && telefoneCadastroLimpo.length > 0 && (
                           <span className={`text-[10px] font-bold ${telefoneCadastroLimpo.length >= 10 ? 'text-emerald-600' : 'text-rose-500'}`}>
@@ -944,7 +944,7 @@ function Autenticacao() {
                         <div>
                           <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between">
                             <span>Wallet ID Asaas</span>
-                            <span className="text-stone-400 font-normal">Opcional</span>
+                            <span className="text-stone-400 font-normal">Obrigatório</span>
                           </label>
                           <input
                             type="text"
@@ -1098,7 +1098,7 @@ function Autenticacao() {
                     <div>
                       <div className="flex justify-between items-center mb-1">
                         <label className="block text-[10px] font-bold uppercase text-stone-500">
-                          {tipoUsuario === 'LOJA' ? 'E-mail *' : 'E-mail (Opcional)'}
+                          {tipoUsuario === 'LOJA' ? 'E-mail *' : 'E-mail'}
                         </label>
                         {emailCadastro.length > 0 && (
                           <span className={`text-[10px] font-bold ${emailCadastroValido ? 'text-emerald-600' : 'text-rose-500'}`}>

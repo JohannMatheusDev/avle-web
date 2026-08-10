@@ -36,8 +36,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [carregandoOpcoes, setCarregandoOpcoes] = useState(false);
   const [erroConexao, setErroConexao] = useState(false);
 
-  const [dropdownLojaAberto, setDropdownLojaAberto] = useState(false);
-
   const [clubesAtivos, setClubesAtivos] = useState<any[]>([]);
   const [clubeAtualSelecionado, setClubeAtualSelecionado] = useState<any | null>(null);
 
@@ -71,7 +69,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       return item;
     }
 
-    // Tenta capturar o objeto de loja esteja ele direto ou aninhado
     const objLoja = item.loja || item.grupo?.loja || item;
 
     const nome =
@@ -228,8 +225,14 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   }, [usuario?.id]);
 
   const handleSelecionarLojaCustom = (loja: any) => {
+    // Alterna a loja selecionada (fecha se clicar na mesma)
+    if (lojaSelecionada?.id === loja.id) {
+        setLojaSelecionada(null);
+        setGrupos([]);
+        return;
+    }
+
     setLojaSelecionada(loja);
-    setDropdownLojaAberto(false);
     setGrupos([]);
     setCarregandoOpcoes(true);
 
@@ -507,67 +510,100 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </div>
                 )}
 
-                <div className="border-t border-[#DFD9CE] pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* BLOCO: DESCOBRIR OUTRA LOJA PARCEIRA */}
-                  <div className="bg-white border border-[#DFD9CE] rounded-xl p-5 shadow-xs space-y-3 relative">
-                    <label className="block text-[10px] text-stone-400 font-bold uppercase tracking-wide">Descobrir Outra Loja Parceira</label>
-
-                    <button
-                      type="button"
-                      onClick={() => setDropdownLojaAberto(!dropdownLojaAberto)}
-                      className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl flex items-center justify-between text-[#0B1E14] font-bold text-xs cursor-pointer hover:border-[#BD6B42] transition-colors"
-                    >
-                      <span className="truncate">
-                        {lojaSelecionada ? obterNomeLoja(lojaSelecionada) : 'Selecione uma loja...'}
-                      </span>
-                      <span className="text-[10px] text-stone-400 underline">Filtrar</span>
-                    </button>
-
-                    {dropdownLojaAberto && (
-                      <div className="absolute left-0 right-0 top-[80px] bg-white border border-[#DFD9CE] rounded-xl max-h-48 overflow-y-auto divide-y divide-[#DFD9CE] shadow-lg z-30">
-                        {lojas.length === 0 ? (
-                          <div className="px-3 py-2.5 text-xs text-stone-400 italic">
-                            Nenhuma loja encontrada.
-                          </div>
-                        ) : (
-                          lojas.map((l: any) => {
-                            const nomeExibicao = obterNomeLoja(l);
-                            return (
-                              <button
-                                key={l.id}
-                                type="button"
-                                onClick={() => handleSelecionarLojaCustom(l)}
-                                className="w-full text-left px-3 py-2.5 text-xs text-[#0B1E14] hover:bg-[#F5F2EB] transition-all font-bold block"
-                              >
-                                {nomeExibicao}
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-                    )}
+                {/* 🟢 BLOCO VITRINE: DESCOBRIR OUTRA LOJA PARCEIRA */}
+                <div className="border-t border-[#DFD9CE] pt-8 space-y-6">
+                  <div>
+                    <h2 className="text-base font-bold uppercase tracking-wide text-stone-400">Descobrir Lojas Parceiras</h2>
+                    <p className="text-xs text-stone-400">Selecione um estabelecimento abaixo para visualizar os planos disponíveis para assinatura.</p>
                   </div>
 
+                  {lojas.length === 0 ? (
+                    <div className="bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl p-6 text-center text-xs text-stone-400">
+                      Nenhuma loja parceira localizada no momento.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {lojas.map((l: any) => {
+                        const nomeExibicao = obterNomeLoja(l);
+                        const isSelected = lojaSelecionada?.id === l.id;
+                        return (
+                          <div
+                            key={l.id}
+                            onClick={() => handleSelecionarLojaCustom(l)}
+                            className={`flex flex-col items-center justify-center p-5 rounded-2xl border cursor-pointer transition-all text-center space-y-3 shadow-xs ${
+                              isSelected
+                                ? 'border-[#BD6B42] bg-[#BD6B42]/5 ring-1 ring-[#BD6B42]/20'
+                                : 'border-[#DFD9CE] bg-white hover:border-[#BD6B42]/50 hover:shadow-md'
+                            }`}
+                          >
+                            <div className={`w-14 h-14 rounded-full flex items-center justify-center font-serif font-bold text-xl transition-colors ${
+                              isSelected ? 'bg-[#BD6B42] text-white' : 'bg-[#F5F2EB] text-[#0B1E14]'
+                            }`}>
+                              {nomeExibicao.substring(0, 2).toUpperCase()}
+                            </div>
+                            <span className={`text-xs font-bold truncate w-full px-1 ${isSelected ? 'text-[#BD6B42]' : 'text-[#0B1E14]'}`}>
+                              {nomeExibicao}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* 🟢 LISTAGEM ORDENADA DE PLANOS DA LOJA SELECIONADA */}
                   {lojaSelecionada && (
-                    <div className="md:col-span-2 bg-white border border-[#DFD9CE] rounded-xl p-5 shadow-xs space-y-3 animate-fadeIn">
-                      <label className="block text-[10px] text-stone-400 font-bold uppercase tracking-wide">Planos Disponiveis (Toque para Entrar no Grupo)</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                        {grupos.map((g: any) => {
-                          const jaPossuiCota = clubesAtivos.some(c => c.grupo.id === g.id);
-                          return (
-                            <button key={g.id} type="button" onClick={() => handlePersistirClubeNoBanco(g)} className={`text-left p-3 rounded-xl border text-xs transition-all flex flex-col justify-between gap-1 cursor-pointer ${jaPossuiCota ? 'border-emerald-600 bg-emerald-50/40' : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'}`}>
-                              <div className="flex justify-between w-full font-bold">
-                                <span className="truncate">{g.nome}</span>
-                                <span className="text-[#BD6B42]">R$ {Number(g.valorParcela).toFixed(2)}</span>
-                              </div>
-                              <div className="text-[10px] flex justify-between w-full font-medium text-stone-400">
-                                <span>Vigencia: {g.duracaoMeses} Meses</span>
-                                {jaPossuiCota && <span className="text-emerald-700 font-bold">Ja participando</span>}
-                              </div>
-                            </button>
-                          );
-                        })}
+                    <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 shadow-xs animate-fadeIn mt-4">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-stone-100 pb-4">
+                        <div>
+                          <h3 className="text-sm font-bold uppercase tracking-wider text-[#0B1E14]">Planos da Unidade: {obterNomeLoja(lojaSelecionada)}</h3>
+                          <p className="text-[10px] text-stone-400 mt-0.5">Toque em um plano para registrar sua cota de participação.</p>
+                        </div>
+                        <button
+                          onClick={() => setLojaSelecionada(null)}
+                          className="text-[10px] uppercase font-bold text-stone-400 hover:text-stone-600 bg-stone-50 px-3 py-1.5 rounded-lg border border-stone-200"
+                        >
+                          Fechar Visualização
+                        </button>
                       </div>
+
+                      {carregandoOpcoes ? (
+                        <div className="py-8 text-center text-xs font-bold text-stone-400 animate-pulse">Buscando planos ativos no servidor...</div>
+                      ) : grupos.length === 0 ? (
+                        <div className="py-8 text-center text-xs font-medium text-stone-400 italic bg-stone-50 rounded-xl border border-dashed">
+                          Esta loja ainda não possui grupos de compras abertos no momento.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {grupos.slice().sort((a: any, b: any) => a.id - b.id).map((g: any) => {
+                            const jaPossuiCota = clubesAtivos.some(c => c.grupo.id === g.id);
+                            return (
+                              <button
+                                key={g.id}
+                                type="button"
+                                disabled={jaPossuiCota}
+                                onClick={() => handlePersistirClubeNoBanco(g)}
+                                className={`text-left p-5 rounded-2xl border transition-all flex flex-col justify-between min-h-[110px] group ${
+                                  jaPossuiCota
+                                    ? 'border-emerald-600 bg-emerald-50/30 cursor-not-allowed'
+                                    : 'border-[#E6E2D8] bg-white hover:border-[#BD6B42] hover:shadow-md cursor-pointer'
+                                }`}
+                              >
+                                <div className="flex justify-between items-start w-full">
+                                  <span className="font-serif font-bold text-base text-[#0B1E14] truncate pr-2 group-hover:text-[#BD6B42] transition-colors">{g.nome}</span>
+                                  <span className="text-[9px] bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded text-stone-500 font-mono font-bold">Lote #{g.id}</span>
+                                </div>
+                                <div className="flex justify-between items-end w-full mt-4">
+                                  <div className="flex flex-col">
+                                    <span className="text-[10px] text-stone-400 font-medium">Vigência: {g.duracaoMeses} Meses</span>
+                                    {jaPossuiCota && <span className="text-[9px] text-emerald-700 font-bold uppercase mt-1">✓ Já Vinculado</span>}
+                                  </div>
+                                  <span className="text-lg font-bold text-[#BD6B42] font-mono">R$ {Number(g.valorParcela).toFixed(2)}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
