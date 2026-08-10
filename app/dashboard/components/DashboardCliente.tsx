@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-// Configuração da URL da API vinda do .env.local
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function DashboardCliente({ usuario: usuarioInicial }: { usuario: any }) {
@@ -17,7 +16,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [telefoneInput, setTelefoneInput] = useState('');
   const [fotoPerfil, setFotoPerfil] = useState<string | null>(null);
 
-  // Estados para Alteração de Senha
   const [senhaAtualInput, setSenhaAtualInput] = useState('');
   const [novaSenhaInput, setNovaSenhaInput] = useState('');
   const [confirmarNovaSenhaInput, setConfirmarNovaSenhaInput] = useState('');
@@ -28,7 +26,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [saldoPoupanca, setSaldoPoupanca] = useState<number>(0);
   const [modalCheckoutAberto, setModalCheckoutAberto] = useState(false);
 
-  // 🟢 NOVOS ESTADOS: Controle de Navegação em Cascata (Lojas -> Grupos -> Dashboard)
+  // Navegação em Cascata (Lojas -> Grupos -> Dashboard)
   const [nivelVisao, setNivelVisao] = useState<'lojas' | 'grupos' | 'dashboard'>('lojas');
   const [lojaEmFoco, setLojaEmFoco] = useState<any | null>(null);
   const [gruposDaLoja, setGruposDaLoja] = useState<any[]>([]);
@@ -36,6 +34,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   const [lojas, setLojas] = useState<any[]>([]);
   const [erroConexao, setErroConexao] = useState(false);
+
+  // 🟢 NOVO ESTADO: Guarda as permissões (tickets) que o cliente tem nas lojas
+  const [acessosLoja, setAcessosLoja] = useState<any[]>([]);
 
   const [clubesAtivos, setClubesAtivos] = useState<any[]>([]);
   const [clubeAtualSelecionado, setClubeAtualSelecionado] = useState<any | null>(null);
@@ -127,6 +128,17 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     }
   };
 
+  // 🟢 NOVO: Função para buscar o status de acesso às lojas
+  const buscarAcessosLoja = async (userId: number) => {
+    try {
+      const res = await fetch(`${API_URL}/api/usuarios/${userId}/acessos-loja`);
+      const data = await res.json();
+      if (Array.isArray(data)) setAcessosLoja(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     let currentUserId = usuario?.id;
 
@@ -141,6 +153,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
     if (currentUserId) {
       buscarCarteiraDeClubes(undefined, currentUserId);
+      buscarAcessosLoja(currentUserId); // Puxa as permissões de porta da loja
 
       fetch(`${API_URL}/api/usuarios/${currentUserId}`)
         .then((res) => {
@@ -177,31 +190,64 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       });
   }, [usuario?.id]);
 
-  // 🟢 NAVEGAÇÃO 1 -> 2: Clicou na Loja para ver os Grupos
-  const handleAbrirLoja = (loja: any) => {
-    setLojaEmFoco(loja);
-    setNivelVisao('grupos');
-    setCarregandoGrupos(true);
-    setGruposDaLoja([]);
+  // 🟢 NAVEGAÇÃO 1 -> 2: Clicou na Loja (Avalia a Catraca)
+  const handleAbrirLoja = async (loja: any) => {
+    const acesso = acessosLoja.find(a => a.lojaId === loja.id);
+    const statusAcesso = acesso ? acesso.status : 'NAO_SOLICITADO';
 
-    fetch(`${API_URL}/api/grupos/loja/${loja.id}`)
-      .then((res) => res.json())
-      .then((data) => setGruposDaLoja(Array.isArray(data) ? data : []))
-      .catch(() => setGruposDaLoja([]))
-      .finally(() => setCarregandoGrupos(false));
+    if (statusAcesso === 'APROVADO') {
+        // Aprovado: Entra na Loja
+        setLojaEmFoco(loja);
+        setNivelVisao('grupos');
+        setCarregandoGrupos(true);
+        setGruposDaLoja([]);
+
+        fetch(`${API_URL}/api/grupos/loja/${loja.id}`)
+          .then((res) => res.json())
+          .then((data) => setGruposDaLoja(Array.isArray(data) ? data : []))
+          .catch(() => setGruposDaLoja([]))
+          .finally(() => setCarregandoGrupos(false));
+
+    } else if (statusAcesso === 'PENDENTE') {
+        alert('⏳ Seus dados estão em análise de crédito por esta loja.\n\nAssim que você for aprovado, nós avisaremos e o acesso aos planos será liberado aqui no painel.');
+    
+    } else if (statusAcesso === 'REJEITADO') {
+        alert('🚫 Infelizmente, o estabelecimento não liberou o acesso aos grupos de compras neste momento devido a restrições.');
+    
+    } else {
+        // NAO_SOLICITADO: Dispara a aprovação para a loja
+        if (confirm(`🔒 Para acessar o catálogo e os planos de compras da loja "${obterNomeLoja(loja)}", você concorda em enviar os seus dados (Nome e CPF) para análise de crédito pelo lojista?\n\nClique em OK para solicitar o acesso.`)) {
+            
+            try {
+               const res = await fetch(`${API_URL}/api/lojas/${loja.id}/solicitar-acesso`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ usuarioId: usuario?.id })
+               });
+               
+               if(res.ok) {
+                  alert('✅ Solicitação enviada com sucesso! O lojista foi notificado para realizar sua análise.\n\nAguarde a aprovação.');
+                  // Atualiza a tela para pintar o card de Amarelo
+                  buscarAcessosLoja(usuario?.id);
+               } else {
+                  alert('Não foi possível enviar a solicitação no momento.');
+               }
+            } catch(e) {
+               alert('Erro de conexão ao solicitar acesso.');
+            }
+        }
+    }
   };
 
-  // 🟢 NAVEGAÇÃO 2 -> 3: Clicou no Grupo (Abre Dashboard se tiver cota, ou entra no clube)
+  // 🟢 NAVEGAÇÃO 2 -> 3: Clicou no Grupo
   const handleAbrirGrupo = async (grupo: any, cotaExistente: any) => {
     if (cotaExistente) {
-       // Já tem cota, vai direto pro Dashboard
        setClubeAtualSelecionado(cotaExistente);
        setGrupoSelecionado(cotaExistente.grupo);
        setLojaSelecionada(cotaExistente.loja);
        setSaldoPoupanca(Number(cotaExistente.saldoPoupanca) || 0);
        setNivelVisao('dashboard');
     } else {
-       // Não tem cota. Confirma e vincula.
        if (confirm(`Deseja confirmar sua participação no clube ${grupo.nome} com parcelas de R$ ${Number(grupo.valorParcela).toFixed(2)}?`)) {
            try {
               const res = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/vincular-clube`, {
@@ -210,9 +256,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 body: JSON.stringify({ lojaId: Number(lojaEmFoco?.id), grupoId: Number(grupo?.id) })
               });
               
-              if (!res.ok) throw new Error();
+              if (!res.ok) {
+                const erroServidor = await res.text();
+                alert(erroServidor || 'Falha ao registrar vínculo no clube.');
+                return;
+              }
               
-              // Recarrega os clubes para pegar o ID da nova cota gerada
               const resClubes = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/clubes-ativos`);
               const dataClubes = await resClubes.json();
               setClubesAtivos(dataClubes);
@@ -223,13 +272,21 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                  setGrupoSelecionado(novaCota.grupo);
                  setLojaSelecionada(novaCota.loja);
                  setSaldoPoupanca(Number(novaCota.saldoPoupanca) || 0);
-                 setNivelVisao('dashboard'); // Entra no dashboard do grupo novo
+                 setNivelVisao('dashboard'); 
               }
            } catch {
-              alert('Falha ao registrar vínculo no clube. Tente novamente.');
+              alert('Falha ao conectar com o servidor.');
            }
        }
     }
+  };
+
+  const handleMudarClubeEmExibicao = (clube: any) => {
+    setClubeAtualSelecionado(clube);
+    setLojaSelecionada(clube.loja);
+    setGrupoSelecionado(clube.grupo);
+    setSaldoPoupanca(Number(clube.saldoPoupanca) || 0);
+    setNivelVisao('dashboard');
   };
 
   const atualizarSaldoAposPagamento = () => {
@@ -378,7 +435,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 key={aba.id}
                 onClick={() => { 
                     setAbaAtiva(aba.id as any); 
-                    if (aba.id === 'inicio') setNivelVisao('lojas'); // Reset da navegação em cascata
+                    if (aba.id === 'inicio') setNivelVisao('lojas'); 
                     setStatusSalvar(null); 
                     setStatusSalvarSenha(null); 
                 }}
@@ -403,49 +460,102 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         {abaAtiva === 'inicio' && (
           <div className="animate-fadeIn">
 
-            {/* 🟢 NÍVEL 1: VISÃO DE LOJAS */}
+            {/* 🟢 NÍVEL 1: VISÃO DE LOJAS COM OS STATUS DE APROVAÇÃO */}
             {nivelVisao === 'lojas' && (
               <div className="space-y-6 text-left">
                 <div>
-                  <h2 className="text-base font-bold uppercase tracking-wide text-[#0B1E14]">Rede de Lojas Parceiras</h2>
-                  <p className="text-xs text-stone-500">Selecione uma loja abaixo para visualizar e acessar seus clubes de compras estruturadas.</p>
+                  <h2 className="text-base font-bold uppercase tracking-wide text-[#0B1E14]">Meus Clubes & Acesso a Lojas</h2>
+                  <p className="text-xs text-stone-500">Selecione uma loja abaixo para solicitar análise de crédito ou entrar em seus clubes estruturados.</p>
                 </div>
 
+                {/* Lista de Cotas Rápidas (Para quem já tá aprovado e em um clube) */}
+                {clubesAtivos.length > 0 && (
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-stone-200/50 pb-6 mb-6">
+                    {clubesAtivos.map((clube) => {
+                      const objTotal = Number(clube.grupo.valorParcela) * Number(clube.grupo.duracaoMeses);
+                      const perc = objTotal > 0 ? Math.min(Math.round((clube.saldoPoupanca / objTotal) * 100), 100) : 0;
+                      return (
+                        <div
+                          key={clube.cotaId}
+                          onClick={() => handleMudarClubeEmExibicao(clube)}
+                          className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs hover:border-[#BD6B42] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-serif font-bold text-base text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">{clube.grupo.nome}</h3>
+                              <p className="text-[10px] font-mono text-stone-400 mt-0.5">Loja: <strong className="text-stone-600 font-bold">{obterNomeLoja(clube.loja)}</strong></p>
+                            </div>
+                            <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-stone-50 border text-stone-500">
+                              Cota #0{clube.cotaId}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] font-bold text-stone-400">
+                              <span>Progresso</span>
+                              <span>{perc}%</span>
+                            </div>
+                            <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
+                              <div className="bg-[#BD6B42] h-full transition-all" style={{ width: `${perc}%` }}></div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Vitrine de Lojas com Cadeados */}
                 {lojas.length === 0 && !erroConexao ? (
                   <div className="bg-white border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
                     Nenhuma loja parceira cadastrada na plataforma ainda.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
                     {lojas.map(loja => {
-                        // Verifica se o usuário tem cotas ativas nesta loja para colocar um aviso visual
-                        const cotasNestaLoja = clubesAtivos.filter(c => c.grupo?.loja?.id === loja.id || c.loja?.id === loja.id);
-                        const temClubeAtivo = cotasNestaLoja.length > 0;
+                        const acesso = acessosLoja.find(a => a.lojaId === loja.id);
+                        const statusAcesso = acesso ? acesso.status : 'NAO_SOLICITADO';
+
+                        let corBorda = 'border-[#DFD9CE] hover:border-[#BD6B42]/50 hover:shadow-md bg-white';
+                        let labelStatus = 'Solicitar Acesso';
+                        let labelColor = 'text-stone-400';
+                        let icone = '🔒';
+
+                        if (statusAcesso === 'APROVADO') {
+                            corBorda = 'border-emerald-600 bg-emerald-50/20 shadow-sm';
+                            labelStatus = 'Entrar na Loja';
+                            labelColor = 'text-emerald-700';
+                            icone = '🔓';
+                        } else if (statusAcesso === 'PENDENTE') {
+                            corBorda = 'border-amber-400 bg-amber-50/50 shadow-sm';
+                            labelStatus = 'Em Análise (Crédito)';
+                            labelColor = 'text-amber-700';
+                            icone = '⏳';
+                        } else if (statusAcesso === 'REJEITADO') {
+                            corBorda = 'border-rose-300 bg-rose-50/20 shadow-sm opacity-80';
+                            labelStatus = 'Acesso Bloqueado';
+                            labelColor = 'text-rose-600';
+                            icone = '🚫';
+                        }
 
                         return (
                            <div 
                              key={loja.id}
                              onClick={() => handleAbrirLoja(loja)} 
-                             className={`bg-white border rounded-2xl p-6 cursor-pointer flex flex-col items-center justify-center text-center space-y-4 transition-all shadow-xs hover:-translate-y-1 hover:shadow-md ${
-                               temClubeAtivo ? 'border-[#BD6B42] bg-[#F5F2EB]/30' : 'border-[#DFD9CE] hover:border-stone-300'
-                             }`}
+                             className={`rounded-2xl p-6 cursor-pointer flex flex-col items-center justify-center text-center space-y-4 transition-all hover:-translate-y-1 border ${corBorda}`}
                            >
-                              <div className={`w-16 h-16 rounded-full flex items-center justify-center font-serif font-bold text-2xl transition-colors ${
-                                temClubeAtivo ? 'bg-[#BD6B42] text-white shadow-md' : 'bg-[#F5F2EB] text-[#0B1E14] border border-stone-200'
-                              }`}>
-                                {obterNomeLoja(loja).substring(0, 2).toUpperCase()}
+                              <div className="relative">
+                                <div className="w-16 h-16 rounded-full flex items-center justify-center font-serif font-bold text-2xl bg-[#F5F2EB] text-[#0B1E14] border border-stone-200">
+                                  {obterNomeLoja(loja).substring(0, 2).toUpperCase()}
+                                </div>
+                                <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-sm text-sm" title={labelStatus}>
+                                  {icone}
+                                </div>
                               </div>
                               <div className="w-full">
                                 <h3 className="text-sm font-bold text-[#0B1E14] truncate w-full px-2">{obterNomeLoja(loja)}</h3>
-                                {temClubeAtivo ? (
-                                   <span className="inline-block mt-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                     {cotasNestaLoja.length} {cotasNestaLoja.length === 1 ? 'Clube Ativo' : 'Clubes Ativos'}
-                                   </span>
-                                ) : (
-                                   <span className="inline-block mt-1 text-[9px] font-medium text-stone-400 px-2 py-0.5 uppercase tracking-wider">
-                                     Explorar Planos
-                                   </span>
-                                )}
+                                <span className={`inline-block mt-1 text-[9px] font-bold px-2 py-0.5 uppercase tracking-wider ${labelColor}`}>
+                                  {labelStatus}
+                                </span>
                               </div>
                            </div>
                         )
@@ -455,7 +565,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               </div>
             )}
 
-            {/* 🟢 NÍVEL 2: VISÃO DOS GRUPOS DA LOJA ESCOLHIDA */}
+            {/* 🟢 NÍVEL 2: VISÃO DOS GRUPOS DA LOJA (Só entra aqui se for APROVADO) */}
             {nivelVisao === 'grupos' && lojaEmFoco && (
               <div className="space-y-6 text-left animate-fadeIn">
                 <button
@@ -466,12 +576,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </button>
 
                 <div className="bg-[#0B1E14] rounded-2xl p-6 shadow-md text-white flex flex-col md:flex-row items-start md:items-center gap-4">
-                   <div className="w-14 h-14 rounded-full bg-[#F5F2EB] flex items-center justify-center font-serif font-bold text-[#0B1E14] text-xl shrink-0">
-                      {obterNomeLoja(lojaEmFoco).substring(0, 2).toUpperCase()}
+                   <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center font-serif font-bold text-emerald-400 text-xl shrink-0">
+                      🔓
                    </div>
                    <div>
                       <h2 className="text-xl font-bold tracking-wide">{obterNomeLoja(lojaEmFoco)}</h2>
-                      <p className="text-xs text-stone-300 mt-0.5">Grupos de compras disponíveis nesta unidade. Clique em um card para acessar seu painel ou registrar participação.</p>
+                      <p className="text-xs text-stone-300 mt-0.5">Seu crédito foi aprovado! Você tem acesso VIP aos grupos de compras desta unidade.</p>
                    </div>
                 </div>
 
@@ -530,14 +640,14 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               </div>
             )}
 
-            {/* 🟢 NÍVEL 3: DASHBOARD DO GRUPO (A tela que já tínhamos) */}
+            {/* 🟢 NÍVEL 3: DASHBOARD DO GRUPO (Permanece igual) */}
             {nivelVisao === 'dashboard' && clubeAtualSelecionado && (
               <div className="space-y-6 animate-fadeIn text-left">
                 <button
-                  onClick={() => setNivelVisao('grupos')}
+                  onClick={() => setNivelVisao('lojas')}
                   className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
                 >
-                  ← Voltar para Grupos da Loja
+                  ← Voltar ao Início
                 </button>
 
                 <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -664,8 +774,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           </div>
         )}
 
-        {/* ... REGRAS, EXTRATO, PERFIL E AJUDA SEGUEM INALTERADOS ABAIXO ... */}
-        
+        {/* ... EXTRATO, REGRAS, AJUDA E PERFIL CONTINUAM AQUI ... */}
         {abaAtiva === 'extrato' && (
           <div className="space-y-6 animate-fadeIn text-left">
             <div>
