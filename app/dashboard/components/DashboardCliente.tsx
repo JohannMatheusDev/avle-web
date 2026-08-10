@@ -37,6 +37,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [lojas, setLojas] = useState<any[]>([]);
   const [erroConexao, setErroConexao] = useState(false);
 
+  // 🟢 ESTADOS DA CATRACA DE APROVAÇÃO (INSERIDOS)
+  const [acessosLoja, setAcessosLoja] = useState<any[]>([]);
+  const [modalAcessoAberto, setModalAcessoAberto] = useState(false);
+  const [lojaParaAcesso, setLojaParaAcesso] = useState<any | null>(null);
+  const [solicitandoAcesso, setSolicitandoAcesso] = useState(false);
+
   const [clubesAtivos, setClubesAtivos] = useState<any[]>([]);
   const [clubeAtualSelecionado, setClubeAtualSelecionado] = useState<any | null>(null);
   const [grupoSelecionado, setGrupoSelecionado] = useState<any | null>(null);
@@ -127,6 +133,17 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     }
   };
 
+  // 🟢 FUNÇÃO INSERIDA: Busca os acessos aprovados/bloqueados do cliente
+  const buscarAcessosLoja = async (userId: number) => {
+    try {
+      const res = await fetch(`${API_URL}/api/usuarios/${userId}/acessos-loja`);
+      const data = await res.json();
+      if (Array.isArray(data)) setAcessosLoja(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     let currentUserId = usuario?.id;
 
@@ -141,6 +158,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
     if (currentUserId) {
       buscarCarteiraDeClubes(undefined, currentUserId);
+      buscarAcessosLoja(currentUserId); // 🟢 INSERIDO AQUI
 
       fetch(`${API_URL}/api/usuarios/${currentUserId}`)
         .then((res) => {
@@ -177,18 +195,58 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       });
   }, [usuario?.id]);
 
-  // 🟢 NAVEGAÇÃO 1 -> 2: Clicou na Loja para ver os Grupos
+  // 🟢 LÓGICA DE APROVAÇÃO INSERIDA NESTA FUNÇÃO
   const handleAbrirLoja = (loja: any) => {
-    setLojaEmFoco(loja);
-    setNivelVisao('grupos');
-    setCarregandoGrupos(true);
-    setGruposDaLoja([]);
+    const acesso = acessosLoja.find(a => a.lojaId === loja.id);
+    const statusAcesso = acesso ? acesso.status : 'NAO_SOLICITADO';
 
-    fetch(`${API_URL}/api/grupos/loja/${loja.id}`)
-      .then((res) => res.json())
-      .then((data) => setGruposDaLoja(Array.isArray(data) ? data : []))
-      .catch(() => setGruposDaLoja([]))
-      .finally(() => setCarregandoGrupos(false));
+    if (statusAcesso === 'APROVADO') {
+      // Deixa o fluxo original passar livremente
+      setLojaEmFoco(loja);
+      setNivelVisao('grupos');
+      setCarregandoGrupos(true);
+      setGruposDaLoja([]);
+
+      fetch(`${API_URL}/api/grupos/loja/${loja.id}`)
+        .then((res) => res.json())
+        .then((data) => setGruposDaLoja(Array.isArray(data) ? data : []))
+        .catch(() => setGruposDaLoja([]))
+        .finally(() => setCarregandoGrupos(false));
+        
+    } else if (statusAcesso === 'PENDENTE') {
+      alert('⏳ Sua solicitação de acesso está em análise de crédito pela loja. Aguarde a aprovação para ver os planos.');
+    } else if (statusAcesso === 'REJEITADO') {
+      alert('🚫 Infelizmente, o estabelecimento não liberou o acesso aos grupos de compras neste momento devido a restrições.');
+    } else {
+      // Bloqueia a abertura da loja e chama o Modal de Autorização
+      setLojaParaAcesso(loja);
+      setModalAcessoAberto(true);
+    }
+  };
+
+  // 🟢 FUNÇÃO INSERIDA: Dispara o aviso para a loja aprovar/consultar serasa
+  const handleSolicitarAcesso = async () => {
+    if (!lojaParaAcesso) return;
+    setSolicitandoAcesso(true);
+    try {
+       const res = await fetch(`${API_URL}/api/lojas/${lojaParaAcesso.id}/solicitar-acesso`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuarioId: usuario?.id })
+       });
+       
+       if(res.ok) {
+          alert('✅ Solicitação enviada! A caixa de mensagens da loja foi notificada para realizar a análise de crédito. O processo costuma ser rápido.');
+          buscarAcessosLoja(usuario?.id);
+          setModalAcessoAberto(false);
+       } else {
+          alert('Não foi possível enviar a solicitação no momento.');
+       }
+    } catch(e) {
+       alert('Erro de conexão ao solicitar acesso.');
+    } finally {
+       setSolicitandoAcesso(false);
+    }
   };
 
   // 🟢 NAVEGAÇÃO 2 -> 3: Clicou no Grupo (Abre Dashboard se tiver cota, ou entra no clube)
@@ -530,21 +588,21 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               </div>
             )}
 
-            {/* 🟢 NÍVEL 3: DASHBOARD DO GRUPO (A tela que já tínhamos) */}
+            {/* 🟢 NÍVEL 3: DASHBOARD DO GRUPO */}
             {nivelVisao === 'dashboard' && clubeAtualSelecionado && (
               <div className="space-y-6 animate-fadeIn text-left">
                 <button
-                  onClick={() => setNivelVisao('grupos')}
+                  onClick={() => setNivelVisao('lojas')}
                   className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
                 >
-                  ← Voltar para Grupos da Loja
+                  ← Voltar ao Início
                 </button>
 
                 <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
                     <span className="text-[10px] font-mono font-bold text-[#BD6B42] uppercase bg-[#F5F2EB] px-2 py-1 rounded">Painel de Acompanhamento Financeiro</span>
                     <h2 className="text-xl font-serif font-bold text-[#0B1E14] mt-1.5">{grupoSelecionado?.nome}</h2>
-                    <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: <strong className="text-stone-700 font-bold">{obterNomeLoja(lojaSelecionada)}</strong> | Cota Contratual: <strong className="font-mono">#0{clubeAtualSelecionado?.cotaId}</strong></p>
+                    <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: <strong className="text-stone-700 font-bold">{obterNomeLoja(lojaEmFoco)}</strong> | Cota Contratual: <strong className="font-mono">#0{clubeAtualSelecionado?.cotaId}</strong></p>
                   </div>
                 </div>
 
@@ -633,7 +691,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       <tr className="bg-stone-50 text-stone-400 font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                         <th className="py-3.5 px-5">CICLO</th>
                         <th className="py-3.5 px-5">DESCRIÇÃO</th>
-                        <th className="py-3.5 px-5 text-right">VOLUME APORTADO</th>
+                        <th className="py-3.5 px-5 text-right">VALOR REQUERIDO</th>
                         <th className="py-3.5 px-5 text-center">SITUAÇÃO</th>
                       </tr>
                     </thead>
@@ -664,8 +722,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           </div>
         )}
 
-        {/* ... REGRAS, EXTRATO, PERFIL E AJUDA SEGUEM INALTERADOS ABAIXO ... */}
-        
+        {/* ... EXTRATO, REGRAS, AJUDA E PERFIL CONTINUAM AQUI ... */}
         {abaAtiva === 'extrato' && (
           <div className="space-y-6 animate-fadeIn text-left">
             <div>
@@ -746,7 +803,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               </div>
             ) : (
               <p className="text-[10px] text-stone-400 italic pt-2">
-                * Acesse um dos seus clubes ativos ou visualize as lojas na aba inicial para habilitar a visualização do documento de termos específicos em PDF.
+                * Acesse um dos seus clubes ativos ou selecione uma loja no Dropdown para habilitar a visualização do documento de termos específicos em PDF.
               </p>
             )}
           </div>
@@ -1013,6 +1070,53 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               onSuccess={atualizarSaldoAposPagamento}
               fecharModal={() => setModalCheckoutAberto(false)}
             />
+          </div>
+        </div>
+      )}
+
+      {/* 🟢 MODAL DE APROVAÇÃO DE CRÉDITO (CATRACA DA LOJA) */}
+      {modalAcessoAberto && lojaParaAcesso && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-[60] animate-fadeIn text-left">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-5 shadow-xl">
+            <div className="flex justify-between items-center border-b border-stone-100 pb-3">
+              <div>
+                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Autorização de Acesso</h3>
+                <p className="text-[10px] text-stone-400 mt-0.5">Estabelecimento: {obterNomeLoja(lojaParaAcesso)}</p>
+              </div>
+              <button onClick={() => setModalAcessoAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer px-2">X</button>
+            </div>
+            
+            <div className="text-xs text-stone-600 leading-relaxed space-y-4">
+                <p>Para visualizar os planos disponíveis e registrar cotas na <strong>{obterNomeLoja(lojaParaAcesso)}</strong>, o estabelecimento exige uma análise de crédito prévia do seu CPF.</p>
+                
+                <div className="bg-stone-50 border border-dashed border-stone-300 p-4 rounded-xl space-y-2">
+                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Dados enviados para consulta:</p>
+                    <div className="flex justify-between items-center">
+                        <span className="font-bold text-[#0B1E14]">{usuario?.nome}</span>
+                        <span className="font-mono font-bold text-[#0B1E14]">{usuario?.cpf ? aplicarMascaraCpfCnpj(usuario.cpf) : 'Não informado'}</span>
+                    </div>
+                </div>
+
+                <p className="text-[11px] text-stone-500 italic">Ao confirmar, a loja receberá seus dados para consulta junto aos órgãos de proteção ao crédito (SPC/Serasa). Assim que aprovado, o catálogo será liberado.</p>
+            </div>
+
+            <div className="flex space-x-3 pt-3 border-t border-stone-100 w-full">
+              <button 
+                type="button" 
+                onClick={() => setModalAcessoAberto(false)} 
+                className="flex-1 py-3 border border-[#DFD9CE] rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer text-xs"
+              >
+                Cancelar
+              </button>
+              <button 
+                type="button"
+                onClick={handleSolicitarAcesso}
+                disabled={solicitandoAcesso}
+                className="flex-1 py-3 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-xs uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
+              >
+                {solicitandoAcesso ? 'Enviando...' : 'Confirmar e Solicitar'}
+              </button>
+            </div>
           </div>
         </div>
       )}
