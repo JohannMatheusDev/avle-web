@@ -65,27 +65,32 @@ function Autenticacao() {
   const [isLogin, setIsLogin] = useState(true);
   const [isVerificando, setIsVerificando] = useState(false);
   const [carregando, setCarregando] = useState(false);
+  const [statusConexao, setStatusConexao] = useState('CONECTANDO...');
 
   const [isEsqueceuSenha, setIsEsqueceuSenha] = useState(false);
   const [isResetandoSenha, setIsResetandoSenha] = useState(false);
   const [novaSenha, setNovaSenha] = useState('');
   const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false);
 
-  // Dados Básicos
   const [tipoUsuario, setTipoUsuario] = useState('CLIENTE');
-  const [email, setEmail] = useState('');
+  
+  const [identificadorLogin, setIdentificadorLogin] = useState(''); 
+  
+
+  const [emailCadastro, setEmailCadastro] = useState('');
+  const [telefoneCadastro, setTelefoneCadastro] = useState('');
+  
   const [senha, setSenha] = useState('');
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
-  const [telefone, setTelefone] = useState('');
   const [codigoOtp, setCodigoOtp] = useState('');
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
 
-  // CAMPOS ADICIONAIS PARA LOJA (COMPLIANCE E INTEGRACAO ASAAS)
+  // CAMPOS ADICIONAIS PARA LOJA
   const [cep, setCep] = useState('');
   const [faturamento, setFaturamento] = useState('');
-  const [walletIdInput, setWalletIdInput] = useState(''); // 🟢 Wallet ID Opcional da Loja
-  const [bancoCodigo, setBancoCodigo] = useState('001'); // Padrão Banco do Brasil
+  const [walletIdInput, setWalletIdInput] = useState(''); 
+  const [bancoCodigo, setBancoCodigo] = useState('001'); 
   const [agencia, setAgencia] = useState('');
   const [conta, setConta] = useState('');
   const [contaDigito, setContaDigito] = useState('');
@@ -94,17 +99,19 @@ function Autenticacao() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [modoLayout, setModoLayout] = useState<'mobile' | 'site'>('mobile');
 
-  // Ping silencioso no carregamento da página
   useEffect(() => {
     fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
+    const intervaloPing = setInterval(() => {
+      fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
+    }, 120000);
+    return () => clearInterval(intervaloPing);
   }, []);
 
-  // GSAP - Animações sutis adaptadas à paleta original
+  // GSAP - Animações sutis
   useEffect(() => {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
 
-      // Desenho das raízes em SVG
       [path1Ref.current, path2Ref.current].forEach((path) => {
         if (path) {
           const length = path.getTotalLength();
@@ -113,7 +120,6 @@ function Autenticacao() {
         }
       });
 
-      // Expansão do brilho de fundo
       if (glowRef.current) {
         tl.fromTo(
           glowRef.current,
@@ -123,7 +129,6 @@ function Autenticacao() {
         );
       }
 
-      // Entrada 3D do Card
       if (cardRef.current) {
         tl.fromTo(
           cardRef.current,
@@ -133,7 +138,6 @@ function Autenticacao() {
         );
       }
 
-      // Flutuação das partículas de sementes/folhas
       gsap.to('.gsap-leaf-particle', {
         y: '-=20',
         rotation: '+=25',
@@ -147,48 +151,6 @@ function Autenticacao() {
 
     return () => ctx.revert();
   }, [modoLayout]);
-
-  // Validações
-  const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const emailValido = regexEmail.test(email);
-  const emailPreenchido = email.trim().length > 0;
-  const emailValidoOuVazio = tipoUsuario === 'LOJA' ? emailValido : !emailPreenchido || emailValido;
-
-  const temMaiuscula = /[A-Z]/.test(senha);
-  const temNumero = /[0-9]/.test(senha);
-  const temCaracterEspecial = /[^A-Za-z0-9]/.test(senha);
-  const tamanhoMinimo = senha.length >= 8;
-  const senhaForte = temMaiuscula && temNumero && temCaracterEspecial && tamanhoMinimo;
-
-  const temMaiusculaNova = /[A-Z]/.test(novaSenha);
-  const temNumeroNova = /[0-9]/.test(novaSenha);
-  const temCaracterEspecialNova = /[^A-Za-z0-9]/.test(novaSenha);
-  const tamanhoMinimoNova = novaSenha.length >= 8;
-  const novaSenhaForte = temMaiusculaNova && temNumeroNova && temCaracterEspecialNova && tamanhoMinimoNova;
-
-  const tamanhoDocumentoValido = cpf.length === (tipoUsuario === 'LOJA' ? 14 : 11);
-  const telefoneLimpo = telefone.replace(/\D/g, '');
-  const telefoneValidoSeLoja = tipoUsuario === 'LOJA' ? telefoneLimpo.length >= 10 : true;
-
-  // Validações específicas da Loja
-  const cepLimpo = cep.replace(/\D/g, '');
-  const cepValidoSeLoja = tipoUsuario === 'LOJA' ? cepLimpo.length === 8 : true;
-  const faturamentoValidoSeLoja = tipoUsuario === 'LOJA' ? faturamento.trim().length > 0 : true;
-  const dadosBancariosValidosSeLoja =
-    tipoUsuario === 'LOJA'
-      ? agencia.trim().length >= 3 && conta.trim().length >= 4 && contaDigito.trim().length >= 1
-      : true;
-
-  const formularioValido = isLogin
-    ? emailValido && senha.length > 0
-    : emailValidoOuVazio &&
-      telefoneValidoSeLoja &&
-      senhaForte &&
-      nome.trim() !== '' &&
-      tamanhoDocumentoValido &&
-      cepValidoSeLoja &&
-      faturamentoValidoSeLoja &&
-      dadosBancariosValidosSeLoja;
 
   // Máscaras de Input
   const aplicarMascaraTelefone = (valor: string) => {
@@ -215,10 +177,74 @@ function Autenticacao() {
     }).format(parseFloat(valorNumerico));
   };
 
+  // Lógica dinâmica para o campo de Login (Email vs Telefone)
+  const handleIdentificadorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valor = e.target.value;
+    // Se o usuário começar a digitar números, aplicamos a máscara de telefone
+    if (/^\d/.test(valor) || valor.startsWith('(')) {
+      setIdentificadorLogin(aplicarMascaraTelefone(valor));
+    } else {
+      // Caso contrário, tratamos como e-mail e permitimos a digitação livre
+      setIdentificadorLogin(valor);
+    }
+  };
+
+  // Validações
+  const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
+  // Validação Login
+  const loginLimpo = identificadorLogin.replace(/\D/g, '');
+  const isLoginEmailValido = regexEmail.test(identificadorLogin);
+  const isLoginTelefoneValido = loginLimpo.length >= 10 && loginLimpo.length <= 11;
+  const loginValido = isLoginEmailValido || isLoginTelefoneValido;
+
+  // Validação Cadastro
+  const emailCadastroValido = regexEmail.test(emailCadastro);
+  const emailCadastroPreenchido = emailCadastro.trim().length > 0;
+  const emailCadastroValidoOuVazio = tipoUsuario === 'LOJA' ? emailCadastroValido : !emailCadastroPreenchido || emailCadastroValido;
+
+  const temMaiuscula = /[A-Z]/.test(senha);
+  const temNumero = /[0-9]/.test(senha);
+  const temCaracterEspecial = /[^A-Za-z0-9]/.test(senha);
+  const tamanhoMinimo = senha.length >= 8;
+  const senhaForte = temMaiuscula && temNumero && temCaracterEspecial && tamanhoMinimo;
+
+  const temMaiusculaNova = /[A-Z]/.test(novaSenha);
+  const temNumeroNova = /[0-9]/.test(novaSenha);
+  const temCaracterEspecialNova = /[^A-Za-z0-9]/.test(novaSenha);
+  const tamanhoMinimoNova = novaSenha.length >= 8;
+  const novaSenhaForte = temMaiusculaNova && temNumeroNova && temCaracterEspecialNova && tamanhoMinimoNova;
+
+  const tamanhoDocumentoValido = cpf.length === (tipoUsuario === 'LOJA' ? 14 : 11);
+  
+  const telefoneCadastroLimpo = telefoneCadastro.replace(/\D/g, '');
+  const telefoneCadastroValidoSeLoja = tipoUsuario === 'LOJA' ? telefoneCadastroLimpo.length >= 10 : true;
+
+  const cepLimpo = cep.replace(/\D/g, '');
+  const cepValidoSeLoja = tipoUsuario === 'LOJA' ? cepLimpo.length === 8 : true;
+  const faturamentoValidoSeLoja = tipoUsuario === 'LOJA' ? faturamento.trim().length > 0 : true;
+  const dadosBancariosValidosSeLoja =
+    tipoUsuario === 'LOJA'
+      ? agencia.trim().length >= 3 && conta.trim().length >= 4 && contaDigito.trim().length >= 1
+      : true;
+
+  // Habilita o botão baseando-se no estado (Login vs Cadastro)
+  const formularioValido = isLogin
+    ? loginValido && senha.length > 0
+    : emailCadastroValidoOuVazio &&
+      telefoneCadastroValidoSeLoja &&
+      senhaForte &&
+      nome.trim() !== '' &&
+      tamanhoDocumentoValido &&
+      cepValidoSeLoja &&
+      faturamentoValidoSeLoja &&
+      dadosBancariosValidosSeLoja;
+
   // LOGIN TRANSPARENTE COM RETRY SILENCIOSO
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMensagem({ tipo: '', texto: '' });
+    setStatusConexao('CONECTANDO...');
     setCarregando(true);
 
     if (!formularioValido) {
@@ -231,7 +257,7 @@ function Autenticacao() {
 
     for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       try {
         const endpoint = isLogin ? `${API_URL}/api/auth/login` : `${API_URL}/api/usuarios/cadastro`;
@@ -239,34 +265,37 @@ function Autenticacao() {
           ? parseFloat(faturamento.replace(/[^\d,]/g, '').replace(',', '.'))
           : null;
 
-        const body = isLogin
-          ? JSON.stringify({ email, senha })
-          : JSON.stringify({
+        let bodyPayload: any = {};
+
+        if (isLogin) {
+            // Se for login e só tiver números (telefone), envia na chave correta
+            if (/^\d+$/.test(identificadorLogin.replace(/\D/g, ''))) {
+               bodyPayload = { telefone: identificadorLogin.replace(/\D/g, ''), senha };
+            } else {
+               bodyPayload = { email: identificadorLogin, senha };
+            }
+        } else {
+            bodyPayload = {
               nome,
-              email: email.trim() !== '' ? email : null,
+              email: emailCadastro.trim() !== '' ? emailCadastro : null,
               cpf,
               senha,
               tipoUsuario,
-              telefone: telefoneLimpo !== '' ? telefoneLimpo : null,
+              telefone: telefoneCadastroLimpo !== '' ? telefoneCadastroLimpo : null,
               cep: tipoUsuario === 'LOJA' ? cepLimpo : null,
               faturamento: tipoUsuario === 'LOJA' ? faturamentoNumerico : null,
               walletId: tipoUsuario === 'LOJA' && walletIdInput.trim() !== '' ? walletIdInput.trim() : null,
               dadosBancarios:
                 tipoUsuario === 'LOJA'
-                  ? {
-                      bancoCodigo,
-                      agencia,
-                      conta,
-                      contaDigito,
-                      tipoConta,
-                    }
+                  ? { bancoCodigo, agencia, conta, contaDigito, tipoConta }
                   : null,
-            });
+            };
+        }
 
         const resposta = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body,
+          body: JSON.stringify(bodyPayload),
           signal: controller.signal,
         });
 
@@ -279,12 +308,16 @@ function Autenticacao() {
           return;
         }
 
-        if (!resposta.ok) {
+        if (resposta.status >= 400 && resposta.status < 500) {
           const textoErro = await resposta.text();
-          throw new Error(textoErro || (isLogin ? 'E-mail ou senha incorretos!' : 'Erro ao realizar cadastro.'));
+          throw new Error(textoErro || (isLogin ? 'E-mail, telefone ou senha incorretos!' : 'Erro ao realizar cadastro.'));
         }
 
-        // Sucesso de Login -> Redirecionamento Direto
+        if (!resposta.ok) {
+          throw new Error('SERVER_STARTING');
+        }
+
+        // SUCESSO!
         if (isLogin) {
           const dadosUsuario = await resposta.json();
           localStorage.setItem('@avle:usuario', JSON.stringify(dadosUsuario));
@@ -294,17 +327,9 @@ function Autenticacao() {
           setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso!' });
           setTimeout(() => {
             setIsLogin(true);
-            setNome('');
-            setCpf('');
-            setEmail('');
-            setTelefone('');
-            setCep('');
-            setFaturamento('');
-            setWalletIdInput('');
-            setAgencia('');
-            setConta('');
-            setContaDigito('');
-            setSenha('');
+            setNome(''); setCpf(''); setEmailCadastro(''); setTelefoneCadastro(''); setCep('');
+            setFaturamento(''); setWalletIdInput(''); setAgencia(''); setConta('');
+            setContaDigito(''); setSenha('');
             setMensagem({ tipo: '', texto: '' });
           }, 1500);
           setCarregando(false);
@@ -312,24 +337,20 @@ function Autenticacao() {
         }
       } catch (erro: any) {
         clearTimeout(timeoutId);
+        const msg = erro.message || '';
 
-        // Erro explícito de credencial incorreta ou verificação
-        if (
-          erro.message === 'E-mail ou senha incorretos!' ||
-          (erro.message && !erro.message.includes('fetch') && erro.name !== 'AbortError' && erro.message !== 'Load failed')
-        ) {
-          setMensagem({ tipo: 'erro', texto: erro.message });
+        if (msg !== 'SERVER_STARTING' && !msg.includes('Failed to fetch') && !msg.includes('NetworkError') && erro.name !== 'TypeError' && erro.name !== 'AbortError') {
+          setMensagem({ tipo: 'erro', texto: msg });
           setCarregando(false);
           return;
         }
 
-        // Se o servidor estiver acordando (falha de rede/timeout) e houver tentativas, tenta em silêncio
         if (tentativa < maxTentativas) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          setStatusConexao('ACORDANDO SERVIDOR SEGURO...');
+          await new Promise((resolve) => setTimeout(resolve, 3000)); 
           continue;
         }
 
-        // Se todas as tentativas falharem
         setMensagem({
           tipo: 'erro',
           texto: 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.',
@@ -344,11 +365,17 @@ function Autenticacao() {
     setMensagem({ tipo: '', texto: '' });
     setCarregando(true);
 
+    // O código OTP assumirá que estamos verificando o identificador usado no login
+    const isTelefone = /^\d+$/.test(identificadorLogin.replace(/\D/g, ''));
+    const payload = isTelefone 
+        ? { telefone: identificadorLogin.replace(/\D/g, ''), codigo: codigoOtp } 
+        : { email: identificadorLogin, codigo: codigoOtp };
+
     try {
       const resposta = await fetch(`${API_URL}/api/usuarios/verificar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, codigo: codigoOtp }),
+        body: JSON.stringify(payload),
       });
 
       if (!resposta.ok) {
@@ -373,22 +400,28 @@ function Autenticacao() {
     setMensagem({ tipo: '', texto: '' });
     setCarregando(true);
 
-    if (!emailValido) {
-      setMensagem({ tipo: 'erro', texto: 'Por favor, insira um e-mail válido.' });
+    const isTelefone = /^\d+$/.test(identificadorLogin.replace(/\D/g, ''));
+
+    if (!isLoginEmailValido && !isTelefone) {
+      setMensagem({ tipo: 'erro', texto: 'Por favor, insira um e-mail ou telefone válido.' });
       setCarregando(false);
       return;
     }
+
+    const payload = isTelefone 
+        ? { telefone: identificadorLogin.replace(/\D/g, '') } 
+        : { email: identificadorLogin };
 
     try {
       const resposta = await fetch(`${API_URL}/api/auth/esqueceu-senha`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(payload),
       });
 
-      if (!resposta.ok) throw new Error('E-mail não localizado no ecossistema AVLE.');
+      if (!resposta.ok) throw new Error('Dados não localizados no ecossistema AVLE.');
 
-      setMensagem({ tipo: 'sucesso', texto: 'Código de redefinição enviado para o seu e-mail!' });
+      setMensagem({ tipo: 'sucesso', texto: 'Código de redefinição enviado!' });
 
       setTimeout(() => {
         setIsEsqueceuSenha(false);
@@ -414,11 +447,16 @@ function Autenticacao() {
       return;
     }
 
+    const isTelefone = /^\d+$/.test(identificadorLogin.replace(/\D/g, ''));
+    const payload = isTelefone 
+        ? { telefone: identificadorLogin.replace(/\D/g, ''), codigo: codigoOtp, novaSenha } 
+        : { email: identificadorLogin, codigo: codigoOtp, novaSenha };
+
     try {
       const resposta = await fetch(`${API_URL}/api/auth/redefinir-senha`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, codigo: codigoOtp, novaSenha }),
+        body: JSON.stringify(payload),
       });
 
       if (!resposta.ok) throw new Error('Código incorreto, expirado ou já utilizado.');
@@ -445,47 +483,20 @@ function Autenticacao() {
       ref={containerRef}
       className="min-h-screen bg-[#F5F2EB] flex flex-col justify-center items-center p-4 text-[#0B1E14] relative select-none overflow-hidden transition-all duration-500"
     >
-      {/* Glow de Fundo Suave com GSAP */}
-      <div
-        ref={glowRef}
-        className="absolute w-[550px] h-[550px] bg-[#BD6B42] rounded-full blur-[140px] pointer-events-none -z-10"
-      />
+      <div ref={glowRef} className="absolute w-[550px] h-[550px] bg-[#BD6B42] rounded-full blur-[140px] pointer-events-none -z-10" />
 
-      {/* SVG da Árvore AVLE */}
-      <svg
-        className="absolute inset-0 w-full h-full pointer-events-none -z-10 opacity-20"
-        viewBox="0 0 1000 1000"
-        fill="none"
-      >
-        <path
-          ref={path1Ref}
-          d="M 100,900 C 300,700 350,400 500,500 C 650,600 700,300 900,100"
-          stroke="#0B1E14"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        />
-        <path
-          ref={path2Ref}
-          d="M 200,950 C 400,800 450,550 500,500 C 550,450 750,200 850,50"
-          stroke="#BD6B42"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
+      <svg className="absolute inset-0 w-full h-full pointer-events-none -z-10 opacity-20" viewBox="0 0 1000 1000" fill="none">
+        <path ref={path1Ref} d="M 100,900 C 300,700 350,400 500,500 C 650,600 700,300 900,100" stroke="#0B1E14" strokeWidth="2.5" strokeLinecap="round" />
+        <path ref={path2Ref} d="M 200,950 C 400,800 450,550 500,500 C 550,450 750,200 850,50" stroke="#BD6B42" strokeWidth="1.8" strokeLinecap="round" />
         <circle cx="500" cy="500" r="230" stroke="#0B1E14" strokeWidth="0.8" strokeDasharray="6 6" />
       </svg>
 
-      {/* Partículas Flutuantes */}
       <div className="absolute inset-0 pointer-events-none -z-10">
         {[...Array(6)].map((_, i) => (
-          <div
-            key={i}
-            className="gsap-leaf-particle absolute w-2 h-2 rounded-full bg-[#BD6B42]/40 blur-[0.5px]"
-            style={{ top: `${18 + i * 13}%`, left: `${10 + i * 14}%` }}
-          />
+          <div key={i} className="gsap-leaf-particle absolute w-2 h-2 rounded-full bg-[#BD6B42]/40 blur-[0.5px]" style={{ top: `${18 + i * 13}%`, left: `${10 + i * 14}%` }} />
         ))}
       </div>
 
-      {/* Alternador de Layout */}
       <div className="mb-6 bg-stone-200/80 p-1 rounded-2xl flex space-x-1 border border-stone-300 shadow-inner z-50">
         <button
           type="button"
@@ -507,14 +518,12 @@ function Autenticacao() {
         </button>
       </div>
 
-      {/* Card Principal */}
       <div
         ref={cardRef}
         className={`w-full bg-white rounded-3xl shadow-xl border border-stone-200/60 overflow-hidden flex transition-all duration-500 ease-in-out hover:shadow-2xl ${
           modoLayout === 'site' ? 'max-w-4xl min-h-[640px] flex-row' : 'max-w-md min-h-[660px] flex-col'
         }`}
       >
-        {/* Painel Esquerdo da Marca */}
         <div
           className={`bg-[#0B1E14] p-8 text-center flex flex-col items-center justify-center group transition-all duration-500 ${
             modoLayout === 'site' ? 'w-1/2 rounded-r-3xl' : 'w-full'
@@ -530,7 +539,6 @@ function Autenticacao() {
           </p>
         </div>
 
-        {/* Container do Formulário */}
         <div
           className={`flex flex-col justify-between transition-all duration-500 overflow-y-auto max-h-[85vh] ${
             modoLayout === 'site' ? 'w-1/2 p-4' : 'w-full p-2'
@@ -566,7 +574,6 @@ function Autenticacao() {
             </div>
           )}
 
-          {/* Estado: Verificação OTP */}
           {isVerificando && (
             <form onSubmit={handleConfirmarCodigo} className="p-6 flex-1 flex flex-col justify-between space-y-4 text-left">
               <div className="space-y-4">
@@ -574,7 +581,7 @@ function Autenticacao() {
                   <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificação de Conta</h3>
                   <p className="text-xs text-stone-400 mt-1">
                     Insira o código verificador enviado para: <br />
-                    <strong className="text-[#BD6B42] font-semibold">{email}</strong>
+                    <strong className="text-[#BD6B42] font-semibold">{identificadorLogin}</strong>
                   </p>
                 </div>
                 {mensagem.texto && (
@@ -627,14 +634,13 @@ function Autenticacao() {
             </form>
           )}
 
-          {/* Estado: Esqueceu Senha */}
           {isEsqueceuSenha && (
             <form onSubmit={handleSolicitarRecuperacao} className="p-6 flex-1 flex flex-col justify-between space-y-6 text-left">
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Recuperação de Acesso</h3>
                   <p className="text-xs text-stone-400 mt-1">
-                    Informe seu e-mail cadastrado. Enviaremos um código token para criar uma nova senha.
+                    Informe seu e-mail ou telefone cadastrado. Enviaremos um código token para criar uma nova senha.
                   </p>
                 </div>
                 {mensagem.texto && (
@@ -649,12 +655,12 @@ function Autenticacao() {
                   </div>
                 )}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail Registrado</label>
+                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail ou Telefone com DDD</label>
                   <input
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    type="text"
+                    placeholder="seu@email.com ou (45) 99999-9999"
+                    value={identificadorLogin}
+                    onChange={handleIdentificadorChange}
                     className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]"
                     required
                     disabled={carregando}
@@ -680,13 +686,12 @@ function Autenticacao() {
             </form>
           )}
 
-          {/* Estado: Redefinir Senha */}
           {isResetandoSenha && (
             <form onSubmit={handleSalvarNovaSenha} className="p-6 flex-1 flex flex-col justify-between space-y-4 text-left">
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Criar Nova Senha</h3>
-                  <p className="text-xs text-stone-400 mt-1">Insira o token de 6 dígitos recebido por e-mail.</p>
+                  <p className="text-xs text-stone-400 mt-1">Insira o token de 6 dígitos recebido.</p>
                 </div>
                 {mensagem.texto && (
                   <div
@@ -762,7 +767,6 @@ function Autenticacao() {
             </form>
           )}
 
-          {/* Form Principal: Login / Cadastro */}
           {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
             <form onSubmit={handleSubmit} className="p-6 flex-1 flex flex-col justify-between text-left space-y-4">
               <div className="space-y-4">
@@ -795,8 +799,8 @@ function Autenticacao() {
                           onClick={() => {
                             setTipoUsuario('CLIENTE');
                             setCpf('');
-                            setTelefone('');
-                            setEmail('');
+                            setTelefoneCadastro('');
+                            setEmailCadastro('');
                           }}
                           className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${
                             tipoUsuario === 'CLIENTE' ? 'text-white' : 'text-stone-500 hover:text-stone-800'
@@ -818,8 +822,8 @@ function Autenticacao() {
                           onClick={() => {
                             setTipoUsuario('LOJA');
                             setCpf('');
-                            setTelefone('');
-                            setEmail('');
+                            setTelefoneCadastro('');
+                            setEmailCadastro('');
                           }}
                           className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${
                             tipoUsuario === 'LOJA' ? 'text-white' : 'text-stone-500 hover:text-stone-800'
@@ -881,17 +885,17 @@ function Autenticacao() {
                         <label className="block text-[10px] font-bold uppercase text-stone-500">
                           {tipoUsuario === 'LOJA' ? 'Telefone / WhatsApp da Loja *' : 'Telefone / Celular (Opcional)'}
                         </label>
-                        {tipoUsuario === 'LOJA' && telefoneLimpo.length > 0 && (
-                          <span className={`text-[10px] font-bold ${telefoneLimpo.length >= 10 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                            {telefoneLimpo.length >= 10 ? '✓ Válido' : '✗ Mínimo 10 dígitos'}
+                        {tipoUsuario === 'LOJA' && telefoneCadastroLimpo.length > 0 && (
+                          <span className={`text-[10px] font-bold ${telefoneCadastroLimpo.length >= 10 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            {telefoneCadastroLimpo.length >= 10 ? '✓ Válido' : '✗ Mínimo 10 dígitos'}
                           </span>
                         )}
                       </div>
                       <input
                         type="text"
                         placeholder="(42) 99999-9999"
-                        value={telefone}
-                        onChange={(e) => setTelefone(aplicarMascaraTelefone(e.target.value))}
+                        value={telefoneCadastro}
+                        onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))}
                         className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
                         required={tipoUsuario === 'LOJA'}
                         disabled={carregando}
@@ -936,7 +940,6 @@ function Autenticacao() {
                           </div>
                         </div>
 
-                        {/* CAMPO OPCIONAL DE WALLET ID */}
                         <div>
                           <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between">
                             <span>Wallet ID Asaas</span>
@@ -955,7 +958,6 @@ function Autenticacao() {
                           </p>
                         </div>
 
-                        {/* Dados Bancários */}
                         <div className="pt-2 border-t border-stone-200">
                           <p className="text-[10px] font-bold uppercase text-[#0B1E14] mb-2">
                             Conta Bancária para Receber Vendas
@@ -1064,28 +1066,55 @@ function Autenticacao() {
                   </div>
                 )}
 
-                {/* E-mail e Senha */}
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-[10px] font-bold uppercase text-stone-500">
-                      {isLogin || tipoUsuario === 'LOJA' ? 'E-mail *' : 'E-mail (Opcional)'}
-                    </label>
-                    {email.length > 0 && (
-                      <span className={`text-[10px] font-bold ${emailValido ? 'text-emerald-600' : 'text-rose-500'}`}>
-                        {emailValido ? '✓ Válido' : '✗ Inválido'}
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
-                    required={isLogin || tipoUsuario === 'LOJA'}
-                    disabled={carregando}
-                  />
-                </div>
+                {/* 🟢 CAMPO DE LOGIN UNIFICADO (E-mail ou Telefone) */}
+                {isLogin && (
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[10px] font-bold uppercase text-stone-500">
+                          E-mail ou Telefone com DDD *
+                        </label>
+                        {identificadorLogin.length > 0 && (
+                          <span className={`text-[10px] font-bold ${loginValido ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            {loginValido ? '✓ Válido' : '✗ Inválido'}
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="seu@email.com ou (45) 99999-9999"
+                        value={identificadorLogin}
+                        onChange={handleIdentificadorChange}
+                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
+                        required
+                        disabled={carregando}
+                      />
+                    </div>
+                )}
+
+                {/* Campo E-mail apenas para Cadastro */}
+                {!isLogin && (
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[10px] font-bold uppercase text-stone-500">
+                          {tipoUsuario === 'LOJA' ? 'E-mail *' : 'E-mail (Opcional)'}
+                        </label>
+                        {emailCadastro.length > 0 && (
+                          <span className={`text-[10px] font-bold ${emailCadastroValido ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            {emailCadastroValido ? '✓ Válido' : '✗ Inválido'}
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={emailCadastro}
+                        onChange={(e) => setEmailCadastro(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
+                        required={tipoUsuario === 'LOJA'}
+                        disabled={carregando}
+                      />
+                    </div>
+                )}
 
                 <div>
                   <div className="flex justify-between items-center mb-1">
@@ -1169,7 +1198,7 @@ function Autenticacao() {
                 disabled={!formularioValido || carregando}
                 className="w-full mt-6 py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl tracking-wide uppercase transition-all disabled:opacity-50 cursor-pointer text-xs shadow-md hover:bg-[#08170f]"
               >
-                {carregando ? 'CARREGANDO...' : isLogin ? 'Entrar no Sistema' : 'Criar minha Conta'}
+                {carregando ? statusConexao : isLogin ? 'Entrar no Sistema' : 'Criar minha Conta'}
               </button>
             </form>
           )}
