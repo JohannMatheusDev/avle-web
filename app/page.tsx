@@ -54,12 +54,14 @@ export default function Home() {
 function Autenticacao() {
   const router = useRouter();
 
+  // Elementos do GSAP
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const path1Ref = useRef<SVGPathElement>(null);
   const path2Ref = useRef<SVGPathElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
 
+  // Estados da interface
   const [isLogin, setIsLogin] = useState(true);
   const [isVerificando, setIsVerificando] = useState(false);
   const [carregando, setCarregando] = useState(false);
@@ -70,6 +72,7 @@ function Autenticacao() {
   const [novaSenha, setNovaSenha] = useState('');
   const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false);
 
+  // Dados Básicos
   const [tipoUsuario, setTipoUsuario] = useState('CLIENTE');
   
   const [identificadorLogin, setIdentificadorLogin] = useState(''); 
@@ -81,6 +84,7 @@ function Autenticacao() {
   const [codigoOtp, setCodigoOtp] = useState('');
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
 
+  // CAMPOS ADICIONAIS PARA LOJA
   const [cep, setCep] = useState('');
   const [faturamento, setFaturamento] = useState('');
   const [walletIdInput, setWalletIdInput] = useState(''); 
@@ -90,11 +94,14 @@ function Autenticacao() {
   const [contaDigito, setContaDigito] = useState('');
   const [tipoConta, setTipoConta] = useState('CORRENTE');
   
+  // Estados de Segurança Jurídica
   const [aceitouTermos, setAceitouTermos] = useState(false);
+  const [modalTermosAberto, setModalTermosAberto] = useState(false); // 🟢 NOVO: Controla a exibição do contrato
 
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [modoLayout, setModoLayout] = useState<'mobile' | 'site'>('mobile');
 
+  // Ping silencioso no carregamento da página
   useEffect(() => {
     fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
     const intervaloPing = setInterval(() => {
@@ -103,6 +110,7 @@ function Autenticacao() {
     return () => clearInterval(intervaloPing);
   }, []);
 
+  // GSAP - Animações sutis
   useEffect(() => {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
@@ -147,6 +155,7 @@ function Autenticacao() {
     return () => ctx.revert();
   }, [modoLayout]);
 
+  // Máscaras de Input
   const aplicarMascaraTelefone = (valor: string) => {
     const v = valor.replace(/\D/g, '');
     if (v.length <= 2) return v;
@@ -180,6 +189,7 @@ function Autenticacao() {
     }
   };
 
+  // Validações
   const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   
   const loginLimpo = identificadorLogin.replace(/\D/g, '');
@@ -1184,6 +1194,7 @@ function Autenticacao() {
                   )}
                 </div>
 
+                {/* 🟢 CHECKBOX COM ABERTURA DO MODAL JURÍDICO */}
                 {!isLogin && tipoUsuario === 'LOJA' && (
                   <div className="flex items-start space-x-3 p-3 bg-stone-50 border border-stone-200/60 rounded-xl mt-2 animate-fade-in">
                     <input
@@ -1195,7 +1206,15 @@ function Autenticacao() {
                       disabled={carregando}
                     />
                     <label htmlFor="termos-loja" className="text-[10px] text-stone-500 leading-relaxed cursor-pointer select-none">
-                      Declaro que li e concordo com os <span className="text-[#BD6B42] font-bold underline">Termos de Uso</span> e o <span className="text-[#BD6B42] font-bold underline">Contrato de Parceria</span> da AVLE. Compreendo que as operações estão sujeitas à auditoria de compliance.
+                      Declaro que li e concordo com os{' '}
+                      <button 
+                        type="button" 
+                        onClick={(e) => { e.preventDefault(); setModalTermosAberto(true); }} 
+                        className="text-[#BD6B42] font-bold underline hover:text-[#0B1E14] transition-colors"
+                      >
+                        Termos de Uso e o Contrato de Parceria
+                      </button>{' '}
+                      da AVLE. Compreendo que as operações estão sujeitas à auditoria de compliance.
                     </label>
                   </div>
                 )}
@@ -1213,6 +1232,55 @@ function Autenticacao() {
           )}
         </div>
       </div>
+
+      {/* 🟢 MODAL DE TERMOS E CONDIÇÕES */}
+      {modalTermosAberto && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fadeIn text-left">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
+            <div className="flex justify-between items-center p-5 border-b border-stone-100">
+              <div>
+                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Contrato de Parceria e Termos de Uso</h3>
+                <p className="text-[10px] text-stone-400 mt-0.5">Leia atentamente as condições operacionais e jurídicas da plataforma AVLE.</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setModalTermosAberto(false)} 
+                className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer px-2"
+              >
+                X
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 text-xs text-stone-600 space-y-4 leading-relaxed bg-stone-50/30">
+              <p className="font-bold text-stone-800">1. DO OBJETO</p>
+              <p>Este documento estabelece as condições gerais para a utilização da infraestrutura tecnológica da AVLE pela LOJA PARCEIRA cadastrada, visando a gestão de clubes de compras e o split automático de pagamentos.</p>
+              
+              <p className="font-bold text-stone-800 mt-4">2. DO REPASSE E SPLIT DE PAGAMENTOS</p>
+              <p>Fica acordado que a plataforma AVLE reterá automaticamente o percentual de 10% (dez por cento) sobre o valor de cada mensalidade transacionada via Gateway de Pagamento, a título de licença de uso do software, sendo os 90% (noventa por cento) restantes repassados à subconta da LOJA PARCEIRA.</p>
+
+              <p className="font-bold text-stone-800 mt-4">3. DA RESPONSABILIDADE SOLIDÁRIA</p>
+              <p>A LOJA PARCEIRA assume integral responsabilidade civil e consumerista sobre a entrega dos produtos aos clientes contemplados no prazo estabelecido, bem como sobre a absorção de eventuais taxas de chargeback geradas por contestações.</p>
+
+              <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl mt-6">
+                <strong>Nota:</strong> O documento contratual final em formato PDF será disponibilizado neste espaço assim que aprovado pela assessoria jurídica. O aceite digital no formulário possui validade legal e vincula o CNPJ/CPF cadastrado a estas diretrizes.
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-stone-100 flex justify-end bg-stone-50 rounded-b-2xl">
+              <button 
+                type="button" 
+                onClick={() => { 
+                  setModalTermosAberto(false); 
+                  setAceitouTermos(true); 
+                }} 
+                className="px-6 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all shadow-sm"
+              >
+                Li e Aceito as Condições
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
