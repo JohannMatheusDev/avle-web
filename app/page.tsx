@@ -72,11 +72,13 @@ function Autenticacao() {
   const [novaSenha, setNovaSenha] = useState('');
   const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false);
 
+  // Dados Básicos
   const [tipoUsuario, setTipoUsuario] = useState('CLIENTE');
   
+  // 🟢 NOVO ESTADO: Campo unificado para login (Email ou Telefone)
   const [identificadorLogin, setIdentificadorLogin] = useState(''); 
   
-
+  // Estados separados para cadastro continuam existindo
   const [emailCadastro, setEmailCadastro] = useState('');
   const [telefoneCadastro, setTelefoneCadastro] = useState('');
   
@@ -99,6 +101,7 @@ function Autenticacao() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [modoLayout, setModoLayout] = useState<'mobile' | 'site'>('mobile');
 
+  // Ping silencioso no carregamento da página
   useEffect(() => {
     fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
     const intervaloPing = setInterval(() => {
@@ -180,11 +183,9 @@ function Autenticacao() {
   // Lógica dinâmica para o campo de Login (Email vs Telefone)
   const handleIdentificadorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const valor = e.target.value;
-    // Se o usuário começar a digitar números, aplicamos a máscara de telefone
     if (/^\d/.test(valor) || valor.startsWith('(')) {
       setIdentificadorLogin(aplicarMascaraTelefone(valor));
     } else {
-      // Caso contrário, tratamos como e-mail e permitimos a digitação livre
       setIdentificadorLogin(valor);
     }
   };
@@ -268,11 +269,11 @@ function Autenticacao() {
         let bodyPayload: any = {};
 
         if (isLogin) {
-            // Se for login e só tiver números (telefone), envia na chave correta
-            if (/^\d+$/.test(identificadorLogin.replace(/\D/g, ''))) {
-               bodyPayload = { telefone: identificadorLogin.replace(/\D/g, ''), senha };
+            // 🟢 CORREÇÃO: Se tiver '@', é com certeza e-mail. Se não, é telefone.
+            if (identificadorLogin.includes('@')) {
+               bodyPayload = { email: identificadorLogin.trim(), senha };
             } else {
-               bodyPayload = { email: identificadorLogin, senha };
+               bodyPayload = { telefone: identificadorLogin.replace(/\D/g, ''), senha };
             }
         } else {
             bodyPayload = {
@@ -365,11 +366,10 @@ function Autenticacao() {
     setMensagem({ tipo: '', texto: '' });
     setCarregando(true);
 
-    // O código OTP assumirá que estamos verificando o identificador usado no login
-    const isTelefone = /^\d+$/.test(identificadorLogin.replace(/\D/g, ''));
+    const isTelefone = !identificadorLogin.includes('@');
     const payload = isTelefone 
         ? { telefone: identificadorLogin.replace(/\D/g, ''), codigo: codigoOtp } 
-        : { email: identificadorLogin, codigo: codigoOtp };
+        : { email: identificadorLogin.trim(), codigo: codigoOtp };
 
     try {
       const resposta = await fetch(`${API_URL}/api/usuarios/verificar`, {
@@ -400,7 +400,7 @@ function Autenticacao() {
     setMensagem({ tipo: '', texto: '' });
     setCarregando(true);
 
-    const isTelefone = /^\d+$/.test(identificadorLogin.replace(/\D/g, ''));
+    const isTelefone = !identificadorLogin.includes('@');
 
     if (!isLoginEmailValido && !isTelefone) {
       setMensagem({ tipo: 'erro', texto: 'Por favor, insira um e-mail ou telefone válido.' });
@@ -410,7 +410,7 @@ function Autenticacao() {
 
     const payload = isTelefone 
         ? { telefone: identificadorLogin.replace(/\D/g, '') } 
-        : { email: identificadorLogin };
+        : { email: identificadorLogin.trim() };
 
     try {
       const resposta = await fetch(`${API_URL}/api/auth/esqueceu-senha`, {
@@ -447,10 +447,10 @@ function Autenticacao() {
       return;
     }
 
-    const isTelefone = /^\d+$/.test(identificadorLogin.replace(/\D/g, ''));
+    const isTelefone = !identificadorLogin.includes('@');
     const payload = isTelefone 
         ? { telefone: identificadorLogin.replace(/\D/g, ''), codigo: codigoOtp, novaSenha } 
-        : { email: identificadorLogin, codigo: codigoOtp, novaSenha };
+        : { email: identificadorLogin.trim(), codigo: codigoOtp, novaSenha };
 
     try {
       const resposta = await fetch(`${API_URL}/api/auth/redefinir-senha`, {
@@ -940,6 +940,7 @@ function Autenticacao() {
                           </div>
                         </div>
 
+                        {/* CAMPO OPCIONAL DE WALLET ID */}
                         <div>
                           <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between">
                             <span>Wallet ID Asaas</span>
@@ -958,6 +959,7 @@ function Autenticacao() {
                           </p>
                         </div>
 
+                        {/* Dados Bancários */}
                         <div className="pt-2 border-t border-stone-200">
                           <p className="text-[10px] font-bold uppercase text-[#0B1E14] mb-2">
                             Conta Bancária para Receber Vendas
