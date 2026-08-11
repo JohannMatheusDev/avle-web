@@ -3,15 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-// Configuração dinâmica da URL do Backend vinda das variáveis de ambiente
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function DashboardAdmin({ usuario }: { usuario: any }) {
   const router = useRouter();
   const [abaExibida, setAbaExibida] = useState<'geral' | 'lojas' | 'financeiro' | 'risco'>('geral');
 
-  // Estado para capturar qual loja está sendo auditada/controlada no momento
   const [lojaSelecionada, setLojaSelecionada] = useState<any | null>(null);
+  const [limiteInput, setLimiteInput] = useState<number>(1);
 
   const [metricas, setMetricas] = useState<any>({
     totalClientes: 0,
@@ -25,11 +24,9 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
   const [carregando, setCarregando] = useState(true);
   const [processandoStatus, setProcessandoStatus] = useState(false);
 
-  // BUSCA DADOS REAIS DO MYSQL VIA API
   const carregarDadosDoBanco = async () => {
     setCarregando(true);
 
-    // 1. Busca Métricas Gerais
     try {
       const resMetricas = await fetch(`${API_URL}/api/financeiro/admin/dashboard`);
       if (resMetricas.ok) {
@@ -37,10 +34,8 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
         setMetricas(data);
       }
     } catch (erro) {
-      console.error('Erro ao carregar métricas do admin:', erro);
     }
 
-    // 2. Busca Todas as Lojas Cadastradas no Banco de Dados
     try {
       const resLojas = await fetch(`${API_URL}/api/lojas/listar-todas`);
       if (resLojas.ok) {
@@ -51,6 +46,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
             nomeComercial: loja.nomeComercial || loja.nome_comercial || loja.nome || 'Loja Cadastrada',
             cnpj: loja.cnpj || 'Sem CNPJ',
             statusHomologacao: loja.statusHomologacao || 'HOMOLOGADO',
+            limiteGruposAtivos: loja.limiteGruposAtivos || 1,
             grupos: loja.grupos || 0,
             participantes: loja.participantes || 0,
             faturamento: Number(loja.faturamento) || 0,
@@ -59,15 +55,16 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
           }));
           setListaLojas(lojasTratadas);
 
-          // Se houver uma loja sendo inspecionada, atualiza os dados dela também
           if (lojaSelecionada) {
             const lojaAtualizada = lojasTratadas.find((l) => l.id === lojaSelecionada.id);
-            if (lojaAtualizada) setLojaSelecionada(lojaAtualizada);
+            if (lojaAtualizada) {
+              setLojaSelecionada(lojaAtualizada);
+              setLimiteInput(lojaAtualizada.limiteGruposAtivos);
+            }
           }
         }
       }
     } catch (erro) {
-      console.error('Erro ao listar lojas do banco:', erro);
       setListaLojas([]);
     } finally {
       setCarregando(false);
@@ -78,7 +75,12 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
     carregarDadosDoBanco();
   }, []);
 
-  // Alteração dinâmica do Status da Loja no Backend
+  useEffect(() => {
+    if(lojaSelecionada) {
+       setLimiteInput(lojaSelecionada.limiteGruposAtivos || 1);
+    }
+  }, [lojaSelecionada]);
+
   const alterarStatusLoja = async (lojaId: number, novoStatus: string) => {
     setProcessandoStatus(true);
     try {
@@ -99,13 +101,31 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
     }
   };
 
+  const alterarLimiteGrupos = async (lojaId: number, limite: number) => {
+    setProcessandoStatus(true);
+    try {
+      const res = await fetch(`${API_URL}/api/lojas/${lojaId}/limite-grupos`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limite }),
+      });
+
+      if (!res.ok) throw new Error();
+
+      await carregarDadosDoBanco();
+      alert(`Limite de grupos atualizado para ${limite}!`);
+    } catch (err) {
+      alert('Falha ao atualizar o limite. Verifique o servidor.');
+    } finally {
+      setProcessandoStatus(false);
+    }
+  };
+
   const totalTransacionado = Number(metricas?.totalTransacionado) || 0;
-  const faturamentoPlataforma = Number(metricas?.faturamentoPlataforma) || 0;
   const totalClientes = Number(metricas?.totalClientes) || 0;
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-[#F0F2F5] text-[#0B1E14]">
-      {/* SIDEBAR CORPORATIVO */}
       <aside className="w-full md:w-64 bg-[#0B1E14] text-[#E3EAE6] flex flex-col justify-between p-6 flex-shrink-0">
         <div>
           <div className="mb-8 border-b border-white/10 pb-6">
@@ -125,7 +145,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   : 'hover:bg-white/5 opacity-75'
               }`}
             >
-              <span>Visão geral</span>
+              <span>Visao geral</span>
             </button>
             <button
               onClick={() => {
@@ -191,20 +211,16 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
         </div>
       </aside>
 
-      {/* PAINEL PRINCIPAL DE CONTEÚDO */}
       <main className="flex-1 p-6 md:p-8 max-w-7xl overflow-x-hidden space-y-6">
-        {/* INTERRUPTOR: EXIBE O DASHBOARD INDIVIDUAL SE UMA LOJA FOR SELECIONADA */}
         {lojaSelecionada ? (
           <div className="space-y-6 animate-fadeIn">
-            {/* Botão Superior de Voltar */}
             <button
               onClick={() => setLojaSelecionada(null)}
               className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] transition-all bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer"
             >
-              ← Voltar para o Painel Geral
+              Voltar para o Painel Geral
             </button>
 
-            {/* Cabeçalho da Unidade Selecionada */}
             <div className="bg-white border border-[#E6E2D8] p-6 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-xs">
               <div>
                 <span className="text-[9px] font-bold bg-[#0B1E14] text-white px-2 py-0.5 rounded font-mono uppercase tracking-widest">
@@ -216,7 +232,6 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 <p className="text-xs text-stone-400 font-mono mt-0.5">CNPJ Fiscal: {lojaSelecionada.cnpj}</p>
               </div>
 
-              {/* Botões de Ação Direta de Homologação */}
               <div className="flex items-center space-x-2">
                 <span
                   className={`text-[9px] font-bold px-3 py-1.5 rounded-md uppercase border tracking-wider mr-2 ${
@@ -248,7 +263,32 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               </div>
             </div>
 
-            {/* Fila de Métricas Isoladas da Loja Selecionada */}
+            <div className="bg-white border border-[#E6E2D8] p-6 rounded-2xl shadow-xs">
+              <h3 className="text-sm font-bold text-[#0B1E14] uppercase tracking-wider mb-4">Controle de Expansao de Negocio</h3>
+              <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+                <div className="w-full sm:w-1/3">
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Limite de Clubes Ativos Simultaneos</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={limiteInput}
+                    onChange={(e) => setLimiteInput(Number(e.target.value))}
+                    className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"
+                  />
+                </div>
+                <button
+                  disabled={processandoStatus}
+                  onClick={() => alterarLimiteGrupos(lojaSelecionada.id, limiteInput)}
+                  className="px-6 h-[42px] bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-opacity-90 disabled:opacity-50 transition-all cursor-pointer"
+                >
+                  Aplicar Limite
+                </button>
+              </div>
+              <p className="text-[10px] text-stone-400 mt-3 leading-relaxed">
+                Define a quantidade maxima de clubes ou grupos de compras que esta loja tem permissao para manter operando simultaneamente na plataforma.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-xs">
                 <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
@@ -279,7 +319,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               </div>
               <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
                 <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
-                  Risco de Inadimplência
+                  Risco de Inadimplencia
                 </span>
                 <span className="text-2xl font-bold text-stone-400 block mt-2 font-mono">
                   {(Number(lojaSelecionada.inadimplencia) || 0).toFixed(2)}%
@@ -288,23 +328,22 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               </div>
             </div>
 
-            {/* Gráficos de Projeção */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between min-h-[250px]">
                 <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block mb-4">
-                  Curva de Captação Mensal da Unidade
+                  Curva de Captacao Mensal da Unidade
                 </span>
                 <div className="h-32 w-full pt-2">
                   <svg className="w-full h-full" viewBox="0 0 100 30" preserveAspectRatio="none">
                     <path d="M0,30 L100,30" className="stroke-stone-200 stroke-2" fill="none" />
                   </svg>
-                  <p className="text-[11px] text-stone-400 italic mt-3 text-center">Histórico consolidado em tempo real.</p>
+                  <p className="text-[11px] text-stone-400 italic mt-3 text-center">Historico consolidado em tempo real.</p>
                 </div>
               </div>
 
               <div className="bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between min-h-[250px]">
                 <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block mb-2">
-                  Composição de Carteira
+                  Composicao de Carteira
                 </span>
                 <div className="w-24 h-24 mx-auto relative flex items-center justify-center my-auto">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
@@ -312,19 +351,18 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   </svg>
                   <span className="absolute text-xs font-mono font-bold text-stone-400">100%</span>
                 </div>
-                <p className="text-[10px] text-stone-400 font-medium text-center">Operação ativa.</p>
+                <p className="text-[10px] text-stone-400 font-medium text-center">Operacao ativa.</p>
               </div>
             </div>
           </div>
         ) : (
-          /* FLUXO TRADICIONAL (VISÃO MACRO) */
           <>
             {abaExibida === 'geral' && (
               <div className="space-y-6 animate-fadeIn">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Dashboard Analítico</h2>
-                    <p className="text-xs text-stone-400 font-medium">Métricas de performance e engajamento coletivo.</p>
+                    <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Dashboard Analitico</h2>
+                    <p className="text-xs text-stone-400 font-medium">Metricas de performance e engajamento coletivo.</p>
                   </div>
                   <button
                     onClick={carregarDadosDoBanco}
@@ -334,7 +372,6 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   </button>
                 </div>
 
-                {/* CARD METRICAS SUPERIORES */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-xs relative overflow-hidden">
                     <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
@@ -358,12 +395,11 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                     </span>
                   </div>
                   <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Retenção Média</span>
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Retencao Media</span>
                     <span className="text-2xl font-bold tracking-tight text-emerald-600 block mt-2 font-mono">100,0%</span>
                   </div>
                 </div>
 
-                {/* TABELA: LOJAS REAIS CADASTRADAS NO BANCO DE DADOS */}
                 <div className="bg-white border border-[#DFD9CE] rounded-2xl shadow-xs overflow-hidden">
                   <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex justify-between items-center">
                     <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">
@@ -499,7 +535,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                           </div>
                           <div className="bg-[#F5F2EB]/40 border border-dashed border-[#DFD9CE] p-3.5 rounded-xl text-center">
                             <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">
-                              Inadimplência
+                              Inadimplencia
                             </span>
                             <span className="text-xl font-bold text-stone-400 font-mono block mt-1">
                               {loja.inadimplencia}%
@@ -513,13 +549,12 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               </div>
             )}
 
-            {/* ABA FINANCEIRO */}
             {abaExibida === 'financeiro' && (
               <div className="space-y-6 animate-fadeIn">
                 <div>
-                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Fluxo de Caixa e Split Contábil</h2>
+                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Fluxo de Caixa e Split Contabil</h2>
                   <p className="text-xs text-stone-400 font-medium">
-                    Divisões operacionais liquidadas em tempo real por estabelecimento.
+                    Divisoes operacionais liquidadas em tempo real por estabelecimento.
                   </p>
                 </div>
                 <div className="bg-white border border-[#DFD9CE] rounded-2xl shadow-xs overflow-hidden">
@@ -529,7 +564,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                         <th className="py-4 px-5">Estabelecimento</th>
                         <th className="py-4 px-5 text-right">Volume Bruto Pix</th>
                         <th className="py-4 px-5 text-right">Taxa App (10%)</th>
-                        <th className="py-4 px-5 text-right">Fundo Líquido Repassado (90%)</th>
+                        <th className="py-4 px-5 text-right">Fundo Liquido Repassado (90%)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
@@ -562,24 +597,22 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               </div>
             )}
 
-            {/* ABA: RISCO E FRAUDE */}
             {abaExibida === 'risco' && (
               <div className="space-y-6 animate-fadeIn text-left">
                 <div>
-                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Central de Risco, Compliance & Fraude</h2>
+                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Central de Risco, Compliance e Fraude</h2>
                   <p className="text-xs text-stone-400 font-medium mt-0.5">
-                    Monitoramento em tempo real de contestações, inconsistências cadastrais e integridade dos grupos.
+                    Monitoramento em tempo real de contestacoes, inconsistencias cadastrais e integridade dos grupos.
                   </p>
                 </div>
 
-                {/* CARDS DE MÉTRICAS DE RISCO */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
                     <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
                       Taxa de Chargeback
                     </span>
                     <span className="text-2xl font-bold tracking-tight text-emerald-600 block mt-2 font-mono">0,00%</span>
-                    <p className="text-[9px] text-stone-400 mt-1">Limite de segurança: até 1,00%</p>
+                    <p className="text-[9px] text-stone-400 mt-1">Limite de seguranca: ate 1,00%</p>
                   </div>
 
                   <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
@@ -589,12 +622,12 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                     <span className="text-2xl font-bold tracking-tight text-[#0B1E14] block mt-2 font-mono">
                       {listaLojas.filter((l) => l.statusHomologacao !== 'APROVADO').length}
                     </span>
-                    <p className="text-[9px] text-amber-600 font-bold mt-1">Aguardando validação ou contestações</p>
+                    <p className="text-[9px] text-amber-600 font-bold mt-1">Aguardando validacao ou contestacoes</p>
                   </div>
 
                   <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
                     <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
-                      Inadimplência Global
+                      Inadimplencia Global
                     </span>
                     <span className="text-2xl font-bold tracking-tight text-[#0B1E14] block mt-2 font-mono">0,00%</span>
                     <p className="text-[9px] text-stone-400 mt-1">Garantia das cotas ativas</p>
@@ -609,14 +642,13 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   </div>
                 </div>
 
-                {/* REGRAS E CHECKLIST DE AUDITORIA */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="lg:col-span-2 bg-white border border-[#DFD9CE] rounded-2xl shadow-xs overflow-hidden">
                     <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex justify-between items-center">
                       <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">
-                        Lojas com Pendências de Compliance
+                        Lojas com Pendencias de Compliance
                       </h3>
-                      <span className="text-[10px] text-stone-400 font-bold font-mono">Validação KYC/KYB</span>
+                      <span className="text-[10px] text-stone-400 font-bold font-mono">Validacao KYC/KYB</span>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs border-collapse">
@@ -625,14 +657,14 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                             <th className="py-3.5 px-5">LOJA</th>
                             <th className="py-3.5 px-5">DOCUMENTO</th>
                             <th className="py-3.5 px-5 text-center">CONTA ASAAS</th>
-                            <th className="py-3.5 px-5 text-center">AÇÃO</th>
+                            <th className="py-3.5 px-5 text-center">ACAO</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
                           {listaLojas.length === 0 ? (
                             <tr>
                               <td colSpan={4} className="py-6 text-center text-stone-400 italic">
-                                Nenhum registro em análise.
+                                Nenhum registro em analise.
                               </td>
                             </tr>
                           ) : (
@@ -670,10 +702,10 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                     <div>
                       <div className="flex items-center space-x-2 text-[#0B1E14] mb-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        <h4 className="font-bold text-xs uppercase tracking-wider">Proteção de Split Ativa</h4>
+                        <h4 className="font-bold text-xs uppercase tracking-wider">Protecao de Split Ativa</h4>
                       </div>
                       <p className="text-[11px] text-stone-500 leading-relaxed">
-                        A retenção de 10% da plataforma e o repasse de 90% para a subconta da loja ocorrem de forma
+                        A retencao de 10% da plataforma e o repasse de 90% para a subconta da loja ocorrem de forma
                         automatizada e protegida via webhook.
                       </p>
                     </div>
@@ -684,11 +716,11 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                         <span className="font-bold text-emerald-700">Ativada (1.0%)</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span>Validação Bancária</span>
-                        <span className="font-bold text-emerald-700">Obrigatória</span>
+                        <span>Validacao Bancaria</span>
+                        <span className="font-bold text-emerald-700">Obrigatoria</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span>Verificação CPF/CNPJ</span>
+                        <span>Verificacao CPF/CNPJ</span>
                         <span className="font-bold text-emerald-700">Ativa no Cadastro</span>
                       </div>
                     </div>
