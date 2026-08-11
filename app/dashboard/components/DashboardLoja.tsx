@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation'; 
 
-// Configuração da URL da API vinda do .env.local
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 interface Grupo {
@@ -17,7 +16,6 @@ interface Grupo {
 export default function DashboardLoja({ usuario }: { usuario: any }) {
   const router = useRouter();
   
-  // 🟢 NOVO: Adicionado 'aprovacoes' no menu
   const [abaLoja, setAbaLoja] = useState<'geral' | 'aprovacoes' | 'grupos' | 'sorteios' | 'financeiro' | 'relatorios' | 'configuracoes'>('geral');
   const [obrigacoesFuturas, setObrigacoesFuturas] = useState<number>(0);
   const [idOperacao, setIdOperacao] = useState('Nenhuma');
@@ -30,7 +28,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [listaGrupos, setListaGrupos] = useState<Grupo[]>([]);
   const [modalNovoGrupoAberto, setModalNovoGrupoAberto] = useState(false);
 
-  // Estados para Cadastro de Nova Cliente
   const [modalNovoClienteAberto, setModalNovoClienteAberto] = useState(false);
   const [nomeCliente, setNomeCliente] = useState('');
   const [emailCliente, setEmailCliente] = useState('');
@@ -38,17 +35,23 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [telefoneCliente, setTelefoneCliente] = useState('');
   const [processandoCliente, setProcessandoCliente] = useState(false);
 
-  // Estados para Baixa Manual
   const [modalPagamentoManualAberto, setModalPagamentoManualAberto] = useState(false);
   const [qtdParcelasManual, setQtdParcelasManual] = useState('1');
   const [processandoPagamentoManual, setProcessandoPagamentoManual] = useState(false);
+
+  // 🟢 NOVO ESTADO: Modal de Confirmação de Exclusão (Substitui o window.confirm)
+  const [modalExclusao, setModalExclusao] = useState<{
+    aberto: boolean;
+    tipo: 'grupo' | 'participante';
+    idTarget: number;
+    titulo: string;
+    mensagem: string;
+  }>({ aberto: false, tipo: 'grupo', idTarget: 0, titulo: '', mensagem: '' });
 
   const [arquivoPdf, setArquivoPdf] = useState<File | null>(null);
   const [enviandoPdf, setEnviandoPdf] = useState(false);
 
   const [totalClientes, setTotalClientes] = useState<number>(0);
-
-  // 🟢 ESTADOS: Histórico Financeiro e Churn Rate
   const [historicoTransacoes, setHistoricoTransacoes] = useState<any[]>([]);
   const [taxaChurn, setTaxaChurn] = useState<number>(0);
 
@@ -59,7 +62,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     isError?: boolean;
   }>({ aberto: false, titulo: '', mensagem: '', isError: false });
 
-  // 🟢 ESTADOS: Solicitações de Acesso (Inbox)
   const [solicitacoesAcesso, setSolicitacoesAcesso] = useState<any[]>([]);
   const [processandoAcessoId, setProcessandoAcessoId] = useState<number | null>(null);
 
@@ -120,13 +122,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       .then(data => setDadosFinanceiros(data))
       .catch(() => {});
 
-    // 🟢 Busca Histórico Financeiro
     fetch(`${API_URL}/api/financeiro/lojas/${lojaId}/transacoes`)
       .then(res => res.ok ? res.json() : [])
       .then(data => setHistoricoTransacoes(Array.isArray(data) ? data : []))
       .catch(() => setHistoricoTransacoes([]));
 
-    // 🟢 Busca Taxa de Churn
     fetch(`${API_URL}/api/lojas/${lojaId}/metricas-churn`)
       .then(res => res.ok ? res.json() : { taxaChurn: 0 })
       .then(data => setTaxaChurn(Number(data.taxaChurn) || 0))
@@ -175,7 +175,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     if (grupoSelecionado) recarregarParticipantesDoGrupo();
   }, [grupoSelecionado]);
 
-  // 🟢 APROVA OU REJEITA CLIENTES
   const handleAnalisarAcesso = async (acessoId: number, aprovado: boolean) => {
      setProcessandoAcessoId(acessoId);
      try {
@@ -188,7 +187,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
            );
            carregarSolicitacoesAcesso(); 
            carregarContagemClientes(usuario?.lojaId || 1); 
-           carregarDadosFinanceiros(); // Atualiza o Churn
+           carregarDadosFinanceiros(); 
         } else {
            mostrarAviso('Erro de Sistema', 'Falha ao processar análise. Tente novamente.', true);
         }
@@ -199,22 +198,42 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
      }
   };
 
-  const handleRemoverParticipanteDoGrupo = async (cotaId: number, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    if (!confirm('Tem certeza que deseja remover este participante do grupo? A cota e o histórico de participação dele neste clube serão cancelados.')) return;
-
-    try {
-      const res = await fetch(`${API_URL}/api/cotas/${cotaId}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const textoErro = await res.text();
-        throw new Error(textoErro || 'Falha ao remover participante.');
-      }
-      mostrarAviso('Participante Removido', 'O cliente foi desligado deste grupo de compras com sucesso.', false);
-      if (idOperacao === cotaId.toString()) setIdOperacao('Nenhuma');
-      recarregarParticipantesDoGrupo();
-      carregarContagemClientes(usuario?.lojaId || 1);
-    } catch (err: any) {
-      mostrarAviso('Erro ao Remover', err.message, true);
+  // 🟢 NOVA LÓGICA DE EXCLUSÃO
+  const confirmarExclusao = async () => {
+    const { tipo, idTarget } = modalExclusao;
+    setModalExclusao({ ...modalExclusao, aberto: false }); // Fecha o modal imediatamente
+    
+    if (tipo === 'participante') {
+        try {
+          const res = await fetch(`${API_URL}/api/cotas/${idTarget}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error('Falha ao remover participante.');
+          
+          mostrarAviso('Participante Removido', 'O cliente foi desligado e a cota foi zerada com sucesso.', false);
+          
+          // Zera as seleções na hora
+          if (idOperacao === idTarget.toString()) {
+             setIdOperacao('Nenhuma');
+          }
+          // Recarrega os dados imediatamente
+          recarregarParticipantesDoGrupo();
+          carregarContagemClientes(usuario?.lojaId || 1);
+        } catch (err: any) {
+          mostrarAviso('Erro ao Remover', err.message, true);
+        }
+    } else if (tipo === 'grupo') {
+        try {
+          const res = await fetch(`${API_URL}/api/grupos/${idTarget}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error('Falha ao excluir grupo.');
+          
+          mostrarAviso('Grupo Removido', 'O grupo e todas as suas cotas pendentes foram excluídos.', false);
+          
+          // Zera a tela na hora voltando pra lista
+          setGrupoSelecionado(null);
+          carregarGruposDoBanco();
+          carregarDadosFinanceiros();
+        } catch (err: any) {
+          mostrarAviso('Erro ao Excluir', err.message, true);
+        }
     }
   };
 
@@ -282,24 +301,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       carregarGruposDoBanco();
     } catch (err: any) { 
       mostrarAviso('Erro Operacional', err.message, true); 
-    }
-  };
-
-  const handleExcluirGrupo = async (grupoId: number, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    if (!confirm('Tem certeza que deseja excluir este grupo de compras? Esta ação não pode ser desfeita.')) return;
-
-    try {
-      const res = await fetch(`${API_URL}/api/grupos/${grupoId}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const textoErro = await res.text();
-        throw new Error(textoErro || 'Falha ao excluir grupo.');
-      }
-      mostrarAviso('Grupo Removido', 'O grupo foi excluído com sucesso do sistema.', false);
-      if (grupoSelecionado?.id === grupoId) setGrupoSelecionado(null);
-      carregarGruposDoBanco();
-    } catch (err: any) {
-      mostrarAviso('Erro ao Excluir', err.message, true);
     }
   };
 
@@ -435,7 +436,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           <nav className="space-y-1">
             {[
               { id: 'geral', label: 'Visão geral' },
-              { id: 'aprovacoes', label: 'Aprovações' }, // 🟢 NOVO MENU
+              { id: 'aprovacoes', label: 'Aprovações' }, 
               { id: 'grupos', label: 'Grupos' },
               { id: 'sorteios', label: 'Sorteios / Entrega' },
               { id: 'financeiro', label: 'Financeiro / Extrato' },
@@ -510,7 +511,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           <div className="space-y-6 animate-fadeIn">
             <div className="flex justify-between items-center">
               <button onClick={() => setGrupoSelecionado(null)} className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] transition-all bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs"> Voltar para a Listagem</button>
-              <button onClick={(e) => handleExcluirGrupo(grupoSelecionado.id, e)} className="text-xs font-bold text-rose-700 hover:text-white hover:bg-rose-700 transition-all bg-rose-50 border border-rose-200 px-4 py-2 rounded-xl cursor-pointer shadow-xs">Excluir Grupo</button>
+              <button 
+                 onClick={(e) => {
+                    e.stopPropagation();
+                    setModalExclusao({ aberto: true, tipo: 'grupo', idTarget: grupoSelecionado.id, titulo: 'Excluir Grupo de Compras', mensagem: 'A exclusão deste grupo removerá todas as cotas e faturamentos vinculados a ele permanentemente. Deseja prosseguir?' });
+                 }} 
+                 className="text-xs font-bold text-rose-700 hover:text-white hover:bg-rose-700 transition-all bg-rose-50 border border-rose-200 px-4 py-2 rounded-xl cursor-pointer shadow-xs"
+              >
+                Excluir Grupo
+              </button>
             </div>
 
             <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
@@ -541,8 +550,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 
                 {idOperacao !== 'Nenhuma' && (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs bg-[#BD6B42] text-white px-3 py-1.5 rounded-lg font-mono font-bold">Cota Alvo: #{idOperacao}</span>
-                    <button onClick={() => setModalPagamentoManualAberto(true)} className="bg-[#0B1E14] text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer shadow-xs">+ Baixa Manual</button>
+                    <span className="text-xs bg-[#BD6B42] text-white px-3 py-1.5 rounded-lg font-mono font-bold">
+                      Cota Alvo: #{idOperacao}
+                    </span>
+                    <button 
+                      onClick={() => setModalPagamentoManualAberto(true)}
+                      className="bg-[#0B1E14] text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer shadow-xs"
+                    >
+                      + Baixa Manual
+                    </button>
                   </div>
                 )}
               </div>
@@ -577,12 +593,25 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                               <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${
                                 part.statusEntrega === 'AGUARDANDO_SORTEIO' ? 'bg-stone-50 text-stone-500 border-stone-200' :
                                 part.statusEntrega === 'CONTEMPLADO_NO_PRAZO' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                part.statusEntrega === 'PRODUTO_SELECIONADO' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                part.statusEntrega === 'CREDITO_REJEITADO' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                part.statusEntrega === 'PREPARANDO_ENVIO' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
                                 part.statusEntrega === 'ENVIADO_OU_RETIRADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                                 'bg-stone-50 text-stone-500 border-stone-200'
                               }`}>{part.statusEntrega ? part.statusEntrega.replace(/_/g, ' ') : 'AGUARDANDO SORTEIO'}</span>
                             </td>
+                            
                             <td className="py-3.5 px-5 text-center">
-                              <button onClick={(e) => handleRemoverParticipanteDoGrupo(part.id, e)} className="px-2.5 py-1 bg-rose-50 border border-rose-200 text-rose-700 font-bold rounded-lg text-[10px] uppercase hover:bg-rose-700 hover:text-white transition-all cursor-pointer shadow-xs">Remover</button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                   e.stopPropagation();
+                                   setModalExclusao({ aberto: true, tipo: 'participante', idTarget: part.id, titulo: 'Remover Participante', mensagem: `Atenção: Ao remover o cliente ${part.nome}, a cota será disponibilizada para venda novamente e o saldo injetado não será estornado pelo sistema automaticamente.` });
+                                }}
+                                className="px-2.5 py-1 bg-rose-50 border border-rose-200 text-rose-700 font-bold rounded-lg text-[10px] uppercase hover:bg-rose-700 hover:text-white transition-all cursor-pointer shadow-xs"
+                              >
+                                Remover
+                              </button>
                             </td>
                           </tr>
                         );
@@ -619,7 +648,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
             )}
 
-            {/* 🟢 NOVA TELA DE APROVAÇÕES DO MENU */}
             {abaLoja === 'aprovacoes' && (
               <div className="space-y-6 animate-fadeIn text-left">
                   <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
@@ -677,7 +705,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <div className="flex justify-between items-center text-xs border-t pt-3">
                         <span className="text-stone-400 font-medium">Parcela: <strong className="text-[#0B1E14]">R$ {grupo.valorParcela.toFixed(2)}</strong></span>
                         <div className="flex items-center gap-3">
-                          <button type="button" onClick={(e) => handleExcluirGrupo(grupo.id, e)} className="text-[10px] text-rose-600 hover:text-rose-800 font-bold uppercase tracking-wider hover:underline z-10">Excluir</button>
+                          <button type="button" onClick={(e) => {
+                             e.stopPropagation();
+                             setModalExclusao({ aberto: true, tipo: 'grupo', idTarget: grupo.id, titulo: 'Excluir Grupo de Compras', mensagem: 'A exclusão deste grupo removerá todas as cotas e faturamentos vinculados a ele permanentemente. Deseja prosseguir?' });
+                          }} className="text-[10px] text-rose-600 hover:text-rose-800 font-bold uppercase tracking-wider hover:underline z-10">Excluir</button>
                           <span className="text-[10px] text-[#BD6B42] font-bold uppercase tracking-wider">Ver Participantes</span>
                         </div>
                       </div>
@@ -741,7 +772,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   </div>
                 </div>
 
-                {/* 🟢 TABELA DE HISTÓRICO FINANCEIRO */}
                 <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden mt-6">
                   <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex justify-between items-center">
                     <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Histórico de Transações (Livro Razão)</h3>
@@ -833,7 +863,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         )}
       </main>
 
-      {/* 🟢 WIDGET FLUTUANTE (Agora ele leva direto para a Aba "Aprovações") */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
           <button
              onClick={() => {
@@ -852,7 +881,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           </button>
       </div>
 
-      {/* MODAL: CADASTRO DE NOVA CLIENTE PELA FUNCIONÁRIA */}
       {modalNovoClienteAberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
@@ -867,48 +895,22 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             <form onSubmit={handleCadastrarCliente} className="space-y-3.5 text-xs text-[#0B1E14]">
               <div>
                 <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Nome Completo da Cliente</label>
-                <input 
-                  type="text" 
-                  value={nomeCliente}
-                  onChange={(e) => setNomeCliente(e.target.value)}
-                  className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
-                  required 
-                />
+                <input type="text" value={nomeCliente} onChange={(e) => setNomeCliente(e.target.value)} className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]" required />
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">E-mail de Notificação / Login</label>
-                <input 
-                  type="email" 
-                  value={emailCliente}
-                  onChange={(e) => setEmailCliente(e.target.value)}
-                  className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
-                  required 
-                />
+                <input type="email" value={emailCliente} onChange={(e) => setEmailCliente(e.target.value)} className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]" required />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">CPF da Titular</label>
-                  <input 
-                    type="text" 
-                    value={cpfCliente}
-                    onChange={(e) => setCpfCliente(aplicarMascaraCpf(e.target.value))}
-                    placeholder="000.000.000-00"
-                    className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
-                    required 
-                  />
+                  <input type="text" value={cpfCliente} onChange={(e) => setCpfCliente(aplicarMascaraCpf(e.target.value))} placeholder="000.000.000-00" className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]" required />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Telefone / WhatsApp</label>
-                  <input 
-                    type="text" 
-                    value={telefoneCliente}
-                    onChange={(e) => setTelefoneCliente(aplicarMascaraTelefone(e.target.value))}
-                    placeholder="(00) 00000-0000"
-                    className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
-                    required 
-                  />
+                  <input type="text" value={telefoneCliente} onChange={(e) => setTelefoneCliente(aplicarMascaraTelefone(e.target.value))} placeholder="(00) 00000-0000" className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]" required />
                 </div>
               </div>
 
@@ -918,11 +920,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
               <div className="flex space-x-2 pt-2 border-t w-full">
                 <button type="button" onClick={() => setModalNovoClienteAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer">Cancelar</button>
-                <button 
-                  type="submit"
-                  disabled={processandoCliente}
-                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold disabled:opacity-50"
-                >
+                <button type="submit" disabled={processandoCliente} className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold disabled:opacity-50">
                   {processandoCliente ? 'Cadastrando...' : 'Confirmar Cadastro'}
                 </button>
               </div>
@@ -941,56 +939,25 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             <form onSubmit={handleCriarGrupo} className="space-y-3.5 text-xs text-[#0B1E14]">
               <div>
                 <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Nome Comercial do Grupo</label>
-                <input 
-                  type="text" 
-                  value={nomeGrupo}
-                  onChange={(e) => setNomeGrupo(e.target.value)}
-                  className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
-                  required 
-                />
+                <input type="text" value={nomeGrupo} onChange={(e) => setNomeGrupo(e.target.value)} className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]" required />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Valor da Parcela Mensal (R$)</label>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  placeholder="0.00" 
-                  value={valorParcela}
-                  onChange={(e) => setValorParcela(e.target.value)}
-                  className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
-                  required 
-                />
+                <input type="number" step="0.01" placeholder="0.00" value={valorParcela} onChange={(e) => setValorParcela(e.target.value)} className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]" required />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Duração total (Meses)</label>
-                  <input 
-                    type="number" 
-                    value={duracaoMeses}
-                    onChange={(e) => setDuracaoMeses(e.target.value)}
-                    className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
-                    required 
-                  />
+                  <input type="number" value={duracaoMeses} onChange={(e) => setDuracaoMeses(e.target.value)} className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]" required />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Quantidade Máxima de Cotas</label>
-                  <input 
-                    type="number" 
-                    value={maxCotas}
-                    onChange={(e) => setMaxCotas(e.target.value)}
-                    className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
-                    required 
-                  />
+                  <input type="number" value={maxCotas} onChange={(e) => setMaxCotas(e.target.value)} className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]" required />
                 </div>
               </div>
               <div className="flex space-x-2 pt-2 border-t w-full">
                 <button type="button" onClick={() => setModalNovoGrupoAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer">Cancelar</button>
-                <button 
-                  type="submit"
-                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold"
-                >
-                  Registrar Grupo
-                </button>
+                <button type="submit" className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold">Registrar Grupo</button>
               </div>
             </form>
           </div>
@@ -1014,38 +981,16 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </p>
 
               <div>
-                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">
-                  Quantidade de Parcelas a Quitar
-                </label>
-                <input 
-                  type="number" 
-                  min="1"
-                  max={grupoSelecionado?.duracaoMeses || 48}
-                  value={qtdParcelasManual}
-                  onChange={(e) => setQtdParcelasManual(e.target.value)}
-                  className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-bold focus:outline-none focus:border-[#BD6B42]"
-                  required 
-                />
+                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Quantidade de Parcelas a Quitar</label>
+                <input type="number" min="1" max={grupoSelecionado?.duracaoMeses || 48} value={qtdParcelasManual} onChange={(e) => setQtdParcelasManual(e.target.value)} className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-bold focus:outline-none focus:border-[#BD6B42]" required />
                 {grupoSelecionado && (
-                  <p className="text-[10px] text-emerald-700 font-mono font-bold mt-1.5">
-                    Valor Total a Injetar: R$ {(Number(qtdParcelasManual) * Number(grupoSelecionado.valorParcela)).toFixed(2)}
-                  </p>
+                  <p className="text-[10px] text-emerald-700 font-mono font-bold mt-1.5">Valor Total a Injetar: R$ {(Number(qtdParcelasManual) * Number(grupoSelecionado.valorParcela)).toFixed(2)}</p>
                 )}
               </div>
 
               <div className="flex space-x-2 pt-2 border-t w-full">
-                <button 
-                  type="button" 
-                  onClick={() => setModalPagamentoManualAberto(false)} 
-                  className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  disabled={processandoPagamentoManual}
-                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
-                >
+                <button type="button" onClick={() => setModalPagamentoManualAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer">Cancelar</button>
+                <button type="submit" disabled={processandoPagamentoManual} className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50">
                   {processandoPagamentoManual ? 'Gravando...' : 'Confirmar Baixa'}
                 </button>
               </div>
@@ -1054,8 +999,38 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         </div>
       )}
 
+      {/* 🟢 NOVO MODAL PREMIUM DE EXCLUSÃO */}
+      {modalExclusao.aberto && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80] animate-fadeIn">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl border border-rose-100">
+                <div className="flex justify-center mb-4">
+                    <div className="w-14 h-14 bg-rose-50 border border-rose-100 rounded-full flex items-center justify-center text-rose-600 text-2xl font-serif font-bold">
+                        !
+                    </div>
+                </div>
+                <h3 className="text-center font-bold text-[#0B1E14] text-lg mb-2">{modalExclusao.titulo}</h3>
+                <p className="text-center text-stone-500 text-xs leading-relaxed mb-6 px-2">{modalExclusao.mensagem}</p>
+                
+                <div className="flex gap-3">
+                    <button 
+                        onClick={() => setModalExclusao({ ...modalExclusao, aberto: false })} 
+                        className="flex-1 py-3 bg-stone-50 border border-stone-200 text-stone-600 font-bold rounded-xl text-xs hover:bg-stone-100 transition-colors cursor-pointer"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        onClick={confirmarExclusao} 
+                        className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-xl text-xs hover:bg-rose-700 shadow-md transition-colors cursor-pointer"
+                    >
+                        Sim, Excluir
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
       {notificacao.aberto && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-[70] text-left animate-fadeIn">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-[90] text-left animate-fadeIn">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl border-t-4" style={{ borderTopColor: notificacao.isError ? '#be123c' : '#047857' }}>
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className={`text-xs font-serif font-bold uppercase tracking-wider ${notificacao.isError ? 'text-rose-700' : 'text-emerald-800'}`}>{notificacao.titulo}</h3>
