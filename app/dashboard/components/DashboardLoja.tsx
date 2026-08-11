@@ -17,7 +17,8 @@ interface Grupo {
 export default function DashboardLoja({ usuario }: { usuario: any }) {
   const router = useRouter();
   
-  const [abaLoja, setAbaLoja] = useState<'geral' | 'grupos' | 'sorteios' | 'financeiro' | 'relatorios' | 'configuracoes'>('geral');
+  // 🟢 NOVO: Adicionado 'aprovacoes' no menu
+  const [abaLoja, setAbaLoja] = useState<'geral' | 'aprovacoes' | 'grupos' | 'sorteios' | 'financeiro' | 'relatorios' | 'configuracoes'>('geral');
   const [obrigacoesFuturas, setObrigacoesFuturas] = useState<number>(0);
   const [idOperacao, setIdOperacao] = useState('Nenhuma');
   const [grupoSorteioId, setGrupoSorteioId] = useState('');
@@ -29,7 +30,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [listaGrupos, setListaGrupos] = useState<Grupo[]>([]);
   const [modalNovoGrupoAberto, setModalNovoGrupoAberto] = useState(false);
 
-  // Estados para Cadastro de Nova Cliente pelas Funcionárias
+  // Estados para Cadastro de Nova Cliente
   const [modalNovoClienteAberto, setModalNovoClienteAberto] = useState(false);
   const [nomeCliente, setNomeCliente] = useState('');
   const [emailCliente, setEmailCliente] = useState('');
@@ -37,7 +38,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [telefoneCliente, setTelefoneCliente] = useState('');
   const [processandoCliente, setProcessandoCliente] = useState(false);
 
-  // Estados para Baixa Manual de Parcelas
+  // Estados para Baixa Manual
   const [modalPagamentoManualAberto, setModalPagamentoManualAberto] = useState(false);
   const [qtdParcelasManual, setQtdParcelasManual] = useState('1');
   const [processandoPagamentoManual, setProcessandoPagamentoManual] = useState(false);
@@ -47,7 +48,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   const [totalClientes, setTotalClientes] = useState<number>(0);
 
-  // 🟢 NOVOS ESTADOS: Histórico Financeiro e Churn Rate
+  // 🟢 ESTADOS: Histórico Financeiro e Churn Rate
   const [historicoTransacoes, setHistoricoTransacoes] = useState<any[]>([]);
   const [taxaChurn, setTaxaChurn] = useState<number>(0);
 
@@ -58,9 +59,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     isError?: boolean;
   }>({ aberto: false, titulo: '', mensagem: '', isError: false });
 
-  // ESTADOS DA CAIXA DE MENSAGENS (SOLICITAÇÕES DE ACESSO)
+  // 🟢 ESTADOS: Solicitações de Acesso (Inbox)
   const [solicitacoesAcesso, setSolicitacoesAcesso] = useState<any[]>([]);
-  const [caixaMensagemAberta, setCaixaMensagemAberta] = useState(false);
   const [processandoAcessoId, setProcessandoAcessoId] = useState<number | null>(null);
 
   const mostrarAviso = (titulo: string, mensagem: string, isError: boolean = false) => {
@@ -101,15 +101,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     fetch(`${API_URL}/api/grupos/loja/${usuario?.lojaId || 1}`)
       .then((res) => res.ok ? res.json() : [])
       .then((data) => {
-        if (Array.isArray(data)) {
-          setListaGrupos(data);
-        } else {
-          setListaGrupos([]);
-        }
+        if (Array.isArray(data)) setListaGrupos(data);
+        else setListaGrupos([]);
       })
-      .catch(() => {
-        setListaGrupos([]);
-      });
+      .catch(() => setListaGrupos([]));
   };
 
   const carregarDadosFinanceiros = () => {
@@ -122,18 +117,16 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
     fetch(`${API_URL}/api/financeiro/loja/${lojaId}/resumo`)
       .then(res => res.ok ? res.json() : { recebidoEsteMes: 0, aReceberContemplados: 0, emNegociacao: 0, acordosAtivos: 0, repasses: [] })
-      .then(data => {
-        setDadosFinanceiros(data);
-      })
+      .then(data => setDadosFinanceiros(data))
       .catch(() => {});
 
-    // 🟢 BUSCA O HISTÓRICO DE TRANSAÇÕES
+    // 🟢 Busca Histórico Financeiro
     fetch(`${API_URL}/api/financeiro/lojas/${lojaId}/transacoes`)
       .then(res => res.ok ? res.json() : [])
       .then(data => setHistoricoTransacoes(Array.isArray(data) ? data : []))
       .catch(() => setHistoricoTransacoes([]));
 
-    // 🟢 BUSCA O CHURN DA LOJA
+    // 🟢 Busca Taxa de Churn
     fetch(`${API_URL}/api/lojas/${lojaId}/metricas-churn`)
       .then(res => res.ok ? res.json() : { taxaChurn: 0 })
       .then(data => setTaxaChurn(Number(data.taxaChurn) || 0))
@@ -143,12 +136,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const carregarContagemClientes = (lojaId: number) => {
     fetch(`${API_URL}/api/usuarios/lojas/${lojaId}/clientes/contagem`)
       .then((res) => res.ok ? res.json() : { totalClientes: 0 })
-      .then((data) => {
-        setTotalClientes(Number(data.totalClientes) || 0);
-      })
-      .catch(() => {
-        setTotalClientes(0);
-      });
+      .then((data) => setTotalClientes(Number(data.totalClientes) || 0))
+      .catch(() => setTotalClientes(0));
   };
 
   const carregarSolicitacoesAcesso = () => {
@@ -178,17 +167,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     carregarContagemClientes(lojaId);
     carregarSolicitacoesAcesso(); 
 
-    // Faz o sistema buscar se tem mensagem nova a cada 15 segundos
     const intervaloNotificacoes = setInterval(carregarSolicitacoesAcesso, 15000);
     return () => clearInterval(intervaloNotificacoes);
   }, [usuario?.lojaId]);
 
   useEffect(() => {
-    if (grupoSelecionado) {
-      recarregarParticipantesDoGrupo();
-    }
+    if (grupoSelecionado) recarregarParticipantesDoGrupo();
   }, [grupoSelecionado]);
 
+  // 🟢 APROVA OU REJEITA CLIENTES
   const handleAnalisarAcesso = async (acessoId: number, aprovado: boolean) => {
      setProcessandoAcessoId(acessoId);
      try {
@@ -196,11 +183,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         if(res.ok) {
            mostrarAviso(
               aprovado ? 'Acesso Liberado' : 'Acesso Rejeitado',
-              aprovado ? 'O cliente foi aprovado e agora tem acesso ao catálogo e planos da loja.' : 'A solicitação do cliente foi bloqueada.',
+              aprovado ? 'O cliente foi aprovado e agora tem acesso ao catálogo e planos da sua loja.' : 'A solicitação do cliente foi bloqueada com sucesso.',
               !aprovado
            );
            carregarSolicitacoesAcesso(); 
            carregarContagemClientes(usuario?.lojaId || 1); 
+           carregarDadosFinanceiros(); // Atualiza o Churn
         } else {
            mostrarAviso('Erro de Sistema', 'Falha ao processar análise. Tente novamente.', true);
         }
@@ -213,27 +201,16 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   const handleRemoverParticipanteDoGrupo = async (cotaId: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-
-    if (!confirm('Tem certeza que deseja remover este participante do grupo? A cota e o histórico de participação dele neste clube serão cancelados.')) {
-      return;
-    }
+    if (!confirm('Tem certeza que deseja remover este participante do grupo? A cota e o histórico de participação dele neste clube serão cancelados.')) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/cotas/${cotaId}`, {
-        method: 'DELETE',
-      });
-
+      const res = await fetch(`${API_URL}/api/cotas/${cotaId}`, { method: 'DELETE' });
       if (!res.ok) {
         const textoErro = await res.text();
         throw new Error(textoErro || 'Falha ao remover participante.');
       }
-
       mostrarAviso('Participante Removido', 'O cliente foi desligado deste grupo de compras com sucesso.', false);
-      
-      if (idOperacao === cotaId.toString()) {
-        setIdOperacao('Nenhuma');
-      }
-
+      if (idOperacao === cotaId.toString()) setIdOperacao('Nenhuma');
       recarregarParticipantesDoGrupo();
       carregarContagemClientes(usuario?.lojaId || 1);
     } catch (err: any) {
@@ -246,10 +223,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     setProcessandoCliente(true);
     try {
       const payload = {
-        nome: nomeCliente,
-        email: emailCliente,
-        cpf: cpfCliente.replace(/\D/g, ''),
-        telefone: telefoneCliente.replace(/\D/g, ''),
+        nome: nomeCliente, email: emailCliente,
+        cpf: cpfCliente.replace(/\D/g, ''), telefone: telefoneCliente.replace(/\D/g, ''),
         lojaId: usuario?.lojaId || 1
       };
 
@@ -271,10 +246,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         false
       );
 
-      setNomeCliente('');
-      setEmailCliente('');
-      setCpfCliente('');
-      setTelefoneCliente('');
+      setNomeCliente(''); setEmailCliente(''); setCpfCliente(''); setTelefoneCliente('');
       setModalNovoClienteAberto(false);
       carregarContagemClientes(usuario?.lojaId || 1);
     } catch (err: any) {
@@ -288,10 +260,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     e.preventDefault();
     try {
       const payload = { 
-        nome: nomeGrupo, 
-        valorParcela: parseFloat(valorParcela), 
-        duracaoMeses: parseInt(duracaoMeses), 
-        quantidadeMaxCotas: parseInt(maxCotas), 
+        nome: nomeGrupo, valorParcela: parseFloat(valorParcela), 
+        duracaoMeses: parseInt(duracaoMeses), quantidadeMaxCotas: parseInt(maxCotas), 
         lojaId: usuario?.lojaId || 1 
       };
       
@@ -307,8 +277,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       }
       
       mostrarAviso('Sucesso Comercial', 'Clube de Compras lançado com sucesso!', false);
-      setNomeGrupo(''); 
-      setValorParcela(''); 
+      setNomeGrupo(''); setValorParcela(''); 
       setModalNovoGrupoAberto(false);
       carregarGruposDoBanco();
     } catch (err: any) { 
@@ -318,25 +287,16 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   const handleExcluirGrupo = async (grupoId: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-
-    if (!confirm('Tem certeza que deseja excluir este grupo de compras? Esta ação não pode ser desfeita.')) {
-      return;
-    }
+    if (!confirm('Tem certeza que deseja excluir este grupo de compras? Esta ação não pode ser desfeita.')) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/grupos/${grupoId}`, {
-        method: 'DELETE',
-      });
-
+      const res = await fetch(`${API_URL}/api/grupos/${grupoId}`, { method: 'DELETE' });
       if (!res.ok) {
         const textoErro = await res.text();
         throw new Error(textoErro || 'Falha ao excluir grupo.');
       }
-
       mostrarAviso('Grupo Removido', 'O grupo foi excluído com sucesso do sistema.', false);
-      if (grupoSelecionado?.id === grupoId) {
-        setGrupoSelecionado(null);
-      }
+      if (grupoSelecionado?.id === grupoId) setGrupoSelecionado(null);
       carregarGruposDoBanco();
     } catch (err: any) {
       mostrarAviso('Erro ao Excluir', err.message, true);
@@ -355,9 +315,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       const res = await fetch(`${API_URL}/api/entregas/${idOperacao}/pagamento-manual`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quantidadeParcelas: parseInt(qtdParcelasManual)
-        })
+        body: JSON.stringify({ quantidadeParcelas: parseInt(qtdParcelasManual) })
       });
 
       if (!res.ok) {
@@ -370,7 +328,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       setModalPagamentoManualAberto(false);
       setQtdParcelasManual('1');
       recarregarParticipantesDoGrupo();
-      carregarDadosFinanceiros(); // Atualiza o histórico ao dar baixa
+      carregarDadosFinanceiros(); 
     } catch (err: any) {
       mostrarAviso('Erro de Lançamento', err.message, true);
     } finally {
@@ -389,15 +347,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       }
       
       const data = await res.json();
-      if (data.cotaPremiadaId) {
-        setIdOperacao(data.cotaPremiadaId.toString());
-      }
+      if (data.cotaPremiadaId) setIdOperacao(data.cotaPremiadaId.toString());
       
-      mostrarAviso(
-        'Sorteio Homologado', 
-        `Contemplado: ${data.vencedorNome}\nContrato da Cota Alvo: #${data.cotaPremiadaId}\n\nAs notificações foram disparadas e o painel de liberação foi atualizado para esta cota.`, 
-        false
-      );
+      mostrarAviso('Sorteio Homologado', `Contemplado: ${data.vencedorNome}\nContrato da Cota Alvo: #${data.cotaPremiadaId}\n\nAs notificações foram disparadas e o painel de liberação foi atualizado.`, false);
       setGrupoSorteioId('');
       if (grupoSelecionado) recarregarParticipantesDoGrupo();
     } catch (err: any) { 
@@ -453,11 +405,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         method: 'POST',
         body: formData,
       });
-
-      if (!res.ok) {
-        throw new Error('Não foi possível salvar o documento de regras.');
-      }
-
+      if (!res.ok) throw new Error('Não foi possível salvar o documento de regras.');
       mostrarAviso('Regulamento Salvo', 'Regulamento contratual em PDF registrado com sucesso para esta loja!', false);
       setArquivoPdf(null);
     } catch (err: any) {
@@ -469,12 +417,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   const recebidoEsteMes = Number(dadosFinanceiros?.recebidoEsteMes) || 0;
   const aReceberContemplados = Number(dadosFinanceiros?.aReceberContemplados) || 0;
-
   const totalParticipantesValidos = Array.isArray(participantesDoGrupo) ? participantesDoGrupo.length : 0;
   const totalGruposValidos = Array.isArray(listaGrupos) ? listaGrupos.length : 0;
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5] relative">
+      
       <aside className="w-full md:w-64 bg-[#0B1E14] text-[#E3EAE6] flex flex-col justify-between p-6 flex-shrink-0">
         <div>
           <div className="mb-8 border-b border-white/10 pb-6">
@@ -487,6 +435,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           <nav className="space-y-1">
             {[
               { id: 'geral', label: 'Visão geral' },
+              { id: 'aprovacoes', label: 'Aprovações' }, // 🟢 NOVO MENU
               { id: 'grupos', label: 'Grupos' },
               { id: 'sorteios', label: 'Sorteios / Entrega' },
               { id: 'financeiro', label: 'Financeiro / Extrato' },
@@ -495,11 +444,16 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <button
                 key={tab.id}
                 onClick={() => { setGrupoSelecionado(null); setAbaLoja(tab.id as any); }}
-                className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer flex justify-between items-center ${
                   abaLoja === tab.id && !grupoSelecionado ? 'bg-white/10 text-white font-bold' : 'hover:bg-white/5 opacity-75'
                 }`}
               >
                 <span>{tab.label}</span>
+                {tab.id === 'aprovacoes' && solicitacoesAcesso.length > 0 && (
+                   <span className="bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md animate-pulse">
+                     +{solicitacoesAcesso.length} Novo
+                   </span>
+                )}
               </button>
             ))}
           </nav>
@@ -524,12 +478,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-[#DFD9CE] pb-5">
           <div>
             <h2 className="text-xl font-bold tracking-tight text-[#0B1E14] capitalize">
-              {grupoSelecionado ? `Ficha Detalhada: ${grupoSelecionado.nome}` : (abaLoja === 'geral' ? 'Visão geral comercial' : abaLoja === 'configuracoes' ? 'Configurações da Loja' : abaLoja)}
+              {grupoSelecionado 
+                 ? `Ficha Detalhada: ${grupoSelecionado.nome}` 
+                 : (abaLoja === 'geral' ? 'Visão geral comercial' 
+                    : abaLoja === 'configuracoes' ? 'Configurações da Loja' 
+                    : abaLoja === 'aprovacoes' ? 'Central de Aprovações de Crédito'
+                    : abaLoja)}
             </h2>
             <p className="text-xs text-stone-400 font-medium">Gestão de cotas, faturamento da unidade e controle de entregas.</p>
           </div>
           
-          {!grupoSelecionado && (abaLoja === 'geral' || abaLoja === 'grupos') && (
+          {!grupoSelecionado && (abaLoja === 'geral' || abaLoja === 'grupos' || abaLoja === 'aprovacoes') && (
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setModalNovoClienteAberto(true)} 
@@ -551,13 +510,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           <div className="space-y-6 animate-fadeIn">
             <div className="flex justify-between items-center">
               <button onClick={() => setGrupoSelecionado(null)} className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] transition-all bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs"> Voltar para a Listagem</button>
-              
-              <button 
-                onClick={(e) => handleExcluirGrupo(grupoSelecionado.id, e)}
-                className="text-xs font-bold text-rose-700 hover:text-white hover:bg-rose-700 transition-all bg-rose-50 border border-rose-200 px-4 py-2 rounded-xl cursor-pointer shadow-xs"
-              >
-                Excluir Grupo
-              </button>
+              <button onClick={(e) => handleExcluirGrupo(grupoSelecionado.id, e)} className="text-xs font-bold text-rose-700 hover:text-white hover:bg-rose-700 transition-all bg-rose-50 border border-rose-200 px-4 py-2 rounded-xl cursor-pointer shadow-xs">Excluir Grupo</button>
             </div>
 
             <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
@@ -588,15 +541,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 
                 {idOperacao !== 'Nenhuma' && (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs bg-[#BD6B42] text-white px-3 py-1.5 rounded-lg font-mono font-bold">
-                      Cota Alvo: #{idOperacao}
-                    </span>
-                    <button 
-                      onClick={() => setModalPagamentoManualAberto(true)}
-                      className="bg-[#0B1E14] text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer shadow-xs"
-                    >
-                      + Baixa Manual
-                    </button>
+                    <span className="text-xs bg-[#BD6B42] text-white px-3 py-1.5 rounded-lg font-mono font-bold">Cota Alvo: #{idOperacao}</span>
+                    <button onClick={() => setModalPagamentoManualAberto(true)} className="bg-[#0B1E14] text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer shadow-xs">+ Baixa Manual</button>
                   </div>
                 )}
               </div>
@@ -607,8 +553,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <th className="py-3.5 px-5 text-center">Nº DA COTA</th>
                       <th className="py-3.5 px-5">PARTICIPANTE</th>
                       <th className="py-3.5 px-5 text-right">SALDO QUITADO</th>
-                      <th className="py-3.5 px-5 text-right">VALOR COBERTO (RISCO LOJA)</th>
-                      <th className="py-3.5 px-5 text-center">STATUS DE ENTREGA / OPERAÇÃO</th>
+                      <th className="py-3.5 px-5 text-right">VALOR COBERTO (RISCO)</th>
+                      <th className="py-3.5 px-5 text-center">STATUS DE ENTREGA</th>
                       <th className="py-3.5 px-5 text-center">AÇÕES</th>
                     </tr>
                   </thead>
@@ -631,22 +577,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                               <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${
                                 part.statusEntrega === 'AGUARDANDO_SORTEIO' ? 'bg-stone-50 text-stone-500 border-stone-200' :
                                 part.statusEntrega === 'CONTEMPLADO_NO_PRAZO' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                part.statusEntrega === 'PRODUTO_SELECIONADO' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                part.statusEntrega === 'CREDITO_REJEITADO' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                                part.statusEntrega === 'PREPARANDO_ENVIO' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
                                 part.statusEntrega === 'ENVIADO_OU_RETIRADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                                 'bg-stone-50 text-stone-500 border-stone-200'
                               }`}>{part.statusEntrega ? part.statusEntrega.replace(/_/g, ' ') : 'AGUARDANDO SORTEIO'}</span>
                             </td>
-                            
                             <td className="py-3.5 px-5 text-center">
-                              <button
-                                type="button"
-                                onClick={(e) => handleRemoverParticipanteDoGrupo(part.id, e)}
-                                className="px-2.5 py-1 bg-rose-50 border border-rose-200 text-rose-700 font-bold rounded-lg text-[10px] uppercase hover:bg-rose-700 hover:text-white transition-all cursor-pointer shadow-xs"
-                              >
-                                Remover
-                              </button>
+                              <button onClick={(e) => handleRemoverParticipanteDoGrupo(part.id, e)} className="px-2.5 py-1 bg-rose-50 border border-rose-200 text-rose-700 font-bold rounded-lg text-[10px] uppercase hover:bg-rose-700 hover:text-white transition-all cursor-pointer shadow-xs">Remover</button>
                             </td>
                           </tr>
                         );
@@ -683,35 +619,65 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
             )}
 
+            {/* 🟢 NOVA TELA DE APROVAÇÕES DO MENU */}
+            {abaLoja === 'aprovacoes' && (
+              <div className="space-y-6 animate-fadeIn text-left">
+                  <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
+                      <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                          <div>
+                              <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Fila de Análise de Crédito</h3>
+                              <p className="text-[10px] text-stone-400 font-medium">Clientes que solicitaram acesso para visualizar e participar dos seus planos.</p>
+                          </div>
+                      </div>
+                      <div className="p-6">
+                         {solicitacoesAcesso.length === 0 ? (
+                            <div className="text-center text-stone-400 text-xs italic py-12 bg-stone-50 rounded-xl border border-dashed">
+                               Nenhuma solicitação pendente no momento.
+                            </div>
+                         ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                               {solicitacoesAcesso.map(sol => (
+                                  <div key={sol.id} className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm text-left hover:shadow-md transition-shadow">
+                                     <div className="flex justify-between items-start mb-3">
+                                        <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Pendente SPC/Serasa</span>
+                                        <span className="text-[9px] text-stone-400">{new Date(sol.dataSolicitacao).toLocaleDateString('pt-BR')}</span>
+                                     </div>
+                                     <h4 className="text-sm font-bold text-[#0B1E14] truncate">{sol.clienteNome}</h4>
+                                     <p className="text-xs text-stone-500 font-mono mt-1 bg-stone-50 p-2 rounded-lg border border-stone-100">CPF: {sol.clienteCpf ? aplicarMascaraCpf(sol.clienteCpf) : 'Não informado'}</p>
+
+                                     <div className="mt-5 flex gap-3 pt-4 border-t border-stone-100">
+                                        <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, false)} className="flex-1 bg-white text-rose-600 border border-rose-200 text-[10px] font-bold py-2.5 rounded-lg hover:bg-rose-50 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer">
+                                           Rejeitar
+                                        </button>
+                                        <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, true)} className="flex-1 bg-[#0B1E14] text-white text-[10px] font-bold py-2.5 rounded-lg hover:bg-opacity-90 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer shadow-sm">
+                                           Aprovar Acesso
+                                        </button>
+                                     </div>
+                                  </div>
+                               ))}
+                            </div>
+                         )}
+                      </div>
+                  </div>
+              </div>
+            )}
+
             {abaLoja === 'grupos' && (
               <div className="space-y-4 animate-fadeIn text-left">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {listaGrupos.map((grupo) => (
-                    <div 
-                      key={grupo.id} 
-                      onClick={() => setGrupoSelecionado(grupo)}
-                      className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs hover:border-[#BD6B42] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group relative"
-                    >
+                    <div key={grupo.id} onClick={() => setGrupoSelecionado(grupo)} className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs hover:border-[#BD6B42] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group relative">
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="font-serif font-bold text-base text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">{grupo.nome}</h3>
                           <p className="text-[10px] font-mono text-stone-400 mt-0.5">Duração: {grupo.duracaoMeses} Meses</p>
                         </div>
-                        <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-stone-50 border text-stone-500">
-                          ID #{grupo.id}
-                        </span>
+                        <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-stone-50 border text-stone-500">ID #{grupo.id}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs border-t pt-3">
                         <span className="text-stone-400 font-medium">Parcela: <strong className="text-[#0B1E14]">R$ {grupo.valorParcela.toFixed(2)}</strong></span>
-                        
                         <div className="flex items-center gap-3">
-                          <button 
-                            type="button"
-                            onClick={(e) => handleExcluirGrupo(grupo.id, e)}
-                            className="text-[10px] text-rose-600 hover:text-rose-800 font-bold uppercase tracking-wider hover:underline z-10"
-                          >
-                            Excluir
-                          </button>
+                          <button type="button" onClick={(e) => handleExcluirGrupo(grupo.id, e)} className="text-[10px] text-rose-600 hover:text-rose-800 font-bold uppercase tracking-wider hover:underline z-10">Excluir</button>
                           <span className="text-[10px] text-[#BD6B42] font-bold uppercase tracking-wider">Ver Participantes</span>
                         </div>
                       </div>
@@ -821,7 +787,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     </table>
                   </div>
                 </div>
-                
               </div>
             )}
 
@@ -868,52 +833,13 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         )}
       </main>
 
-      {/* 🟢 WIDGET DE CAIXA DE ENTRADA FLUTUANTE (ESTILO WHATSAPP) */}
+      {/* 🟢 WIDGET FLUTUANTE (Agora ele leva direto para a Aba "Aprovações") */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
-          {caixaMensagemAberta && (
-             <div className="mb-4 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col animate-fadeIn transition-all transform origin-bottom-right">
-                <div className="bg-[#0B1E14] text-white p-4 flex justify-between items-center">
-                   <div className="flex items-center gap-2">
-                      <span className="text-lg">📥</span>
-                      <h3 className="text-xs font-bold uppercase tracking-wider">Solicitações de Acesso</h3>
-                   </div>
-                   <button onClick={() => setCaixaMensagemAberta(false)} className="text-stone-400 hover:text-white font-bold px-2 cursor-pointer">X</button>
-                </div>
-
-                <div className="p-4 max-h-[400px] overflow-y-auto bg-stone-50/50">
-                   {solicitacoesAcesso.length === 0 ? (
-                      <div className="text-center text-stone-400 text-xs italic py-8">
-                         Nenhuma solicitação pendente no momento.
-                      </div>
-                   ) : (
-                      <div className="space-y-3">
-                         {solicitacoesAcesso.map(sol => (
-                            <div key={sol.id} className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm text-left">
-                               <div className="flex justify-between items-start mb-2">
-                                  <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Análise de Crédito</span>
-                                  <span className="text-[9px] text-stone-400">{new Date(sol.dataSolicitacao).toLocaleDateString('pt-BR')}</span>
-                               </div>
-                               <p className="text-sm font-bold text-[#0B1E14] truncate">{sol.clienteNome}</p>
-                               <p className="text-xs text-stone-500 font-mono mt-0.5">CPF: {sol.clienteCpf ? aplicarMascaraCpf(sol.clienteCpf) : 'Não informado'}</p>
-
-                               <div className="mt-4 flex gap-2 pt-3 border-t border-stone-100">
-                                  <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, true)} className="flex-1 bg-[#0B1E14] text-white text-[10px] font-bold py-2 rounded-lg hover:bg-opacity-90 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer">
-                                     Aprovar
-                                  </button>
-                                  <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, false)} className="flex-1 bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold py-2 rounded-lg hover:bg-rose-100 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer">
-                                     Rejeitar
-                                  </button>
-                               </div>
-                            </div>
-                         ))}
-                      </div>
-                   )}
-                </div>
-             </div>
-          )}
-
           <button
-             onClick={() => setCaixaMensagemAberta(!caixaMensagemAberta)}
+             onClick={() => {
+                setGrupoSelecionado(null);
+                setAbaLoja('aprovacoes');
+             }}
              className="w-16 h-16 bg-[#0B1E14] rounded-full shadow-2xl flex items-center justify-center border-[3px] border-[#BD6B42] hover:scale-105 transition-transform relative cursor-pointer group"
           >
              <span className="text-white font-serif font-bold text-xl group-hover:text-[#BD6B42] transition-colors">AV</span>
