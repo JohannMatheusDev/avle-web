@@ -1183,6 +1183,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         </div>
       )}
 
+      {/* NOTIFICAÇÕES (MENSAGENS DE AVISO) */}
       {notificacao.aberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-[90] text-left animate-fadeIn">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl border-t-4" style={{ borderTopColor: notificacao.isError ? '#be123c' : '#047857' }}>
