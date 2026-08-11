@@ -546,9 +546,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </button>
 
                 <div className="bg-[#0B1E14] rounded-2xl p-6 shadow-md text-white flex flex-col md:flex-row items-start md:items-center gap-4">
-                   <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center font-serif font-bold text-emerald-400 text-xl shrink-0">
-                      🔓
-                   </div>
                    <div>
                       <h2 className="text-xl font-bold tracking-wide">{obterNomeLoja(lojaEmFoco)}</h2>
                       <p className="text-xs text-stone-300 mt-0.5">Grupos de compras disponíveis nesta unidade. Clique em um card para acessar seu painel ou registrar participação.</p>
