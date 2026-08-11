@@ -47,6 +47,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   const [totalClientes, setTotalClientes] = useState<number>(0);
 
+  // 🟢 NOVOS ESTADOS: Histórico Financeiro e Churn Rate
+  const [historicoTransacoes, setHistoricoTransacoes] = useState<any[]>([]);
+  const [taxaChurn, setTaxaChurn] = useState<number>(0);
+
   const [notificacao, setNotificacao] = useState<{
     aberto: boolean;
     titulo: string;
@@ -54,7 +58,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     isError?: boolean;
   }>({ aberto: false, titulo: '', mensagem: '', isError: false });
 
-  // 🟢 ESTADOS DA CAIXA DE MENSAGENS (SOLICITAÇÕES DE ACESSO)
+  // ESTADOS DA CAIXA DE MENSAGENS (SOLICITAÇÕES DE ACESSO)
   const [solicitacoesAcesso, setSolicitacoesAcesso] = useState<any[]>([]);
   const [caixaMensagemAberta, setCaixaMensagemAberta] = useState(false);
   const [processandoAcessoId, setProcessandoAcessoId] = useState<number | null>(null);
@@ -74,13 +78,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     emNegociacao: 0.00, 
     acordosAtivos: 0, 
     repasses: []
-  });
-
-  const [dadosRelatorios, setDadosRelatorios] = useState<any>({
-    marginEsteMes: 0.00, 
-    marginAcumulada: 0.00, 
-    cohort: [], 
-    auditoria: []
   });
 
   const aplicarMascaraTelefone = (valor: string) => {
@@ -116,17 +113,31 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   };
 
   const carregarDadosFinanceiros = () => {
-    fetch(`${API_URL}/api/financeiro/obrigacoes/loja/${usuario?.lojaId || 1}`)
+    const lojaId = usuario?.lojaId || 1;
+
+    fetch(`${API_URL}/api/financeiro/obrigacoes/loja/${lojaId}`)
       .then(res => res.ok ? res.json() : 0)
       .then(valor => setObrigacoesFuturas(Number(valor) || 0))
       .catch(() => setObrigacoesFuturas(0.00));
 
-    fetch(`${API_URL}/api/financeiro/loja/${usuario?.lojaId || 1}/resumo`)
+    fetch(`${API_URL}/api/financeiro/loja/${lojaId}/resumo`)
       .then(res => res.ok ? res.json() : { recebidoEsteMes: 0, aReceberContemplados: 0, emNegociacao: 0, acordosAtivos: 0, repasses: [] })
       .then(data => {
         setDadosFinanceiros(data);
       })
       .catch(() => {});
+
+    // 🟢 BUSCA O HISTÓRICO DE TRANSAÇÕES
+    fetch(`${API_URL}/api/financeiro/lojas/${lojaId}/transacoes`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setHistoricoTransacoes(Array.isArray(data) ? data : []))
+      .catch(() => setHistoricoTransacoes([]));
+
+    // 🟢 BUSCA O CHURN DA LOJA
+    fetch(`${API_URL}/api/lojas/${lojaId}/metricas-churn`)
+      .then(res => res.ok ? res.json() : { taxaChurn: 0 })
+      .then(data => setTaxaChurn(Number(data.taxaChurn) || 0))
+      .catch(() => setTaxaChurn(0));
   };
 
   const carregarContagemClientes = (lojaId: number) => {
@@ -140,7 +151,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       });
   };
 
-  // 🟢 BUSCA AS SOLICITAÇÕES PENDENTES DA LOJA
   const carregarSolicitacoesAcesso = () => {
     const lojaId = usuario?.lojaId || 1;
     fetch(`${API_URL}/api/lojas/${lojaId}/solicitacoes-acesso`)
@@ -166,12 +176,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     carregarGruposDoBanco();
     carregarDadosFinanceiros();
     carregarContagemClientes(lojaId);
-    carregarSolicitacoesAcesso(); // Primeira carga do Inbox
-
-    fetch(`${API_URL}/api/financeiro/loja/${lojaId}/relatorios`)
-      .then(res => res.ok ? res.json() : { marginEsteMes: 0, marginAcumulada: 0, cohort: [], auditoria: [] })
-      .then(data => setDadosRelatorios(data))
-      .catch(() => {});
+    carregarSolicitacoesAcesso(); 
 
     // Faz o sistema buscar se tem mensagem nova a cada 15 segundos
     const intervaloNotificacoes = setInterval(carregarSolicitacoesAcesso, 15000);
@@ -184,7 +189,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   }, [grupoSelecionado]);
 
-  // 🟢 ENVIA A APROVAÇÃO OU REJEIÇÃO DO CRÉDITO PARA O SERVIDOR
   const handleAnalisarAcesso = async (acessoId: number, aprovado: boolean) => {
      setProcessandoAcessoId(acessoId);
      try {
@@ -195,8 +199,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               aprovado ? 'O cliente foi aprovado e agora tem acesso ao catálogo e planos da loja.' : 'A solicitação do cliente foi bloqueada.',
               !aprovado
            );
-           carregarSolicitacoesAcesso(); // Tira ele da fila na hora
-           carregarContagemClientes(usuario?.lojaId || 1); // Atualiza os números gerais
+           carregarSolicitacoesAcesso(); 
+           carregarContagemClientes(usuario?.lojaId || 1); 
         } else {
            mostrarAviso('Erro de Sistema', 'Falha ao processar análise. Tente novamente.', true);
         }
@@ -366,6 +370,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       setModalPagamentoManualAberto(false);
       setQtdParcelasManual('1');
       recarregarParticipantesDoGrupo();
+      carregarDadosFinanceiros(); // Atualiza o histórico ao dar baixa
     } catch (err: any) {
       mostrarAviso('Erro de Lançamento', err.message, true);
     } finally {
@@ -484,8 +489,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               { id: 'geral', label: 'Visão geral' },
               { id: 'grupos', label: 'Grupos' },
               { id: 'sorteios', label: 'Sorteios / Entrega' },
-              { id: 'financeiro', label: 'Financeiro' },
-              { id: 'relatorios', label: 'Relatorios' }
+              { id: 'financeiro', label: 'Financeiro / Extrato' },
+              { id: 'relatorios', label: 'Relatórios' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -658,9 +663,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <div className="space-y-6 animate-fadeIn">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-xs relative overflow-hidden">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Faturamento (90%)</span>
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Faturamento Atual</span>
                     <span className="text-2xl font-bold tracking-tight block mt-2 font-mono">R$ {recebidoEsteMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                    <div className="absolute right-3 top-3 w-2 h-2 rounded-full bg-stone-500"></div>
+                    <div className="absolute right-3 top-3 w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                   </div>
                   <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs flex flex-col justify-center">
                     <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Clientes Cadastrados</span>
@@ -671,8 +676,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <span className="text-2xl font-bold tracking-tight text-[#0B1E14] font-mono mt-1">{totalGruposValidos}</span>
                   </div>
                   <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs flex flex-col justify-center">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Taxa Inadimplência</span>
-                    <span className="text-2xl font-bold text-stone-400 font-mono mt-1">0,0%</span>
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Taxa de Cancelamento (Churn)</span>
+                    <span className="text-2xl font-bold tracking-tight text-rose-600 font-mono mt-1">{taxaChurn.toFixed(1)}%</span>
                   </div>
                 </div>
               </div>
@@ -770,12 +775,53 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   </div>
                 </div>
 
-                <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl shadow-xs space-y-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Fluxo de Caixa Integrado Asaas</h4>
-                  <p className="text-xs text-stone-500 leading-relaxed">
-                    Sua conta bancária cadastrada no formulário de homologação recebe automaticamente os repasses das mensalidades pagas via Pix. Nenhuma solicitação de saque manual é necessária.
-                  </p>
+                {/* 🟢 TABELA DE HISTÓRICO FINANCEIRO */}
+                <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden mt-6">
+                  <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex justify-between items-center">
+                    <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Histórico de Transações (Livro Razão)</h3>
+                    <span className="text-[9px] bg-[#0B1E14] text-white px-2 py-1 rounded font-mono">Atualizado em tempo real</span>
+                  </div>
+                  <div className="overflow-x-auto max-h-[400px]">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="sticky top-0 bg-stone-50 z-10 shadow-sm">
+                        <tr className="text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
+                          <th className="py-3 px-5">DATA</th>
+                          <th className="py-3 px-5">CLIENTE / REFERÊNCIA</th>
+                          <th className="py-3 px-5">TIPO</th>
+                          <th className="py-3 px-5 text-right">VALOR BRUTO</th>
+                          <th className="py-3 px-5 text-right">TAXA (10%)</th>
+                          <th className="py-3 px-5 text-right">LÍQUIDO (LOJA)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
+                         {historicoTransacoes.length === 0 ? (
+                            <tr><td colSpan={6} className="py-6 text-center text-stone-400 italic">Nenhuma transação registrada no sistema ainda.</td></tr>
+                         ) : (
+                            historicoTransacoes.map((t, idx) => (
+                              <tr key={idx} className="hover:bg-stone-50/60 transition-all">
+                                <td className="py-3 px-5 text-stone-500 font-mono">{new Date(t.dataTransacao).toLocaleDateString('pt-BR')}</td>
+                                <td className="py-3 px-5">
+                                  <span className="block font-bold text-[#0B1E14]">{t.nomeCliente || 'Transação Sistema'}</span>
+                                  <span className="text-[10px] text-stone-400">Cota #{t.cotaId}</span>
+                                </td>
+                                <td className="py-3 px-5">
+                                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${t.tipo === 'ENTRADA' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                                     {t.tipo}
+                                   </span>
+                                </td>
+                                <td className="py-3 px-5 text-right font-mono text-[#0B1E14]">R$ {Number(t.valorBruto).toFixed(2)}</td>
+                                <td className="py-3 px-5 text-right font-mono text-rose-600">- R$ {Number(t.taxaPlataforma).toFixed(2)}</td>
+                                <td className={`py-3 px-5 text-right font-mono font-bold ${t.tipo === 'ENTRADA' ? 'text-emerald-700' : 'text-[#0B1E14]'}`}>
+                                   {t.tipo === 'ENTRADA' ? '+' : ''} R$ {Number(t.valorLiquido).toFixed(2)}
+                                </td>
+                              </tr>
+                            ))
+                         )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
+                
               </div>
             )}
 
