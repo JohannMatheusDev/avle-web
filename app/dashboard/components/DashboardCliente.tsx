@@ -491,23 +491,23 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         let corBorda = 'border-[#DFD9CE] hover:border-[#BD6B42]/50 hover:shadow-md bg-white';
                         let labelStatus = 'Solicitar Acesso';
                         let labelColor = 'text-stone-400';
-                        let icone = '🔒';
+                        
 
                         if (statusAcesso === 'APROVADO') {
                             corBorda = 'border-emerald-600 bg-emerald-50/20 shadow-sm';
                             labelStatus = quantidadeCotantes > 0 ? `${quantidadeCotantes} ${quantidadeCotantes === 1 ? 'Clube Ativo' : 'Clubes Ativos'}` : 'Entrar na Loja';
                             labelColor = 'text-emerald-700 font-bold';
-                            icone = '🔓';
+                            
                         } else if (statusAcesso === 'PENDENTE') {
                             corBorda = 'border-amber-400 bg-amber-50/50 shadow-sm';
                             labelStatus = 'Em Análise';
                             labelColor = 'text-amber-700';
-                            icone = '⏳';
+                            
                         } else if (statusAcesso === 'REJEITADO') {
                             corBorda = 'border-rose-300 bg-rose-50/20 shadow-sm opacity-80';
                             labelStatus = 'Bloqueado';
                             labelColor = 'text-rose-600';
-                            icone = '🚫';
+                            
                         }
 
                         return (
@@ -519,9 +519,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                               <div className="relative">
                                 <div className="w-16 h-16 rounded-full flex items-center justify-center font-serif font-bold text-2xl bg-[#F5F2EB] text-[#0B1E14] border border-stone-200">
                                   {obterNomeLoja(loja).substring(0, 2).toUpperCase()}
-                                </div>
-                                <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-sm text-sm" title={labelStatus}>
-                                  {icone}
                                 </div>
                               </div>
                               <div className="w-full">
