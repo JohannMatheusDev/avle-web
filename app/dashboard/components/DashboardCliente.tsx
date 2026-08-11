@@ -143,7 +143,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       const data = await res.json();
       if (Array.isArray(data)) setAcessosLoja(data);
     } catch (err) {
-      console.error(err);
     }
   };
 
@@ -178,7 +177,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             setCpfInput(documento ? aplicarMascaraCpfCnpj(documento) : '');
           }
         })
-        .catch((err) => console.error(err))
+        .catch(() => {})
         .finally(() => setCarregandoDados(false));
     }
 
@@ -393,8 +392,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       });
 
       if (!res.ok) {
-        const textoErro = await res.text();
-        throw new Error(textoErro || 'Erro ao alterar a senha.');
+        throw new Error();
       }
 
       setStatusSalvarSenha({ tipo: 'sucesso', mensagem: 'Sua senha foi alterada com sucesso!' });
@@ -402,7 +400,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       setNovaSenhaInput('');
       setConfirmarNovaSenhaInput('');
     } catch (err: any) {
-      setStatusSalvarSenha({ tipo: 'erro', mensagem: err.message || 'Falha ao alterar senha.' });
+      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'Falha ao alterar senha.' });
     } finally {
       setSalvandoSenha(false);
     }
@@ -472,44 +470,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             {nivelVisao === 'lojas' && (
               <div className="space-y-6 text-left">
                 <div>
-                  <h2 className="text-base font-bold uppercase tracking-wide text-[#0B1E14]">Meus Clubes & Acesso a Lojas</h2>
-                  <p className="text-xs text-stone-500">Selecione uma loja abaixo para solicitar analise de credito ou entrar em seus clubes estruturados.</p>
+                  <h2 className="text-base font-bold uppercase tracking-wide text-[#0B1E14]">Rede de Lojas Parceiras</h2>
+                  <p className="text-xs text-stone-500">Selecione uma loja parceira abaixo para acessar seus clubes de compras ou solicitar autorizacao de credito.</p>
                 </div>
-
-                {clubesAtivos.length > 0 && (
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-stone-200/50 pb-6 mb-6">
-                    {clubesAtivos.map((clube) => {
-                      const objTotal = Number(clube.grupo.valorParcela) * Number(clube.grupo.duracaoMeses);
-                      const perc = objTotal > 0 ? Math.min(Math.round((clube.saldoPoupanca / objTotal) * 100), 100) : 0;
-                      return (
-                        <div
-                          key={clube.cotaId}
-                          onClick={() => handleMudarClubeEmExibicao(clube)}
-                          className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs hover:border-[#BD6B42] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="font-serif font-bold text-base text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">{clube.grupo.nome}</h3>
-                              <p className="text-[10px] font-mono text-stone-400 mt-0.5">Loja: <strong className="text-stone-600 font-bold">{obterNomeLoja(clube.loja)}</strong></p>
-                            </div>
-                            <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-stone-50 border text-stone-500">
-                              Cota #0{clube.cotaId}
-                            </span>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-[10px] font-bold text-stone-400">
-                              <span>Progresso</span>
-                              <span>{perc}%</span>
-                            </div>
-                            <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
-                              <div className="bg-[#BD6B42] h-full transition-all" style={{ width: `${perc}%` }}></div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
 
                 {lojas.length === 0 && !erroConexao ? (
                   <div className="bg-white border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
@@ -521,14 +484,17 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         const acesso = acessosLoja.find(a => a.lojaId === loja.id);
                         const statusAcesso = acesso ? acesso.status : 'NAO_SOLICITADO';
 
+                        const cotasNestaLoja = clubesAtivos.filter(c => c.grupo?.loja?.id === loja.id || c.loja?.id === loja.id);
+                        const quantidadeCotantes = cotasNestaLoja.length;
+
                         let corBorda = 'border-[#DFD9CE] hover:border-[#BD6B42]/50 hover:shadow-md bg-white';
                         let labelStatus = 'Solicitar Acesso';
                         let labelColor = 'text-stone-400';
 
                         if (statusAcesso === 'APROVADO') {
                             corBorda = 'border-emerald-600 bg-emerald-50/20 shadow-sm';
-                            labelStatus = 'Entrar na Loja';
-                            labelColor = 'text-emerald-700';
+                            labelStatus = quantidadeCotantes > 0 ? `${quantidadeCotantes} ${quantidadeCotantes === 1 ? 'Clube Ativo' : 'Clubes Ativos'}` : 'Entrar na Loja';
+                            labelColor = 'text-emerald-700 font-bold';
                         } else if (statusAcesso === 'PENDENTE') {
                             corBorda = 'border-amber-400 bg-amber-50/50 shadow-sm';
                             labelStatus = 'Em Analise';
@@ -568,17 +534,15 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               <div className="space-y-6 text-left animate-fadeIn">
                 <button
                   onClick={() => setNivelVisao('lojas')}
-                  className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors"
+                  className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
                 >
                   Voltar para Lojas
                 </button>
 
                 <div className="bg-[#0B1E14] rounded-2xl p-6 shadow-md text-white flex flex-col md:flex-row items-start md:items-center gap-4">
-                   <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center font-serif font-bold text-emerald-400 text-xl shrink-0">
-                   </div>
                    <div>
                       <h2 className="text-xl font-bold tracking-wide">{obterNomeLoja(lojaEmFoco)}</h2>
-                      <p className="text-xs text-stone-300 mt-0.5">Seu credito foi aprovado! Voce tem acesso VIP aos grupos de compras desta unidade.</p>
+                      <p className="text-xs text-stone-300 mt-0.5">Grupos de compras disponiveis nesta unidade. Clique em um card para acessar seu painel ou registrar participacao.</p>
                    </div>
                 </div>
 
@@ -640,10 +604,10 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             {nivelVisao === 'dashboard' && clubeAtualSelecionado && (
               <div className="space-y-6 animate-fadeIn text-left">
                 <button
-                  onClick={() => setNivelVisao('lojas')}
+                  onClick={() => setNivelVisao('grupos')}
                   className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
                 >
-                  Voltar ao Inicio
+                  Voltar para Grupos da Loja
                 </button>
 
                 <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -653,17 +617,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: <strong className="text-stone-700 font-bold">{obterNomeLoja(lojaSelecionada)}</strong> | Cota Contratual: <strong className="font-mono">#0{clubeAtualSelecionado?.cotaId}</strong></p>
                   </div>
                 </div>
-
-                {grupoSelecionado && etapaAtual !== 4 && exibirBannerAlerta && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-xs">
-                    <p className="text-xs text-amber-900 leading-relaxed font-medium">
-                      Aviso: Sua proxima parcela vence em <strong>{dataVencimentoCota}</strong> (restam {diasRestantesVencimento} dias). Mantenha sua cota ativa para validar a aptidao para os sorteios.
-                    </p>
-                    <button onClick={() => setModalCheckoutAberto(true)} className="px-4 py-2 bg-amber-950 text-white text-[11px] font-bold rounded-lg uppercase tracking-wide whitespace-nowrap cursor-pointer hover:bg-amber-900">
-                      Regularizar Cota Via Pix
-                    </button>
-                  </div>
-                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-xs">
