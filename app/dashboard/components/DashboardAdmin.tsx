@@ -93,7 +93,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
       if (!res.ok) throw new Error();
 
       await carregarDadosDoBanco();
-      alert(`Status da loja alterado para ${novoStatus} com sucesso!`);
+      alert(`Status da loja alterado com sucesso!`);
     } catch (err) {
       alert('Falha ao atualizar o status da loja. Verifique o servidor.');
     } finally {
@@ -113,7 +113,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
       if (!res.ok) throw new Error();
 
       await carregarDadosDoBanco();
-      alert(`Limite de grupos atualizado para ${limite}!`);
+      alert(`Limite de grupos atualizado com sucesso!`);
     } catch (err) {
       alert('Falha ao atualizar o limite. Verifique o servidor.');
     } finally {
@@ -413,19 +413,20 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                         <tr className="bg-stone-50 text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                           <th className="py-3.5 px-5">LOJA</th>
                           <th className="py-3.5 px-5">CNPJ</th>
+                          <th className="py-3.5 px-5 text-center">LIMITE ATUAL</th>
                           <th className="py-3.5 px-5 text-center">STATUS</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#DFD9CE] text-stone-700">
                         {carregando ? (
                           <tr>
-                            <td colSpan={3} className="py-6 text-center text-stone-400 italic font-medium">
+                            <td colSpan={4} className="py-6 text-center text-stone-400 italic font-medium">
                               Carregando lojas cadastradas...
                             </td>
                           </tr>
                         ) : listaLojas.length === 0 ? (
                           <tr>
-                            <td colSpan={3} className="py-6 text-center text-stone-400 italic font-medium">
+                            <td colSpan={4} className="py-6 text-center text-stone-400 italic font-medium">
                               Nenhuma loja cadastrada no sistema.
                             </td>
                           </tr>
@@ -440,6 +441,9 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                                 {loja.nomeComercial}
                               </td>
                               <td className="py-3.5 px-5 font-mono text-stone-600">{loja.cnpj}</td>
+                              <td className="py-3.5 px-5 text-center font-mono font-bold text-[#0B1E14]">
+                                {loja.limiteGruposAtivos || 1}
+                              </td>
                               <td className="py-3.5 px-5 text-center">
                                 <span
                                   className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${
@@ -494,7 +498,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                             <h4 className="font-serif font-bold text-lg text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">
                               {loja.nomeComercial}
                             </h4>
-                            <p className="text-[11px] font-mono text-stone-400 mt-0.5">CNPJ Fiscal: {loja.cnpj}</p>
+                            <p className="text-[11px] font-mono text-stone-400 mt-0.5">CNPJ Fiscal: {loja.cnpj} | Limite Permitido: {loja.limiteGruposAtivos || 1}</p>
                           </div>
                           <span
                             className={`text-[9px] font-bold px-2.5 py-1 rounded-md uppercase border tracking-wider ${
