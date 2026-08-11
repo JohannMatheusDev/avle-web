@@ -54,6 +54,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     isError?: boolean;
   }>({ aberto: false, titulo: '', mensagem: '', isError: false });
 
+  // 🟢 ESTADOS DA CAIXA DE MENSAGENS (SOLICITAÇÕES DE ACESSO)
+  const [solicitacoesAcesso, setSolicitacoesAcesso] = useState<any[]>([]);
+  const [caixaMensagemAberta, setCaixaMensagemAberta] = useState(false);
+  const [processandoAcessoId, setProcessandoAcessoId] = useState<number | null>(null);
+
   const mostrarAviso = (titulo: string, mensagem: string, isError: boolean = false) => {
     setNotificacao({ aberto: true, titulo, mensagem, isError });
   };
@@ -135,6 +140,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       });
   };
 
+  // 🟢 BUSCA AS SOLICITAÇÕES PENDENTES DA LOJA
+  const carregarSolicitacoesAcesso = () => {
+    const lojaId = usuario?.lojaId || 1;
+    fetch(`${API_URL}/api/lojas/${lojaId}/solicitacoes-acesso`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+         if(Array.isArray(data)) setSolicitacoesAcesso(data);
+      })
+      .catch(() => {});
+  };
+
   const recarregarParticipantesDoGrupo = () => {
     if (!grupoSelecionado) return;
     fetch(`${API_URL}/api/usuarios/comunidade/${grupoSelecionado.id}/participantes`)
@@ -150,11 +166,16 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     carregarGruposDoBanco();
     carregarDadosFinanceiros();
     carregarContagemClientes(lojaId);
+    carregarSolicitacoesAcesso(); // Primeira carga do Inbox
 
     fetch(`${API_URL}/api/financeiro/loja/${lojaId}/relatorios`)
       .then(res => res.ok ? res.json() : { marginEsteMes: 0, marginAcumulada: 0, cohort: [], auditoria: [] })
       .then(data => setDadosRelatorios(data))
       .catch(() => {});
+
+    // Faz o sistema buscar se tem mensagem nova a cada 15 segundos
+    const intervaloNotificacoes = setInterval(carregarSolicitacoesAcesso, 15000);
+    return () => clearInterval(intervaloNotificacoes);
   }, [usuario?.lojaId]);
 
   useEffect(() => {
@@ -163,7 +184,29 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   }, [grupoSelecionado]);
 
-  // Função para remover participante do grupo
+  // 🟢 ENVIA A APROVAÇÃO OU REJEIÇÃO DO CRÉDITO PARA O SERVIDOR
+  const handleAnalisarAcesso = async (acessoId: number, aprovado: boolean) => {
+     setProcessandoAcessoId(acessoId);
+     try {
+        const res = await fetch(`${API_URL}/api/lojas/acessos/${acessoId}/analise?aprovado=${aprovado}`, { method: 'PUT' });
+        if(res.ok) {
+           mostrarAviso(
+              aprovado ? 'Acesso Liberado' : 'Acesso Rejeitado',
+              aprovado ? 'O cliente foi aprovado e agora tem acesso ao catálogo e planos da loja.' : 'A solicitação do cliente foi bloqueada.',
+              !aprovado
+           );
+           carregarSolicitacoesAcesso(); // Tira ele da fila na hora
+           carregarContagemClientes(usuario?.lojaId || 1); // Atualiza os números gerais
+        } else {
+           mostrarAviso('Erro de Sistema', 'Falha ao processar análise. Tente novamente.', true);
+        }
+     } catch(e) {
+        mostrarAviso('Sem Conexão', 'Não foi possível conectar ao servidor.', true);
+     } finally {
+        setProcessandoAcessoId(null);
+     }
+  };
+
   const handleRemoverParticipanteDoGrupo = async (cotaId: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
 
@@ -426,7 +469,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const totalGruposValidos = Array.isArray(listaGrupos) ? listaGrupos.length : 0;
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5]">
+    <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5] relative">
       <aside className="w-full md:w-64 bg-[#0B1E14] text-[#E3EAE6] flex flex-col justify-between p-6 flex-shrink-0">
         <div>
           <div className="mb-8 border-b border-white/10 pb-6">
@@ -779,6 +822,64 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         )}
       </main>
 
+      {/* 🟢 WIDGET DE CAIXA DE ENTRADA FLUTUANTE (ESTILO WHATSAPP) */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+          {caixaMensagemAberta && (
+             <div className="mb-4 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col animate-fadeIn transition-all transform origin-bottom-right">
+                <div className="bg-[#0B1E14] text-white p-4 flex justify-between items-center">
+                   <div className="flex items-center gap-2">
+                      <span className="text-lg">📥</span>
+                      <h3 className="text-xs font-bold uppercase tracking-wider">Solicitações de Acesso</h3>
+                   </div>
+                   <button onClick={() => setCaixaMensagemAberta(false)} className="text-stone-400 hover:text-white font-bold px-2 cursor-pointer">X</button>
+                </div>
+
+                <div className="p-4 max-h-[400px] overflow-y-auto bg-stone-50/50">
+                   {solicitacoesAcesso.length === 0 ? (
+                      <div className="text-center text-stone-400 text-xs italic py-8">
+                         Nenhuma solicitação pendente no momento.
+                      </div>
+                   ) : (
+                      <div className="space-y-3">
+                         {solicitacoesAcesso.map(sol => (
+                            <div key={sol.id} className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm text-left">
+                               <div className="flex justify-between items-start mb-2">
+                                  <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Análise de Crédito</span>
+                                  <span className="text-[9px] text-stone-400">{new Date(sol.dataSolicitacao).toLocaleDateString('pt-BR')}</span>
+                               </div>
+                               <p className="text-sm font-bold text-[#0B1E14] truncate">{sol.clienteNome}</p>
+                               <p className="text-xs text-stone-500 font-mono mt-0.5">CPF: {sol.clienteCpf ? aplicarMascaraCpf(sol.clienteCpf) : 'Não informado'}</p>
+
+                               <div className="mt-4 flex gap-2 pt-3 border-t border-stone-100">
+                                  <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, true)} className="flex-1 bg-[#0B1E14] text-white text-[10px] font-bold py-2 rounded-lg hover:bg-opacity-90 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer">
+                                     Aprovar
+                                  </button>
+                                  <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, false)} className="flex-1 bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold py-2 rounded-lg hover:bg-rose-100 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer">
+                                     Rejeitar
+                                  </button>
+                               </div>
+                            </div>
+                         ))}
+                      </div>
+                   )}
+                </div>
+             </div>
+          )}
+
+          <button
+             onClick={() => setCaixaMensagemAberta(!caixaMensagemAberta)}
+             className="w-16 h-16 bg-[#0B1E14] rounded-full shadow-2xl flex items-center justify-center border-[3px] border-[#BD6B42] hover:scale-105 transition-transform relative cursor-pointer group"
+          >
+             <span className="text-white font-serif font-bold text-xl group-hover:text-[#BD6B42] transition-colors">AV</span>
+             
+             {solicitacoesAcesso.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[11px] font-bold w-6 h-6 flex items-center justify-center rounded-full shadow-md animate-pulse">
+                   {solicitacoesAcesso.length}
+                </span>
+             )}
+          </button>
+      </div>
+
       {/* MODAL: CADASTRO DE NOVA CLIENTE PELA FUNCIONÁRIA */}
       {modalNovoClienteAberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
@@ -982,7 +1083,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       )}
 
       {notificacao.aberto && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-[70] text-left animate-fadeIn">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl border-t-4" style={{ borderTopColor: notificacao.isError ? '#be123c' : '#047857' }}>
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className={`text-xs font-serif font-bold uppercase tracking-wider ${notificacao.isError ? 'text-rose-700' : 'text-emerald-800'}`}>{notificacao.titulo}</h3>
