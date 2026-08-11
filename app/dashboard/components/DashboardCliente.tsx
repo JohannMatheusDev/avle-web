@@ -130,6 +130,27 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       const res = await fetch(`${API_URL}/api/usuarios/${userId}/clubes-ativos`);
       const data = await res.json();
       if (Array.isArray(data)) {
+        const chaveArmazenamento = `@avle:cotas_${userId}`;
+        const cotasSalvasStr = localStorage.getItem(chaveArmazenamento);
+        const idsAtuais = data.map((c: any) => c.cotaId);
+
+        if (cotasSalvasStr) {
+          const cotasSalvas = JSON.parse(cotasSalvasStr);
+          const removidos = cotasSalvas.filter((id: number) => !idsAtuais.includes(id));
+          
+          if (removidos.length > 0) {
+             mostrarAviso('Participacao Cancelada', 'A administracao da loja encerrou a sua participacao em um dos grupos de compras. O seu historico vinculado a esta cota foi fechado.', true);
+             
+             if (clubeAtualSelecionado && removidos.includes(clubeAtualSelecionado.cotaId)) {
+                 setNivelVisao('lojas');
+                 setClubeAtualSelecionado(null);
+                 setGrupoSelecionado(null);
+                 setLojaSelecionada(null);
+             }
+          }
+        }
+        
+        localStorage.setItem(chaveArmazenamento, JSON.stringify(idsAtuais));
         setClubesAtivos(data);
       }
     } catch {
@@ -433,7 +454,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
           <nav className="space-y-1">
             {[
-              { id: 'inicio', label: 'Home / Lojas & Clubes' },
+              { id: 'inicio', label: 'Home / Lojas e Clubes' },
               { id: 'extrato', label: 'Historico Geral' },
               { id: 'regras', label: 'Regulamento' },
               { id: 'ajuda', label: 'Suporte' }
@@ -540,6 +561,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </button>
 
                 <div className="bg-[#0B1E14] rounded-2xl p-6 shadow-md text-white flex flex-col md:flex-row items-start md:items-center gap-4">
+                   <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center font-serif font-bold text-emerald-400 text-xl shrink-0">
+                      OK
+                   </div>
                    <div>
                       <h2 className="text-xl font-bold tracking-wide">{obterNomeLoja(lojaEmFoco)}</h2>
                       <p className="text-xs text-stone-300 mt-0.5">Grupos de compras disponiveis nesta unidade. Clique em um card para acessar seu painel ou registrar participacao.</p>
@@ -677,7 +701,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
                 <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
                   <div className="px-5 py-4 border-b bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Regua de Vencimentos & Aportes Efetuados</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Regua de Vencimentos e Aportes Efetuados</h3>
                     {etapaAtual !== 4 && (
                       <button
                         onClick={() => setModalCheckoutAberto(true)}
@@ -919,7 +943,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
             <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-5 shadow-xs">
               <div>
-                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Segurança da Conta & Alteração de Senha</h3>
+                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Segurança da Conta e Alteracao de Senha</h3>
                 <p className="text-xs text-stone-400 mt-0.5">
                   Se voce utilizou uma senha temporaria/padrao fornecida pelo estabelecimento no seu primeiro cadastro, atualize-a abaixo por uma senha pessoal.
                 </p>
@@ -1079,6 +1103,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     </div>
 
                     <div className="flex items-start gap-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                        <span className="text-blue-500 mt-0.5 text-xs font-bold">INFO</span>
                         <p className="text-[10px] text-stone-600 leading-relaxed">
                             Antes de confirmar a sua participacao, e obrigatoria a leitura do{' '}
                             <button onClick={() => window.open(`${API_URL}/api/lojas/${lojaEmFoco?.id}/regras`, '_blank')} className="text-blue-600 font-bold underline cursor-pointer">Regulamento Operacional da Loja</button>. Ao entrar no grupo, voce concorda legalmente com todos os termos estabelecidos pelo estabelecimento.
@@ -1192,7 +1217,7 @@ function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number
         return res.json();
       })
       .then((data) => setDadosPix(data))
-      .catch((err) => console.error(err))
+      .catch(() => {})
       .finally(() => setCarregandoPix(false));
   }, [valor, cotaId]);
 
