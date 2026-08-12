@@ -192,6 +192,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     if (grupoSelecionado) recarregarParticipantesDoGrupo();
   }, [grupoSelecionado]);
 
+  const handleCopiarLinkConvite = () => {
+    const lojaId = usuario?.lojaId || usuario?.loja?.id || 1;
+    const link = `${window.location.origin}/convite/${lojaId}`;
+    
+    navigator.clipboard.writeText(link).then(() => {
+      mostrarAviso('Link Copiado', 'O link exclusivo da sua loja foi copiado. Envie para seus clientes no WhatsApp para que eles se cadastrem diretamente na sua unidade!', false);
+    }).catch(() => {
+      mostrarAviso('Erro', 'Nao foi possivel copiar o link automaticamente. Copie manualmente: ' + link, true);
+    });
+  };
+
   const handleAnalisarAcesso = async (acessoId: number, aprovado: boolean) => {
      setProcessandoAcessoId(acessoId);
      try {
@@ -575,7 +586,13 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           </div>
           
           {!grupoSelecionado && (abaLoja === 'geral' || abaLoja === 'grupos' || abaLoja === 'aprovacoes' || abaLoja === 'clientes') && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button 
+                onClick={handleCopiarLinkConvite} 
+                className="bg-white border border-stone-200 text-[#0B1E14] px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm hover:bg-stone-50 transition-all cursor-pointer"
+              >
+                Copiar Link da Loja
+              </button>
               <button 
                 onClick={() => setModalNovoClienteAberto(true)} 
                 className="bg-[#0B1E14] text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm hover:bg-opacity-90 transition-all cursor-pointer"
@@ -1230,7 +1247,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           </div>
         </div>
       )}
-
       {modalPagamentoManualAberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
@@ -1316,7 +1332,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             </div>
         </div>
       )}
-
       {modalBloqueioAberto && clienteParaBloquear && (
          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80] animate-fadeIn">
             <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl border border-rose-100">
