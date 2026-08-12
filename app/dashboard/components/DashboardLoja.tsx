@@ -39,7 +39,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [qtdParcelasManual, setQtdParcelasManual] = useState('1');
   const [processandoPagamentoManual, setProcessandoPagamentoManual] = useState(false);
 
-  // 🟢 NOVO ESTADO: Modal de Confirmação de Exclusão (Substitui o window.confirm)
   const [modalExclusao, setModalExclusao] = useState<{
     aberto: boolean;
     tipo: 'grupo' | 'participante';
@@ -182,58 +181,87 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         if(res.ok) {
            mostrarAviso(
               aprovado ? 'Acesso Liberado' : 'Acesso Rejeitado',
-              aprovado ? 'O cliente foi aprovado e agora tem acesso ao catálogo e planos da sua loja.' : 'A solicitação do cliente foi bloqueada com sucesso.',
+              aprovado ? 'O cliente foi aprovado e agora tem acesso ao catalogo e planos da sua loja.' : 'A solicitacao do cliente foi bloqueada com sucesso.',
               !aprovado
            );
            carregarSolicitacoesAcesso(); 
            carregarContagemClientes(usuario?.lojaId || 1); 
            carregarDadosFinanceiros(); 
         } else {
-           mostrarAviso('Erro de Sistema', 'Falha ao processar análise. Tente novamente.', true);
+           mostrarAviso('Erro de Sistema', 'Falha ao processar analise. Tente novamente.', true);
         }
      } catch(e) {
-        mostrarAviso('Sem Conexão', 'Não foi possível conectar ao servidor.', true);
+        mostrarAviso('Sem Conexao', 'Nao foi possivel conectar ao servidor.', true);
      } finally {
         setProcessandoAcessoId(null);
      }
   };
 
-  // 🟢 NOVA LÓGICA DE EXCLUSÃO
+  const handleRemoverParticipanteDoGrupo = (cotaId: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setModalExclusao({
+      aberto: true,
+      tipo: 'participante',
+      idTarget: cotaId,
+      titulo: 'Remover Participante',
+      mensagem: 'Tem certeza que deseja remover este participante do grupo? A cota sera zerada e o historico de participacao neste clube sera cancelado permanentemente.'
+    });
+  };
+
+  const handleExcluirGrupo = (grupoId: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setModalExclusao({
+      aberto: true,
+      tipo: 'grupo',
+      idTarget: grupoId,
+      titulo: 'Excluir Grupo de Compras',
+      mensagem: 'Tem certeza que deseja excluir este grupo de compras? Esta acao nao pode ser desfeita e removera todas as cotas e recebimentos futuros atrelados a ele.'
+    });
+  };
+
   const confirmarExclusao = async () => {
     const { tipo, idTarget } = modalExclusao;
-    setModalExclusao({ ...modalExclusao, aberto: false }); // Fecha o modal imediatamente
-    
+    setModalExclusao({ ...modalExclusao, aberto: false }); 
+
     if (tipo === 'participante') {
-        try {
-          const res = await fetch(`${API_URL}/api/cotas/${idTarget}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error('Falha ao remover participante.');
-          
-          mostrarAviso('Participante Removido', 'O cliente foi desligado e a cota foi zerada com sucesso.', false);
-          
-          // Zera as seleções na hora
-          if (idOperacao === idTarget.toString()) {
-             setIdOperacao('Nenhuma');
-          }
-          // Recarrega os dados imediatamente
-          recarregarParticipantesDoGrupo();
-          carregarContagemClientes(usuario?.lojaId || 1);
-        } catch (err: any) {
-          mostrarAviso('Erro ao Remover', err.message, true);
+      try {
+        const res = await fetch(`${API_URL}/api/cotas/${idTarget}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const textoErro = await res.text();
+          throw new Error(textoErro || 'Falha ao remover participante.');
         }
+
+        mostrarAviso('Participante Removido', 'O cliente foi desligado deste grupo de compras com sucesso.', false);
+        
+        if (idOperacao === idTarget.toString()) {
+          setIdOperacao('Nenhuma');
+        }
+
+        recarregarParticipantesDoGrupo();
+        carregarContagemClientes(usuario?.lojaId || 1);
+        carregarDadosFinanceiros(); 
+      } catch (err: any) {
+        mostrarAviso('Erro ao Remover', err.message, true);
+      }
     } else if (tipo === 'grupo') {
-        try {
-          const res = await fetch(`${API_URL}/api/grupos/${idTarget}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error('Falha ao excluir grupo.');
-          
-          mostrarAviso('Grupo Removido', 'O grupo e todas as suas cotas pendentes foram excluídos.', false);
-          
-          // Zera a tela na hora voltando pra lista
-          setGrupoSelecionado(null);
-          carregarGruposDoBanco();
-          carregarDadosFinanceiros();
-        } catch (err: any) {
-          mostrarAviso('Erro ao Excluir', err.message, true);
+      try {
+        const res = await fetch(`${API_URL}/api/grupos/${idTarget}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const textoErro = await res.text();
+          throw new Error(textoErro || 'Falha ao excluir grupo.');
         }
+
+        mostrarAviso('Grupo Removido', 'O grupo foi excluido com sucesso do sistema.', false);
+        
+        if (grupoSelecionado?.id === idTarget) {
+          setGrupoSelecionado(null);
+        }
+        
+        carregarGruposDoBanco();
+        carregarDadosFinanceiros();
+      } catch (err: any) {
+        mostrarAviso('Erro ao Excluir', err.message, true);
+      }
     }
   };
 
@@ -261,7 +289,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       const data = await res.json();
       mostrarAviso(
         'Cliente Registrada', 
-        `${data.mensagem}\n\nLogin / E-mail: ${data.email}\nSenha Padrão Inicial: ${data.senhaPadrao}\n\nA cliente já pode acessar o Dashboard do Cliente utilizando estas credenciais.`, 
+        `${data.mensagem}\n\nLogin / E-mail: ${data.email || 'Nao informado'}\nSenha Padrao Inicial: ${data.senhaPadrao}\n\nA cliente ja pode acessar o Dashboard do Cliente utilizando estas credenciais ou o proprio CPF caso o email esteja em branco.`, 
         false
       );
 
@@ -295,7 +323,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         throw new Error(erroServidor || 'Falha ao registrar novo clube de compras.');
       }
       
-      mostrarAviso('Sucesso Comercial', 'Clube de Compras lançado com sucesso!', false);
+      mostrarAviso('Sucesso Comercial', 'Clube de Compras lancado com sucesso!', false);
       setNomeGrupo(''); setValorParcela(''); 
       setModalNovoGrupoAberto(false);
       carregarGruposDoBanco();
@@ -307,7 +335,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const handleLancarPagamentoManual = async (e: React.FormEvent) => {
     e.preventDefault();
     if (idOperacao === 'Nenhuma') {
-      mostrarAviso('Seleção Necessária', 'Selecione uma cota na tabela antes de lançar o pagamento.', true);
+      mostrarAviso('Selecao Necessaria', 'Selecione uma cota na tabela antes de lancar o pagamento.', true);
       return;
     }
 
@@ -331,7 +359,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       recarregarParticipantesDoGrupo();
       carregarDadosFinanceiros(); 
     } catch (err: any) {
-      mostrarAviso('Erro de Lançamento', err.message, true);
+      mostrarAviso('Erro de Lancamento', err.message, true);
     } finally {
       setProcessandoPagamentoManual(false);
     }
@@ -350,11 +378,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       const data = await res.json();
       if (data.cotaPremiadaId) setIdOperacao(data.cotaPremiadaId.toString());
       
-      mostrarAviso('Sorteio Homologado', `Contemplado: ${data.vencedorNome}\nContrato da Cota Alvo: #${data.cotaPremiadaId}\n\nAs notificações foram disparadas e o painel de liberação foi atualizado.`, false);
+      mostrarAviso('Sorteio Homologado', `Contemplado: ${data.vencedorNome}\nContrato da Cota Alvo: #${data.cotaPremiadaId}\n\nAs notificacoes foram disparadas e o painel de liberacao foi atualizado.`, false);
       setGrupoSorteioId('');
       if (grupoSelecionado) recarregarParticipantesDoGrupo();
     } catch (err: any) { 
-      mostrarAviso('Apuração Suspensa', err.message, true); 
+      mostrarAviso('Apuracao Suspensa', err.message, true); 
     } finally { 
       setLoadingSorteio(false); 
     }
@@ -362,7 +390,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   const ejecutarFluxoEntrega = async (endpoint: string, query: string = '') => {
     if (idOperacao === 'Nenhuma') {
-      mostrarAviso('Ação Bloqueada', 'Por favor, selecione uma cota na tabela de integrantes ou realize um sorteio antes de emitir a liberação.', true);
+      mostrarAviso('Acao Bloqueada', 'Por favor, selecione uma cota na tabela de integrantes ou realize um sorteio antes de emitir a liberacao.', true);
       return;
     }
     try {
@@ -371,10 +399,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         const textoErro = await res.text();
         throw new Error(textoErro || 'Falha ao atualizar o status operacional no sistema.');
       }
-      mostrarAviso('Fluxo Atualizado', 'Status de controle logístico atualizado com sucesso!', false);
+      mostrarAviso('Fluxo Atualizado', 'Status de controle logistico atualizado com sucesso!', false);
       if (grupoSelecionado) recarregarParticipantesDoGrupo();
     } catch (err: any) { 
-      mostrarAviso('Erro de Conexão', err.message, true); 
+      mostrarAviso('Erro de Conexao', err.message, true); 
     }
   };
 
@@ -382,7 +410,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.type !== 'application/pdf') {
-        mostrarAviso('Formato Inválido', 'Apenas arquivos em formato PDF são aceitos.', true);
+        mostrarAviso('Formato Invalido', 'Apenas arquivos em formato PDF sao aceitos.', true);
         setArquivoPdf(null);
         return;
       }
@@ -406,7 +434,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         method: 'POST',
         body: formData,
       });
-      if (!res.ok) throw new Error('Não foi possível salvar o documento de regras.');
+      if (!res.ok) throw new Error('Nao foi possivel salvar o documento de regras.');
       mostrarAviso('Regulamento Salvo', 'Regulamento contratual em PDF registrado com sucesso para esta loja!', false);
       setArquivoPdf(null);
     } catch (err: any) {
@@ -435,12 +463,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           
           <nav className="space-y-1">
             {[
-              { id: 'geral', label: 'Visão geral' },
-              { id: 'aprovacoes', label: 'Aprovações' }, 
+              { id: 'geral', label: 'Visao geral' },
+              { id: 'aprovacoes', label: 'Aprovacoes' }, 
               { id: 'grupos', label: 'Grupos' },
               { id: 'sorteios', label: 'Sorteios / Entrega' },
               { id: 'financeiro', label: 'Financeiro / Extrato' },
-              { id: 'relatorios', label: 'Relatórios' }
+              { id: 'relatorios', label: 'Relatorios' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -464,7 +492,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             onClick={() => { setGrupoSelecionado(null); setAbaLoja('configuracoes'); }} 
             className={`hover:text-white transition-all font-semibold cursor-pointer bg-transparent border-none ${abaLoja === 'configuracoes' ? 'text-white underline' : 'text-stone-400'}`}
           >
-            Configurações
+            Configuracoes
           </button>
           <button 
             onClick={() => { localStorage.removeItem('@avle:usuario'); window.location.href = '/'; }} 
@@ -481,12 +509,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             <h2 className="text-xl font-bold tracking-tight text-[#0B1E14] capitalize">
               {grupoSelecionado 
                  ? `Ficha Detalhada: ${grupoSelecionado.nome}` 
-                 : (abaLoja === 'geral' ? 'Visão geral comercial' 
-                    : abaLoja === 'configuracoes' ? 'Configurações da Loja' 
-                    : abaLoja === 'aprovacoes' ? 'Central de Aprovações de Crédito'
+                 : (abaLoja === 'geral' ? 'Visao geral comercial' 
+                    : abaLoja === 'configuracoes' ? 'Configuracoes da Loja' 
+                    : abaLoja === 'aprovacoes' ? 'Central de Aprovacoes de Credito'
                     : abaLoja)}
             </h2>
-            <p className="text-xs text-stone-400 font-medium">Gestão de cotas, faturamento da unidade e controle de entregas.</p>
+            <p className="text-xs text-stone-400 font-medium">Gestao de cotas, faturamento da unidade e controle de entregas.</p>
           </div>
           
           {!grupoSelecionado && (abaLoja === 'geral' || abaLoja === 'grupos' || abaLoja === 'aprovacoes') && (
@@ -512,10 +540,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             <div className="flex justify-between items-center">
               <button onClick={() => setGrupoSelecionado(null)} className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] transition-all bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs"> Voltar para a Listagem</button>
               <button 
-                 onClick={(e) => {
-                    e.stopPropagation();
-                    setModalExclusao({ aberto: true, tipo: 'grupo', idTarget: grupoSelecionado.id, titulo: 'Excluir Grupo de Compras', mensagem: 'A exclusão deste grupo removerá todas as cotas e faturamentos vinculados a ele permanentemente. Deseja prosseguir?' });
-                 }} 
+                 onClick={(e) => handleExcluirGrupo(grupoSelecionado.id, e)} 
                  className="text-xs font-bold text-rose-700 hover:text-white hover:bg-rose-700 transition-all bg-rose-50 border border-rose-200 px-4 py-2 rounded-xl cursor-pointer shadow-xs"
               >
                 Excluir Grupo
@@ -532,7 +557,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <span className="text-base font-bold text-emerald-700 font-mono block mt-1">R$ {Number(grupoSelecionado.valorParcela).toFixed(2)}</span>
               </div>
               <div>
-                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Vigência</span>
+                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Vigencia</span>
                 <span className="text-base font-bold text-[#0B1E14] font-mono block mt-1">{grupoSelecionado.duracaoMeses} M</span>
               </div>
               <div>
@@ -566,12 +591,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-stone-50 text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
-                      <th className="py-3.5 px-5 text-center">Nº DA COTA</th>
+                      <th className="py-3.5 px-5 text-center">N DA COTA</th>
                       <th className="py-3.5 px-5">PARTICIPANTE</th>
                       <th className="py-3.5 px-5 text-right">SALDO QUITADO</th>
                       <th className="py-3.5 px-5 text-right">VALOR COBERTO (RISCO)</th>
                       <th className="py-3.5 px-5 text-center">STATUS DE ENTREGA</th>
-                      <th className="py-3.5 px-5 text-center">AÇÕES</th>
+                      <th className="py-3.5 px-5 text-center">ACOES</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
@@ -593,21 +618,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                               <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${
                                 part.statusEntrega === 'AGUARDANDO_SORTEIO' ? 'bg-stone-50 text-stone-500 border-stone-200' :
                                 part.statusEntrega === 'CONTEMPLADO_NO_PRAZO' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                part.statusEntrega === 'PRODUTO_SELECIONADO' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                part.statusEntrega === 'CREDITO_REJEITADO' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                                part.statusEntrega === 'PREPARANDO_ENVIO' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
                                 part.statusEntrega === 'ENVIADO_OU_RETIRADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                                 'bg-stone-50 text-stone-500 border-stone-200'
                               }`}>{part.statusEntrega ? part.statusEntrega.replace(/_/g, ' ') : 'AGUARDANDO SORTEIO'}</span>
                             </td>
-                            
                             <td className="py-3.5 px-5 text-center">
                               <button
                                 type="button"
-                                onClick={(e) => {
-                                   e.stopPropagation();
-                                   setModalExclusao({ aberto: true, tipo: 'participante', idTarget: part.id, titulo: 'Remover Participante', mensagem: `Atenção: Ao remover o cliente ${part.nome}, a cota será disponibilizada para venda novamente e o saldo injetado não será estornado pelo sistema automaticamente.` });
-                                }}
+                                onClick={(e) => handleRemoverParticipanteDoGrupo(part.id, e)}
                                 className="px-2.5 py-1 bg-rose-50 border border-rose-200 text-rose-700 font-bold rounded-lg text-[10px] uppercase hover:bg-rose-700 hover:text-white transition-all cursor-pointer shadow-xs"
                               >
                                 Remover
@@ -653,14 +671,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
                       <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                           <div>
-                              <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Fila de Análise de Crédito</h3>
+                              <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Fila de Analise de Credito</h3>
                               <p className="text-[10px] text-stone-400 font-medium">Clientes que solicitaram acesso para visualizar e participar dos seus planos.</p>
                           </div>
                       </div>
                       <div className="p-6">
                          {solicitacoesAcesso.length === 0 ? (
                             <div className="text-center text-stone-400 text-xs italic py-12 bg-stone-50 rounded-xl border border-dashed">
-                               Nenhuma solicitação pendente no momento.
+                               Nenhuma solicitacao pendente no momento.
                             </div>
                          ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -671,7 +689,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                         <span className="text-[9px] text-stone-400">{new Date(sol.dataSolicitacao).toLocaleDateString('pt-BR')}</span>
                                      </div>
                                      <h4 className="text-sm font-bold text-[#0B1E14] truncate">{sol.clienteNome}</h4>
-                                     <p className="text-xs text-stone-500 font-mono mt-1 bg-stone-50 p-2 rounded-lg border border-stone-100">CPF: {sol.clienteCpf ? aplicarMascaraCpf(sol.clienteCpf) : 'Não informado'}</p>
+                                     <p className="text-xs text-stone-500 font-mono mt-1 bg-stone-50 p-2 rounded-lg border border-stone-100">CPF: {sol.clienteCpf ? aplicarMascaraCpf(sol.clienteCpf) : 'Nao informado'}</p>
 
                                      <div className="mt-5 flex gap-3 pt-4 border-t border-stone-100">
                                         <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, false)} className="flex-1 bg-white text-rose-600 border border-rose-200 text-[10px] font-bold py-2.5 rounded-lg hover:bg-rose-50 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer">
@@ -698,17 +716,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="font-serif font-bold text-base text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">{grupo.nome}</h3>
-                          <p className="text-[10px] font-mono text-stone-400 mt-0.5">Duração: {grupo.duracaoMeses} Meses</p>
+                          <p className="text-[10px] font-mono text-stone-400 mt-0.5">Duracao: {grupo.duracaoMeses} Meses</p>
                         </div>
                         <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-stone-50 border text-stone-500">ID #{grupo.id}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs border-t pt-3">
                         <span className="text-stone-400 font-medium">Parcela: <strong className="text-[#0B1E14]">R$ {grupo.valorParcela.toFixed(2)}</strong></span>
                         <div className="flex items-center gap-3">
-                          <button type="button" onClick={(e) => {
-                             e.stopPropagation();
-                             setModalExclusao({ aberto: true, tipo: 'grupo', idTarget: grupo.id, titulo: 'Excluir Grupo de Compras', mensagem: 'A exclusão deste grupo removerá todas as cotas e faturamentos vinculados a ele permanentemente. Deseja prosseguir?' });
-                          }} className="text-[10px] text-rose-600 hover:text-rose-800 font-bold uppercase tracking-wider hover:underline z-10">Excluir</button>
+                          <button type="button" onClick={(e) => handleExcluirGrupo(grupo.id, e)} className="text-[10px] text-rose-600 hover:text-rose-800 font-bold uppercase tracking-wider hover:underline z-10">Excluir</button>
                           <span className="text-[10px] text-[#BD6B42] font-bold uppercase tracking-wider">Ver Participantes</span>
                         </div>
                       </div>
@@ -721,8 +736,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             {abaLoja === 'sorteios' && (
               <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl space-y-6 shadow-xs animate-fadeIn">
                 <div className="space-y-1">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">Painel de Contemplação e Liberação</h3>
-                  <p className="text-xs text-stone-500 leading-relaxed">Dispare a apuração de cotas do grupo digitando o identificador correspondente.</p>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">Painel de Contemplacao e Liberacao</h3>
+                  <p className="text-xs text-stone-500 leading-relaxed">Dispare a apuracao de cotas do grupo digitando o identificador correspondente.</p>
                 </div>
                 <form onSubmit={ejecutarSorteioLoja} className="flex space-x-2">
                   <input type="number" placeholder="ID do Grupo" value={grupoSorteioId} onChange={(e) => setGrupoSorteioId(e.target.value)} className="w-32 px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs font-mono" required />
@@ -734,8 +749,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <span className="text-[10px] bg-[#0B1E14] text-white px-3 py-1 rounded-md font-mono font-bold">CONTRATO ALVO: {idOperacao === 'Nenhuma' ? 'Nenhum' : `#${idOperacao}`}</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px] font-bold uppercase">
-                    <button onClick={() => ejecutarFluxoEntrega('avaliar-credito', '?aprovado=true')} className="p-2.5 bg-[#0B1E14] text-white rounded-xl shadow-xs cursor-pointer hover:bg-opacity-90">Aprovar Crédito</button>
-                    <button onClick={() => ejecutarFluxoEntrega('avaliar-credito', '?aprovado=false')} className="p-2.5 bg-rose-50 text-rose-700 border-rose-100 rounded-xl shadow-xs cursor-pointer hover:bg-rose-100">Rejeitar Crédito</button>
+                    <button onClick={() => ejecutarFluxoEntrega('avaliar-credito', '?aprovado=true')} className="p-2.5 bg-[#0B1E14] text-white rounded-xl shadow-xs cursor-pointer hover:bg-opacity-90">Aprovar Credito</button>
+                    <button onClick={() => ejecutarFluxoEntrega('avaliar-credito', '?aprovado=false')} className="p-2.5 bg-rose-50 text-rose-700 border-rose-100 rounded-xl shadow-xs cursor-pointer hover:bg-rose-100">Rejeitar Credito</button>
                     <button onClick={() => ejecutarFluxoEntrega('concluir')} className="p-2.5 bg-[#BD6B42] text-white rounded-xl shadow-xs cursor-pointer hover:bg-[#A95A33]">Finalizar Entrega</button>
                   </div>
                 </div>
@@ -751,16 +766,16 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <span className="text-xl font-bold text-emerald-600">R$ {recebidoEsteMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </div>
                     <p className="text-[10px] text-stone-400 mt-3 border-t pt-2 border-dashed leading-relaxed">
-                      * Split Automático Asaas: Os 90% são creditados e liquidados diretamente na subconta bancária homologada da sua empresa.
+                      Split Automatico Asaas: Os 90% sao creditados e liquidados diretamente na subconta bancaria homologada da sua empresa.
                     </p>
                   </div>
 
                   <div className="bg-white border border-[#DFD9CE] p-5 rounded-2xl shadow-xs flex flex-col justify-between">
                     <div>
-                      <span className="text-[10px] font-bold text-[#BD6B42] block mb-1">CAPITAL AVANÇADO (RISCO DA LOJA)</span>
+                      <span className="text-[10px] font-bold text-[#BD6B42] block mb-1">CAPITAL AVANCADO (RISCO DA LOJA)</span>
                       <span className="text-xl font-bold text-[#BD6B42]">R$ {aReceberContemplados.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <p className="text-[10px] text-stone-400 mt-2 leading-relaxed border-t pt-2 border-dashed">*Aporte em Haver:* Valor referente a produtos entregues a clientes contemplados. A loja assume o custo contratual imediato e detém o direito de recebimento das parcelas futuras.</p>
+                    <p className="text-[10px] text-stone-400 mt-2 leading-relaxed border-t pt-2 border-dashed">Aporte em Haver: Valor referente a produtos entregues a clientes contemplados. A loja assume o custo contratual imediato e detem o direito de recebimento das parcelas futuras.</p>
                   </div>
 
                   <div className="bg-white border border-[#DFD9CE] p-5 rounded-2xl shadow-xs flex flex-col justify-between">
@@ -768,13 +783,13 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <span className="text-[10px] font-bold text-stone-400 block mb-1">CUMPRIMENTO DE ACORDOS</span>
                       <span className="text-xl font-bold text-stone-600">Ativos</span>
                     </div>
-                    <p className="text-[10px] text-stone-400 mt-2 leading-relaxed border-t pt-2 border-dashed">Garantia jurídica de alienação fiduciária ou contrato assinado para resguardo do capital avançado.</p>
+                    <p className="text-[10px] text-stone-400 mt-2 leading-relaxed border-t pt-2 border-dashed">Garantia juridica de alienacao fiduciaria ou contrato assinado para resguardo do capital avancado.</p>
                   </div>
                 </div>
 
                 <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden mt-6">
                   <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex justify-between items-center">
-                    <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Histórico de Transações (Livro Razão)</h3>
+                    <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Historico de Transacoes (Livro Razao)</h3>
                     <span className="text-[9px] bg-[#0B1E14] text-white px-2 py-1 rounded font-mono">Atualizado em tempo real</span>
                   </div>
                   <div className="overflow-x-auto max-h-[400px]">
@@ -782,22 +797,22 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <thead className="sticky top-0 bg-stone-50 z-10 shadow-sm">
                         <tr className="text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                           <th className="py-3 px-5">DATA</th>
-                          <th className="py-3 px-5">CLIENTE / REFERÊNCIA</th>
+                          <th className="py-3 px-5">CLIENTE / REFERENCIA</th>
                           <th className="py-3 px-5">TIPO</th>
                           <th className="py-3 px-5 text-right">VALOR BRUTO</th>
                           <th className="py-3 px-5 text-right">TAXA (10%)</th>
-                          <th className="py-3 px-5 text-right">LÍQUIDO (LOJA)</th>
+                          <th className="py-3 px-5 text-right">LIQUIDO (LOJA)</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
                          {historicoTransacoes.length === 0 ? (
-                            <tr><td colSpan={6} className="py-6 text-center text-stone-400 italic">Nenhuma transação registrada no sistema ainda.</td></tr>
+                            <tr><td colSpan={6} className="py-6 text-center text-stone-400 italic">Nenhuma transacao registrada no sistema ainda.</td></tr>
                          ) : (
                             historicoTransacoes.map((t, idx) => (
                               <tr key={idx} className="hover:bg-stone-50/60 transition-all">
                                 <td className="py-3 px-5 text-stone-500 font-mono">{new Date(t.dataTransacao).toLocaleDateString('pt-BR')}</td>
                                 <td className="py-3 px-5">
-                                  <span className="block font-bold text-[#0B1E14]">{t.nomeCliente || 'Transação Sistema'}</span>
+                                  <span className="block font-bold text-[#0B1E14]">{t.nomeCliente || 'Transacao Sistema'}</span>
                                   <span className="text-[10px] text-stone-400">Cota #{t.cotaId}</span>
                                 </td>
                                 <td className="py-3 px-5">
@@ -825,7 +840,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <div>
                   <h3 className="font-serif font-bold text-lg text-[#0B1E14] uppercase tracking-wide">Regulamento Operacional da Loja</h3>
                   <p className="text-stone-400 text-xs mt-1 leading-relaxed">
-                    Envie os termos de contrato e políticas específicas para a sua comunidade de compras planejadas. Cada estabelecimento atua com total independência jurídica.
+                    Envie os termos de contrato e politicas especificas para a sua comunidade de compras planejadas. Cada estabelecimento atua com total independencia juridica.
                   </p>
                 </div>
 
@@ -864,11 +879,50 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       </main>
 
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+          {caixaMensagemAberta && (
+             <div className="mb-4 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col animate-fadeIn transition-all transform origin-bottom-right">
+                <div className="bg-[#0B1E14] text-white p-4 flex justify-between items-center">
+                   <div className="flex items-center gap-2">
+                      <span className="text-lg">INBOX</span>
+                      <h3 className="text-xs font-bold uppercase tracking-wider">Solicitacoes de Acesso</h3>
+                   </div>
+                   <button onClick={() => setCaixaMensagemAberta(false)} className="text-stone-400 hover:text-white font-bold px-2 cursor-pointer">X</button>
+                </div>
+
+                <div className="p-4 max-h-[400px] overflow-y-auto bg-stone-50/50">
+                   {solicitacoesAcesso.length === 0 ? (
+                      <div className="text-center text-stone-400 text-xs italic py-8">
+                         Nenhuma solicitacao pendente no momento.
+                      </div>
+                   ) : (
+                      <div className="space-y-3">
+                         {solicitacoesAcesso.map(sol => (
+                            <div key={sol.id} className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm text-left">
+                               <div className="flex justify-between items-start mb-2">
+                                  <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Analise de Credito</span>
+                                  <span className="text-[9px] text-stone-400">{new Date(sol.dataSolicitacao).toLocaleDateString('pt-BR')}</span>
+                               </div>
+                               <p className="text-sm font-bold text-[#0B1E14] truncate">{sol.clienteNome}</p>
+                               <p className="text-xs text-stone-500 font-mono mt-0.5">CPF: {sol.clienteCpf ? aplicarMascaraCpf(sol.clienteCpf) : 'Nao informado'}</p>
+
+                               <div className="mt-4 flex gap-2 pt-3 border-t border-stone-100">
+                                  <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, true)} className="flex-1 bg-[#0B1E14] text-white text-[10px] font-bold py-2 rounded-lg hover:bg-opacity-90 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer">
+                                     Aprovar
+                                  </button>
+                                  <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, false)} className="flex-1 bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold py-2 rounded-lg hover:bg-rose-100 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer">
+                                     Rejeitar
+                                  </button>
+                               </div>
+                            </div>
+                         ))}
+                      </div>
+                   )}
+                </div>
+             </div>
+          )}
+
           <button
-             onClick={() => {
-                setGrupoSelecionado(null);
-                setAbaLoja('aprovacoes');
-             }}
+             onClick={() => setCaixaMensagemAberta(!caixaMensagemAberta)}
              className="w-16 h-16 bg-[#0B1E14] rounded-full shadow-2xl flex items-center justify-center border-[3px] border-[#BD6B42] hover:scale-105 transition-transform relative cursor-pointer group"
           >
              <span className="text-white font-serif font-bold text-xl group-hover:text-[#BD6B42] transition-colors">AV</span>
@@ -887,7 +941,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             <div className="flex justify-between items-center border-b pb-3">
               <div>
                 <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Cadastrar Nova Cliente</h3>
-                <p className="text-[10px] text-stone-400">Atribuição de credencial de acesso inicial no sistema.</p>
+                <p className="text-[10px] text-stone-400">Atribuicao de credencial de acesso inicial no sistema.</p>
               </div>
               <button onClick={() => setModalNovoClienteAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
             </div>
@@ -895,32 +949,60 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             <form onSubmit={handleCadastrarCliente} className="space-y-3.5 text-xs text-[#0B1E14]">
               <div>
                 <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Nome Completo da Cliente</label>
-                <input type="text" value={nomeCliente} onChange={(e) => setNomeCliente(e.target.value)} className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]" required />
+                <input 
+                  type="text" 
+                  value={nomeCliente}
+                  onChange={(e) => setNomeCliente(e.target.value)}
+                  className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
+                  required 
+                />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">E-mail de Notificação / Login</label>
-                <input type="email" value={emailCliente} onChange={(e) => setEmailCliente(e.target.value)} className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]" required />
+                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">E-mail de Notificacao / Login (Opcional)</label>
+                <input 
+                  type="email" 
+                  value={emailCliente}
+                  onChange={(e) => setEmailCliente(e.target.value)}
+                  className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">CPF da Titular</label>
-                  <input type="text" value={cpfCliente} onChange={(e) => setCpfCliente(aplicarMascaraCpf(e.target.value))} placeholder="000.000.000-00" className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]" required />
+                  <input 
+                    type="text" 
+                    value={cpfCliente}
+                    onChange={(e) => setCpfCliente(aplicarMascaraCpf(e.target.value))}
+                    placeholder="000.000.000-00"
+                    className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
+                    required 
+                  />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Telefone / WhatsApp</label>
-                  <input type="text" value={telefoneCliente} onChange={(e) => setTelefoneCliente(aplicarMascaraTelefone(e.target.value))} placeholder="(00) 00000-0000" className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]" required />
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Telefone / WhatsApp (Opcional)</label>
+                  <input 
+                    type="text" 
+                    value={telefoneCliente}
+                    onChange={(e) => setTelefoneCliente(aplicarMascaraTelefone(e.target.value))}
+                    placeholder="(00) 00000-0000"
+                    className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
+                  />
                 </div>
               </div>
 
               <div className="bg-stone-50 p-3 rounded-xl border border-dashed text-[10px] text-stone-500 leading-relaxed">
-                * A cliente receberá a senha padrão inicial <strong>Avle123</strong> para realizar o primeiro acesso ao Dashboard do Cliente e poderá alterá-la posteriormente nas suas configurações.
+                A cliente recebera a senha padrao inicial <strong>Avle123</strong> para realizar o primeiro acesso ao Dashboard do Cliente e podera altera-la posteriormente nas suas configuracoes.
               </div>
 
               <div className="flex space-x-2 pt-2 border-t w-full">
                 <button type="button" onClick={() => setModalNovoClienteAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer">Cancelar</button>
-                <button type="submit" disabled={processandoCliente} className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold disabled:opacity-50">
+                <button 
+                  type="submit"
+                  disabled={processandoCliente}
+                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold disabled:opacity-50"
+                >
                   {processandoCliente ? 'Cadastrando...' : 'Confirmar Cadastro'}
                 </button>
               </div>
@@ -933,31 +1015,62 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Lançar Novo Grupo de Compras</h3>
+              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Lancar Novo Grupo de Compras</h3>
               <button onClick={() => setModalNovoGrupoAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
             </div>
             <form onSubmit={handleCriarGrupo} className="space-y-3.5 text-xs text-[#0B1E14]">
               <div>
                 <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Nome Comercial do Grupo</label>
-                <input type="text" value={nomeGrupo} onChange={(e) => setNomeGrupo(e.target.value)} className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]" required />
+                <input 
+                  type="text" 
+                  value={nomeGrupo}
+                  onChange={(e) => setNomeGrupo(e.target.value)}
+                  className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
+                  required 
+                />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Valor da Parcela Mensal (R$)</label>
-                <input type="number" step="0.01" placeholder="0.00" value={valorParcela} onChange={(e) => setValorParcela(e.target.value)} className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]" required />
+                <input 
+                  type="number" 
+                  step="0.01"
+                  placeholder="0.00" 
+                  value={valorParcela}
+                  onChange={(e) => setValorParcela(e.target.value)}
+                  className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
+                  required 
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Duração total (Meses)</label>
-                  <input type="number" value={duracaoMeses} onChange={(e) => setDuracaoMeses(e.target.value)} className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]" required />
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Duracao total (Meses)</label>
+                  <input 
+                    type="number" 
+                    value={duracaoMeses}
+                    onChange={(e) => setDuracaoMeses(e.target.value)}
+                    className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
+                    required 
+                  />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Quantidade Máxima de Cotas</label>
-                  <input type="number" value={maxCotas} onChange={(e) => setMaxCotas(e.target.value)} className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]" required />
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Quantidade Maxima de Cotas</label>
+                  <input 
+                    type="number" 
+                    value={maxCotas}
+                    onChange={(e) => setMaxCotas(e.target.value)}
+                    className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
+                    required 
+                  />
                 </div>
               </div>
               <div className="flex space-x-2 pt-2 border-t w-full">
                 <button type="button" onClick={() => setModalNovoGrupoAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer">Cancelar</button>
-                <button type="submit" className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold">Registrar Grupo</button>
+                <button 
+                  type="submit"
+                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold"
+                >
+                  Registrar Grupo
+                </button>
               </div>
             </form>
           </div>
@@ -969,7 +1082,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
               <div>
-                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Lançar Pagamento Manual</h3>
+                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Lancar Pagamento Manual</h3>
                 <p className="text-[10px] text-stone-400 font-mono">Cota selecionada: #{idOperacao}</p>
               </div>
               <button onClick={() => setModalPagamentoManualAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
@@ -977,20 +1090,42 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
             <form onSubmit={handleLancarPagamentoManual} className="space-y-4 text-xs">
               <p className="text-stone-500 bg-stone-50 p-3 rounded-xl border border-dashed text-[11px] leading-relaxed">
-                Utilize esta opção para dar baixa nas parcelas que a participante já pagou presencialmente na loja (dinheiro, PIX direto ou cartão).
+                Utilize esta opcao para dar baixa nas parcelas que a participante ja pagou presencialmente na loja (dinheiro, PIX direto ou cartao).
               </p>
 
               <div>
-                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Quantidade de Parcelas a Quitar</label>
-                <input type="number" min="1" max={grupoSelecionado?.duracaoMeses || 48} value={qtdParcelasManual} onChange={(e) => setQtdParcelasManual(e.target.value)} className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-bold focus:outline-none focus:border-[#BD6B42]" required />
+                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">
+                  Quantidade de Parcelas a Quitar
+                </label>
+                <input 
+                  type="number" 
+                  min="1"
+                  max={grupoSelecionado?.duracaoMeses || 48}
+                  value={qtdParcelasManual}
+                  onChange={(e) => setQtdParcelasManual(e.target.value)}
+                  className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-bold focus:outline-none focus:border-[#BD6B42]"
+                  required 
+                />
                 {grupoSelecionado && (
-                  <p className="text-[10px] text-emerald-700 font-mono font-bold mt-1.5">Valor Total a Injetar: R$ {(Number(qtdParcelasManual) * Number(grupoSelecionado.valorParcela)).toFixed(2)}</p>
+                  <p className="text-[10px] text-emerald-700 font-mono font-bold mt-1.5">
+                    Valor Total a Injetar: R$ {(Number(qtdParcelasManual) * Number(grupoSelecionado.valorParcela)).toFixed(2)}
+                  </p>
                 )}
               </div>
 
               <div className="flex space-x-2 pt-2 border-t w-full">
-                <button type="button" onClick={() => setModalPagamentoManualAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer">Cancelar</button>
-                <button type="submit" disabled={processandoPagamentoManual} className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50">
+                <button 
+                  type="button" 
+                  onClick={() => setModalPagamentoManualAberto(false)} 
+                  className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  disabled={processandoPagamentoManual}
+                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
+                >
                   {processandoPagamentoManual ? 'Gravando...' : 'Confirmar Baixa'}
                 </button>
               </div>
@@ -999,7 +1134,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         </div>
       )}
 
-      {/* 🟢 NOVO MODAL PREMIUM DE EXCLUSÃO */}
       {modalExclusao.aberto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80] animate-fadeIn">
             <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl border border-rose-100">
