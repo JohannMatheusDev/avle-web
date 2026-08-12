@@ -948,7 +948,6 @@ function Autenticacao() {
                           </label>
                           <input
                             type="text"
-                            placeholder="Deixe em branco para criar automaticamente"
                             value={walletIdInput}
                             onChange={(e) => setWalletIdInput(e.target.value)}
                             className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[40px] font-mono"
