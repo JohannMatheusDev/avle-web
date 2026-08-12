@@ -19,6 +19,7 @@ export default function CadastroConvite() {
   const [cpf, setCpf] = useState('');
   const [telefone, setTelefone] = useState('');
   const [senha, setSenha] = useState('');
+  const [aceiteTermos, setAceiteTermos] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
 
@@ -58,6 +59,12 @@ export default function CadastroConvite() {
 
   const handleCadastro = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!aceiteTermos) {
+      setMensagem({ tipo: 'erro', texto: 'Voce precisa ler e aceitar os termos de servico para prosseguir.' });
+      return;
+    }
+
     setLoading(true);
     setMensagem(null);
 
@@ -106,7 +113,7 @@ export default function CadastroConvite() {
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center border border-rose-100">
            <h2 className="text-xl font-bold text-rose-700 mb-2">Convite Invalido</h2>
            <p className="text-sm text-stone-500">A loja que voce esta tentando acessar nao existe ou o link expirou.</p>
-           <button onClick={() => router.push('/')} className="mt-6 px-6 py-2 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider">Ir para o inicio</button>
+           <button onClick={() => router.push('/')} className="mt-6 px-6 py-2 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer transition-opacity hover:opacity-90">Ir para o inicio</button>
         </div>
       </div>
     );
@@ -195,21 +202,29 @@ export default function CadastroConvite() {
               />
             </div>
 
+            <div className="flex items-start gap-3 bg-stone-50 p-3.5 rounded-xl border border-stone-200 mt-2">
+              <input 
+                type="checkbox" 
+                id="termos"
+                checked={aceiteTermos}
+                onChange={(e) => setAceiteTermos(e.target.checked)}
+                className="mt-0.5 w-4 h-4 text-[#BD6B42] border-stone-300 rounded cursor-pointer accent-[#BD6B42]"
+              />
+              <label htmlFor="termos" className="text-[10px] text-stone-500 leading-relaxed cursor-pointer select-none">
+                Declaro que li e concordo com os <a href="#" className="text-[#0B1E14] font-bold underline">Termos e Regulamento da AVLE</a> e aceito o <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(`${API_URL}/api/lojas/${lojaIdNum}/regras`, '_blank'); }} className="text-[#0B1E14] font-bold underline cursor-pointer">Contrato de Adesao da Loja</button>.
+              </label>
+            </div>
+
             <button 
               type="submit" 
-              disabled={loading}
-              className="w-full h-12 mt-2 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer shadow-md"
+              disabled={loading || !aceiteTermos}
+              className="w-full h-12 mt-4 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer shadow-md"
             >
               {loading ? 'Processando...' : 'Finalizar Cadastro'}
             </button>
             
           </form>
         </div>
-        
-        <p className="text-center text-[10px] text-stone-400 mt-6 font-medium">
-          Ao se cadastrar, voce concorda com os termos de servico da plataforma AVLE.
-        </p>
-
       </div>
     </div>
   );
