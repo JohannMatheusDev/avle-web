@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation'; 
+import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -15,7 +15,7 @@ interface Grupo {
 
 export default function DashboardLoja({ usuario }: { usuario: any }) {
   const router = useRouter();
-  
+
   const [abaLoja, setAbaLoja] = useState<'geral' | 'aprovacoes' | 'grupos' | 'sorteios' | 'financeiro' | 'relatorios' | 'configuracoes'>('geral');
   const [obrigacoesFuturas, setObrigacoesFuturas] = useState<number>(0);
   const [idOperacao, setIdOperacao] = useState('Nenhuma');
@@ -68,17 +68,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const mostrarAviso = (titulo: string, mensagem: string, isError: boolean = false) => {
     setNotificacao({ aberto: true, titulo, mensagem, isError });
   };
-  
+
   const [nomeGrupo, setNomeGrupo] = useState('');
   const [valorParcela, setValorParcela] = useState('');
   const [duracaoMeses, setDuracaoMeses] = useState('24');
   const [maxCotas, setMaxCotas] = useState('40');
 
   const [dadosFinanceiros, setDadosFinanceiros] = useState<any>({
-    recebidoEsteMes: 0.00, 
-    aReceberContemplados: 0.00, 
-    emNegociacao: 0.00, 
-    acordosAtivos: 0, 
+    recebidoEsteMes: 0.00,
+    aReceberContemplados: 0.00,
+    emNegociacao: 0.00,
+    acordosAtivos: 0,
     repasses: []
   });
 
