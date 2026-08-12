@@ -1,15 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
-export default function CadastroConvite({ params }: { params: { id: string } }) {
+export default function CadastroConvite() {
   const router = useRouter();
-  const lojaId = params.id;
+  const params = useParams();
+  const slugDaLoja = params.id as string;
   
   const [lojaNome, setLojaNome] = useState<string>('Carregando...');
+  const [lojaIdNum, setLojaIdNum] = useState<number | null>(null);
   const [lojaValida, setLojaValida] = useState<boolean>(true);
 
   const [nome, setNome] = useState('');
@@ -21,18 +23,21 @@ export default function CadastroConvite({ params }: { params: { id: string } }) 
   const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/lojas/${lojaId}`)
+    if (!slugDaLoja) return;
+
+    fetch(`${API_URL}/api/lojas/convite/${slugDaLoja}`)
       .then(res => {
         if (!res.ok) throw new Error();
         return res.json();
       })
       .then(data => {
         setLojaNome(data.nomeComercial || 'Loja Parceira');
+        setLojaIdNum(data.id);
       })
       .catch(() => {
         setLojaValida(false);
       });
-  }, [lojaId]);
+  }, [slugDaLoja]);
 
   const aplicarMascaraCpf = (valor: string) => {
     const apenasNumeros = valor.replace(/\D/g, '');
@@ -56,6 +61,12 @@ export default function CadastroConvite({ params }: { params: { id: string } }) 
     setLoading(true);
     setMensagem(null);
 
+    if (!lojaIdNum) {
+      setMensagem({ tipo: 'erro', texto: 'Falha na identificacao da loja. Recarregue a pagina.' });
+      setLoading(false);
+      return;
+    }
+
     const payload = {
       nome,
       email: email.trim() === '' ? null : email,
@@ -63,7 +74,7 @@ export default function CadastroConvite({ params }: { params: { id: string } }) 
       telefone: telefone.replace(/\D/g, ''),
       senha,
       tipoUsuario: 'CLIENTE',
-      lojaId: Number(lojaId)
+      lojaId: lojaIdNum
     };
 
     try {
