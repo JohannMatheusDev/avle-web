@@ -48,6 +48,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     mensagem: string;
   }>({ aberto: false, tipo: 'grupo', idTarget: 0, titulo: '', mensagem: '' });
 
+  const [modalBloqueioAberto, setModalBloqueioAberto] = useState(false);
+  const [clienteParaBloquear, setClienteParaBloquear] = useState<any>(null);
+  const [motivoBloqueio, setMotivoBloqueio] = useState('');
+  const [processandoBloqueio, setProcessandoBloqueio] = useState(false);
+
   const [arquivoPdf, setArquivoPdf] = useState<File | null>(null);
   const [enviandoPdf, setEnviandoPdf] = useState(false);
 
@@ -208,6 +213,38 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         mostrarAviso('Sem Conexao', 'Nao foi possivel conectar ao servidor.', true);
      } finally {
         setProcessandoAcessoId(null);
+     }
+  };
+
+  const handleAbrirBloqueio = (cliente: any) => {
+     setClienteParaBloquear(cliente);
+     setMotivoBloqueio('');
+     setModalBloqueioAberto(true);
+  };
+
+  const confirmarBloqueioCliente = async (e: React.FormEvent) => {
+     e.preventDefault();
+     setProcessandoBloqueio(true);
+     try {
+        const res = await fetch(`${API_URL}/api/lojas/${usuario?.lojaId || 1}/clientes/${clienteParaBloquear.id}/bloquear`, {
+           method: 'PUT',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ motivo: motivoBloqueio })
+        });
+
+        if (!res.ok) {
+           const textoErro = await res.text();
+           throw new Error(textoErro || 'Falha ao bloquear cliente.');
+        }
+
+        mostrarAviso('Cliente Removido', 'O acesso deste cliente a sua loja foi bloqueado e o motivo gravado no historico corporativo com sucesso.', false);
+        setModalBloqueioAberto(false);
+        carregarListaClientesDaLoja();
+        carregarContagemClientes(usuario?.lojaId || 1);
+     } catch(err: any) {
+        mostrarAviso('Erro ao Remover', err.message, true);
+     } finally {
+        setProcessandoBloqueio(false);
      }
   };
 
@@ -464,6 +501,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const totalParticipantesValidos = Array.isArray(participantesDoGrupo) ? participantesDoGrupo.length : 0;
   const totalGruposValidos = Array.isArray(listaGrupos) ? listaGrupos.length : 0;
 
+  const clientesAtivos = listaClientesLoja.filter(c => c.statusAcesso !== 'BLOQUEADO' && c.statusAcesso !== 'REJEITADO');
+  const clientesBloqueados = listaClientesLoja.filter(c => c.statusAcesso === 'BLOQUEADO' || c.statusAcesso === 'REJEITADO');
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5] relative">
       
@@ -698,15 +738,16 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                             <tr className="text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                               <th className="py-3 px-5">CLIENTE</th>
                               <th className="py-3 px-5">DOCUMENTO</th>
-                              <th className="py-3 px-5">CONTATO</th>
+                              <th className="py-3 px-5">ULTIMO GRUPO</th>
                               <th className="py-3 px-5 text-center">STATUS DA CONTA</th>
+                              <th className="py-3 px-5 text-center">ACAO</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
-                            {listaClientesLoja.length === 0 ? (
-                               <tr><td colSpan={4} className="py-6 text-center text-stone-400 italic">Nenhum cliente registrado na sua unidade ainda.</td></tr>
+                            {clientesAtivos.length === 0 ? (
+                               <tr><td colSpan={5} className="py-6 text-center text-stone-400 italic">Nenhum cliente ativo registrado na sua unidade.</td></tr>
                             ) : (
-                               listaClientesLoja.map((cli, idx) => (
+                               clientesAtivos.map((cli, idx) => (
                                  <tr key={idx} className="hover:bg-stone-50/60 transition-all">
                                    <td className="py-3 px-5">
                                      <span className="block font-bold text-[#0B1E14]">{cli.nome}</span>
@@ -716,12 +757,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                      {cli.cpf ? aplicarMascaraCpf(cli.cpf) : 'Nao informado'}
                                    </td>
                                    <td className="py-3 px-5 text-stone-500">
-                                     {cli.telefone ? aplicarMascaraTelefone(cli.telefone) : 'Sem telefone'}
+                                     {cli.ultimoGrupo || 'Nenhum grupo ativo'}
                                    </td>
                                    <td className="py-3 px-5 text-center">
-                                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${cli.status === 'ATIVO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
-                                        {cli.status}
+                                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border bg-emerald-50 text-emerald-700 border-emerald-200">
+                                        APROVADO
                                       </span>
+                                   </td>
+                                   <td className="py-3 px-5 text-center">
+                                      <button onClick={() => handleAbrirBloqueio(cli)} className="text-[10px] font-bold text-rose-600 hover:underline cursor-pointer uppercase tracking-wider">
+                                         Bloquear
+                                      </button>
                                    </td>
                                  </tr>
                                ))
@@ -730,6 +776,47 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         </table>
                       </div>
                   </div>
+
+                  {clientesBloqueados.length > 0 && (
+                     <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden mt-6">
+                        <div className="px-5 py-4 border-b border-[#DFD9CE] bg-rose-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div>
+                                <h3 className="text-xs font-bold text-rose-800 uppercase tracking-wider">Historico de Exclusoes e Bloqueios</h3>
+                                <p className="text-[10px] text-rose-600 font-medium">Clientes banidos de participar de novos planos da unidade.</p>
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs border-collapse">
+                            <thead className="sticky top-0 bg-stone-50 z-10 shadow-sm">
+                              <tr className="text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
+                                <th className="py-3 px-5">CLIENTE BANIDO</th>
+                                <th className="py-3 px-5">DOCUMENTO</th>
+                                <th className="py-3 px-5">ULTIMO GRUPO</th>
+                                <th className="py-3 px-5">MOTIVO DA EXCLUSAO / BLOQUEIO</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
+                               {clientesBloqueados.map((cli, idx) => (
+                                   <tr key={idx} className="hover:bg-stone-50/60 transition-all opacity-80">
+                                     <td className="py-3 px-5">
+                                       <span className="block font-bold text-rose-800">{cli.nome}</span>
+                                     </td>
+                                     <td className="py-3 px-5 font-mono text-stone-500">
+                                       {cli.cpf ? aplicarMascaraCpf(cli.cpf) : 'Nao informado'}
+                                     </td>
+                                     <td className="py-3 px-5 text-stone-500">
+                                       {cli.ultimoGrupo || 'Nenhum grupo ativo'}
+                                     </td>
+                                     <td className="py-3 px-5 text-stone-500 italic">
+                                        {cli.motivoBloqueio || 'Motivo nao registrado no sistema.'}
+                                     </td>
+                                   </tr>
+                               ))}
+                            </tbody>
+                          </table>
+                        </div>
+                     </div>
+                  )}
               </div>
             )}
 
@@ -1228,6 +1315,54 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </div>
             </div>
         </div>
+      )}
+
+      {modalBloqueioAberto && clienteParaBloquear && (
+         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80] animate-fadeIn">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl border border-rose-100">
+                <div className="flex justify-between items-center mb-4 border-b border-stone-100 pb-3">
+                    <div>
+                        <h3 className="font-bold text-[#0B1E14] text-sm uppercase tracking-wide">Bloquear Cliente</h3>
+                        <p className="text-[10px] text-stone-400 mt-0.5">Alvo: {clienteParaBloquear.nome}</p>
+                    </div>
+                    <button onClick={() => setModalBloqueioAberto(false)} className="text-stone-400 font-bold px-2 cursor-pointer">X</button>
+                </div>
+                
+                <form onSubmit={confirmarBloqueioCliente} className="space-y-4">
+                    <p className="text-xs text-stone-500 leading-relaxed bg-stone-50 p-3 rounded-xl border border-dashed">
+                        O cliente sera impedido de acessar os planos e a vitrine da sua unidade. Para manter o historico de risco, detalhe o motivo abaixo.
+                    </p>
+                    
+                    <div>
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Motivo da Exclusao</label>
+                        <textarea
+                            value={motivoBloqueio}
+                            onChange={(e) => setMotivoBloqueio(e.target.value)}
+                            required
+                            placeholder="Ex: Inadimplencia, Quebra de contrato..."
+                            className="w-full px-3 py-2 border border-stone-200 rounded-xl bg-stone-50 text-xs min-h-[80px] focus:outline-none focus:border-[#BD6B42] resize-none"
+                        ></textarea>
+                    </div>
+                    
+                    <div className="flex gap-2 pt-2 border-t border-stone-100">
+                        <button 
+                            type="button"
+                            onClick={() => setModalBloqueioAberto(false)} 
+                            className="flex-1 py-2.5 bg-white border border-stone-200 text-stone-500 font-bold rounded-xl text-[10px] uppercase hover:bg-stone-50 transition-colors cursor-pointer"
+                        >
+                            Cancelar
+                        </button>
+                        <button 
+                            type="submit"
+                            disabled={processandoBloqueio}
+                            className="flex-1 py-2.5 bg-rose-600 text-white font-bold rounded-xl text-[10px] uppercase hover:bg-rose-700 shadow-md transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                            {processandoBloqueio ? 'Registrando...' : 'Confirmar Bloqueio'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+         </div>
       )}
 
       {notificacao.aberto && (
