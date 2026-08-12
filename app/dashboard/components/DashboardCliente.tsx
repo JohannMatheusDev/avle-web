@@ -142,7 +142,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
              mostrarAviso('Participacao Cancelada', 'A administracao da loja encerrou a sua participacao em um dos grupos de compras. O seu historico vinculado a esta cota foi fechado.', true);
              
              if (clubeAtualSelecionado && removidos.includes(clubeAtualSelecionado.cotaId)) {
-                 setNivelVisao('lojas');
+                 if (usuario?.lojaId || usuario?.loja?.id) {
+                     setNivelVisao('grupos');
+                 } else {
+                     setNivelVisao('lojas');
+                 }
                  setClubeAtualSelecionado(null);
                  setGrupoSelecionado(null);
                  setLojaSelecionada(null);
@@ -169,13 +173,14 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   useEffect(() => {
     let currentUserId = usuario?.id;
+    let currentUser = usuario;
 
     if (!currentUserId) {
       const usuarioLogado = localStorage.getItem('@avle:usuario');
       if (usuarioLogado) {
-        const user = JSON.parse(usuarioLogado);
-        setUsuario(user);
-        currentUserId = user.id;
+        currentUser = JSON.parse(usuarioLogado);
+        setUsuario(currentUser);
+        currentUserId = currentUser.id;
       }
     }
 
@@ -208,8 +213,28 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         return res.json();
       })
       .then((data) => {
-        if (Array.isArray(data)) setLojas(data);
-        else setLojas([]);
+        if (Array.isArray(data)) {
+            setLojas(data);
+            
+            const lojaVinculadaId = currentUser?.lojaId || currentUser?.loja?.id;
+            
+            if (lojaVinculadaId) {
+                const lojaDaPessoa = data.find(l => l.id === lojaVinculadaId);
+                if (lojaDaPessoa) {
+                    setLojaEmFoco(lojaDaPessoa);
+                    setNivelVisao('grupos');
+                    setCarregandoGrupos(true);
+                    
+                    fetch(`${API_URL}/api/grupos/loja/${lojaVinculadaId}`)
+                        .then((res) => res.json())
+                        .then((grupos) => setGruposDaLoja(Array.isArray(grupos) ? grupos : []))
+                        .catch(() => setGruposDaLoja([]))
+                        .finally(() => setCarregandoGrupos(false));
+                }
+            }
+        } else {
+            setLojas([]);
+        }
         setErroConexao(false);
       })
       .catch(() => {
@@ -291,10 +316,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
            body: JSON.stringify({ lojaId: Number(lojaEmFoco?.id), grupoId: Number(grupo?.id) })
          });
          
-         if (!res.ok) {
-            const textoErro = await res.text();
-            throw new Error(textoErro || 'Falha ao registrar vinculo no clube.');
-         }
+         if (!res.ok) throw new Error();
          
          const resClubes = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/clubes-ativos`);
          const dataClubes = await resClubes.json();
@@ -308,8 +330,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             setSaldoPoupanca(Number(novaCota.saldoPoupanca) || 0);
             setNivelVisao('dashboard'); 
          }
-      } catch (err: any) {
-         mostrarAviso('Aviso do Sistema', err.message, true);
+      } catch {
+         mostrarAviso('Erro de Adesao', 'Falha ao registrar vinculo no clube. Tente novamente.', true);
       }
   };
 
@@ -438,6 +460,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     setNivelVisao('dashboard');
   };
 
+  const isClienteAmarrado = !!(usuario?.lojaId || usuario?.loja?.id);
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5]">
 
@@ -457,7 +481,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
           <nav className="space-y-1">
             {[
-              { id: 'inicio', label: 'Home / Lojas e Clubes' },
+              { id: 'inicio', label: isClienteAmarrado ? 'Meus Planos' : 'Home / Lojas e Clubes' },
               { id: 'extrato', label: 'Historico Geral' },
               { id: 'regras', label: 'Regulamento' },
               { id: 'ajuda', label: 'Suporte' }
@@ -466,7 +490,13 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 key={aba.id}
                 onClick={() => { 
                     setAbaAtiva(aba.id as any); 
-                    if (aba.id === 'inicio') setNivelVisao('lojas'); 
+                    if (aba.id === 'inicio') {
+                       if (isClienteAmarrado) {
+                           setNivelVisao('grupos');
+                       } else {
+                           setNivelVisao('lojas');
+                       }
+                    }
                     setStatusSalvar(null); 
                     setStatusSalvarSenha(null); 
                 }}
@@ -491,7 +521,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         {abaAtiva === 'inicio' && (
           <div className="animate-fadeIn">
 
-            {nivelVisao === 'lojas' && (
+            {nivelVisao === 'lojas' && !isClienteAmarrado && (
               <div className="space-y-6 text-left">
                 <div>
                   <h2 className="text-base font-bold uppercase tracking-wide text-[#0B1E14]">Rede de Lojas Parceiras</h2>
@@ -523,7 +553,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                             corBorda = 'border-amber-400 bg-amber-50/50 shadow-sm';
                             labelStatus = 'Em Analise';
                             labelColor = 'text-amber-700';
-                        } else if (statusAcesso === 'REJEITADO') {
+                        } else if (statusAcesso === 'REJEITADO' || statusAcesso === 'BLOQUEADO') {
                             corBorda = 'border-rose-300 bg-rose-50/20 shadow-sm opacity-80';
                             labelStatus = 'Bloqueado';
                             labelColor = 'text-rose-600';
@@ -532,7 +562,13 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         return (
                            <div 
                              key={loja.id}
-                             onClick={() => handleAbrirLoja(loja)} 
+                             onClick={() => {
+                                 if (statusAcesso !== 'BLOQUEADO') {
+                                     handleAbrirLoja(loja);
+                                 } else {
+                                     mostrarAviso('Acesso Restrito', 'O seu acesso a este estabelecimento esta suspenso no momento. Entre em contato com a loja para mais informacoes.', true);
+                                 }
+                             }} 
                              className={`rounded-2xl p-6 cursor-pointer flex flex-col items-center justify-center text-center space-y-4 transition-all hover:-translate-y-1 border ${corBorda}`}
                            >
                               <div className="relative">
@@ -556,12 +592,14 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
             {nivelVisao === 'grupos' && lojaEmFoco && (
               <div className="space-y-6 text-left animate-fadeIn">
-                <button
-                  onClick={() => setNivelVisao('lojas')}
-                  className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
-                >
-                  Voltar para Lojas
-                </button>
+                {!isClienteAmarrado && (
+                  <button
+                    onClick={() => setNivelVisao('lojas')}
+                    className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
+                  >
+                    Voltar para Lojas
+                  </button>
+                )}
 
                 <div className="bg-[#0B1E14] rounded-2xl p-6 shadow-md text-white flex flex-col md:flex-row items-start md:items-center gap-4">
                    <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center font-serif font-bold text-emerald-400 text-xl shrink-0">
