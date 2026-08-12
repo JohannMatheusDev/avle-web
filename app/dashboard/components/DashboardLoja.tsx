@@ -193,8 +193,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   }, [grupoSelecionado]);
 
   const handleCopiarLinkConvite = () => {
-    const lojaId = usuario?.lojaId || usuario?.loja?.id || 1;
-    const link = `${window.location.origin}/convite/${lojaId}`;
+    const nomeBruto = usuario?.lojaNome || usuario?.loja?.nomeComercial || 'loja';
+    const slugFormatado = nomeBruto.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const link = `${window.location.origin}/convite/${slugFormatado}`;
     
     navigator.clipboard.writeText(link).then(() => {
       mostrarAviso('Link Copiado', 'O link exclusivo da sua loja foi copiado. Envie para seus clientes no WhatsApp para que eles se cadastrem diretamente na sua unidade!', false);
@@ -1247,6 +1248,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           </div>
         </div>
       )}
+
       {modalPagamentoManualAberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
@@ -1332,6 +1334,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             </div>
         </div>
       )}
+
       {modalBloqueioAberto && clienteParaBloquear && (
          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80] animate-fadeIn">
             <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl border border-rose-100">
