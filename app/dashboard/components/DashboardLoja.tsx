@@ -59,6 +59,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [totalClientes, setTotalClientes] = useState<number>(0);
   const [historicoTransacoes, setHistoricoTransacoes] = useState<any[]>([]);
   const [taxaChurn, setTaxaChurn] = useState<number>(0);
+  const [nomeLojaReal, setNomeLojaReal] = useState<string>('');
 
   const [notificacao, setNotificacao] = useState<{
     aberto: boolean;
@@ -178,6 +179,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   useEffect(() => {
     const lojaId = usuario?.lojaId || 1;
+    
+    fetch(`${API_URL}/api/lojas/${lojaId}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+         if(data && data.nomeComercial) {
+            setNomeLojaReal(data.nomeComercial);
+         }
+      }).catch(() => {});
+
     carregarGruposDoBanco();
     carregarDadosFinanceiros();
     carregarContagemClientes(lojaId);
@@ -193,7 +203,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   }, [grupoSelecionado]);
 
   const handleCopiarLinkConvite = () => {
-    const nomeBruto = usuario?.lojaNome || usuario?.loja?.nomeComercial || 'loja';
+    const nomeBruto = nomeLojaReal || usuario?.lojaNome || usuario?.loja?.nomeComercial || 'loja';
     const slugFormatado = nomeBruto.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
     const link = `${window.location.origin}/convite/${slugFormatado}`;
     
@@ -524,7 +534,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           <div className="mb-8 border-b border-white/10 pb-6">
             <h1 className="text-xl font-serif font-bold text-white tracking-wide">AVLE</h1>
             <p className="text-xs text-stone-400 font-medium mt-0.5">
-              {usuario?.lojaNome || 'Unidade Administrativa'}
+              {nomeLojaReal || usuario?.lojaNome || 'Unidade Administrativa'}
             </p>
           </div>
           
