@@ -1231,8 +1231,6 @@ function Autenticacao() {
           )}
         </div>
       </div>
-
-      {/* 🟢 MODAL DE TERMOS E CONDIÇÕES */}
       {modalTermosAberto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fadeIn text-left">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
