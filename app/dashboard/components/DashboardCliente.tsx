@@ -1,1252 +1,1287 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import gsap from 'gsap';
+import TelaCarregamento from './dashboard/components/TelaCarregamento';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
-export default function DashboardCliente({ usuario: usuarioInicial }: { usuario: any }) {
-  const router = useRouter();
+export default function Home() {
+  const [status, setStatus] = useState<'inicial' | 'intro' | 'login'>('inicial');
+  const [deveAnimar, setDeveAnimar] = useState(false);
 
-  const [usuario, setUsuario] = useState(usuarioInicial);
+  useEffect(() => {
+    const jaVisualizou = sessionStorage.getItem('@avle:splash-visualizado');
 
-  const [nomeInput, setNomeInput] = useState('');
-  const [emailInput, setEmailInput] = useState('');
-  const [cpfInput, setCpfInput] = useState('');
-  const [telefoneInput, setTelefoneInput] = useState('');
-  const [fotoPerfil, setFotoPerfil] = useState<string | null>(null);
+    if (jaVisualizou === 'true') {
+      setStatus('login');
+      setDeveAnimar(false);
+    } else {
+      setStatus('intro');
+      setDeveAnimar(true);
+    }
+  }, []);
 
-  const [senhaAtualInput, setSenhaAtualInput] = useState('');
-  const [novaSenhaInput, setNovaSenhaInput] = useState('');
-  const [confirmarNovaSenhaInput, setConfirmarNovaSenhaInput] = useState('');
-  const [salvandoSenha, setSalvandoSenha] = useState(false);
-  const [statusSalvarSenha, setStatusSalvarSenha] = useState<{ tipo: 'sucesso' | 'erro'; mensagem: string } | null>(null);
+  const handleFinalizarCarregamento = () => {
+    sessionStorage.setItem('@avle:splash-visualizado', 'true');
+    setStatus('login');
+  };
 
-  const [abaAtiva, setAbaAtiva] = useState<'inicio' | 'extrato' | 'regras' | 'ajuda' | 'perfil'>('inicio');
-  const [saldoPoupanca, setSaldoPoupanca] = useState<number>(0);
-  const [modalCheckoutAberto, setModalCheckoutAberto] = useState(false);
-
-  const [nivelVisao, setNivelVisao] = useState<'lojas' | 'grupos' | 'dashboard'>('lojas');
-  const [lojaEmFoco, setLojaEmFoco] = useState<any | null>(null);
-  const [gruposDaLoja, setGruposDaLoja] = useState<any[]>([]);
-  const [carregandoGrupos, setCarregandoGrupos] = useState(false);
-
-  const [lojas, setLojas] = useState<any[]>([]);
-  const [erroConexao, setErroConexao] = useState(false);
-
-  const [acessosLoja, setAcessosLoja] = useState<any[]>([]);
-  const [modalAcessoAberto, setModalAcessoAberto] = useState(false);
-  const [lojaParaAcesso, setLojaParaAcesso] = useState<any | null>(null);
-  const [solicitandoAcesso, setSolicitandoAcesso] = useState(false);
-
-  const [modalAdesao, setModalAdesao] = useState<{ aberto: boolean; grupo: any | null }>({ aberto: false, grupo: null });
-
-  const [clubesAtivos, setClubesAtivos] = useState<any[]>([]);
-  const [clubeAtualSelecionado, setClubeAtualSelecionado] = useState<any | null>(null);
-  const [grupoSelecionado, setGrupoSelecionado] = useState<any | null>(null);
-  const [lojaSelecionada, setLojaSelecionada] = useState<any | null>(null);
-
-  const [salvandoPerfil, setSalvandoPerfil] = useState(false);
-  const [carregandoDados, setCarregandoDados] = useState(true);
-  const [statusSalvar, setStatusSalvar] = useState<'sucesso' | 'erro' | null>(null);
-
-  const [notificacao, setNotificacao] = useState<{ aberto: boolean; titulo: string; mensagem: string; isError?: boolean }>({ aberto: false, titulo: '', mensagem: '', isError: false });
-
-  const totalObjetivo = grupoSelecionado ? Number(grupoSelecionado.valorParcela) * Number(grupoSelecionado.duracaoMeses) : 0;
-  const valorMensalidade = grupoSelecionado ? Number(grupoSelecionado.valorParcela) : 0;
-
-  const [dataVencimentoCota, setDataVencimentoCota] = useState('');
-  const [diasRestantesVencimento, setDiasRestantesVencimento] = useState(0);
-  const [exibirBannerAlerta, setExibirBannerAlerta] = useState(false);
-
-  const percentual = totalObjetivo > 0 ? Math.min(Math.round((saldoPoupanca / totalObjetivo) * 100), 100) : 0;
-
-  let etapaAtual = 1;
-  if (saldoPoupanca > 0 && saldoPoupanca < totalObjetivo) {
-    etapaAtual = 2;
-  } else if (saldoPoupanca >= totalObjetivo) {
-    etapaAtual = 4;
+  if (status === 'inicial') {
+    return <div className="min-h-screen bg-[#F5F2EB]" />;
   }
 
-  const mostrarAviso = (titulo: string, mensagem: string, isError: boolean = false) => {
-    setNotificacao({ aberto: true, titulo, mensagem, isError });
-  };
+  return (
+    <>
+      {status === 'intro' && <TelaCarregamento onFinalizado={handleFinalizarCarregamento} />}
 
-  const obterNomeLoja = (item: any) => {
-    if (!item) return 'Loja Parceira';
-    if (typeof item === 'string' && item.trim().length > 0) return item;
-    const objLoja = item.loja || item.grupo?.loja || item;
-    const nome = objLoja.nomeComercial || objLoja.nome_comercial || objLoja.nome || objLoja.nomeLoja || objLoja.razaoSocial || item.nomeComercial || item.nome_comercial || item.nome;
-    if (nome && typeof nome === 'string' && nome.trim().length > 0) return nome.trim();
-    return item.grupo?.nome || item.nomeGrupo || 'Loja Parceira';
-  };
+      <div
+        className={
+          status !== 'login'
+            ? 'opacity-0 scale-95 pointer-events-none fixed'
+            : deveAnimar
+              ? 'transition-all duration-1000 transform opacity-100 scale-100'
+              : 'opacity-100 scale-100'
+        }
+      >
+        <Autenticacao />
+      </div>
+    </>
+  );
+}
+
+function Autenticacao() {
+  const router = useRouter();
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const path1Ref = useRef<SVGPathElement>(null);
+  const path2Ref = useRef<SVGPathElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
+
+  const [isLogin, setIsLogin] = useState(true);
+  const [isVerificando, setIsVerificando] = useState(false);
+  const [carregando, setCarregando] = useState(false);
+  const [statusConexao, setStatusConexao] = useState('CONECTANDO...');
+
+  const [isEsqueceuSenha, setIsEsqueceuSenha] = useState(false);
+  const [isResetandoSenha, setIsResetandoSenha] = useState(false);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false);
+
+  const [tipoUsuario, setTipoUsuario] = useState('CLIENTE');
+  
+  const [identificadorLogin, setIdentificadorLogin] = useState(''); 
+  const [emailCadastro, setEmailCadastro] = useState('');
+  const [telefoneCadastro, setTelefoneCadastro] = useState('');
+  const [senha, setSenha] = useState('');
+  const [nome, setNome] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [codigoOtp, setCodigoOtp] = useState('');
+  const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
+
+  const [cep, setCep] = useState('');
+  const [faturamento, setFaturamento] = useState('');
+  const [walletIdInput, setWalletIdInput] = useState(''); 
+  const [bancoCodigo, setBancoCodigo] = useState('001'); 
+  const [agencia, setAgencia] = useState('');
+  const [conta, setConta] = useState('');
+  const [contaDigito, setContaDigito] = useState('');
+  const [tipoConta, setTipoConta] = useState('CORRENTE');
+  
+  const [aceitouTermos, setAceitouTermos] = useState(false);
+  const [modalTermosAberto, setModalTermosAberto] = useState(false);
+
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [modoLayout, setModoLayout] = useState<'mobile' | 'site'>('mobile');
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
+    const intervaloPing = setInterval(() => {
+      fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
+    }, 120000);
+    return () => clearInterval(intervaloPing);
+  }, []);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+
+      [path1Ref.current, path2Ref.current].forEach((path) => {
+        if (path) {
+          const length = path.getTotalLength();
+          gsap.set(path, { strokeDasharray: length, strokeDashoffset: length });
+          tl.to(path, { strokeDashoffset: 0, duration: 2, ease: 'power2.inOut' }, 0.2);
+        }
+      });
+
+      if (glowRef.current) {
+        tl.fromTo(
+          glowRef.current,
+          { scale: 0.3, opacity: 0 },
+          { scale: 1, opacity: 0.12, duration: 1.8 },
+          0
+        );
+      }
+
+      if (cardRef.current) {
+        tl.fromTo(
+          cardRef.current,
+          { opacity: 0, y: 40, rotateX: 8 },
+          { opacity: 1, y: 0, rotateX: 0, duration: 1 },
+          0.5
+        );
+      }
+
+      gsap.to('.gsap-leaf-particle', {
+        y: '-=20',
+        rotation: '+=25',
+        duration: 'random(3.5, 5.5)',
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+        stagger: { amount: 2, from: 'random' },
+      });
+    }, containerRef);
+
+    return () => ctx.revert();
+  }, [modoLayout]);
 
   const aplicarMascaraTelefone = (valor: string) => {
+    const v = valor.replace(/\D/g, '');
+    if (v.length <= 2) return v;
+    if (v.length <= 6) return `(${v.slice(0, 2)}) ${v.slice(2)}`;
+    if (v.length <= 10) return `(${v.slice(0, 2)}) ${v.slice(2, 6)}-${v.slice(6)}`;
+    return `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7, 11)}`;
+  };
+
+  const aplicarMascaraCep = (valor: string) => {
+    const v = valor.replace(/\D/g, '');
+    if (v.length <= 5) return v;
+    return `${v.slice(0, 5)}-${v.slice(5, 8)}`;
+  };
+
+  const aplicarMascaraMoeda = (valor: string) => {
     const apenasNumeros = valor.replace(/\D/g, '');
-    if (apenasNumeros.length <= 2) return apenasNumeros;
-    if (apenasNumeros.length <= 6) return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2)}`;
-    if (apenasNumeros.length <= 10) return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 6)}-${apenasNumeros.slice(6)}`;
-    return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 7)}-${apenasNumeros.slice(7, 11)}`;
+    if (!apenasNumeros) return '';
+    const valorNumerico = (parseFloat(apenasNumeros) / 100).toFixed(2);
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(parseFloat(valorNumerico));
   };
 
-  const aplicarMascaraCpfCnpj = (valor: string) => {
-    const apenasNumeros = valor.replace(/\D/g, '');
-    if (apenasNumeros.length <= 11) {
-      return apenasNumeros.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/g, "$1.$2.$3-$4");
-    }
-    return apenasNumeros.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/g, "$1.$2.$3/$4-$5");
-  };
-
-  useEffect(() => {
-    const hoje = new Date();
-    const diaAtual = hoje.getDate();
-    let ano = hoje.getFullYear();
-    let mes = hoje.getMonth() + 1;
-
-    if (diaAtual > 10) {
-      mes += 1;
-      if (mes > 12) { mes = 1; ano += 1; }
-    }
-
-    const dataVencimento = new Date(ano, mes - 1, 10);
-    const diffTime = dataVencimento.getTime() - hoje.getTime();
-    const diasCalculados = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    setDiasRestantesVencimento(diasCalculados);
-    setDataVencimentoCota(`10/${mes < 10 ? '0' + mes : mes}/${ano}`);
-
-    if ([1, 5, 8, 9, 10].includes(diaAtual) && diaAtual <= 10) {
-      setExibirBannerAlerta(true);
+  const handleIdentificadorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valor = e.target.value;
+    if (/^\d/.test(valor) || valor.startsWith('(')) {
+      setIdentificadorLogin(aplicarMascaraTelefone(valor));
     } else {
-      setExibirBannerAlerta(false);
-    }
-  }, [abaAtiva]);
-
-  const buscarCarteiraDeClubes = async (forcedId?: number, fallbackUserId?: number) => {
-    const userId = fallbackUserId || usuario?.id;
-    if (!userId) return;
-
-    try {
-      const res = await fetch(`${API_URL}/api/usuarios/${userId}/clubes-ativos`);
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        const chaveArmazenamento = `@avle:cotas_${userId}`;
-        const cotasSalvasStr = localStorage.getItem(chaveArmazenamento);
-        const idsAtuais = data.map((c: any) => c.cotaId);
-
-        if (cotasSalvasStr) {
-          const cotasSalvas = JSON.parse(cotasSalvasStr);
-          const removidos = cotasSalvas.filter((id: number) => !idsAtuais.includes(id));
-          
-          if (removidos.length > 0) {
-             mostrarAviso('Participacao Cancelada', 'A administracao da loja encerrou a sua participacao em um dos grupos de compras. O seu historico vinculado a esta cota foi fechado.', true);
-             
-             if (clubeAtualSelecionado && removidos.includes(clubeAtualSelecionado.cotaId)) {
-                 if (usuario?.lojaId || usuario?.loja?.id) {
-                     setNivelVisao('grupos');
-                 } else {
-                     setNivelVisao('lojas');
-                 }
-                 setClubeAtualSelecionado(null);
-                 setGrupoSelecionado(null);
-                 setLojaSelecionada(null);
-             }
-          }
-        }
-        
-        localStorage.setItem(chaveArmazenamento, JSON.stringify(idsAtuais));
-        setClubesAtivos(data);
-      }
-    } catch {
-      setClubesAtivos([]);
+      setIdentificadorLogin(valor);
     }
   };
 
-  const buscarAcessosLoja = async (userId: number) => {
-    try {
-      const res = await fetch(`${API_URL}/api/usuarios/${userId}/acessos-loja`);
-      const data = await res.json();
-      if (Array.isArray(data)) setAcessosLoja(data);
-    } catch (err) {
+  const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
+  const loginLimpo = identificadorLogin.replace(/\D/g, '');
+  const isLoginEmailValido = regexEmail.test(identificadorLogin);
+  const isLoginTelefoneValido = loginLimpo.length >= 10 && loginLimpo.length <= 11;
+  const loginValido = isLoginEmailValido || isLoginTelefoneValido;
+
+  const emailCadastroValido = regexEmail.test(emailCadastro);
+  const emailCadastroPreenchido = emailCadastro.trim().length > 0;
+  const emailCadastroValidoOuVazio = tipoUsuario === 'LOJA' ? emailCadastroValido : !emailCadastroPreenchido || emailCadastroValido;
+
+  const temMaiuscula = /[A-Z]/.test(senha);
+  const temNumero = /[0-9]/.test(senha);
+  const temCaracterEspecial = /[^A-Za-z0-9]/.test(senha);
+  const tamanhoMinimo = senha.length >= 8;
+  const senhaForte = temMaiuscula && temNumero && temCaracterEspecial && tamanhoMinimo;
+
+  const temMaiusculaNova = /[A-Z]/.test(novaSenha);
+  const temNumeroNova = /[0-9]/.test(novaSenha);
+  const temCaracterEspecialNova = /[^A-Za-z0-9]/.test(novaSenha);
+  const tamanhoMinimoNova = novaSenha.length >= 8;
+  const novaSenhaForte = temMaiusculaNova && temNumeroNova && temCaracterEspecialNova && tamanhoMinimoNova;
+
+  const tamanhoDocumentoValido = cpf.length === (tipoUsuario === 'LOJA' ? 14 : 11);
+  
+  const telefoneCadastroLimpo = telefoneCadastro.replace(/\D/g, '');
+  const telefoneCadastroValidoSeLoja = tipoUsuario === 'LOJA' ? telefoneCadastroLimpo.length >= 10 : true;
+
+  const cepLimpo = cep.replace(/\D/g, '');
+  const cepValidoSeLoja = tipoUsuario === 'LOJA' ? cepLimpo.length === 8 : true;
+  const faturamentoValidoSeLoja = tipoUsuario === 'LOJA' ? faturamento.trim().length > 0 : true;
+  const dadosBancariosValidosSeLoja =
+    tipoUsuario === 'LOJA'
+      ? agencia.trim().length >= 3 && conta.trim().length >= 4 && contaDigito.trim().length >= 1
+      : true;
+
+  const formularioValido = isLogin
+    ? loginValido && senha.length > 0
+    : emailCadastroValidoOuVazio &&
+      telefoneCadastroValidoSeLoja &&
+      senhaForte &&
+      nome.trim() !== '' &&
+      tamanhoDocumentoValido &&
+      cepValidoSeLoja &&
+      faturamentoValidoSeLoja &&
+      dadosBancariosValidosSeLoja &&
+      (tipoUsuario === 'LOJA' ? aceitouTermos : true);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMensagem({ tipo: '', texto: '' });
+    setStatusConexao('CONECTANDO...');
+    setCarregando(true);
+
+    if (!formularioValido) {
+      setMensagem({ tipo: 'erro', texto: 'Por favor, preencha todos os campos obrigatorios corretamente!' });
+      setCarregando(false);
+      return;
     }
-  };
 
-  useEffect(() => {
-    let currentUserId = usuario?.id;
-    let currentUser = usuario;
+    const maxTentativas = 4;
 
-    if (!currentUserId) {
-      const usuarioLogado = localStorage.getItem('@avle:usuario');
-      if (usuarioLogado) {
-        currentUser = JSON.parse(usuarioLogado);
-        setUsuario(currentUser);
-        currentUserId = currentUser.id;
-      }
-    }
-
-    if (currentUserId) {
-      buscarCarteiraDeClubes(undefined, currentUserId);
-      buscarAcessosLoja(currentUserId); 
-
-      fetch(`${API_URL}/api/usuarios/${currentUserId}`)
-        .then((res) => {
-          if (!res.ok) throw new Error();
-          return res.json();
-        })
-        .then((data) => {
-          if (data) {
-            setNomeInput(data.nome || '');
-            setEmailInput(data.email || '');
-            setTelefoneInput(data.telefone ? aplicarMascaraTelefone(data.telefone) : '');
-            setFotoPerfil(data.fotoPerfil || null);
-            const documento = data.cpf || data.cpfCnpj || data.cpf_cnpj || data.documento || '';
-            setCpfInput(documento ? aplicarMascaraCpfCnpj(documento) : '');
-          }
-        })
-        .catch(() => {})
-        .finally(() => setCarregandoDados(false));
-    }
-
-    fetch(`${API_URL}/api/lojas/listar-todas`)
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data)) {
-            setLojas(data);
-            
-            const lojaVinculadaId = currentUser?.lojaId || currentUser?.loja?.id;
-            
-            if (lojaVinculadaId) {
-                const lojaDaPessoa = data.find(l => l.id === lojaVinculadaId);
-                if (lojaDaPessoa) {
-                    setLojaEmFoco(lojaDaPessoa);
-                    setNivelVisao('grupos');
-                    setCarregandoGrupos(true);
-                    
-                    fetch(`${API_URL}/api/grupos/loja/${lojaVinculadaId}`)
-                        .then((res) => res.json())
-                        .then((grupos) => setGruposDaLoja(Array.isArray(grupos) ? grupos : []))
-                        .catch(() => setGruposDaLoja([]))
-                        .finally(() => setCarregandoGrupos(false));
-                }
-            }
-        } else {
-            setLojas([]);
-        }
-        setErroConexao(false);
-      })
-      .catch(() => {
-        setLojas([]);
-        setErroConexao(true);
-      });
-  }, [usuario?.id]);
-
-  const handleAbrirLoja = (loja: any) => {
-    const acesso = acessosLoja.find(a => a.lojaId === loja.id);
-    const statusAcesso = acesso ? acesso.status : 'NAO_SOLICITADO';
-
-    if (statusAcesso === 'APROVADO') {
-      setLojaEmFoco(loja);
-      setNivelVisao('grupos');
-      setCarregandoGrupos(true);
-      setGruposDaLoja([]);
-
-      fetch(`${API_URL}/api/grupos/loja/${loja.id}`)
-        .then((res) => res.json())
-        .then((data) => setGruposDaLoja(Array.isArray(data) ? data : []))
-        .catch(() => setGruposDaLoja([]))
-        .finally(() => setCarregandoGrupos(false));
-        
-    } else if (statusAcesso === 'PENDENTE') {
-      mostrarAviso('Aviso', 'Sua solicitacao de acesso esta em analise de credito pela loja. Aguarde a aprovacao para ver os planos.', false);
-    } else if (statusAcesso === 'REJEITADO') {
-      mostrarAviso('Aviso', 'Infelizmente, o estabelecimento nao liberou o acesso aos grupos de compras neste momento devido a restricoes.', true);
-    } else {
-      setLojaParaAcesso(loja);
-      setModalAcessoAberto(true);
-    }
-  };
-
-  const handleSolicitarAcesso = async () => {
-    if (!lojaParaAcesso) return;
-    setSolicitandoAcesso(true);
-    try {
-       const res = await fetch(`${API_URL}/api/lojas/${lojaParaAcesso.id}/solicitar-acesso`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usuarioId: usuario?.id })
-       });
-       
-       if(res.ok) {
-          mostrarAviso('Solicitacao Enviada', 'A caixa de mensagens da loja foi notificada para realizar a analise de credito. O processo costuma ser rapido.', false);
-          buscarAcessosLoja(usuario?.id);
-          setModalAcessoAberto(false);
-       } else {
-          mostrarAviso('Erro', 'Nao foi possivel enviar a solicitacao no momento.', true);
-       }
-    } catch(e) {
-       mostrarAviso('Erro de Conexao', 'Erro ao conectar ao servidor ao solicitar acesso.', true);
-    } finally {
-       setSolicitandoAcesso(false);
-    }
-  };
-
-  const handleAbrirGrupo = async (grupo: any, cotaExistente: any) => {
-    if (cotaExistente) {
-       setClubeAtualSelecionado(cotaExistente);
-       setGrupoSelecionado(cotaExistente.grupo);
-       setLojaSelecionada(cotaExistente.loja);
-       setSaldoPoupanca(Number(cotaExistente.saldoPoupanca) || 0);
-       setNivelVisao('dashboard');
-    } else {
-       setModalAdesao({ aberto: true, grupo });
-    }
-  };
-
-  const confirmarAdesaoNoGrupo = async () => {
-      const grupo = modalAdesao.grupo;
-      setModalAdesao({ aberto: false, grupo: null });
+    for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       try {
-         const res = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/vincular-clube`, {
-           method: 'PUT',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ lojaId: Number(lojaEmFoco?.id), grupoId: Number(grupo?.id) })
-         });
-         
-         if (!res.ok) throw new Error();
-         
-         const resClubes = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/clubes-ativos`);
-         const dataClubes = await resClubes.json();
-         setClubesAtivos(dataClubes);
-         
-         const novaCota = dataClubes.find((c: any) => c.grupo.id === grupo.id);
-         if (novaCota) {
-            setClubeAtualSelecionado(novaCota);
-            setGrupoSelecionado(novaCota.grupo);
-            setLojaSelecionada(novaCota.loja);
-            setSaldoPoupanca(Number(novaCota.saldoPoupanca) || 0);
-            setNivelVisao('dashboard'); 
-         }
-      } catch {
-         mostrarAviso('Erro de Adesao', 'Falha ao registrar vinculo no clube. Tente novamente.', true);
-      }
-  };
+        const endpoint = isLogin ? `${API_URL}/api/auth/login` : `${API_URL}/api/usuarios/cadastro`;
+        const faturamentoNumerico = faturamento
+          ? parseFloat(faturamento.replace(/[^\d,]/g, '').replace(',', '.'))
+          : null;
 
-  const atualizarSaldoAposPagamento = () => {
-    setSaldoPoupanca((prev) => prev + valorMensalidade);
-    setClubesAtivos(prev => prev.map(c =>
-      c.cotaId === clubeAtualSelecionado?.cotaId
-        ? { ...c, saldoPoupanca: c.saldoPoupanca + valorMensalidade }
-        : c
-    ));
-  };
+        let bodyPayload: any = {};
 
-  const handleUploadFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const arquivo = e.target.files[0];
-      if (!arquivo.type.startsWith('image/')) { mostrarAviso('Formato Invalido', 'Apenas arquivos de imagem.', true); return; }
-      if (arquivo.size > 2 * 1024 * 1024) { mostrarAviso('Arquivo Muito Grande', 'A imagem deve ter no maximo 2MB.', true); return; }
-
-      const leitor = new FileReader();
-      leitor.onloadend = async () => {
-        const base64String = leitor.result as string;
-        try {
-          const res = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/foto`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fotoPerfil: base64String }),
-          });
-          if (!res.ok) throw new Error();
-          setFotoPerfil(base64String);
-          const localUser = localStorage.getItem('@avle:usuario');
-          if (localUser) {
-            const parsed = JSON.parse(localUser);
-            parsed.fotoPerfil = base64String;
-            localStorage.setItem('@avle:usuario', JSON.stringify(parsed));
-          }
-        } catch (err) {
-          mostrarAviso('Erro', 'Nao foi possivel salvar sua foto de perfil.', true);
+        if (isLogin) {
+            if (identificadorLogin.includes('@')) {
+               bodyPayload = { email: identificadorLogin.trim(), senha };
+            } else {
+               bodyPayload = { telefone: identificadorLogin.replace(/\D/g, ''), senha };
+            }
+        } else {
+            bodyPayload = {
+              nome,
+              email: emailCadastro.trim() !== '' ? emailCadastro : null,
+              cpf,
+              senha,
+              tipoUsuario,
+              telefone: telefoneCadastroLimpo !== '' ? telefoneCadastroLimpo : null,
+              cep: tipoUsuario === 'LOJA' ? cepLimpo : null,
+              faturamento: tipoUsuario === 'LOJA' ? faturamentoNumerico : null,
+              walletId: tipoUsuario === 'LOJA' && walletIdInput.trim() !== '' ? walletIdInput.trim() : null,
+              dadosBancarios:
+                tipoUsuario === 'LOJA'
+                  ? { bancoCodigo, agencia, conta, contaDigito, tipoConta }
+                  : null,
+            };
         }
-      };
-      leitor.readAsDataURL(arquivo);
+
+        const resposta = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyPayload),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (resposta.status === 403) {
+          setMensagem({ tipo: 'erro', texto: 'Sua conta ainda nao foi verificada.' });
+          setIsVerificando(true);
+          setCarregando(false);
+          return;
+        }
+
+        if (resposta.status >= 400 && resposta.status < 500) {
+          const textoErro = await resposta.text();
+          throw new Error(textoErro || (isLogin ? 'E-mail, telefone ou senha incorretos!' : 'Erro ao realizar cadastro.'));
+        }
+
+        if (!resposta.ok) {
+          throw new Error('SERVER_STARTING');
+        }
+
+        if (isLogin) {
+          const dadosUsuario = await resposta.json();
+          localStorage.setItem('@avle:usuario', JSON.stringify(dadosUsuario));
+          router.push('/dashboard');
+          return;
+        } else {
+          setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso!' });
+          setTimeout(() => {
+            setIsLogin(true);
+            setNome(''); setCpf(''); setEmailCadastro(''); setTelefoneCadastro(''); setCep('');
+            setFaturamento(''); setWalletIdInput(''); setAgencia(''); setConta('');
+            setContaDigito(''); setSenha(''); setAceitouTermos(false);
+            setMensagem({ tipo: '', texto: '' });
+          }, 1500);
+          setCarregando(false);
+          return;
+        }
+      } catch (erro: any) {
+        clearTimeout(timeoutId);
+        const msg = erro.message || '';
+
+        if (msg !== 'SERVER_STARTING' && !msg.includes('Failed to fetch') && !msg.includes('NetworkError') && erro.name !== 'TypeError' && erro.name !== 'AbortError') {
+          setMensagem({ tipo: 'erro', texto: msg });
+          setCarregando(false);
+          return;
+        }
+
+        if (tentativa < maxTentativas) {
+          setStatusConexao('ACORDANDO SERVIDOR SEGURO...');
+          await new Promise((resolve) => setTimeout(resolve, 3000)); 
+          continue;
+        }
+
+        setMensagem({
+          tipo: 'erro',
+          texto: 'Nao foi possivel conectar ao servidor. Verifique sua conexao e tente novamente.',
+        });
+        setCarregando(false);
+      }
     }
   };
 
-  const handleSalvarPerfil = async (e: React.FormEvent) => {
+  const handleConfirmarCodigo = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSalvandoPerfil(true);
-    setStatusSalvar(null);
+    setMensagem({ tipo: '', texto: '' });
+    setCarregando(true);
 
-    const localUserStorage = localStorage.getItem('@avle:usuario');
-    const parsedUser = localUserStorage ? JSON.parse(localUserStorage) : null;
-    const userId = usuario?.id || parsedUser?.id;
-
-    if (!userId) {
-      setStatusSalvar('erro');
-      setSalvandoPerfil(false);
-      return;
-    }
+    const isTelefone = !identificadorLogin.includes('@');
+    const payload = isTelefone 
+        ? { telefone: identificadorLogin.replace(/\D/g, ''), codigo: codigoOtp } 
+        : { email: identificadorLogin.trim(), codigo: codigoOtp };
 
     try {
-      const res = await fetch(`${API_URL}/api/usuarios/${userId}`, {
-        method: 'PUT',
+      const resposta = await fetch(`${API_URL}/api/usuarios/verificar`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome: nomeInput,
-          email: emailInput,
-          telefone: telefoneInput.replace(/\D/g, '')
-        }),
+        body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error();
-
-      const usuarioAtualizado = { ...usuario, nome: nomeInput, email: emailInput, telefone: telefoneInput.replace(/\D/g, '') };
-      setUsuario(usuarioAtualizado);
-      localStorage.setItem('@avle:usuario', JSON.stringify(usuarioAtualizado));
-      setStatusSalvar('sucesso');
-    } catch (err) {
-      setStatusSalvar('erro');
-    } finally {
-      setSalvandoPerfil(false);
-    }
-  };
-
-  const handleAlterarSenha = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setStatusSalvarSenha(null);
-
-    if (novaSenhaInput !== confirmarNovaSenhaInput) {
-      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'As senhas nao coincidem.' });
-      return;
-    }
-    if (novaSenhaInput.length < 6) {
-      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'Minimo de 6 caracteres.' });
-      return;
-    }
-
-    setSalvandoSenha(true);
-    const userId = usuario?.id || JSON.parse(localStorage.getItem('@avle:usuario') || '{}').id;
-
-    try {
-      const res = await fetch(`${API_URL}/api/usuarios/${userId}/alterar-senha`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ senhaAtual: senhaAtualInput, novaSenha: novaSenhaInput })
-      });
-
-      if (!res.ok) {
-        throw new Error();
+      if (!resposta.ok) {
+        const textoErro = await resposta.text();
+        throw new Error(textoErro || 'Codigo de verificacao incorreto ou expirado.');
       }
 
-      setStatusSalvarSenha({ tipo: 'sucesso', mensagem: 'Sua senha foi alterada com sucesso!' });
-      setSenhaAtualInput('');
-      setNovaSenhaInput('');
-      setConfirmarNovaSenhaInput('');
-    } catch (err: any) {
-      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'Falha ao alterar senha.' });
+      setMensagem({ tipo: 'sucesso', texto: 'Conta ativada com sucesso! Faca seu login agora.' });
+      setIsVerificando(false);
+      setIsLogin(true);
+      setSenha('');
+      setCodigoOtp('');
+    } catch (erro: any) {
+      setMensagem({ tipo: 'erro', texto: erro.message });
     } finally {
-      setSalvandoSenha(false);
+      setCarregando(false);
     }
   };
 
-  const handleMudarClubeEmExibicao = (clube: any) => {
-    setClubeAtualSelecionado(clube);
-    setGrupoSelecionado(clube.grupo);
-    setLojaSelecionada(clube.loja);
-    setSaldoPoupanca(Number(clube.saldoPoupanca) || 0);
-    setNivelVisao('dashboard');
+  const handleSolicitarRecuperacao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMensagem({ tipo: '', texto: '' });
+    setCarregando(true);
+
+    const isTelefone = !identificadorLogin.includes('@');
+
+    if (!isLoginEmailValido && !isTelefone) {
+      setMensagem({ tipo: 'erro', texto: 'Por favor, insira um e-mail ou telefone valido.' });
+      setCarregando(false);
+      return;
+    }
+
+    const payload = isTelefone 
+        ? { telefone: identificadorLogin.replace(/\D/g, '') } 
+        : { email: identificadorLogin.trim() };
+
+    try {
+      const resposta = await fetch(`${API_URL}/api/auth/esqueceu-senha`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resposta.ok) throw new Error('Dados nao localizados no ecossistema AVLE.');
+
+      setMensagem({ tipo: 'sucesso', texto: 'Codigo de redefinicao enviado!' });
+
+      setTimeout(() => {
+        setIsEsqueceuSenha(false);
+        setIsResetandoSenha(true);
+        setCodigoOtp('');
+        setMensagem({ tipo: '', texto: '' });
+      }, 1500);
+    } catch (erro: any) {
+      setMensagem({ tipo: 'erro', texto: erro.message });
+    } finally {
+      setCarregando(false);
+    }
   };
 
-  const isClienteAmarrado = !!(usuario?.lojaId || usuario?.loja?.id);
+  const handleSalvarNovaSenha = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMensagem({ tipo: '', texto: '' });
+    setCarregando(true);
+
+    if (codigoOtp.length !== 6 || !novaSenhaForte) {
+      setMensagem({ tipo: 'erro', texto: 'O codigo precisa ter 6 digitos e a nova senha precisa ser forte.' });
+      setCarregando(false);
+      return;
+    }
+
+    const isTelefone = !identificadorLogin.includes('@');
+    const payload = isTelefone 
+        ? { telefone: identificadorLogin.replace(/\D/g, ''), codigo: codigoOtp, novaSenha } 
+        : { email: identificadorLogin.trim(), codigo: codigoOtp, novaSenha };
+
+    try {
+      const resposta = await fetch(`${API_URL}/api/auth/redefinir-senha`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resposta.ok) throw new Error('Codigo incorreto, expirado ou ja utilizado.');
+
+      setMensagem({ tipo: 'sucesso', texto: 'Sua senha foi redefinida com sucesso! Faca seu login.' });
+
+      setTimeout(() => {
+        setIsResetandoSenha(false);
+        setIsLogin(true);
+        setSenha('');
+        setNovaSenha('');
+        setCodigoOtp('');
+        setMensagem({ tipo: '', texto: '' });
+      }, 2000);
+    } catch (erro: any) {
+      setMensagem({ tipo: 'erro', texto: erro.message });
+    } finally {
+      setCarregando(false);
+    }
+  };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5]">
+    <div
+      ref={containerRef}
+      className="min-h-screen bg-[#F5F2EB] flex flex-col justify-center items-center p-4 text-[#0B1E14] relative select-none overflow-hidden transition-all duration-500"
+    >
+      <div ref={glowRef} className="absolute w-[550px] h-[550px] bg-[#BD6B42] rounded-full blur-[140px] pointer-events-none -z-10" />
 
-      <aside className="w-full md:w-64 bg-[#0B1E14] text-[#E3EAE6] flex flex-col justify-between p-6 flex-shrink-0">
-        <div>
-          <div className="flex flex-col items-center text-center pb-6 border-b border-white/10 mb-6">
-            <div className="w-16 h-16 rounded-full bg-[#EFEAE2] flex items-center justify-center overflow-hidden font-bold text-xl text-[#0B1E14] shadow-md cursor-pointer hover:scale-105 transition-all" onClick={() => { setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }}>
-              {fotoPerfil ? (
-                <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
-              ) : (
-                usuario?.nome ? usuario.nome.substring(0,2).toUpperCase() : 'AV'
-              )}
-            </div>
-            <h3 className="text-white font-bold text-sm tracking-wide mt-3 uppercase">{usuario?.nome || 'Painel Cliente'}</h3>
-            <p className="text-[11px] text-stone-400 truncate max-w-[180px] mt-0.5">{usuario?.email}</p>
+      <svg className="absolute inset-0 w-full h-full pointer-events-none -z-10 opacity-20" viewBox="0 0 1000 1000" fill="none">
+        <path ref={path1Ref} d="M 100,900 C 300,700 350,400 500,500 C 650,600 700,300 900,100" stroke="#0B1E14" strokeWidth="2.5" strokeLinecap="round" />
+        <path ref={path2Ref} d="M 200,950 C 400,800 450,550 500,500 C 550,450 750,200 850,50" stroke="#BD6B42" strokeWidth="1.8" strokeLinecap="round" />
+        <circle cx="500" cy="500" r="230" stroke="#0B1E14" strokeWidth="0.8" strokeDasharray="6 6" />
+      </svg>
+
+      <div className="absolute inset-0 pointer-events-none -z-10">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="gsap-leaf-particle absolute w-2 h-2 rounded-full bg-[#BD6B42]/40 blur-[0.5px]" style={{ top: `${18 + i * 13}%`, left: `${10 + i * 14}%` }} />
+        ))}
+      </div>
+
+      <div className="mb-6 bg-stone-200/80 p-1 rounded-2xl flex space-x-1 border border-stone-300 shadow-inner z-50">
+        <button
+          type="button"
+          onClick={() => setModoLayout('mobile')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+            modoLayout === 'mobile' ? 'bg-[#0B1E14] text-white shadow-md' : 'text-stone-500 hover:text-stone-700'
+          }`}
+        >
+          Vista Mobile
+        </button>
+        <button
+          type="button"
+          onClick={() => setModoLayout('site')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+            modoLayout === 'site' ? 'bg-[#0B1E14] text-white shadow-md' : 'text-stone-500 hover:text-stone-700'
+          }`}
+        >
+          Vista Site
+        </button>
+      </div>
+
+      <div
+        ref={cardRef}
+        className={`w-full bg-white rounded-3xl shadow-xl border border-stone-200/60 overflow-hidden flex transition-all duration-500 ease-in-out hover:shadow-2xl ${
+          modoLayout === 'site' ? 'max-w-4xl min-h-[640px] flex-row' : 'max-w-md min-h-[660px] flex-col'
+        }`}
+      >
+        <div
+          className={`bg-[#0B1E14] p-8 text-center flex flex-col items-center justify-center group transition-all duration-500 ${
+            modoLayout === 'site' ? 'w-1/2 rounded-r-3xl' : 'w-full'
+          }`}
+        >
+          <div className="w-16 h-16 bg-[#F5F2EB] rounded-full flex items-center justify-center mb-3 shadow-md transition-transform duration-500 ease-out group-hover:rotate-12 group-hover:scale-105">
+            <span className="text-[#0B1E14] font-black text-2xl">AV</span>
           </div>
+          <h1 className="text-white text-2xl font-bold tracking-wide">AVLE</h1>
+          <p className="text-stone-300 text-sm mt-1">Seu clube de compras planejado</p>
+          <p className="text-[#BD6B42] text-xs italic mt-3 max-w-xs">
+            "Onde suas escolhas criam raizes e geram frutos."
+          </p>
+        </div>
 
-          <nav className="space-y-1">
-            {[
-              { id: 'inicio', label: isClienteAmarrado ? 'Meus Planos' : 'Home / Lojas e Clubes' },
-              { id: 'extrato', label: 'Historico Geral' },
-              { id: 'regras', label: 'Regulamento' },
-              { id: 'ajuda', label: 'Suporte' }
-            ].map((aba) => (
+        <div
+          className={`flex flex-col justify-between transition-all duration-500 overflow-y-auto max-h-[85vh] ${
+            modoLayout === 'site' ? 'w-1/2 p-4' : 'w-full p-2'
+          }`}
+        >
+          {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
+            <div className="flex border-b border-stone-100 bg-stone-50/50">
               <button
-                key={aba.id}
-                onClick={() => { 
-                    setAbaAtiva(aba.id as any); 
-                    if (aba.id === 'inicio') {
-                       if (isClienteAmarrado) {
-                           setNivelVisao('grupos');
-                       } else {
-                           setNivelVisao('lojas');
-                       }
-                    }
-                    setStatusSalvar(null); 
-                    setStatusSalvarSenha(null); 
+                type="button"
+                onClick={() => {
+                  setIsLogin(true);
+                  setMensagem({ tipo: '', texto: '' });
+                  setAceitouTermos(false);
                 }}
-                className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
-                  abaAtiva === aba.id ? 'bg-white/10 text-white font-bold' : 'hover:bg-white/5 opacity-75'
+                className={`flex-1 py-4 font-bold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  isLogin ? 'text-[#BD6B42] border-b-2 border-[#BD6B42] bg-white' : 'text-stone-400 hover:text-stone-600'
                 }`}
               >
-                {aba.label}
+                Acessar Conta
               </button>
-            ))}
-          </nav>
-        </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(false);
+                  setMensagem({ tipo: '', texto: '' });
+                  setTipoUsuario('CLIENTE');
+                  setAceitouTermos(false);
+                }}
+                className={`flex-1 py-4 font-bold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  !isLogin ? 'text-[#BD6B42] border-b-2 border-[#BD6B42] bg-white' : 'text-stone-400 hover:text-stone-600'
+                }`}
+              >
+                Nova Conta
+              </button>
+            </div>
+          )}
 
-        <div className="pt-4 border-t border-white/10 flex justify-between items-center text-xs">
-          <button onClick={() => { setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }} className={`hover:text-white transition-all font-semibold cursor-pointer ${abaAtiva === 'perfil' ? 'text-white underline' : 'text-stone-400'}`}>Configuracoes</button>
-          <button onClick={() => { localStorage.removeItem('@avle:usuario'); router.push('/'); }} className="text-stone-400 hover:text-red-400 font-bold cursor-pointer">Sair</button>
-        </div>
-      </aside>
-
-      <main className="flex-1 p-6 md:p-8 max-w-7xl overflow-x-hidden space-y-6">
-
-        {abaAtiva === 'inicio' && (
-          <div className="animate-fadeIn">
-
-            {nivelVisao === 'lojas' && !isClienteAmarrado && (
-              <div className="space-y-6 text-left">
+          {isVerificando && (
+            <form onSubmit={handleConfirmarCodigo} className="p-6 flex-1 flex flex-col justify-between space-y-4 text-left">
+              <div className="space-y-4">
                 <div>
-                  <h2 className="text-base font-bold uppercase tracking-wide text-[#0B1E14]">Rede de Lojas Parceiras</h2>
-                  <p className="text-xs text-stone-500">Selecione uma loja parceira abaixo para acessar seus clubes de compras ou solicitar autorizacao de credito.</p>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificacao de Conta</h3>
+                  <p className="text-xs text-stone-400 mt-1">
+                    Insira o codigo verificador enviado para: <br />
+                    <strong className="text-[#BD6B42] font-semibold">{identificadorLogin}</strong>
+                  </p>
                 </div>
-
-                {lojas.length === 0 && !erroConexao ? (
-                  <div className="bg-white border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
-                    Nenhuma loja parceira cadastrada na plataforma ainda.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
-                    {lojas.map(loja => {
-                        const acesso = acessosLoja.find(a => a.lojaId === loja.id);
-                        const statusAcesso = acesso ? acesso.status : 'NAO_SOLICITADO';
-
-                        const cotasNestaLoja = clubesAtivos.filter(c => c.grupo?.loja?.id === loja.id || c.loja?.id === loja.id);
-                        const quantidadeCotantes = cotasNestaLoja.length;
-
-                        let corBorda = 'border-[#DFD9CE] hover:border-[#BD6B42]/50 hover:shadow-md bg-white';
-                        let labelStatus = 'Solicitar Acesso';
-                        let labelColor = 'text-stone-400';
-
-                        if (statusAcesso === 'APROVADO') {
-                            corBorda = 'border-emerald-600 bg-emerald-50/20 shadow-sm';
-                            labelStatus = quantidadeCotantes > 0 ? `${quantidadeCotantes} ${quantidadeCotantes === 1 ? 'Clube Ativo' : 'Clubes Ativos'}` : 'Entrar na Loja';
-                            labelColor = 'text-emerald-700 font-bold';
-                        } else if (statusAcesso === 'PENDENTE') {
-                            corBorda = 'border-amber-400 bg-amber-50/50 shadow-sm';
-                            labelStatus = 'Em Analise';
-                            labelColor = 'text-amber-700';
-                        } else if (statusAcesso === 'REJEITADO' || statusAcesso === 'BLOQUEADO') {
-                            corBorda = 'border-rose-300 bg-rose-50/20 shadow-sm opacity-80';
-                            labelStatus = 'Bloqueado';
-                            labelColor = 'text-rose-600';
-                        }
-
-                        return (
-                           <div 
-                             key={loja.id}
-                             onClick={() => {
-                                 if (statusAcesso !== 'BLOQUEADO') {
-                                     handleAbrirLoja(loja);
-                                 } else {
-                                     mostrarAviso('Acesso Restrito', 'O seu acesso a este estabelecimento esta suspenso no momento. Entre em contato com a loja para mais informacoes.', true);
-                                 }
-                             }} 
-                             className={`rounded-2xl p-6 cursor-pointer flex flex-col items-center justify-center text-center space-y-4 transition-all hover:-translate-y-1 border ${corBorda}`}
-                           >
-                              <div className="relative">
-                                <div className="w-16 h-16 rounded-full flex items-center justify-center font-serif font-bold text-2xl bg-[#F5F2EB] text-[#0B1E14] border border-stone-200">
-                                  {obterNomeLoja(loja).substring(0, 2).toUpperCase()}
-                                </div>
-                              </div>
-                              <div className="w-full">
-                                <h3 className="text-sm font-bold text-[#0B1E14] truncate w-full px-2">{obterNomeLoja(loja)}</h3>
-                                <span className={`inline-block mt-1 text-[9px] font-bold px-2 py-0.5 uppercase tracking-wider ${labelColor}`}>
-                                  {labelStatus}
-                                </span>
-                              </div>
-                           </div>
-                        )
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {nivelVisao === 'grupos' && lojaEmFoco && (
-              <div className="space-y-6 text-left animate-fadeIn">
-                {!isClienteAmarrado && (
-                  <button
-                    onClick={() => setNivelVisao('lojas')}
-                    className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
+                {mensagem.texto && (
+                  <div
+                    className={`p-3 rounded-xl text-xs font-bold border ${
+                      mensagem.tipo === 'sucesso'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                    }`}
                   >
-                    Voltar para Lojas
-                  </button>
+                    {mensagem.texto}
+                  </div>
                 )}
-
-                <div className="bg-[#0B1E14] rounded-2xl p-6 shadow-md text-white flex flex-col md:flex-row items-start md:items-center gap-4">
-                   <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center font-serif font-bold text-emerald-400 text-xl shrink-0">
-                      OK
-                   </div>
-                   <div>
-                      <h2 className="text-xl font-bold tracking-wide">{obterNomeLoja(lojaEmFoco)}</h2>
-                      <p className="text-xs text-stone-300 mt-0.5">Grupos de compras disponiveis nesta unidade. Clique em um card para acessar seu painel ou registrar participacao.</p>
-                   </div>
-                </div>
-
-                {carregandoGrupos ? (
-                   <div className="py-12 text-center text-xs font-bold text-stone-400 animate-pulse">Consultando planos no servidor...</div>
-                ) : gruposDaLoja.length === 0 ? (
-                   <div className="bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
-                      Este estabelecimento ainda nao lancou nenhum grupo de compras na plataforma.
-                   </div>
-                ) : (
-                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                      {gruposDaLoja.slice().sort((a, b) => a.id - b.id).map(grupo => {
-                         const cotaExistente = clubesAtivos.find(c => c.grupo?.id === grupo.id);
-                         const isAtivo = !!cotaExistente;
-                         
-                         return (
-                            <div 
-                              key={grupo.id}
-                              onClick={() => handleAbrirGrupo(grupo, cotaExistente)}
-                              className={`rounded-2xl p-5 border cursor-pointer flex flex-col justify-between min-h-[160px] transition-all group hover:-translate-y-1 hover:shadow-md ${
-                                 isAtivo ? 'bg-white border-[#BD6B42] shadow-sm' : 'bg-stone-50/50 border-[#DFD9CE] hover:border-stone-300 hover:bg-white'
-                              }`}
-                            >
-                               <div className="flex justify-between items-start w-full mb-4">
-                                  <div>
-                                     <span className="text-[9px] bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded text-stone-500 font-mono font-bold mb-2 inline-block">Lote #{grupo.id}</span>
-                                     <h3 className={`font-serif font-bold text-base leading-tight pr-2 transition-colors ${isAtivo ? 'text-[#0B1E14]' : 'text-stone-700 group-hover:text-[#0B1E14]'}`}>
-                                        {grupo.nome}
-                                     </h3>
-                                  </div>
-                               </div>
-                               
-                               <div className="flex justify-between items-end w-full border-t border-stone-200/60 pt-3">
-                                  <div className="flex flex-col">
-                                     <span className="text-[10px] text-stone-500 font-medium">Vigencia: {grupo.duracaoMeses} Meses</span>
-                                  </div>
-                                  <span className={`text-lg font-bold font-mono ${isAtivo ? 'text-[#BD6B42]' : 'text-stone-500 group-hover:text-[#0B1E14]'}`}>
-                                     R$ {Number(grupo.valorParcela).toFixed(2)}
-                                  </span>
-                               </div>
-
-                               {isAtivo ? (
-                                  <div className="mt-4 pt-3 border-t border-[#BD6B42]/20 w-full text-center text-[10px] font-bold text-[#BD6B42] uppercase tracking-wider group-hover:bg-[#BD6B42] group-hover:text-white rounded-lg transition-colors py-1">
-                                     Acessar Dashboard
-                                  </div>
-                               ) : (
-                                  <div className="mt-4 pt-3 border-t border-stone-200 w-full text-center text-[10px] font-bold text-stone-400 uppercase tracking-wider group-hover:text-[#0B1E14] transition-colors py-1">
-                                     Participar do Clube
-                                  </div>
-                               )}
-                            </div>
-                         )
-                      })}
-                   </div>
-                )}
-              </div>
-            )}
-
-            {nivelVisao === 'dashboard' && clubeAtualSelecionado && (
-              <div className="space-y-6 animate-fadeIn text-left">
-                <button
-                  onClick={() => setNivelVisao('grupos')}
-                  className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
-                >
-                  Voltar para Grupos da Loja
-                </button>
-
-                <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div>
-                    <span className="text-[10px] font-mono font-bold text-[#BD6B42] uppercase bg-[#F5F2EB] px-2 py-1 rounded">Painel de Acompanhamento Financeiro</span>
-                    <h2 className="text-xl font-serif font-bold text-[#0B1E14] mt-1.5">{grupoSelecionado?.nome}</h2>
-                    <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: <strong className="text-stone-700 font-bold">{obterNomeLoja(lojaSelecionada)}</strong> | Cota Contratual: <strong className="font-mono">#0{clubeAtualSelecionado?.cotaId}</strong></p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Saldo Poupanca Individual</span>
-                    <span className="text-2xl font-bold tracking-tight block mt-2 font-mono">R$ {saldoPoupanca.toFixed(2)}</span>
-                  </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Vencimento da Parcela</span>
-                    <span className="text-2xl font-bold text-[#BD6B42] block mt-2 font-mono">{dataVencimentoCota || '--/--'}</span>
-                  </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Vigencia de Sorteios</span>
-                    <span className="text-2xl font-bold text-[#0B1E14] block mt-2 font-mono">{grupoSelecionado?.duracaoMeses || 0} Meses</span>
-                  </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Aptidao Coletiva</span>
-                    <span className="text-2xl font-bold text-emerald-600 block mt-2 uppercase tracking-wide text-sm font-semibold">Fase 0{etapaAtual}</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2 bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between min-h-[260px]">
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Historico de Quitacao da Cota</span>
-                      <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded font-bold font-mono">Evolucao</span>
-                    </div>
-                    <div className="flex items-end justify-between h-40 pt-4 border-b border-stone-100 px-2">
-                      {['Mes 1', 'Mes 2', 'Mes 3', 'Mes 4', 'Mes 5', 'Mes 6', 'Mes 7'].map((mes, i) => {
-                        const parcelaQuitada = saldoPoupanca >= (valorMensalidade * (i + 1));
-                        return (
-                          <div key={i} className="flex flex-col items-center w-full max-w-[40px]">
-                            <span className="text-[8px] font-mono text-stone-400 mb-1">R$ {parcelaQuitada ? valorMensalidade : 0}</span>
-                            <div className={`w-full rounded-t-sm transition-all ${parcelaQuitada ? 'bg-[#0B1E14] h-24' : 'bg-stone-100 h-2'}`}></div>
-                            <span className="text-[10px] text-stone-400 font-bold mt-2 whitespace-nowrap">{mes}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-xs flex flex-col items-center justify-between min-h-[260px]">
-                    <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block w-full text-left">Progresso do Objetivo</span>
-                    <div className="relative w-32 h-32 flex items-center justify-center my-auto">
-                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#E6E2D8" strokeWidth="4" />
-                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#BD6B42" strokeWidth="4" strokeDasharray={`${percentual} ${100 - percentual}`} strokeDashoffset="0" className="transition-all duration-500" />
-                      </svg>
-                      <div className="absolute text-center">
-                        <span className="text-xl font-bold tracking-tight font-mono text-[#0B1E14]">{percentual}%</span>
-                        <span className="block text-[8px] uppercase text-stone-400 font-bold tracking-wider">Concluido</span>
-                      </div>
-                    </div>
-                    <div className="w-full text-center border-t border-stone-50 pt-3 text-[11px] font-semibold text-stone-500">
-                      Meta Coletiva do Circulo: <span className="font-mono text-[#0B1E14] font-bold">R$ {totalObjetivo.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
-                  <div className="px-5 py-4 border-b bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Regua de Vencimentos e Aportes Efetuados</h3>
-                    {etapaAtual !== 4 && (
-                      <button
-                        onClick={() => setModalCheckoutAberto(true)}
-                        className="bg-[#0B1E14] text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 cursor-pointer shadow-xs"
-                      >
-                        Liquidar Nova Parcela
-                      </button>
-                    )}
-                  </div>
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-stone-50 text-stone-400 font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
-                        <th className="py-3.5 px-5">CICLO</th>
-                        <th className="py-3.5 px-5">DESCRICAO</th>
-                        <th className="py-3.5 px-5 text-right">VALOR REQUERIDO</th>
-                        <th className="py-3.5 px-5 text-center">SITUACAO</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
-                      {saldoPoupanca === 0 ? (
-                        <tr><td colSpan={4} className="py-6 text-center text-stone-400 italic font-medium">Nenhum aporte financeiro registrado nesta cota contratual ainda.</td></tr>
-                      ) : (
-                        Array.from({ length: Math.ceil(saldoPoupanca / valorMensalidade) }).map((_, index) => (
-                          <tr key={index} className="hover:bg-stone-50/50 transition-all">
-                            <td className="py-3.5 px-5 text-stone-400">Parcela 0{index + 1}</td>
-                            <td className="py-3.5 px-5 text-[#0B1E14] font-bold">Aporte Mensal Coletivo</td>
-                            <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">R$ {valorMensalidade.toFixed(2)}</td>
-                            <td className="py-3.5 px-5 text-center">
-                              <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold text-[9px] uppercase tracking-wider">
-                                Liquidado
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-              </div>
-            )}
-
-          </div>
-        )}
-
-        {abaAtiva === 'extrato' && (
-          <div className="space-y-6 animate-fadeIn text-left">
-            <div>
-              <h2 className="text-xl font-bold text-[#0B1E14]">Historico Financeiro Consolidado</h2>
-              <p className="text-xs text-stone-400 mt-1">Extrato detalhado de cada aporte e parcela liquidada em todas as suas unidades ativas.</p>
-            </div>
-            <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-stone-50 text-stone-400 font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
-                    <th className="py-3.5 px-5">LOJA PARCEIRA</th>
-                    <th className="py-3.5 px-5">PLANO / IDENTIFICACAO</th>
-                    <th className="py-3.5 px-5 text-right">VOLUME APORTADO</th>
-                    <th className="py-3.5 px-5 text-center">STATUS DIGITAL</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
-                  {clubesAtivos.length === 0 ? (
-                    <tr><td colSpan={4} className="py-6 text-center text-stone-400 italic">Nenhuma cota vinculada a esta conta ainda.</td></tr>
-                  ) : (
-                    clubesAtivos.flatMap((clube) => {
-                      const vMensalidade = Number(clube.grupo.valorParcela) || 0;
-                      const sPoupanca = Number(clube.saldoPoupanca) || 0;
-                      const parcelasPagas = vMensalidade > 0 ? Math.ceil(sPoupanca / vMensalidade) : 0;
-
-                      if (parcelasPagas === 0) return [];
-
-                      return Array.from({ length: parcelasPagas }).map((_, index) => ({
-                        lojaNome: obterNomeLoja(clube.loja),
-                        grupoNome: clube.grupo.nome,
-                        cotaId: clube.cotaId,
-                        parcela: index + 1,
-                        valor: vMensalidade,
-                      }));
-                    }).map((item, idx) => (
-                      <tr key={idx} className="hover:bg-stone-50/50 transition-all">
-                        <td className="py-3.5 px-5 text-[#0B1E14] font-bold">{item.lojaNome}</td>
-                        <td className="py-3.5 px-5 text-stone-500">{item.grupoNome} (Parcela #0{item.parcela})</td>
-                        <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">R$ {item.valor.toFixed(2)}</td>
-                        <td className="py-3.5 px-5 text-center">
-                          <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[9px] uppercase">
-                            Liquidado
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {abaAtiva === 'regras' && (
-          <div className="bg-white border border-[#DFD9CE] rounded-xl p-6 space-y-4 text-xs text-stone-600 leading-relaxed animate-fadeIn text-left max-w-2xl shadow-xs">
-            <div>
-              <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Regulamento AVLE</h3>
-              <p className="text-stone-400 mt-1">Confira as diretrizes da comunidade estruturada de compras programadas de moveis e decoracoes.</p>
-            </div>
-
-            <p className="bg-stone-50 p-3 rounded-xl border border-dashed text-stone-500">
-              Compra Planejada: A AVLE nao atua como consorcio tradicional ou fundo financeiro. Trata-se de uma comunidade estruturada de compras programadas de moveis e decoracoes corporativas ou residenciais.
-            </p>
-
-            {lojaSelecionada ? (
-              <div className="pt-4 border-t border-stone-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <h4 className="font-bold text-[#0B1E14] uppercase text-[11px]">Termos Especificos da Unidade</h4>
-                  <p className="text-stone-400 text-[10px] mt-0.5">Regulamento de termos contratuais enviado por: <strong>{obterNomeLoja(lojaSelecionada)}</strong></p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => window.open(`${API_URL}/api/lojas/${lojaSelecionada.id}/regras`, '_blank')}
-                  className="px-4 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-opacity-90 cursor-pointer transition-all"
-                >
-                  Visualizar Contrato PDF
-                </button>
-              </div>
-            ) : (
-              <p className="text-[10px] text-stone-400 italic pt-2">
-                Acesse um dos seus clubes ativos ou visualize as lojas na aba inicial para habilitar a visualizacao do documento de termos especificos em PDF.
-              </p>
-            )}
-          </div>
-        )}
-
-        {abaAtiva === 'perfil' && (
-          <div className="space-y-6 max-w-2xl text-left animate-fadeIn">
-            <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6 shadow-xs">
-              <div>
-                <h2 className="text-xl font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Meus Dados Cadastrais</h2>
-                <p className="text-xs text-stone-400 mt-1">Gerencie suas informacoes de conta salvas na plataforma e sincronizadas com o gateway do Asaas.</p>
-              </div>
-
-              <div className="flex items-center space-x-4 border-b border-stone-100 pb-5">
-                <div className="relative group w-20 h-20 rounded-full overflow-hidden border border-stone-200 bg-stone-50 flex items-center justify-center flex-shrink-0 shadow-xs">
-                  {fotoPerfil ? (
-                    <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-lg font-bold text-stone-400 font-mono">
-                      {nomeInput ? nomeInput.substring(0,2).toUpperCase() : 'AV'}
-                    </span>
-                  )}
-                  <label htmlFor="perfil-foto-upload" className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white text-[9px] font-bold uppercase tracking-wider text-center p-1">
-                    Alterar
-                  </label>
-                  <input id="perfil-foto-upload" type="file" accept="image/*" onChange={handleUploadFoto} className="hidden" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold uppercase text-stone-500">Foto de Perfil</h4>
-                  <p className="text-[11px] text-stone-400 mt-0.5">Selecione uma imagem quadrada de ate 2MB nos formatos comuns de imagem.</p>
-                </div>
-              </div>
-
-              <form onSubmit={handleSalvarPerfil} className="space-y-5 text-xs">
-                {statusSalvar === 'sucesso' && (
-                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold rounded-xl">
-                    Alteracoes gravadas com sucesso no sistema!
-                  </div>
-                )}
-                {statusSalvar === 'erro' && (
-                  <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 font-bold rounded-xl">
-                    Nao foi possivel salvar as alteracoes. Tente novamente mais tarde.
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Nome Completo</label>
-                    <input
-                      type="text"
-                      value={nomeInput}
-                      onChange={(e) => setNomeInput(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"
-                      required
-                      disabled={carregandoDados || salvandoPerfil}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">E-mail de Notificacao</label>
-                    <input
-                      type="email"
-                      value={emailInput}
-                      onChange={(e) => setEmailInput(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"
-                      required
-                      disabled={carregandoDados || salvandoPerfil}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Telefone / Celular</label>
-                    <input
-                      type="text"
-                      value={telefoneInput}
-                      onChange={(e) => setTelefoneInput(aplicarMascaraTelefone(e.target.value))}
-                      placeholder="(45) 99999-9999"
-                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"
-                      required
-                      disabled={carregandoDados || salvandoPerfil}
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-stone-50 p-4 rounded-xl border border-dashed border-stone-200 space-y-2 max-w-sm">
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider flex items-center justify-between">
-                    <span>CPF / CNPJ do Titular</span>
-                    <span className="text-xs text-[#0B1E14]" title="Informacao imutavel por seguranca contratual">Protegido</span>
+                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
+                    Codigo de Confirmacao (6 digitos)
                   </label>
                   <input
                     type="text"
-                    value={carregandoDados ? "Aguardando carregamento do perfil..." : (cpfInput || "Sem documento cadastrado")}
-                    disabled
-                    placeholder="Aguardando carregamento do perfil..."
-                    className="w-full px-3 py-2 border border-stone-200 rounded-xl bg-stone-100 text-stone-500 h-[40px] text-sm font-mono cursor-not-allowed font-bold"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={codigoOtp}
+                    onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))}
+                    className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm focus:outline-none focus:border-[#0B1E14]"
+                    required
+                    disabled={carregando}
                   />
-                  <p className="text-[10px] text-stone-400 leading-relaxed pt-1">
-                    Este documento esta atrelado as faturas e regras de sorteio coletivo. Alteracoes cadastrais exigem auditoria direta com o administrador.
+                </div>
+              </div>
+              <div className="space-y-2 mt-4">
+                <button
+                  type="submit"
+                  disabled={codigoOtp.length !== 6 || carregando}
+                  className={`w-full py-3.5 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all shadow-md ${
+                    codigoOtp.length === 6 && !carregando
+                      ? 'bg-[#BD6B42] hover:scale-[1.01] cursor-pointer'
+                      : 'bg-stone-300 cursor-not-allowed shadow-none opacity-50'
+                  }`}
+                >
+                  {carregando ? 'PROCESSANDO...' : 'Confirmar e Ativar Conta'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsVerificando(false)}
+                  className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-1 cursor-pointer"
+                >
+                  Cancelar e voltar
+                </button>
+              </div>
+            </form>
+          )}
+
+          {isEsqueceuSenha && (
+            <form onSubmit={handleSolicitarRecuperacao} className="p-6 flex-1 flex flex-col justify-between space-y-6 text-left">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Recuperacao de Acesso</h3>
+                  <p className="text-xs text-stone-400 mt-1">
+                    Informe seu e-mail ou telefone cadastrado. Enviaremos um codigo token para criar uma nova senha.
                   </p>
                 </div>
-
-                <div className="flex justify-end pt-4 border-t border-stone-100">
-                  <button
-                    type="submit"
-                    disabled={carregandoDados || salvandoPerfil}
-                    className="px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 disabled:opacity-50 transition-all"
+                {mensagem.texto && (
+                  <div
+                    className={`p-3 rounded-xl text-xs font-bold ${
+                      mensagem.tipo === 'sucesso'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                    }`}
                   >
-                    {salvandoPerfil ? 'Salvando...' : 'Salvar Novas Informacoes'}
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-5 shadow-xs">
-              <div>
-                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Segurança da Conta e Alteracao de Senha</h3>
-                <p className="text-xs text-stone-400 mt-0.5">
-                  Se voce utilizou uma senha temporaria/padrao fornecida pelo estabelecimento no seu primeiro cadastro, atualize-a abaixo por uma senha pessoal.
-                </p>
-              </div>
-
-              <form onSubmit={handleAlterarSenha} className="space-y-4 text-xs">
-                {statusSalvarSenha?.tipo === 'sucesso' && (
-                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold rounded-xl">
-                    {statusSalvarSenha.mensagem}
+                    {mensagem.texto}
                   </div>
                 )}
-                {statusSalvarSenha?.tipo === 'erro' && (
-                  <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 font-bold rounded-xl">
-                    {statusSalvarSenha.mensagem}
-                  </div>
-                )}
-
                 <div>
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Senha Atual (ou Senha Padrao Inicial)</label>
+                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail ou Telefone com DDD</label>
                   <input
-                    type="password"
-                    placeholder="Digite sua senha atual ou Avle123"
-                    value={senhaAtualInput}
-                    onChange={(e) => setSenhaAtualInput(e.target.value)}
-                    className="w-full max-w-md px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"
+                    type="text"
+                    placeholder="seu@email.com ou (45) 99999-9999"
+                    value={identificadorLogin}
+                    onChange={handleIdentificadorChange}
+                    className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]"
                     required
-                    disabled={salvandoSenha}
+                    disabled={carregando}
                   />
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
-                  <div>
-                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Nova Senha</label>
-                    <input
-                      type="password"
-                      placeholder="Minimo de 6 caracteres"
-                      value={novaSenhaInput}
-                      onChange={(e) => setNovaSenhaInput(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"
-                      required
-                      disabled={salvandoSenha}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Confirmar Nova Senha</label>
-                    <input
-                      type="password"
-                      placeholder="Repita a nova senha"
-                      value={confirmarNovaSenhaInput}
-                      onChange={(e) => setConfirmarNovaSenhaInput(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"
-                      required
-                      disabled={salvandoSenha}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-start pt-2 border-t border-stone-100">
-                  <button
-                    type="submit"
-                    disabled={salvandoSenha}
-                    className="px-6 py-3 bg-[#BD6B42] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-[#A95A33] disabled:opacity-50 transition-all"
-                  >
-                    {salvandoSenha ? 'Processando...' : 'Atualizar Minha Senha'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {abaAtiva === 'ajuda' && (
-          <div className="bg-white border border-[#DFD9CE] rounded-xl p-6 space-y-6 animate-fadeIn text-left max-w-2xl shadow-xs">
-            <div>
-              <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Central de Atendimento e Suporte</h3>
-              <p className="text-stone-400 mt-1">Escolha o canal de atendimento ideal para resolver a sua duvida ou problema rapidamente.</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col justify-between space-y-4">
-                <div>
-                  <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#0B1E14]/10 text-[#0B1E14] uppercase">Suporte do Site</span>
-                  <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase">Atendimento Tecnico</h4>
-                  <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">Para duvidas sobre acesso a conta, faturas Pix, dificuldades de navegacao, atualizacao de dados pessoais ou instabilidades no sistema.</p>
-                </div>
-                <div className="pt-2 border-t border-stone-200/60">
-                  <p className="text-stone-500 font-bold text-xs font-mono mb-2">(42) 98411-7768</p>
-                  <button
-                    type="button"
-                    onClick={() => window.open('https://wa.me/5542984117768', '_blank')}
-                    className="w-full text-center py-2.5 bg-[#0B1E14] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer"
-                  >
-                    Chamar Suporte Tecnico
-                  </button>
-                </div>
               </div>
+              <div className="space-y-2 mt-4">
+                <button
+                  type="submit"
+                  disabled={carregando}
+                  className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55"
+                >
+                  {carregando ? 'ENVIANDO...' : 'Enviar Codigo Verificador'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEsqueceuSenha(false)}
+                  className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-1 cursor-pointer"
+                >
+                  Voltar ao Login
+                </button>
+              </div>
+            </form>
+          )}
 
-              <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col justify-between space-y-4">
-                {lojaSelecionada ? (
-                  <>
-                    <div>
-                      <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#BD6B42]/10 text-[#BD6B42] uppercase">Suporte da Loja</span>
-                      <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase truncate max-w-[180px]">{obterNomeLoja(lojaSelecionada)}</h4>
-                      <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">Para tratar diretamente sobre especificacoes de produtos, datas de assembleias locais, andamento de entregas ou retiradas de mercadorias.</p>
-                    </div>
-                    <div className="pt-2 border-t border-stone-200/60">
-                      <p className="text-stone-500 font-bold text-xs font-mono mb-2">
-                        {lojaSelecionada.telefone ? aplicarMascaraTelefone(lojaSelecionada.telefone) : 'Contato no estabelecimento'}
-                      </p>
-                      <button
-                        type="button"
-                        disabled={!lojaSelecionada.telefone}
-                        onClick={() => {
-                          if (lojaSelecionada.telefone) {
-                            window.open(`https://wa.me/55${lojaSelecionada.telefone.replace(/\D/g, '')}`, '_blank');
-                          }
-                        }}
-                        className="w-full text-center py-2.5 bg-[#BD6B42] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer disabled:opacity-40"
-                      >
-                        {lojaSelecionada.telefone ? 'Falar com Atendimento' : 'Telefone nao cadastrado'}
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="h-full flex flex-col justify-center items-center text-center p-4">
-                    <p className="text-[11px] text-stone-400 font-medium italic leading-relaxed">Acesse um de seus clubes ou selecione uma loja na pagina inicial para visualizar as opcoes de contato direto.</p>
+          {isResetandoSenha && (
+            <form onSubmit={handleSalvarNovaSenha} className="p-6 flex-1 flex flex-col justify-between space-y-4 text-left">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Criar Nova Senha</h3>
+                  <p className="text-xs text-stone-400 mt-1">Insira o token de 6 digitos recebido.</p>
+                </div>
+                {mensagem.texto && (
+                  <div
+                    className={`p-3 rounded-xl text-xs font-bold ${
+                      mensagem.tipo === 'sucesso'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                    }`}
+                  >
+                    {mensagem.texto}
                   </div>
                 )}
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {modalAdesao.aberto && modalAdesao.grupo && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80] animate-fadeIn text-left">
-            <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-                <div className="bg-[#0B1E14] p-5 text-white">
-                    <h3 className="font-serif font-bold text-lg uppercase tracking-wide">Confirmar Participacao</h3>
-                    <p className="text-[10px] text-stone-300 mt-1">Revise os detalhes contratuais da cota antes de prosseguir.</p>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
+                    Token (6 digitos)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={codigoOtp}
+                    onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))}
+                    className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm focus:outline-none focus:border-[#0B1E14]"
+                    required
+                    disabled={carregando}
+                  />
                 </div>
-                <div className="p-6 space-y-4">
-                    <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 space-y-3">
-                        <div className="flex justify-between items-center border-b border-stone-200 pb-2">
-                            <span className="text-[10px] font-bold text-stone-400 uppercase">Clube Vinculado</span>
-                            <span className="text-xs font-bold text-[#0B1E14]">{modalAdesao.grupo.nome}</span>
-                        </div>
-                        <div className="flex justify-between items-center border-b border-stone-200 pb-2">
-                            <span className="text-[10px] font-bold text-stone-400 uppercase">Valor da Mensalidade</span>
-                            <span className="text-xs font-bold font-mono text-[#BD6B42]">R$ {Number(modalAdesao.grupo.valorParcela).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-bold text-stone-400 uppercase">Duracao do Contrato</span>
-                            <span className="text-xs font-bold text-[#0B1E14]">{modalAdesao.grupo.duracaoMeses} Meses</span>
-                        </div>
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-[10px] font-bold uppercase text-stone-500">Nova Senha</label>
+                    {novaSenha.length > 0 && (
+                      <span className={`text-[10px] font-bold ${novaSenhaForte ? 'text-emerald-600' : 'text-stone-400'}`}>
+                        {novaSenhaForte ? 'Forte' : 'Fraca'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={mostrarNovaSenha ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={novaSenha}
+                      onChange={(e) => setNovaSenha(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 text-sm h-[42px] focus:outline-none focus:border-[#0B1E14]"
+                      required
+                      disabled={carregando}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setMostrarNovaSenha(!mostrarNovaSenha)}
+                      className="absolute right-3 top-2.5 text-stone-400 font-bold hover:text-stone-700 cursor-pointer"
+                    >
+                      Ver
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2 mt-4">
+                <button
+                  type="submit"
+                  disabled={codigoOtp.length !== 6 || !novaSenhaForte || carregando}
+                  className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 hover:scale-[1.01] transition-all"
+                >
+                  {carregando ? 'PROCESSANDO...' : 'Redefinir e Gravar Senha'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsResetandoSenha(false)}
+                  className="w-full text-stone-400 text-center font-bold text-xs py-1 cursor-pointer"
+                >
+                  Desistir
+                </button>
+              </div>
+            </form>
+          )}
+
+          {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
+            <form onSubmit={handleSubmit} className="p-6 flex-1 flex flex-col justify-between text-left space-y-4">
+              <div className="space-y-4">
+                {mensagem.texto && (
+                  <div
+                    className={`p-3.5 rounded-xl text-xs font-bold text-center border ${
+                      mensagem.tipo === 'sucesso'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                    }`}
+                  >
+                    {mensagem.texto}
+                  </div>
+                )}
+                {!isLogin && (
+                  <div className="space-y-4 animate-fade-in">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-stone-400 mb-1.5 tracking-wider">
+                        Tipo de Conta *
+                      </label>
+                      <div className="relative grid grid-cols-2 p-1 bg-stone-100 rounded-2xl border border-stone-200/80">
+                        <div
+                          className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#0B1E14] rounded-xl shadow-md transition-all duration-300 ease-in-out ${
+                            tipoUsuario === 'CLIENTE' ? 'left-1' : 'left-[calc(50%+3px)]'
+                          }`}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTipoUsuario('CLIENTE');
+                            setCpf('');
+                            setTelefoneCadastro('');
+                            setEmailCadastro('');
+                            setAceitouTermos(false);
+                          }}
+                          className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${
+                            tipoUsuario === 'CLIENTE' ? 'text-white' : 'text-stone-500 hover:text-stone-800'
+                          }`}
+                          disabled={carregando}
+                        >
+                          <span>Sou Cliente</span>
+                          <span
+                            className={`text-[9px] font-normal mt-0.5 transition-colors duration-300 ${
+                              tipoUsuario === 'CLIENTE' ? 'text-stone-300' : 'text-stone-400'
+                            }`}
+                          >
+                            Quero participar de clubes
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTipoUsuario('LOJA');
+                            setCpf('');
+                            setTelefoneCadastro('');
+                            setEmailCadastro('');
+                            setAceitouTermos(false);
+                          }}
+                          className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${
+                            tipoUsuario === 'LOJA' ? 'text-white' : 'text-stone-500 hover:text-stone-800'
+                          }`}
+                          disabled={carregando}
+                        >
+                          <span>Sou Loja</span>
+                          <span
+                            className={`text-[9px] font-normal mt-0.5 transition-colors duration-300 ${
+                              tipoUsuario === 'LOJA' ? 'text-stone-300' : 'text-stone-400'
+                            }`}
+                          >
+                            Quero gerenciar clientes
+                          </span>
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex items-start gap-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
-                        <span className="text-blue-500 mt-0.5 text-xs font-bold">INFO</span>
-                        <p className="text-[10px] text-stone-600 leading-relaxed">
-                            Antes de confirmar a sua participacao, e obrigatoria a leitura do{' '}
-                            <button onClick={() => window.open(`${API_URL}/api/lojas/${lojaEmFoco?.id}/regras`, '_blank')} className="text-blue-600 font-bold underline cursor-pointer">Regulamento Operacional da Loja</button>. Ao entrar no grupo, voce concorda legalmente com todos os termos estabelecidos pelo estabelecimento.
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
+                        {tipoUsuario === 'LOJA' ? 'Nome / Razao Social da Loja *' : 'Nome Completo *'}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={tipoUsuario === 'LOJA' ? 'Nome/Razao Social da Loja' : 'Ex: Joao Silva'}
+                        value={nome}
+                        onChange={(e) => setNome(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
+                        required
+                        disabled={carregando}
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[10px] font-bold uppercase text-stone-500">
+                          {tipoUsuario === 'LOJA' ? 'CNPJ (Apenas numeros) *' : 'CPF (Apenas numeros) *'}
+                        </label>
+                        {cpf.length > 0 && (
+                          <span className={`text-[10px] font-bold ${tamanhoDocumentoValido ? 'text-emerald-600' : 'text-stone-400'}`}>
+                            {tipoUsuario === 'LOJA' ? `${cpf.length}/14` : `${cpf.length}/11`}
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        maxLength={tipoUsuario === 'LOJA' ? 14 : 11}
+                        placeholder={tipoUsuario === 'LOJA' ? '00000000000000' : '00000000000'}
+                        value={cpf}
+                        onChange={(e) => setCpf(e.target.value.replace(/\D/g, ''))}
+                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
+                        required
+                        disabled={carregando}
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[10px] font-bold uppercase text-stone-500">
+                          {tipoUsuario === 'LOJA' ? 'Telefone / WhatsApp da Loja *' : 'Telefone / Celular'}
+                        </label>
+                        {tipoUsuario === 'LOJA' && telefoneCadastroLimpo.length > 0 && (
+                          <span className={`text-[10px] font-bold ${telefoneCadastroLimpo.length >= 10 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            {telefoneCadastroLimpo.length >= 10 ? '✓ Valido' : '✗ Minimo 10 digitos'}
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="(42) 99999-9999"
+                        value={telefoneCadastro}
+                        onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))}
+                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
+                        required={tipoUsuario === 'LOJA'}
+                        disabled={carregando}
+                      />
+                    </div>
+                    
+                    {tipoUsuario === 'LOJA' && (
+                      <div className="space-y-3 p-3.5 bg-stone-50/80 border border-stone-200 rounded-2xl transition-all duration-300">
+                        <p className="text-[10px] font-bold uppercase text-[#BD6B42] tracking-wider">
+                          Dados da Loja 
                         </p>
-                    </div>
-                </div>
-                <div className="p-5 border-t border-stone-100 bg-stone-50 flex gap-3">
-                    <button onClick={() => setModalAdesao({ aberto: false, grupo: null })} className="flex-1 py-3 border border-stone-200 text-stone-500 font-bold rounded-xl text-[10px] uppercase hover:bg-stone-100 transition-colors cursor-pointer">Cancelar</button>
-                    <button onClick={confirmarAdesaoNoGrupo} className="flex-1 py-3 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase hover:bg-opacity-90 transition-all cursor-pointer">Aceitar e Participar</button>
-                </div>
-            </div>
-        </div>
-      )}
 
-      {modalAcessoAberto && lojaParaAcesso && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-[60] animate-fadeIn text-left">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-5 shadow-xl">
-            <div className="flex justify-between items-center border-b border-stone-100 pb-3">
-              <div>
-                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Autorizacao de Acesso</h3>
-                <p className="text-[10px] text-stone-400 mt-0.5">Estabelecimento: {obterNomeLoja(lojaParaAcesso)}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
+                              CEP do Estabelecimento *
+                            </label>
+                            <input
+                              type="text"
+                              maxLength={9}
+                              placeholder="85010-250"
+                              value={cep}
+                              onChange={(e) => setCep(aplicarMascaraCep(e.target.value))}
+                              className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[40px]"
+                              required
+                              disabled={carregando}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
+                              Faturamento Mensal *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="R$ 10.000,00"
+                              value={faturamento}
+                              onChange={(e) => setFaturamento(aplicarMascaraMoeda(e.target.value))}
+                              className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[40px]"
+                              required
+                              disabled={carregando}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between">
+                            <span>Wallet ID Asaas</span>
+                            <span className="text-stone-400 font-normal">Obrigatorio</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={walletIdInput}
+                            onChange={(e) => setWalletIdInput(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[40px] font-mono"
+                            disabled={carregando}
+                          />
+                          <p className="text-[9px] text-stone-400 mt-1">
+                            * Se voce nao possui conta no Asaas, o sistema criara sua subconta integrada automaticamente ao finalizar o cadastro.
+                          </p>
+                        </div>
+
+                        <div className="pt-2 border-t border-stone-200">
+                          <p className="text-[10px] font-bold uppercase text-[#0B1E14] mb-2">
+                            Conta Bancaria para Receber Vendas
+                          </p>
+
+                          <div className="space-y-2">
+                            <div>
+                              <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">
+                                Banco *
+                              </label>
+                              <select
+                                value={bancoCodigo}
+                                onChange={(e) => setBancoCodigo(e.target.value)}
+                                className="w-full h-[38px] px-2 bg-white border border-stone-200 rounded-xl text-stone-700 font-semibold text-xs focus:outline-none focus:border-[#0B1E14]"
+                              >
+                                <option value="001">001 - Banco do Brasil</option>
+                                <option value="237">237 - Bradesco</option>
+                                <option value="341">341 - Itau Unibanco</option>
+                                <option value="104">104 - Caixa Economica</option>
+                                <option value="033">033 - Santander</option>
+                                <option value="260">260 - Nubank</option>
+                                <option value="077">077 - Banco Inter</option>
+                                <option value="212">212 - Banco Original</option>
+                                <option value="336">336 - C6 Bank</option>
+                              </select>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2">
+                              <div>
+                                <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">
+                                  Agencia *
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="0001"
+                                  value={agencia}
+                                  onChange={(e) => setAgencia(e.target.value.replace(/\D/g, ''))}
+                                  className="w-full px-2 py-1.5 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[38px]"
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">
+                                  Conta *
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="12345"
+                                  value={conta}
+                                  onChange={(e) => setConta(e.target.value.replace(/\D/g, ''))}
+                                  className="w-full px-2 py-1.5 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[38px]"
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">
+                                  Digito *
+                                </label>
+                                <input
+                                  type="text"
+                                  maxLength={2}
+                                  placeholder="0"
+                                  value={contaDigito}
+                                  onChange={(e) => setContaDigito(e.target.value)}
+                                  className="w-full px-2 py-1.5 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[38px]"
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">
+                                Tipo de Conta *
+                              </label>
+                              <div className="flex space-x-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setTipoConta('CORRENTE')}
+                                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all cursor-pointer ${
+                                    tipoConta === 'CORRENTE'
+                                      ? 'bg-[#0B1E14] text-white border-[#0B1E14]'
+                                      : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-100'
+                                  }`}
+                                >
+                                  Corrente
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setTipoConta('POUPANCA')}
+                                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all cursor-pointer ${
+                                    tipoConta === 'POUPANCA'
+                                      ? 'bg-[#0B1E14] text-white border-[#0B1E14]'
+                                      : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-100'
+                                  }`}
+                                >
+                                  Poupanca
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {isLogin && (
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[10px] font-bold uppercase text-stone-500">
+                          E-mail ou Telefone com DDD *
+                        </label>
+                        {identificadorLogin.length > 0 && (
+                          <span className={`text-[10px] font-bold ${loginValido ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            {loginValido ? '✓ Valido' : '✗ Invalido'}
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="seu@email.com ou (45) 99999-9999"
+                        value={identificadorLogin}
+                        onChange={handleIdentificadorChange}
+                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
+                        required
+                        disabled={carregando}
+                      />
+                    </div>
+                )}
+
+                {!isLogin && (
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[10px] font-bold uppercase text-stone-500">
+                          {tipoUsuario === 'LOJA' ? 'E-mail *' : 'E-mail'}
+                        </label>
+                        {emailCadastro.length > 0 && (
+                          <span className={`text-[10px] font-bold ${emailCadastroValido ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            {emailCadastroValido ? '✓ Valido' : '✗ Invalido'}
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={emailCadastro}
+                        onChange={(e) => setEmailCadastro(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
+                        required={tipoUsuario === 'LOJA'}
+                        disabled={carregando}
+                      />
+                    </div>
+                )}
+
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-[10px] font-bold uppercase text-stone-500">Senha de Acesso *</label>
+                    {isLogin && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEsqueceuSenha(true);
+                          setMensagem({ tipo: '', texto: '' });
+                        }}
+                        className="text-[10px] text-[#BD6B42] hover:underline font-bold cursor-pointer"
+                        disabled={carregando}
+                      >
+                        Esqueceu a senha?
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={mostrarSenha ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={senha}
+                      onChange={(e) => setSenha(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 focus:outline-none focus:border-[#0B1E14] text-sm h-[42px]"
+                      required
+                      disabled={carregando}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setMostrarSenha(!mostrarSenha)}
+                      className="absolute right-3 top-2.5 text-stone-400 font-bold hover:text-stone-700 cursor-pointer"
+                      disabled={carregando}
+                    >
+                      Ver
+                    </button>
+                  </div>
+
+                  {!isLogin && senha.length > 0 && (
+                    <div className="mt-2.5 p-3 bg-stone-50 border border-stone-200/60 rounded-xl space-y-1.5 text-[11px] font-medium animate-fade-in text-left">
+                      <p className="text-[10px] font-bold uppercase text-stone-400 mb-1">Estrutura da Senha:</p>
+                      <div
+                        className={`flex items-center space-x-1.5 transition-colors ${
+                          senha.length >= 8 ? 'text-emerald-600 font-bold' : 'text-stone-400'
+                        }`}
+                      >
+                        <span>{senha.length >= 8 ? '✓' : '○'}</span>
+                        <span>Minimo de 8 caracteres</span>
+                      </div>
+                      <div
+                        className={`flex items-center space-x-1.5 transition-colors ${
+                          temMaiuscula ? 'text-emerald-600 font-bold' : 'text-stone-400'
+                        }`}
+                      >
+                        <span>{temMaiuscula ? '✓' : '○'}</span>
+                        <span>Pelo menos uma letra maiuscula</span>
+                      </div>
+                      <div
+                        className={`flex items-center space-x-1.5 transition-colors ${
+                          temNumero ? 'text-emerald-600 font-bold' : 'text-stone-400'
+                        }`}
+                      >
+                        <span>{temNumero ? '✓' : '○'}</span>
+                        <span>Pelo menos um numero</span>
+                      </div>
+                      <div
+                        className={`flex items-center space-x-1.5 transition-colors ${
+                          temCaracterEspecial ? 'text-emerald-600 font-bold' : 'text-stone-400'
+                        }`}
+                      >
+                        <span>{temCaracterEspecial ? '✓' : '○'}</span>
+                        <span>Pelo menos um caractere especial (!@#$...)</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {!isLogin && tipoUsuario === 'LOJA' && (
+                  <div className="flex items-start space-x-3 p-3 bg-stone-50 border border-stone-200/60 rounded-xl mt-2 animate-fade-in">
+                    <input
+                      type="checkbox"
+                      id="termos-loja"
+                      checked={aceitouTermos}
+                      onChange={(e) => setAceitouTermos(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-[#0B1E14] cursor-pointer"
+                      disabled={carregando}
+                    />
+                    <label htmlFor="termos-loja" className="text-[10px] text-stone-500 leading-relaxed cursor-pointer select-none">
+                      Declaro que li e concordo com os{' '}
+                      <button 
+                        type="button" 
+                        onClick={(e) => { e.preventDefault(); setModalTermosAberto(true); }} 
+                        className="text-[#BD6B42] font-bold underline hover:text-[#0B1E14] transition-colors cursor-pointer"
+                      >
+                        Termos de Uso e o Contrato de Parceria
+                      </button>{' '}
+                      da AVLE. Compreendo que as operacoes estao sujeitas a auditoria de compliance.
+                    </label>
+                  </div>
+                )}
+
               </div>
-              <button onClick={() => setModalAcessoAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer px-2">X</button>
-            </div>
-            
-            <div className="text-xs text-stone-600 leading-relaxed space-y-4">
-                <p>Para visualizar os planos disponiveis e registrar cotas na <strong>{obterNomeLoja(lojaParaAcesso)}</strong>, o estabelecimento exige uma analise de credito previa do seu CPF.</p>
-                
-                <div className="bg-stone-50 border border-dashed border-stone-300 p-4 rounded-xl space-y-2">
-                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Dados enviados para consulta:</p>
-                    <div className="flex justify-between items-center">
-                        <span className="font-bold text-[#0B1E14]">{usuario?.nome}</span>
-                        <span className="font-mono font-bold text-[#0B1E14]">{usuario?.cpf ? aplicarMascaraCpfCnpj(usuario.cpf) : 'Nao informado'}</span>
-                    </div>
-                </div>
 
-                <p className="text-[11px] text-stone-500 italic">Ao confirmar, a loja recebera seus dados para consulta junto aos orgaos de protecao ao credito (SPC/Serasa). Assim que aprovado, o catalogo sera liberado.</p>
-            </div>
-
-            <div className="flex space-x-3 pt-3 border-t border-stone-100 w-full">
+              <button
+                type="submit"
+                disabled={!formularioValido || carregando}
+                className="w-full mt-6 py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl tracking-wide uppercase transition-all disabled:opacity-50 cursor-pointer text-xs shadow-md hover:bg-[#08170f]"
+              >
+                {carregando ? statusConexao : isLogin ? 'Entrar no Sistema' : 'Criar minha Conta'}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+      {modalTermosAberto && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fadeIn text-left">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
+            <div className="flex justify-between items-center p-5 border-b border-stone-100">
+              <div>
+                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Contrato de Parceria e Termos de Uso</h3>
+                <p className="text-[10px] text-stone-400 mt-0.5">Leia atentamente as condicoes operacionais e juridicas da plataforma AVLE.</p>
+              </div>
               <button 
                 type="button" 
-                onClick={() => setModalAcessoAberto(false)} 
-                className="flex-1 py-3 border border-[#DFD9CE] rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer text-xs uppercase tracking-wider"
+                onClick={() => setModalTermosAberto(false)} 
+                className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer px-2"
               >
-                Cancelar
+                X
               </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 text-xs text-stone-600 space-y-4 leading-relaxed bg-stone-50/30">
+              <p className="font-bold text-stone-800">1. DO OBJETO</p>
+              <p>Este documento estabelece as condicoes gerais para a utilizacao da infraestrutura tecnologica da AVLE pela LOJA PARCEIRA cadastrada, visando a gestao de clubes de compras e o split automatico de pagamentos.</p>
+              
+              <p className="font-bold text-stone-800 mt-4">2. DO REPASSE E SPLIT DE PAGAMENTOS</p>
+              <p>Fica acordado que a plataforma AVLE retera automaticamente o percentual de 10% (dez por cento) sobre o valor de cada mensalidade transacionada via Gateway de Pagamento, a titulo de licenca de uso do software, sendo os 90% (noventa por cento) restantes repassados a subconta da LOJA PARCEIRA.</p>
+
+              <p className="font-bold text-stone-800 mt-4">3. DA RESPONSABILIDADE SOLIDARIA</p>
+              <p>A LOJA PARCEIRA assume integral responsabilidade civil e consumerista sobre a entrega dos produtos aos clientes contemplados no prazo estabelecido, bem como sobre a absorcao de eventuais taxas de chargeback geradas por contestacoes.</p>
+
+              <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl mt-6">
+                <strong>Nota:</strong> O documento contratual final em formato PDF sera disponibilizado neste espaco assim que aprovado pela assessoria juridica. O aceite digital no formulario possui validade legal e vincula o CNPJ/CPF cadastrado a estas diretrizes.
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-stone-100 flex justify-end bg-stone-50 rounded-b-2xl">
               <button 
-                type="button"
-                onClick={handleSolicitarAcesso}
-                disabled={solicitandoAcesso}
-                className="flex-1 py-3 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-xs uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
+                type="button" 
+                onClick={() => { 
+                  setModalTermosAberto(false); 
+                  setAceitouTermos(true); 
+                }} 
+                className="px-6 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all shadow-sm"
               >
-                {solicitandoAcesso ? 'Enviando...' : 'Solicitar'}
+                Li e Aceito as Condicoes
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {notificacao.aberto && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-[90] text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl border-t-4" style={{ borderTopColor: notificacao.isError ? '#be123c' : '#047857' }}>
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className={`text-xs font-serif font-bold uppercase tracking-wider ${notificacao.isError ? 'text-rose-700' : 'text-emerald-800'}`}>{notificacao.titulo}</h3>
-              <button onClick={() => setNotificacao({ ...notificacao, aberto: false })} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
-            </div>
-            <div className="text-xs text-stone-600 leading-relaxed whitespace-pre-wrap font-medium">{notificacao.mensagem}</div>
-            <div className="pt-3 border-t flex justify-end">
-              <button onClick={() => setNotificacao({ ...notificacao, aberto: false })} className={`px-5 py-2 text-white font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer shadow-sm transition-all ${notificacao.isError ? 'bg-rose-700 hover:bg-rose-800' : 'bg-[#0B1E14] hover:bg-opacity-90'}`}>Entendido</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {modalCheckoutAberto && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn text-left">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Ambiente de Checkout Secure</h3>
-              <button onClick={() => setModalCheckoutAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
-            </div>
-            <CheckoutForm
-              valor={valorMensalidade}
-              cotaId={clubeAtualSelecionado?.cotaId || clubeAtualSelecionado?.id || clubeAtualSelecionado?.numeroCota}
-              onSuccess={atualizarSaldoAposPagamento}
-              fecharModal={() => setModalCheckoutAberto(false)}
-            />
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
 
 function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number; cotaId: number; onSuccess: () => void; fecharModal: () => void }) {
+  const [metodoPagamento, setMetodoPagamento] = useState<'pix' | 'cartao'>('pix');
+  
   const [dadosPix, setDadosPix] = useState<{ paymentUrl: string } | null>(null);
   const [carregandoPix, setCarregandoPix] = useState(false);
 
+  const [numeroCartao, setNumeroCartao] = useState('');
+  const [nomeImpresso, setNomeImpresso] = useState('');
+  const [validade, setValidade] = useState(''); 
+  const [ccv, setCcv] = useState('');
+  const [processandoCartao, setProcessandoCartao] = useState(false);
+  const [mensagemCartao, setMensagemCartao] = useState<{tipo: 'sucesso'|'erro', texto: string} | null>(null);
+
   useEffect(() => {
-    if (!cotaId) return;
+    if (!cotaId || metodoPagamento !== 'pix') return;
     setCarregandoPix(true);
     fetch(`${API_URL}/api/pagamentos/gerar-pix`, {
       method: 'POST',
@@ -1260,40 +1295,182 @@ function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number
       .then((data) => setDadosPix(data))
       .catch(() => {})
       .finally(() => setCarregandoPix(false));
-  }, [valor, cotaId]);
+  }, [valor, cotaId, metodoPagamento]);
+
+  const handleAssinarCartao = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setProcessandoCartao(true);
+      setMensagemCartao(null);
+
+      const mesAno = validade.split('/');
+      if (mesAno.length !== 2 || mesAno[0].length !== 2 || mesAno[1].length !== 2) {
+          setMensagemCartao({ tipo: 'erro', texto: 'Data de validade invalida. Use o formato MM/AA.' });
+          setProcessandoCartao(false);
+          return;
+      }
+
+      try {
+          const res = await fetch(`${API_URL}/api/pagamentos/assinatura-cartao`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  cotaId,
+                  valor,
+                  numeroCartao: numeroCartao.replace(/\D/g, ''),
+                  nomeImpressoCartao: nomeImpresso.toUpperCase(),
+                  mesValidade: mesAno[0],
+                  anoValidade: '20' + mesAno[1],
+                  ccv: ccv.replace(/\D/g, '')
+              })
+          });
+
+          if (!res.ok) {
+              const erroMsg = await res.text();
+              throw new Error(erroMsg || 'Falha ao processar o cartao de credito.');
+          }
+
+          setMensagemCartao({ tipo: 'sucesso', texto: 'Assinatura configurada com sucesso!' });
+          setTimeout(() => {
+              onSuccess();
+              fecharModal();
+          }, 2000);
+
+      } catch (err: any) {
+          setMensagemCartao({ tipo: 'erro', texto: err.message });
+      } finally {
+          setProcessandoCartao(false);
+      }
+  };
+
+  const mascaraValidade = (val: string) => {
+      const v = val.replace(/\D/g, '');
+      if (v.length >= 3) {
+          return `${v.slice(0, 2)}/${v.slice(2, 4)}`;
+      }
+      return v;
+  };
 
   return (
     <div className="space-y-5 text-[#0B1E14]">
-      <div className="bg-[#F5F2EB] p-3 rounded-xl text-center text-xs font-bold border border-[#DFD9CE]">Fatura Instantanea via PIX</div>
-      <div className="text-center space-y-4 pt-2">
-        <div className="p-5 bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl text-center text-xs min-h-[100px] flex items-center justify-center">
-          {carregandoPix ? (
-            <span className="animate-pulse block font-bold text-stone-400">Gerando link de checkout seguro...</span>
-          ) : dadosPix?.paymentUrl ? (
-            <div className="space-y-1.5">
-              <p className="text-[11px] text-emerald-700 font-bold">Processamento concluido com sucesso!</p>
-              <p className="text-[10px] text-stone-400 font-medium">Clique no botao abaixo para abrir o ambiente de pagamento seguro e concluir o seu Pix.</p>
-            </div>
-          ) : (
-            <span className="block font-semibold text-rose-500 leading-relaxed">Nao foi possivel gerar a sua faturamento Pix neste momento. Por favor, tente novamente em instantes.</span>
-          )}
-        </div>
-
-        <button
-          type="button"
-          disabled={!dadosPix?.paymentUrl}
-          onClick={() => {
-            if (dadosPix?.paymentUrl) {
-              window.open(dadosPix.paymentUrl, '_blank');
-              onSuccess();
-              fecharModal();
-            }
-          }}
-          className="w-full py-3.5 bg-[#0B1E14] text-white font-bold text-xs rounded-xl tracking-wide cursor-pointer uppercase text-[10px] disabled:opacity-40 transition-opacity"
-        >
-          {carregandoPix ? 'Processando...' : 'Ir para o Pagamento Seguro'}
-        </button>
+      <div className="flex border-b border-stone-200">
+         <button 
+            type="button"
+            onClick={() => setMetodoPagamento('pix')}
+            className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-colors ${metodoPagamento === 'pix' ? 'border-b-2 border-[#0B1E14] text-[#0B1E14]' : 'text-stone-400 hover:text-stone-600'}`}
+         >
+            Pix Mensal
+         </button>
+         <button 
+            type="button"
+            onClick={() => setMetodoPagamento('cartao')}
+            className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-colors ${metodoPagamento === 'cartao' ? 'border-b-2 border-[#0B1E14] text-[#0B1E14]' : 'text-stone-400 hover:text-stone-600'}`}
+         >
+            Cartao de Credito
+         </button>
       </div>
+
+      {metodoPagamento === 'pix' && (
+          <div className="text-center space-y-4 pt-2 animate-fadeIn">
+            <div className="p-5 bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl text-center text-xs min-h-[100px] flex items-center justify-center">
+              {carregandoPix ? (
+                <span className="animate-pulse block font-bold text-stone-400">Gerando link de checkout seguro...</span>
+              ) : dadosPix?.paymentUrl ? (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] text-emerald-700 font-bold">Processamento concluido com sucesso!</p>
+                  <p className="text-[10px] text-stone-400 font-medium">Clique no botao abaixo para abrir o ambiente de pagamento seguro e concluir o seu Pix.</p>
+                </div>
+              ) : (
+                <span className="block font-semibold text-rose-500 leading-relaxed">Nao foi possivel gerar a sua faturamento Pix neste momento. Por favor, tente novamente em instantes.</span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              disabled={!dadosPix?.paymentUrl}
+              onClick={() => {
+                if (dadosPix?.paymentUrl) {
+                  window.open(dadosPix.paymentUrl, '_blank');
+                  onSuccess();
+                  fecharModal();
+                }
+              }}
+              className="w-full py-3.5 bg-[#0B1E14] text-white font-bold text-xs rounded-xl tracking-wide cursor-pointer uppercase text-[10px] disabled:opacity-40 transition-opacity"
+            >
+              {carregandoPix ? 'Processando...' : 'Ir para o Pagamento Seguro'}
+            </button>
+          </div>
+      )}
+
+      {metodoPagamento === 'cartao' && (
+          <form onSubmit={handleAssinarCartao} className="space-y-4 pt-2 animate-fadeIn text-left">
+             <div className="bg-[#F5F2EB] p-3 rounded-xl text-center text-[10px] text-stone-600 leading-relaxed border border-[#DFD9CE]">
+                Seu limite <strong>nao sera bloqueado no valor total</strong>. O sistema cobrara apenas o valor da parcela mensalmente de forma automatica.
+             </div>
+
+             {mensagemCartao && (
+                <div className={`p-3 text-[10px] font-bold rounded-xl border ${mensagemCartao.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                   {mensagemCartao.texto}
+                </div>
+             )}
+
+             <div>
+                <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Numero do Cartao</label>
+                <input 
+                   type="text" 
+                   maxLength={19}
+                   value={numeroCartao}
+                   onChange={(e) => setNumeroCartao(e.target.value)}
+                   className="w-full h-10 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
+                   required
+                />
+             </div>
+
+             <div>
+                <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Nome Impresso no Cartao</label>
+                <input 
+                   type="text" 
+                   value={nomeImpresso}
+                   onChange={(e) => setNomeImpresso(e.target.value)}
+                   className="w-full h-10 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
+                   required
+                />
+             </div>
+
+             <div className="grid grid-cols-2 gap-3">
+                <div>
+                   <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Validade (MM/AA)</label>
+                   <input 
+                      type="text" 
+                      placeholder="MM/AA"
+                      maxLength={5}
+                      value={validade}
+                      onChange={(e) => setValidade(mascaraValidade(e.target.value))}
+                      className="w-full h-10 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono text-center focus:outline-none focus:border-[#BD6B42]"
+                      required
+                   />
+                </div>
+                <div>
+                   <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">CVV</label>
+                   <input 
+                      type="text" 
+                      maxLength={4}
+                      value={ccv}
+                      onChange={(e) => setCcv(e.target.value.replace(/\D/g, ''))}
+                      className="w-full h-10 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono text-center focus:outline-none focus:border-[#BD6B42]"
+                      required
+                   />
+                </div>
+             </div>
+
+             <button 
+                type="submit" 
+                disabled={processandoCartao}
+                className="w-full h-12 mt-2 bg-[#BD6B42] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-[#A95A33] transition-all disabled:opacity-50 cursor-pointer shadow-md"
+             >
+                {processandoCartao ? 'Processando...' : 'Ativar Assinatura Mensal'}
+             </button>
+          </form>
+      )}
     </div>
   );
 }
