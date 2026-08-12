@@ -15,8 +15,8 @@ interface Grupo {
 
 export default function DashboardLoja({ usuario }: { usuario: any }) {
   const router = useRouter();
-
-  const [abaLoja, setAbaLoja] = useState<'geral' | 'aprovacoes' | 'grupos' | 'sorteios' | 'financeiro' | 'relatorios' | 'configuracoes'>('geral');
+  
+  const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'grupos' | 'sorteios' | 'financeiro' | 'relatorios' | 'configuracoes'>('geral');
   const [obrigacoesFuturas, setObrigacoesFuturas] = useState<number>(0);
   const [idOperacao, setIdOperacao] = useState('Nenhuma');
   const [grupoSorteioId, setGrupoSorteioId] = useState('');
@@ -26,6 +26,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [participantesDoGrupo, setParticipantesDoGrupo] = useState<any[]>([]);
 
   const [listaGrupos, setListaGrupos] = useState<Grupo[]>([]);
+  const [listaClientesLoja, setListaClientesLoja] = useState<any[]>([]);
   const [modalNovoGrupoAberto, setModalNovoGrupoAberto] = useState(false);
 
   const [modalNovoClienteAberto, setModalNovoClienteAberto] = useState(false);
@@ -68,7 +69,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const mostrarAviso = (titulo: string, mensagem: string, isError: boolean = false) => {
     setNotificacao({ aberto: true, titulo, mensagem, isError });
   };
-
+  
   const [nomeGrupo, setNomeGrupo] = useState('');
   const [valorParcela, setValorParcela] = useState('');
   const [duracaoMeses, setDuracaoMeses] = useState('24');
@@ -140,6 +141,16 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       .catch(() => setTotalClientes(0));
   };
 
+  const carregarListaClientesDaLoja = () => {
+    const lojaId = usuario?.lojaId || 1;
+    fetch(`${API_URL}/api/usuarios/lojas/${lojaId}/clientes`)
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => {
+         if (Array.isArray(data)) setListaClientesLoja(data);
+      })
+      .catch(() => setListaClientesLoja([]));
+  };
+
   const carregarSolicitacoesAcesso = () => {
     const lojaId = usuario?.lojaId || 1;
     fetch(`${API_URL}/api/lojas/${lojaId}/solicitacoes-acesso`)
@@ -166,6 +177,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     carregarDadosFinanceiros();
     carregarContagemClientes(lojaId);
     carregarSolicitacoesAcesso(); 
+    carregarListaClientesDaLoja();
 
     const intervaloNotificacoes = setInterval(carregarSolicitacoesAcesso, 15000);
     return () => clearInterval(intervaloNotificacoes);
@@ -188,6 +200,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
            carregarSolicitacoesAcesso(); 
            carregarContagemClientes(usuario?.lojaId || 1); 
            carregarDadosFinanceiros(); 
+           carregarListaClientesDaLoja();
         } else {
            mostrarAviso('Erro de Sistema', 'Falha ao processar analise. Tente novamente.', true);
         }
@@ -297,6 +310,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       setNomeCliente(''); setEmailCliente(''); setCpfCliente(''); setTelefoneCliente('');
       setModalNovoClienteAberto(false);
       carregarContagemClientes(usuario?.lojaId || 1);
+      carregarListaClientesDaLoja();
     } catch (err: any) {
       mostrarAviso('Erro de Cadastro', err.message, true);
     } finally {
@@ -465,6 +479,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           <nav className="space-y-1">
             {[
               { id: 'geral', label: 'Visao geral' },
+              { id: 'clientes', label: 'Clientes' },
               { id: 'aprovacoes', label: 'Aprovacoes' }, 
               { id: 'grupos', label: 'Grupos' },
               { id: 'sorteios', label: 'Sorteios / Entrega' },
@@ -511,6 +526,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               {grupoSelecionado 
                  ? `Ficha Detalhada: ${grupoSelecionado.nome}` 
                  : (abaLoja === 'geral' ? 'Visao geral comercial' 
+                    : abaLoja === 'clientes' ? 'Registro de Clientes'
                     : abaLoja === 'configuracoes' ? 'Configuracoes da Loja' 
                     : abaLoja === 'aprovacoes' ? 'Central de Aprovacoes de Credito'
                     : abaLoja)}
@@ -518,7 +534,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             <p className="text-xs text-stone-400 font-medium">Gestao de cotas, faturamento da unidade e controle de entregas.</p>
           </div>
           
-          {!grupoSelecionado && (abaLoja === 'geral' || abaLoja === 'grupos' || abaLoja === 'aprovacoes') && (
+          {!grupoSelecionado && (abaLoja === 'geral' || abaLoja === 'grupos' || abaLoja === 'aprovacoes' || abaLoja === 'clientes') && (
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setModalNovoClienteAberto(true)} 
@@ -664,6 +680,56 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <span className="text-2xl font-bold tracking-tight text-rose-600 font-mono mt-1">{taxaChurn.toFixed(1)}%</span>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {abaLoja === 'clientes' && (
+              <div className="space-y-6 animate-fadeIn text-left">
+                  <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
+                      <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                          <div>
+                              <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Clientes da Unidade</h3>
+                              <p className="text-[10px] text-stone-400 font-medium">Consumidores registrados diretamente pela loja ou aprovados na plataforma.</p>
+                          </div>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead className="sticky top-0 bg-stone-50 z-10 shadow-sm">
+                            <tr className="text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
+                              <th className="py-3 px-5">CLIENTE</th>
+                              <th className="py-3 px-5">DOCUMENTO</th>
+                              <th className="py-3 px-5">CONTATO</th>
+                              <th className="py-3 px-5 text-center">STATUS DA CONTA</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
+                            {listaClientesLoja.length === 0 ? (
+                               <tr><td colSpan={4} className="py-6 text-center text-stone-400 italic">Nenhum cliente registrado na sua unidade ainda.</td></tr>
+                            ) : (
+                               listaClientesLoja.map((cli, idx) => (
+                                 <tr key={idx} className="hover:bg-stone-50/60 transition-all">
+                                   <td className="py-3 px-5">
+                                     <span className="block font-bold text-[#0B1E14]">{cli.nome}</span>
+                                     <span className="text-[10px] text-stone-400">{cli.email || 'Sem e-mail cadastrado'}</span>
+                                   </td>
+                                   <td className="py-3 px-5 font-mono text-stone-500">
+                                     {cli.cpf ? aplicarMascaraCpf(cli.cpf) : 'Nao informado'}
+                                   </td>
+                                   <td className="py-3 px-5 text-stone-500">
+                                     {cli.telefone ? aplicarMascaraTelefone(cli.telefone) : 'Sem telefone'}
+                                   </td>
+                                   <td className="py-3 px-5 text-center">
+                                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${cli.status === 'ATIVO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                                        {cli.status}
+                                      </span>
+                                   </td>
+                                 </tr>
+                               ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                  </div>
               </div>
             )}
 

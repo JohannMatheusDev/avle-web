@@ -291,7 +291,10 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
            body: JSON.stringify({ lojaId: Number(lojaEmFoco?.id), grupoId: Number(grupo?.id) })
          });
          
-         if (!res.ok) throw new Error();
+         if (!res.ok) {
+            const textoErro = await res.text();
+            throw new Error(textoErro || 'Falha ao registrar vinculo no clube.');
+         }
          
          const resClubes = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/clubes-ativos`);
          const dataClubes = await resClubes.json();
@@ -305,8 +308,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             setSaldoPoupanca(Number(novaCota.saldoPoupanca) || 0);
             setNivelVisao('dashboard'); 
          }
-      } catch {
-         mostrarAviso('Erro de Adesao', 'Falha ao registrar vinculo no clube. Tente novamente.', true);
+      } catch (err: any) {
+         mostrarAviso('Aviso do Sistema', err.message, true);
       }
   };
 
