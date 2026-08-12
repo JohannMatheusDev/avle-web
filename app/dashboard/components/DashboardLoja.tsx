@@ -63,6 +63,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   const [solicitacoesAcesso, setSolicitacoesAcesso] = useState<any[]>([]);
   const [processandoAcessoId, setProcessandoAcessoId] = useState<number | null>(null);
+  const [caixaMensagemAberta, setCaixaMensagemAberta] = useState(false);
 
   const mostrarAviso = (titulo: string, mensagem: string, isError: boolean = false) => {
     setNotificacao({ aberto: true, titulo, mensagem, isError });
