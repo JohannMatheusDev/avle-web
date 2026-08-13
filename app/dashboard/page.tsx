@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import gsap from 'gsap';
 import TelaCarregamento from './components/TelaCarregamento';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://avle-api.onrender.com/';
+const API_URL = 'https://avle-api.onrender.com/';
 
 export default function Home() {
   const [status, setStatus] = useState<'inicial' | 'intro' | 'login'>('inicial');
@@ -1339,7 +1339,7 @@ function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number
 
       if (!res.ok) {
         const erroMsg = await res.text();
-        throw new Error(erroMsg || 'Falha ao processar o cartao.');
+        throw new Error(erroMsg || 'Falha ao processar o cartão.');
       }
 
       setMensagemCartao({ tipo: 'sucesso', texto: 'Pagamento processado com sucesso!' });
@@ -1363,7 +1363,7 @@ function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number
   };
 
   return (
-    <div className="space-y-4 text-[#0B1E14]">
+    <div className="space-y-5 text-[#0B1E14]">
       <div className="grid grid-cols-4 gap-1 bg-stone-100 p-1 rounded-xl text-[9px] font-bold uppercase tracking-wider">
         <button type="button" onClick={() => setMetodo('pix')} className={`py-2 rounded-lg transition-colors cursor-pointer ${metodo === 'pix' ? 'bg-[#0B1E14] text-white shadow' : 'text-stone-500'}`}>Pix</button>
         <button type="button" onClick={() => setMetodo('recorrente')} className={`py-2 rounded-lg transition-colors cursor-pointer ${metodo === 'recorrente' ? 'bg-[#0B1E14] text-white shadow' : 'text-stone-500'}`}>Mensal</button>
@@ -1372,17 +1372,17 @@ function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number
       </div>
 
       {metodo === 'pix' && (
-        <div className="text-center space-y-4 pt-2 animate-fadeIn">
+        <div className="text-center space-y-4 pt-2">
           <div className="p-5 bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl text-center text-xs min-h-[100px] flex items-center justify-center">
             {carregandoPix ? (
               <span className="animate-pulse block font-bold text-stone-400">Gerando link de checkout seguro...</span>
             ) : dadosPix?.paymentUrl ? (
               <div className="space-y-1.5">
-                <p className="text-[11px] text-emerald-700 font-bold">Processamento concluido com sucesso!</p>
-                <p className="text-[10px] text-stone-400 font-medium">Clique no botao abaixo para abrir o ambiente de pagamento seguro e concluir o seu Pix.</p>
+                <p className="text-[11px] text-emerald-700 font-bold">Cobrança gerada no Asaas!</p>
+                <p className="text-[10px] text-stone-400 font-medium">Clique no botão abaixo para concluir o Pix.</p>
               </div>
             ) : (
-              <span className="block font-semibold text-rose-500 leading-relaxed">Nao foi possivel gerar a sua fatura Pix neste momento. Tente novamente em instantes.</span>
+              <span className="block font-semibold text-rose-500 leading-relaxed">Não foi possível gerar a fatura. Tente novamente.</span>
             )}
           </div>
 
@@ -1398,48 +1398,48 @@ function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number
             }}
             className="w-full py-3.5 bg-[#0B1E14] text-white font-bold text-xs rounded-xl tracking-wide cursor-pointer uppercase text-[10px] disabled:opacity-40 transition-opacity"
           >
-            {carregandoPix ? 'Processando...' : 'Ir para o Pagamento Seguro'}
+            {carregandoPix ? 'Processando...' : 'Pagar via Pix Seguro'}
           </button>
         </div>
       )}
 
       {metodo !== 'pix' && (
-        <form onSubmit={handlePagamentoCartao} className="space-y-3 pt-2 animate-fadeIn text-left text-xs">
-          <div className="bg-[#F5F2EB] p-3 rounded-xl text-center text-[10px] text-stone-600 leading-relaxed border border-[#DFD9CE]">
+        <form onSubmit={handlePagamentoCartao} className="space-y-3 pt-2 text-left text-xs">
+          <div className="bg-[#F5F2EB] p-3 rounded-xl text-center text-[10px] text-[#BD6B42] font-medium leading-relaxed border border-[#DFD9CE]">
             {metodo === 'recorrente' ? (
-              <span>Seu limite <strong>nao sera bloqueado no valor total</strong>. O sistema cobrara apenas o valor da parcela mensalmente de forma automatica.</span>
+              <span>Seu limite <strong>não será bloqueado no valor total</strong>. O sistema cobrará apenas o valor da parcela mensalmente.</span>
             ) : metodo === 'credito_total' ? (
-              <span>Transacao de cartao de credito a vista/total com repasse imediato via split.</span>
+              <span>Transação de cartão de crédito à vista com repasse imediato via split.</span>
             ) : (
-              <span>Transacao de cartao de debito com liquidacao instantanea.</span>
+              <span>Transação de cartão de débito com liquidação instantânea.</span>
             )}
           </div>
 
           {mensagemCartao && (
-            <div className={`p-3 text-[10px] font-bold rounded-xl border ${mensagemCartao.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+            <div className={`p-3 text-[10px] font-bold rounded-xl border text-center ${mensagemCartao.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
               {mensagemCartao.texto}
             </div>
           )}
 
           <div>
-            <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Numero do Cartao</label>
+            <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Número do Cartão</label>
             <input 
               type="text" 
               maxLength={19}
               value={numeroCartao}
               onChange={(e) => setNumeroCartao(e.target.value)}
-              className="w-full h-10 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
+              className="w-full h-11 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
               required
             />
           </div>
 
           <div>
-            <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Nome Impresso no Cartao</label>
+            <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Nome Impresso no Cartão</label>
             <input 
               type="text" 
               value={nomeImpresso}
               onChange={(e) => setNomeImpresso(e.target.value)}
-              className="w-full h-10 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
+              className="w-full h-11 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
               required
             />
           </div>
@@ -1453,7 +1453,7 @@ function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number
                 maxLength={5}
                 value={validade}
                 onChange={(e) => setValidade(mascaraValidade(e.target.value))}
-                className="w-full h-10 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono text-center focus:outline-none focus:border-[#BD6B42]"
+                className="w-full h-11 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono text-center focus:outline-none focus:border-[#BD6B42]"
                 required
               />
             </div>
@@ -1464,7 +1464,7 @@ function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number
                 maxLength={4}
                 value={ccv}
                 onChange={(e) => setCcv(e.target.value.replace(/\D/g, ''))}
-                className="w-full h-10 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono text-center focus:outline-none focus:border-[#BD6B42]"
+                className="w-full h-11 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono text-center focus:outline-none focus:border-[#BD6B42]"
                 required
               />
             </div>
@@ -1473,7 +1473,7 @@ function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number
           <button 
             type="submit" 
             disabled={processando}
-            className="w-full h-12 mt-2 bg-[#BD6B42] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-[#A95A33] transition-all disabled:opacity-50 cursor-pointer shadow-md"
+            className="w-full h-12 mt-4 bg-[#BD6B42] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-[#A95A33] transition-all disabled:opacity-50 cursor-pointer shadow-md"
           >
             {processando ? 'Processando...' : metodo === 'recorrente' ? 'Ativar Assinatura Mensal' : 'Confirmar Pagamento'}
           </button>

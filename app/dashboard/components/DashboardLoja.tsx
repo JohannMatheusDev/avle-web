@@ -102,8 +102,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     return apenasNumeros
       .slice(0, 11)
       .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+      .replace(/(\d{3})(\d)/, '$1.$2')       .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
   };
 
   const carregarGruposDoBanco = () => {
@@ -558,7 +557,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <span>{tab.label}</span>
                 {tab.id === 'aprovacoes' && solicitacoesAcesso.length > 0 && (
                    <span className="bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md animate-pulse">
-                     +{solicitacoesAcesso.length} Novo
+                      +{solicitacoesAcesso.length} Novo
                    </span>
                 )}
               </button>
@@ -1411,3 +1410,220 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     </div>
   );
 }
+
+function CheckoutForm({ valor, cotaId, onSuccess, fecharModal }: { valor: number; cotaId: number; onSuccess: () => void; fecharModal: () => void }) {
+  const [metodo, setMetodo] = useState<'pix' | 'recorrente' | 'credito_total' | 'debito'>('pix');
+  const [dadosPix, setDadosPix] = useState<{ paymentUrl: string } | null>(null);
+  const [carregandoPix, setCarregandoPix] = useState(false);
+
+  const [numeroCartao, setNumeroCartao] = useState('');
+  const [nomeImpresso, setNomeImpresso] = useState('');
+  const [validade, setValidade] = useState('');
+  const [ccv, setCcv] = useState('');
+  const [processando, setProcessando] = useState(false);
+  const [mensagemCartao, setMensagemCartao] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
+
+  useEffect(() => {
+    if (!cotaId || metodo !== 'pix') return;
+    setCarregandoPix(true);
+    fetch(`${API_URL}/api/pagamentos/gerar-pix`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ valor, cotaId }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then((data) => setDadosPix(data))
+      .catch(() => {})
+      .finally(() => setCarregandoPix(false));
+  }, [valor, cotaId, metodo]);
+
+  const handlePagamentoCartao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProcessando(true);
+    setMensagemCartao(null);
+
+    const mesAno = validade.split('/');
+    if (mesAno.length !== 2 || mesAno[0].length !== 2 || mesAno[1].length !== 2) {
+      setMensagemCartao({ tipo: 'erro', texto: 'Data de validade invalida. Use o formato MM/AA.' });
+      setProcessando(false);
+      return;
+    }
+
+    const endpoint = metodo === 'recorrente' ? '/api/pagamentos/assinatura-cartao' : '/api/pagamentos/cartao-unico';
+    const tipoCobranca = metodo === 'credito_total' ? 'CREDIT_CARD' : 'DEBIT_CARD';
+
+    const payload = metodo === 'recorrente' ? {
+      cotaId,
+      valor,
+      numeroCartao: numeroCartao.replace(/\D/g, ''),
+      nomeImpressoCartao: nomeImpresso.toUpperCase(),
+      mesValidade: mesAno[0],
+      anoValidade: '20' + mesAno[1],
+      ccv: ccv.replace(/\D/g, '')
+    } : {
+      cotaId,
+      valor,
+      tipoCobranca,
+      numeroCartao: numeroCartao.replace(/\D/g, ''),
+      nomeImpressoCartao: nomeImpresso.toUpperCase(),
+      mesValidade: mesAno[0],
+      anoValidade: '20' + mesAno[1],
+      ccv: ccv.replace(/\D/g, '')
+    };
+
+    try {
+      const res = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const erroMsg = await res.text();
+        throw new Error(erroMsg || 'Falha ao processar o cartão.');
+      }
+
+      setMensagemCartao({ tipo: 'sucesso', texto: 'Pagamento processado com sucesso!' });
+      setTimeout(() => {
+        onSuccess();
+        fecharModal();
+      }, 2000);
+    } catch (err: any) {
+      setMensagemCartao({ tipo: 'erro', texto: err.message });
+    } finally {
+      setProcessando(false);
+    }
+  };
+
+  const mascaraValidade = (val: string) => {
+    const v = val.replace(/\D/g, '');
+    if (v.length >= 3) {
+      return `${v.slice(0, 2)}/${v.slice(2, 4)}`;
+    }
+    return v;
+  };
+
+  return (
+    <div className="space-y-5 text-[#0B1E14]">
+      <div className="grid grid-cols-4 gap-1 bg-stone-100 p-1 rounded-xl text-[9px] font-bold uppercase tracking-wider">
+        <button type="button" onClick={() => setMetodo('pix')} className={`py-2 rounded-lg transition-colors cursor-pointer ${metodo === 'pix' ? 'bg-[#0B1E14] text-white shadow' : 'text-stone-500'}`}>Pix</button>
+        <button type="button" onClick={() => setMetodo('recorrente')} className={`py-2 rounded-lg transition-colors cursor-pointer ${metodo === 'recorrente' ? 'bg-[#0B1E14] text-white shadow' : 'text-stone-500'}`}>Mensal</button>
+        <button type="button" onClick={() => setMetodo('credito_total')} className={`py-2 rounded-lg transition-colors cursor-pointer ${metodo === 'credito_total' ? 'bg-[#0B1E14] text-white shadow' : 'text-stone-500'}`}>Crédito</button>
+        <button type="button" onClick={() => setMetodo('debito')} className={`py-2 rounded-lg transition-colors cursor-pointer ${metodo === 'debito' ? 'bg-[#0B1E14] text-white shadow' : 'text-stone-500'}`}>Débito</button>
+      </div>
+
+      {metodo === 'pix' && (
+        <div className="text-center space-y-4 pt-2">
+          <div className="p-5 bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl text-center text-xs min-h-[100px] flex items-center justify-center">
+            {carregandoPix ? (
+              <span className="animate-pulse block font-bold text-stone-400">Gerando link de checkout seguro...</span>
+            ) : dadosPix?.paymentUrl ? (
+              <div className="space-y-1.5">
+                <p className="text-[11px] text-emerald-700 font-bold">Cobrança gerada no Asaas!</p>
+                <p className="text-[10px] text-stone-400 font-medium">Clique no botão abaixo para concluir o Pix.</p>
+              </div>
+            ) : (
+              <span className="block font-semibold text-rose-500 leading-relaxed">Não foi possível gerar a fatura. Tente novamente.</span>
+            )}
+          </div>
+
+          <button
+            type="button"
+            disabled={!dadosPix?.paymentUrl}
+            onClick={() => {
+              if (dadosPix?.paymentUrl) {
+                window.open(dadosPix.paymentUrl, '_blank');
+                onSuccess();
+                fecharModal();
+              }
+            }}
+            className="w-full py-3.5 bg-[#0B1E14] text-white font-bold text-xs rounded-xl tracking-wide cursor-pointer uppercase text-[10px] disabled:opacity-40 transition-opacity"
+          >
+            {carregandoPix ? 'Processando...' : 'Pagar via Pix Seguro'}
+          </button>
+        </div>
+      )}
+
+      {metodo !== 'pix' && (
+        <form onSubmit={handlePagamentoCartao} className="space-y-3 pt-2 text-left text-xs">
+          <div className="bg-[#F5F2EB] p-3 rounded-xl text-center text-[10px] text-[#BD6B42] font-medium leading-relaxed border border-[#DFD9CE]">
+            {metodo === 'recorrente' ? (
+              <span>Seu limite <strong>não será bloqueado no valor total</strong>. O sistema cobrará apenas o valor da parcela mensalmente.</span>
+            ) : metodo === 'credito_total' ? (
+              <span>Transação de cartão de crédito à vista com repasse imediato via split.</span>
+            ) : (
+              <span>Transação de cartão de débito com liquidação instantânea.</span>
+            )}
+          </div>
+
+          {mensagemCartao && (
+            <div className={`p-3 text-[10px] font-bold rounded-xl border text-center ${mensagemCartao.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+              {mensagemCartao.texto}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Número do Cartão</label>
+            <input 
+              type="text" 
+              maxLength={19}
+              value={numeroCartao}
+              onChange={(e) => setNumeroCartao(e.target.value)}
+              className="w-full h-11 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Nome Impresso no Cartão</label>
+            <input 
+              type="text" 
+              value={nomeImpresso}
+              onChange={(e) => setNomeImpresso(e.target.value)}
+              className="w-full h-11 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Validade (MM/AA)</label>
+              <input 
+                type="text" 
+                placeholder="MM/AA"
+                maxLength={5}
+                value={validade}
+                onChange={(e) => setValidade(mascaraValidade(e.target.value))}
+                className="w-full h-11 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono text-center focus:outline-none focus:border-[#BD6B42]"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">CVV</label>
+              <input 
+                type="text" 
+                maxLength={4}
+                value={ccv}
+                onChange={(e) => setCcv(e.target.value.replace(/\D/g, ''))}
+                className="w-full h-11 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono text-center focus:outline-none focus:border-[#BD6B42]"
+                required
+              />
+            </div>
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={processando}
+            className="w-full h-12 mt-4 bg-[#BD6B42] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-[#A95A33] transition-all disabled:opacity-50 cursor-pointer shadow-md"
+          >
+            {processando ? 'Processando...' : metodo === 'recorrente' ? 'Ativar Assinatura Mensal' : 'Confirmar Pagamento'}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
