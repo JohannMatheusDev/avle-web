@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import gsap from 'gsap';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://avle-api.onrender.com/';
 
 export default function CadastroConvite() {
   const router = useRouter();
