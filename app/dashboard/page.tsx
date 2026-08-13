@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import gsap from 'gsap';
 import TelaCarregamento from './components/TelaCarregamento';
 
-const API_URL = 'https://avle-api.onrender.com/';
+const API_URL = 'https://api.avle.com.br';
 
 export default function Home() {
   const [status, setStatus] = useState<'inicial' | 'intro' | 'login'>('inicial');
