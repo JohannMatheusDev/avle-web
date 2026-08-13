@@ -16,7 +16,6 @@ export default function DashboardPage() {
     const usuarioSalvo = localStorage.getItem('@avle:usuario');
 
     if (!usuarioSalvo) {
-      // Se não tiver login ativo, chuta de volta para a tela inicial
       router.push('/');
       return;
     }
@@ -49,11 +48,9 @@ export default function DashboardPage() {
       return <DashboardAdmin usuario={usuario} />;
     
     case 'LOJA':
-      // A loja visualiza apenas seus clubes, faturamento e splits
       return <DashboardLoja usuario={usuario} />;
     
     case 'CLIENTE':
-      // O cliente visualiza apenas suas parcelas, sorteios e sua carteira
       return <DashboardCliente usuario={usuario} />;
     
     default:

@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import gsap from 'gsap';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
+// URL fixa do backend para evitar problemas de compilação na Vercel
+const API_URL = 'https://api.avle.com.br';
 
 export default function CadastroConvite() {
   const router = useRouter();
@@ -56,6 +57,8 @@ export default function CadastroConvite() {
       .then(data => {
         setLojaNome(data.nomeComercial || 'Loja Parceira');
         setLojaIdNum(data.id);
+        // Salva o ID do convite para o caso do usuário já ter conta e fazer apenas o Login
+        sessionStorage.setItem('@avle:convite_loja_id', data.id.toString());
       })
       .catch(() => {
         setLojaValida(false);
@@ -590,8 +593,8 @@ export default function CadastroConvite() {
                   <div
                     className={`p-3 rounded-xl text-xs font-bold ${
                       mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
                     }`}
                   >
                     {mensagem.texto}
@@ -640,8 +643,8 @@ export default function CadastroConvite() {
                   <div
                     className={`p-3 rounded-xl text-xs font-bold ${
                       mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
                     }`}
                   >
                     {mensagem.texto}
@@ -951,11 +954,13 @@ export default function CadastroConvite() {
             </div>
             
             <div className="p-0 overflow-hidden flex-1 bg-stone-50/30 flex flex-col">
-              <iframe
-                 src={`${API_URL}/api/lojas/${lojaIdNum}/regras`}
-                 className="w-full h-[50vh] sm:h-[60vh] border-none"
-                 title="Contrato da Loja"
-              />
+              {lojaIdNum && (
+                <iframe
+                   src={`${API_URL}/api/lojas/${lojaIdNum}/regras`}
+                   className="w-full h-[50vh] sm:h-[60vh] border-none"
+                   title="Contrato da Loja"
+                />
+              )}
             </div>
 
             <div className="p-4 border-t border-stone-100 flex justify-end bg-stone-50 rounded-b-2xl gap-3">
