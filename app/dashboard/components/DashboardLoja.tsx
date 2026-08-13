@@ -204,8 +204,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   }, [grupoSelecionado]);
 
   const handleCopiarLinkConvite = () => {
-    const lojaIdParaLink = usuario?.tipoUsuario === 'LOJA' ? usuario.id : (usuario?.lojaId || 1);
-    const link = `${window.location.origin}/convite/${lojaIdParaLink}`;
+    const nomeBruto = nomeLojaReal || usuario?.lojaNome || usuario?.nome || 'loja';
+    const slugFormatado = nomeBruto.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    
+    const link = `${window.location.origin}/convite/${slugFormatado}`;
     
     navigator.clipboard.writeText(link).then(() => {
       mostrarAviso('Link Copiado', 'O link exclusivo da sua loja foi copiado. Envie para seus clientes no WhatsApp para que eles se cadastrem diretamente na sua unidade!', false);
