@@ -4,13 +4,12 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import gsap from 'gsap';
 
-// URL fixa do backend para evitar problemas de compilação na Vercel
-const API_URL = 'https://api.avle.com.br';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function CadastroConvite() {
   const router = useRouter();
   const params = useParams();
-  const slugDaLoja = params.id as string;
+  const idDaLoja = params.id as string;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -47,23 +46,25 @@ export default function CadastroConvite() {
   const [modoLayout, setModoLayout] = useState<'mobile' | 'site'>('mobile');
 
   useEffect(() => {
-    if (!slugDaLoja) return;
+    if (!idDaLoja) return;
 
-    fetch(`${API_URL}/api/lojas/convite/${slugDaLoja}`)
+    // Buscando os dados reais da loja pelo ID (Geralmente a rota é /api/lojas/{id})
+    fetch(`${API_URL}/api/lojas/${idDaLoja}`)
       .then(res => {
         if (!res.ok) throw new Error();
         return res.json();
       })
       .then(data => {
-        setLojaNome(data.nomeComercial || 'Loja Parceira');
+        setLojaNome(data.nomeComercial || data.nome || 'Loja Parceira');
         setLojaIdNum(data.id);
-        // Salva o ID do convite para o caso do usuário já ter conta e fazer apenas o Login
+        
+        // Se a pessoa já tiver conta, já deixamos engatilhado para vincular no login!
         sessionStorage.setItem('@avle:convite_loja_id', data.id.toString());
       })
       .catch(() => {
         setLojaValida(false);
       });
-  }, [slugDaLoja]);
+  }, [idDaLoja]);
 
   useEffect(() => {
     fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
@@ -593,8 +594,8 @@ export default function CadastroConvite() {
                   <div
                     className={`p-3 rounded-xl text-xs font-bold ${
                       mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border border-rose-200'
                     }`}
                   >
                     {mensagem.texto}
@@ -643,8 +644,8 @@ export default function CadastroConvite() {
                   <div
                     className={`p-3 rounded-xl text-xs font-bold ${
                       mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border border-rose-200'
                     }`}
                   >
                     {mensagem.texto}

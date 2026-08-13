@@ -204,8 +204,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   }, [grupoSelecionado]);
 
   const handleCopiarLinkConvite = () => {
-    const lojaId = usuario?.lojaId || usuario?.id;
-    const link = `${window.location.origin}/convite/${lojaId}`;
+    const lojaIdParaLink = usuario?.tipoUsuario === 'LOJA' ? usuario.id : (usuario?.lojaId || 1);
+    const link = `${window.location.origin}/convite/${lojaIdParaLink}`;
     
     navigator.clipboard.writeText(link).then(() => {
       mostrarAviso('Link Copiado', 'O link exclusivo da sua loja foi copiado. Envie para seus clientes no WhatsApp para que eles se cadastrem diretamente na sua unidade!', false);
