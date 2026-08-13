@@ -49,29 +49,27 @@ export default function CadastroConvite() {
   useEffect(() => {
     if (!slugDaLoja) return;
 
-    fetch(`${API_URL}/api/lojas/listar-todas`)
+    // Extrai o ID numérico que está no começo do parâmetro (Ex: "2-dona-kika" vira "2")
+    const idExtraido = slugDaLoja.split('-')[0];
+
+    if (!idExtraido || isNaN(Number(idExtraido))) {
+      setLojaValida(false);
+      return;
+    }
+
+    // Busca diretamente pelo ID oficial da loja no Java
+    fetch(`${API_URL}/api/lojas/${idExtraido}`)
       .then(res => {
         if (!res.ok) throw new Error();
         return res.json();
       })
-      .then((lojas: any[]) => {
-        // Formata os nomes do banco para achar a loja que tem o mesmo slug do link
-        const lojaEncontrada = lojas.find((l: any) => {
-          const nomeBruto = l.nomeComercial || l.nome || '';
-          const slugCalculado = nomeBruto.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-          return slugCalculado === slugDaLoja;
-        });
-
-        if (lojaEncontrada) {
-          setLojaNome(lojaEncontrada.nomeComercial || lojaEncontrada.nome || 'Loja Parceira');
-          setLojaIdNum(lojaEncontrada.id);
-          
-          // Guarda o ID (numero) no sistema para vincular o cliente corretamente
-          sessionStorage.setItem('@avle:convite_loja_id', lojaEncontrada.id.toString());
-          sessionStorage.setItem('@avle:abrir_cadastro', 'true');
-        } else {
-          setLojaValida(false); // Cai aqui se a loja não existir
-        }
+      .then(data => {
+        setLojaNome(data.nomeComercial || data.nome || 'Loja Parceira');
+        setLojaIdNum(data.id);
+        
+        // Salva com segurança o ID correto
+        sessionStorage.setItem('@avle:convite_loja_id', data.id.toString());
+        sessionStorage.setItem('@avle:abrir_cadastro', 'true');
       })
       .catch(() => {
         setLojaValida(false);
