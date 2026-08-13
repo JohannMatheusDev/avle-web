@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://avle-api.onrender.com';
 
 export default function DashboardCliente({ usuario: usuarioInicial }: { usuario: any }) {
   const router = useRouter();
@@ -51,6 +51,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [statusSalvar, setStatusSalvar] = useState<'sucesso' | 'erro' | null>(null);
 
   const [notificacao, setNotificacao] = useState<{ aberto: boolean; titulo: string; mensagem: string; isError?: boolean }>({ aberto: false, titulo: '', mensagem: '', isError: false });
+
+  // TRAVA DE SEGURANÇA PARA O CONVITE NÃO SUMIR NO RECARREGAMENTO
+  const conviteProcessado = useRef(false);
 
   const totalObjetivo = grupoSelecionado ? Number(grupoSelecionado.valorParcela) * Number(grupoSelecionado.duracaoMeses) : 0;
   const valorMensalidade = grupoSelecionado ? Number(grupoSelecionado.valorParcela) : 0;
@@ -217,9 +220,29 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             setLojas(data);
             
             const lojaVinculadaId = currentUser?.lojaId || currentUser?.loja?.id;
+            const convitePendente = sessionStorage.getItem('@avle:convite_loja_id');
             
-            if (lojaVinculadaId) {
-                const lojaDaPessoa = data.find(l => l.id === lojaVinculadaId);
+            // PRIORIDADE 1: Se clicou em um link de convite, sobrepõe qualquer loja antiga!
+            if (convitePendente) {
+               const lojaDoConvite = data.find((l: any) => l.id.toString() === convitePendente);
+               if (lojaDoConvite) {
+                  // Força a exibição imediata da loja convidada sem precisar checar acesso prévio
+                  setLojaEmFoco(lojaDoConvite);
+                  setNivelVisao('grupos');
+                  setCarregandoGrupos(true);
+                  
+                  fetch(`${API_URL}/api/grupos/loja/${lojaDoConvite.id}`)
+                     .then((res) => res.json())
+                     .then((grupos) => setGruposDaLoja(Array.isArray(grupos) ? grupos : []))
+                     .catch(() => setGruposDaLoja([]))
+                     .finally(() => setCarregandoGrupos(false));
+               }
+               sessionStorage.removeItem('@avle:convite_loja_id');
+               conviteProcessado.current = true; // Tranca o convite para não sumir no reload
+            }
+            // PRIORIDADE 2: Se não veio por convite, abre a loja raiz dele (Caza Liz, por ex.)
+            else if (lojaVinculadaId && !conviteProcessado.current) {
+                const lojaDaPessoa = data.find((l: any) => l.id === lojaVinculadaId);
                 if (lojaDaPessoa) {
                     setLojaEmFoco(lojaDaPessoa);
                     setNivelVisao('grupos');
@@ -491,7 +514,10 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 onClick={() => { 
                     setAbaAtiva(aba.id as any); 
                     if (aba.id === 'inicio') {
-                       if (isClienteAmarrado) {
+                       // Se clicar em Meus Planos, mantém a loja em foco se houver, se não, abre a rede de lojas.
+                       if (lojaEmFoco) {
+                           setNivelVisao('grupos');
+                       } else if (isClienteAmarrado) {
                            setNivelVisao('grupos');
                        } else {
                            setNivelVisao('lojas');
@@ -1266,7 +1292,6 @@ function CheckoutForm({
   const [processando, setProcessando] = useState(false);
   const [mensagemCartao, setMensagemCartao] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
 
-  // Define qual valor vai pro Asaas baseado na escolha
   const valorCobrado = metodo === 'credito_total' ? valorTotalRestante : valorMensalidade;
 
   useEffect(() => {
