@@ -4,12 +4,12 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import gsap from 'gsap';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://avle-api.onrender.com';
 
 export default function CadastroConvite() {
   const router = useRouter();
   const params = useParams();
-  const idDaLoja = params.id as string;
+  const slugDaLoja = decodeURIComponent(params.id as string);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -45,26 +45,38 @@ export default function CadastroConvite() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [modoLayout, setModoLayout] = useState<'mobile' | 'site'>('mobile');
 
+  // NOVIDADE: A busca agora compara o NOME do link com a lista de lojas!
   useEffect(() => {
-    if (!idDaLoja) return;
+    if (!slugDaLoja) return;
 
-    // Buscando os dados reais da loja pelo ID (Geralmente a rota é /api/lojas/{id})
-    fetch(`${API_URL}/api/lojas/${idDaLoja}`)
+    fetch(`${API_URL}/api/lojas/listar-todas`)
       .then(res => {
         if (!res.ok) throw new Error();
         return res.json();
       })
-      .then(data => {
-        setLojaNome(data.nomeComercial || data.nome || 'Loja Parceira');
-        setLojaIdNum(data.id);
-        
-        // Se a pessoa já tiver conta, já deixamos engatilhado para vincular no login!
-        sessionStorage.setItem('@avle:convite_loja_id', data.id.toString());
+      .then((lojas: any[]) => {
+        // Formata os nomes do banco para achar a loja que tem o mesmo slug do link
+        const lojaEncontrada = lojas.find((l: any) => {
+          const nomeBruto = l.nomeComercial || l.nome || '';
+          const slugCalculado = nomeBruto.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+          return slugCalculado === slugDaLoja;
+        });
+
+        if (lojaEncontrada) {
+          setLojaNome(lojaEncontrada.nomeComercial || lojaEncontrada.nome || 'Loja Parceira');
+          setLojaIdNum(lojaEncontrada.id);
+          
+          // Guarda o ID (numero) no sistema para vincular o cliente corretamente
+          sessionStorage.setItem('@avle:convite_loja_id', lojaEncontrada.id.toString());
+          sessionStorage.setItem('@avle:abrir_cadastro', 'true');
+        } else {
+          setLojaValida(false); // Cai aqui se a loja não existir
+        }
       })
       .catch(() => {
         setLojaValida(false);
       });
-  }, [idDaLoja]);
+  }, [slugDaLoja]);
 
   useEffect(() => {
     fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
@@ -414,9 +426,12 @@ export default function CadastroConvite() {
     return (
       <div className="min-h-screen bg-[#F5F2EB] flex items-center justify-center p-4">
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center border border-rose-100">
+           <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-200">
+              <span className="text-rose-600 font-bold text-2xl">!</span>
+           </div>
            <h2 className="text-xl font-bold text-rose-700 mb-2">Convite Invalido</h2>
-           <p className="text-sm text-stone-500">A loja que voce esta tentando acessar nao existe ou o link expirou.</p>
-           <button onClick={() => router.push('/')} className="mt-6 px-6 py-2 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer">Ir para o inicio</button>
+           <p className="text-sm text-stone-500">A loja que voce esta tentando acessar nao existe, ou o link expirou.</p>
+           <button onClick={() => router.push('/')} className="mt-6 px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:bg-opacity-90">Ir para o inicio</button>
         </div>
       </div>
     );
@@ -594,8 +609,8 @@ export default function CadastroConvite() {
                   <div
                     className={`p-3 rounded-xl text-xs font-bold ${
                       mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
                     }`}
                   >
                     {mensagem.texto}
@@ -644,8 +659,8 @@ export default function CadastroConvite() {
                   <div
                     className={`p-3 rounded-xl text-xs font-bold ${
                       mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
                     }`}
                   >
                     {mensagem.texto}
@@ -852,7 +867,7 @@ export default function CadastroConvite() {
                     />
                     <button
                       type="button"
-                      onClick={() => setMostrarSenha(!mostrarSenha)}
+                      onClick={() => setMostrarNovaSenha(!mostrarSenha)}
                       className="absolute right-3 top-2.5 text-stone-400 font-bold hover:text-stone-700 cursor-pointer"
                       disabled={carregando}
                     >
