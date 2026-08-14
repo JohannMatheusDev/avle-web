@@ -54,6 +54,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   const conviteProcessado = useRef(false);
 
+  // NOVIDADE: Estado que define se o cliente está "Trancado" em uma loja específica
+  const [lojaBloqueadaId, setLojaBloqueadaId] = useState<number | null>(usuarioInicial?.lojaId || usuarioInicial?.loja?.id || null);
+
   const totalObjetivo = grupoSelecionado ? Number(grupoSelecionado.valorParcela) * Number(grupoSelecionado.duracaoMeses) : 0;
   const valorMensalidade = grupoSelecionado ? Number(grupoSelecionado.valorParcela) : 0;
 
@@ -144,7 +147,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
              mostrarAviso('Participacao Cancelada', 'A administracao da loja encerrou a sua participacao em um dos grupos de compras. O seu historico vinculado a esta cota foi fechado.', true);
              
              if (clubeAtualSelecionado && removidos.includes(clubeAtualSelecionado.cotaId)) {
-                 setNivelVisao('lojas');
+                 if (lojaBloqueadaId) {
+                     setNivelVisao('grupos');
+                 } else {
+                     setNivelVisao('lojas');
+                 }
                  setClubeAtualSelecionado(null);
                  setGrupoSelecionado(null);
                  setLojaSelecionada(null);
@@ -178,6 +185,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         currentUser = JSON.parse(usuarioLogado);
         setUsuario(currentUser);
         currentUserId = currentUser.id;
+        if (currentUser.lojaId) setLojaBloqueadaId(currentUser.lojaId);
       }
     }
 
@@ -198,6 +206,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             setFotoPerfil(data.fotoPerfil || null);
             const documento = data.cpf || data.cpfCnpj || data.cpf_cnpj || data.documento || '';
             setCpfInput(documento ? aplicarMascaraCpfCnpj(documento) : '');
+            
+            if (data.lojaId) setLojaBloqueadaId(data.lojaId);
           }
         })
         .catch(() => {})
@@ -216,9 +226,19 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             const lojaVinculadaId = currentUser?.lojaId || currentUser?.loja?.id;
             const convitePendente = sessionStorage.getItem('@avle:convite_loja_id');
             
+            // LÓGICA DE ISOLAMENTO: O cliente fica PRESO na loja do convite
             if (convitePendente) {
                const lojaDoConvite = data.find((l: any) => l.id.toString() === convitePendente);
                if (lojaDoConvite) {
+                  setLojaBloqueadaId(lojaDoConvite.id); // Tranca a loja no sistema
+                  
+                  // Atualiza o banco do navegador para garantir que o isolamento persista após o reload
+                  if (currentUser && !currentUser.lojaId) {
+                      const userComLoja = { ...currentUser, lojaId: lojaDoConvite.id };
+                      setUsuario(userComLoja);
+                      localStorage.setItem('@avle:usuario', JSON.stringify(userComLoja));
+                  }
+
                   setLojaEmFoco(lojaDoConvite);
                   setNivelVisao('grupos');
                   setCarregandoGrupos(true);
@@ -235,6 +255,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             else if (lojaVinculadaId && !conviteProcessado.current) {
                 const lojaDaPessoa = data.find((l: any) => l.id === lojaVinculadaId);
                 if (lojaDaPessoa) {
+                    setLojaBloqueadaId(lojaDaPessoa.id);
                     setLojaEmFoco(lojaDaPessoa);
                     setNivelVisao('grupos');
                     setCarregandoGrupos(true);
@@ -472,6 +493,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     setNivelVisao('dashboard');
   };
 
+  // Variável que diz se o painel deve ser isolado
+  const isClienteAmarrado = !!lojaBloqueadaId;
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5]">
 
@@ -491,7 +515,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
           <nav className="space-y-1">
             {[
-              { id: 'inicio', label: 'Rede Lojas / Meus Planos' },
+              { id: 'inicio', label: isClienteAmarrado ? 'Meus Planos' : 'Rede Lojas / Meus Planos' },
               { id: 'extrato', label: 'Historico Geral' },
               { id: 'regras', label: 'Regulamento' },
               { id: 'ajuda', label: 'Suporte' }
@@ -501,7 +525,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 onClick={() => { 
                     setAbaAtiva(aba.id as any); 
                     if (aba.id === 'inicio') {
-                       setNivelVisao('lojas'); 
+                       // Lógica blindada: Se tá preso, NUNCA vai para "lojas"
+                       if (isClienteAmarrado || lojaEmFoco) {
+                           setNivelVisao('grupos');
+                       } else {
+                           setNivelVisao('lojas');
+                       }
                     }
                     setStatusSalvar(null); 
                     setStatusSalvarSenha(null); 
@@ -527,7 +556,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         {abaAtiva === 'inicio' && (
           <div className="animate-fadeIn">
 
-            {nivelVisao === 'lojas' && (
+            {nivelVisao === 'lojas' && !isClienteAmarrado && (
               <div className="space-y-6 text-left">
                 <div>
                   <h2 className="text-base font-bold uppercase tracking-wide text-[#0B1E14]">Marketplace / Rede Parceira</h2>
@@ -599,14 +628,16 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             {nivelVisao === 'grupos' && lojaEmFoco && (
               <div className="space-y-6 text-left animate-fadeIn">
                 
-                <button
-                  onClick={() => setNivelVisao('lojas')}
-                  className="text-[10px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-2 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
-                >
-                  ← Voltar para Rede de Lojas
-                </button>
+                {/* O Botão some automaticamente se a loja for fechada via convite */}
+                {!isClienteAmarrado && (
+                  <button
+                    onClick={() => setNivelVisao('lojas')}
+                    className="text-[10px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-2 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
+                  >
+                    ← Voltar para Rede de Lojas
+                  </button>
+                )}
 
-                {/* CARD DA LOJA PREMIUM E ELEGANTE */}
                 <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center gap-6 relative overflow-hidden">
                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#0B1E14] flex items-center justify-center font-serif font-bold text-white text-3xl shrink-0 shadow-lg">
                     {obterNomeLoja(lojaEmFoco).substring(0, 2).toUpperCase()}
@@ -717,7 +748,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   onClick={() => setNivelVisao('grupos')}
                   className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
                 >
-                  Voltar para os Clubes
+                  ← Voltar para os Clubes
                 </button>
 
                 <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1129,28 +1160,28 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               </div>
 
               <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col justify-between space-y-4">
-                {lojaSelecionada ? (
+                {lojaSelecionada || lojaEmFoco ? (
                   <>
                     <div>
                       <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#BD6B42]/10 text-[#BD6B42] uppercase">Suporte da Loja</span>
-                      <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase truncate max-w-[180px]">{obterNomeLoja(lojaSelecionada)}</h4>
+                      <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase truncate max-w-[180px]">{obterNomeLoja(lojaSelecionada || lojaEmFoco)}</h4>
                       <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">Para tratar diretamente sobre especificacoes de produtos, datas de assembleias locais, andamento de entregas ou retiradas de mercadorias.</p>
                     </div>
                     <div className="pt-2 border-t border-stone-200/60">
                       <p className="text-stone-500 font-bold text-xs font-mono mb-2">
-                        {lojaSelecionada.telefone ? aplicarMascaraTelefone(lojaSelecionada.telefone) : 'Contato no estabelecimento'}
+                        {(lojaSelecionada || lojaEmFoco).telefone ? aplicarMascaraTelefone((lojaSelecionada || lojaEmFoco).telefone) : 'Contato no estabelecimento'}
                       </p>
                       <button
                         type="button"
-                        disabled={!lojaSelecionada.telefone}
+                        disabled={!(lojaSelecionada || lojaEmFoco).telefone}
                         onClick={() => {
-                          if (lojaSelecionada.telefone) {
-                            window.open(`https://wa.me/55${lojaSelecionada.telefone.replace(/\D/g, '')}`, '_blank');
+                          if ((lojaSelecionada || lojaEmFoco).telefone) {
+                            window.open(`https://wa.me/55${(lojaSelecionada || lojaEmFoco).telefone.replace(/\D/g, '')}`, '_blank');
                           }
                         }}
                         className="w-full text-center py-2.5 bg-[#BD6B42] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer disabled:opacity-40"
                       >
-                        {lojaSelecionada.telefone ? 'Falar com Atendimento' : 'Telefone nao cadastrado'}
+                        {(lojaSelecionada || lojaEmFoco).telefone ? 'Falar com Atendimento' : 'Telefone nao cadastrado'}
                       </button>
                     </div>
                   </>
