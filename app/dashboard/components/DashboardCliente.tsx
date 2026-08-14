@@ -52,7 +52,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   const [notificacao, setNotificacao] = useState<{ aberto: boolean; titulo: string; mensagem: string; isError?: boolean }>({ aberto: false, titulo: '', mensagem: '', isError: false });
 
-  // TRAVA DE SEGURANÇA PARA O CONVITE NÃO SUMIR NO RECARREGAMENTO
   const conviteProcessado = useRef(false);
 
   const totalObjetivo = grupoSelecionado ? Number(grupoSelecionado.valorParcela) * Number(grupoSelecionado.duracaoMeses) : 0;
@@ -145,11 +144,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
              mostrarAviso('Participacao Cancelada', 'A administracao da loja encerrou a sua participacao em um dos grupos de compras. O seu historico vinculado a esta cota foi fechado.', true);
              
              if (clubeAtualSelecionado && removidos.includes(clubeAtualSelecionado.cotaId)) {
-                 if (usuario?.lojaId || usuario?.loja?.id) {
-                     setNivelVisao('grupos');
-                 } else {
-                     setNivelVisao('lojas');
-                 }
+                 setNivelVisao('lojas');
                  setClubeAtualSelecionado(null);
                  setGrupoSelecionado(null);
                  setLojaSelecionada(null);
@@ -170,8 +165,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       const res = await fetch(`${API_URL}/api/usuarios/${userId}/acessos-loja`);
       const data = await res.json();
       if (Array.isArray(data)) setAcessosLoja(data);
-    } catch (err) {
-    }
+    } catch (err) {}
   };
 
   useEffect(() => {
@@ -222,11 +216,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             const lojaVinculadaId = currentUser?.lojaId || currentUser?.loja?.id;
             const convitePendente = sessionStorage.getItem('@avle:convite_loja_id');
             
-            // PRIORIDADE 1: Se clicou em um link de convite, sobrepõe qualquer loja antiga!
             if (convitePendente) {
                const lojaDoConvite = data.find((l: any) => l.id.toString() === convitePendente);
                if (lojaDoConvite) {
-                  // Força a exibição imediata da loja convidada sem precisar checar acesso prévio
                   setLojaEmFoco(lojaDoConvite);
                   setNivelVisao('grupos');
                   setCarregandoGrupos(true);
@@ -238,9 +230,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                      .finally(() => setCarregandoGrupos(false));
                }
                sessionStorage.removeItem('@avle:convite_loja_id');
-               conviteProcessado.current = true; // Tranca o convite para não sumir no reload
+               conviteProcessado.current = true; 
             }
-            // PRIORIDADE 2: Se não veio por convite, abre a loja raiz dele (Caza Liz, por ex.)
             else if (lojaVinculadaId && !conviteProcessado.current) {
                 const lojaDaPessoa = data.find((l: any) => l.id === lojaVinculadaId);
                 if (lojaDaPessoa) {
@@ -460,9 +451,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         body: JSON.stringify({ senhaAtual: senhaAtualInput, novaSenha: novaSenhaInput })
       });
 
-      if (!res.ok) {
-        throw new Error();
-      }
+      if (!res.ok) throw new Error();
 
       setStatusSalvarSenha({ tipo: 'sucesso', mensagem: 'Sua senha foi alterada com sucesso!' });
       setSenhaAtualInput('');
@@ -483,8 +472,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     setNivelVisao('dashboard');
   };
 
-  const isClienteAmarrado = !!(usuario?.lojaId || usuario?.loja?.id);
-
   return (
     <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5]">
 
@@ -504,7 +491,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
           <nav className="space-y-1">
             {[
-              { id: 'inicio', label: isClienteAmarrado ? 'Meus Planos' : 'Home / Lojas e Clubes' },
+              { id: 'inicio', label: 'Rede Lojas / Meus Planos' },
               { id: 'extrato', label: 'Historico Geral' },
               { id: 'regras', label: 'Regulamento' },
               { id: 'ajuda', label: 'Suporte' }
@@ -514,14 +501,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 onClick={() => { 
                     setAbaAtiva(aba.id as any); 
                     if (aba.id === 'inicio') {
-                       // Se clicar em Meus Planos, mantém a loja em foco se houver, se não, abre a rede de lojas.
-                       if (lojaEmFoco) {
-                           setNivelVisao('grupos');
-                       } else if (isClienteAmarrado) {
-                           setNivelVisao('grupos');
-                       } else {
-                           setNivelVisao('lojas');
-                       }
+                       setNivelVisao('lojas'); 
                     }
                     setStatusSalvar(null); 
                     setStatusSalvarSenha(null); 
@@ -547,11 +527,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         {abaAtiva === 'inicio' && (
           <div className="animate-fadeIn">
 
-            {nivelVisao === 'lojas' && !isClienteAmarrado && (
+            {nivelVisao === 'lojas' && (
               <div className="space-y-6 text-left">
                 <div>
-                  <h2 className="text-base font-bold uppercase tracking-wide text-[#0B1E14]">Rede de Lojas Parceiras</h2>
-                  <p className="text-xs text-stone-500">Selecione uma loja parceira abaixo para acessar seus clubes de compras ou solicitar autorizacao de credito.</p>
+                  <h2 className="text-base font-bold uppercase tracking-wide text-[#0B1E14]">Marketplace / Rede Parceira</h2>
+                  <p className="text-xs text-stone-500 mt-1">Explore os estabelecimentos credenciados, consulte catálogos e acesse seus clubes de compras.</p>
                 </div>
 
                 {lojas.length === 0 && !erroConexao ? (
@@ -568,12 +548,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         const quantidadeCotantes = cotasNestaLoja.length;
 
                         let corBorda = 'border-[#DFD9CE] hover:border-[#BD6B42]/50 hover:shadow-md bg-white';
-                        let labelStatus = 'Solicitar Acesso';
+                        let labelStatus = 'Ver Estabelecimento';
                         let labelColor = 'text-stone-400';
 
                         if (statusAcesso === 'APROVADO') {
                             corBorda = 'border-emerald-600 bg-emerald-50/20 shadow-sm';
-                            labelStatus = quantidadeCotantes > 0 ? `${quantidadeCotantes} ${quantidadeCotantes === 1 ? 'Clube Ativo' : 'Clubes Ativos'}` : 'Entrar na Loja';
+                            labelStatus = quantidadeCotantes > 0 ? `${quantidadeCotantes} Clube(s) Ativo(s)` : 'Acesso Liberado';
                             labelColor = 'text-emerald-700 font-bold';
                         } else if (statusAcesso === 'PENDENTE') {
                             corBorda = 'border-amber-400 bg-amber-50/50 shadow-sm';
@@ -618,33 +598,72 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
             {nivelVisao === 'grupos' && lojaEmFoco && (
               <div className="space-y-6 text-left animate-fadeIn">
-                {!isClienteAmarrado && (
-                  <button
-                    onClick={() => setNivelVisao('lojas')}
-                    className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
-                  >
-                    Voltar para Lojas
-                  </button>
-                )}
+                
+                <button
+                  onClick={() => setNivelVisao('lojas')}
+                  className="text-[10px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-2 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
+                >
+                  ← Voltar para Rede de Lojas
+                </button>
 
-                <div className="bg-[#0B1E14] rounded-2xl p-6 shadow-md text-white flex flex-col md:flex-row items-start md:items-center gap-4">
-                   <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center font-serif font-bold text-emerald-400 text-xl shrink-0">
-                      OK
-                   </div>
-                   <div>
-                      <h2 className="text-xl font-bold tracking-wide">{obterNomeLoja(lojaEmFoco)}</h2>
-                      <p className="text-xs text-stone-300 mt-0.5">Grupos de compras disponiveis nesta unidade. Clique em um card para acessar seu painel ou registrar participacao.</p>
-                   </div>
+                {/* CARD DA LOJA PREMIUM E ELEGANTE */}
+                <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center gap-6 relative overflow-hidden">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#0B1E14] flex items-center justify-center font-serif font-bold text-white text-3xl shrink-0 shadow-lg">
+                    {obterNomeLoja(lojaEmFoco).substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 w-full">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0B1E14]">{obterNomeLoja(lojaEmFoco)}</h2>
+                      <span className="bg-[#EFEAE2] text-[#BD6B42] border border-[#DFD9CE] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Unidade Oficial</span>
+                    </div>
+                    <p className="text-xs text-stone-500 mb-4 max-w-2xl leading-relaxed">
+                      Bem-vindo à página oficial desta loja. Aqui você pode visualizar todos os clubes de compras disponíveis, consultar o regulamento contratual e gerenciar suas faturas ativas.
+                    </p>
+                    
+                    <div className="flex flex-wrap gap-4 pt-4 border-t border-stone-100">
+                      <div className="flex items-center gap-1.5 text-xs text-stone-600">
+                         <span className="font-bold text-stone-400 uppercase text-[9px] tracking-wider">Contato:</span>
+                         {lojaEmFoco?.telefone ? aplicarMascaraTelefone(lojaEmFoco.telefone) : 'Não informado'}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-stone-600">
+                         <span className="font-bold text-stone-400 uppercase text-[9px] tracking-wider">E-mail:</span>
+                         {lojaEmFoco?.email || 'Não informado'}
+                      </div>
+                      {lojaEmFoco?.cnpj && (
+                        <div className="flex items-center gap-1.5 text-xs text-stone-600">
+                           <span className="font-bold text-stone-400 uppercase text-[9px] tracking-wider">CNPJ:</span>
+                           {aplicarMascaraCpfCnpj(lojaEmFoco.cnpj)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2 w-full md:w-auto shrink-0 border-t md:border-t-0 md:border-l border-stone-100 pt-4 md:pt-0 md:pl-6 mt-4 md:mt-0">
+                    <button 
+                      onClick={() => window.open(`${API_URL}/api/lojas/${lojaEmFoco.id}/regras`, '_blank')}
+                      className="w-full bg-[#0B1E14] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 transition-all shadow-sm cursor-pointer text-center"
+                    >
+                      Ler Regulamento
+                    </button>
+                    {lojaEmFoco?.telefone && (
+                      <button 
+                        onClick={() => window.open(`https://wa.me/55${lojaEmFoco.telefone.replace(/\D/g, '')}`, '_blank')}
+                        className="w-full bg-stone-100 text-[#0B1E14] border border-stone-200 px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-stone-200 transition-all shadow-sm cursor-pointer text-center"
+                      >
+                        Suporte no WhatsApp
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {carregandoGrupos ? (
                    <div className="py-12 text-center text-xs font-bold text-stone-400 animate-pulse">Consultando planos no servidor...</div>
                 ) : gruposDaLoja.length === 0 ? (
                    <div className="bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
-                      Este estabelecimento ainda nao lancou nenhum grupo de compras na plataforma.
+                      Este estabelecimento ainda não lançou nenhum grupo de compras na plataforma.
                    </div>
                 ) : (
-                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-2">
                       {gruposDaLoja.slice().sort((a, b) => a.id - b.id).map(grupo => {
                          const cotaExistente = clubesAtivos.find(c => c.grupo?.id === grupo.id);
                          const isAtivo = !!cotaExistente;
@@ -668,7 +687,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                                
                                <div className="flex justify-between items-end w-full border-t border-stone-200/60 pt-3">
                                   <div className="flex flex-col">
-                                     <span className="text-[10px] text-stone-500 font-medium">Vigencia: {grupo.duracaoMeses} Meses</span>
+                                     <span className="text-[10px] text-stone-500 font-medium">Vigência: {grupo.duracaoMeses} Meses</span>
                                   </div>
                                   <span className={`text-lg font-bold font-mono ${isAtivo ? 'text-[#BD6B42]' : 'text-stone-500 group-hover:text-[#0B1E14]'}`}>
                                      R$ {Number(grupo.valorParcela).toFixed(2)}
@@ -698,7 +717,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   onClick={() => setNivelVisao('grupos')}
                   className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
                 >
-                  Voltar para Grupos da Loja
+                  Voltar para os Clubes
                 </button>
 
                 <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
