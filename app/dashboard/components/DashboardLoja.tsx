@@ -545,43 +545,50 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             </p>
           </div>
           
-          <nav className="space-y-1">
+          <nav className="space-y-0.5 mt-2">
             {[
-              { id: 'geral', label: 'Visao geral' },
-              { id: 'clientes', label: 'Clientes' },
-              { id: 'aprovacoes', label: 'Aprovacoes' }, 
-              { id: 'grupos', label: 'Grupos' },
-              { id: 'sorteios', label: 'Sorteios / Entrega' },
-              { id: 'financeiro', label: 'Financeiro / Extrato' },
+              { id: 'geral',      label: 'Visao Geral' },
+              { id: 'clientes',   label: 'Clientes' },
+              { id: 'aprovacoes', label: 'Aprovacoes' },
+              { id: 'grupos',     label: 'Grupos' },
+              { id: 'sorteios',   label: 'Sorteios / Entrega' },
+              { id: 'financeiro', label: 'Financeiro' },
               { id: 'relatorios', label: 'Relatorios' }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => { setGrupoSelecionado(null); setAbaLoja(tab.id as any); }}
-                className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer flex justify-between items-center ${
-                  abaLoja === tab.id && !grupoSelecionado ? 'bg-white/10 text-white font-bold' : 'hover:bg-white/5 opacity-75'
-                }`}
-              >
-                <span>{tab.label}</span>
-                {tab.id === 'aprovacoes' && solicitacoesAcesso.length > 0 && (
-                   <span className="bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md animate-pulse">
-                      +{solicitacoesAcesso.length} Novo
-                   </span>
-                )}
-              </button>
-            ))}
+            ].map((tab) => {
+              const isActive = abaLoja === tab.id && !grupoSelecionado;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => { setGrupoSelecionado(null); setAbaLoja(tab.id as any); }}
+                  className={`w-full text-left py-2.5 text-[11px] font-bold tracking-widest uppercase transition-all duration-200 cursor-pointer flex justify-between items-center border-l-2 ${
+                    isActive
+                      ? 'border-[#BD6B42] text-white bg-white/5 pl-5 pr-4'
+                      : 'border-transparent text-stone-500 hover:text-stone-300 hover:border-white/20 pl-4 pr-4 hover:pl-5'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  {tab.id === 'aprovacoes' && solicitacoesAcesso.length > 0 && (
+                    <span className="bg-rose-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md animate-pulse">
+                      {solicitacoesAcesso.length}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </nav>
         </div>
-        <div className="pt-4 border-t border-white/10 text-xs text-stone-400 flex justify-between items-center">
-          <button 
-            onClick={() => { setGrupoSelecionado(null); setAbaLoja('configuracoes'); }} 
-            className={`hover:text-white transition-all font-semibold cursor-pointer bg-transparent border-none ${abaLoja === 'configuracoes' ? 'text-white underline' : 'text-stone-400'}`}
+        <div className="pt-4 border-t border-white/10 flex justify-between items-center">
+          <button
+            onClick={() => { setGrupoSelecionado(null); setAbaLoja('configuracoes'); }}
+            className={`text-[11px] font-bold tracking-widest uppercase transition-all cursor-pointer border-l-2 pl-3 py-1 ${
+              abaLoja === 'configuracoes' ? 'border-[#BD6B42] text-white' : 'border-transparent text-stone-500 hover:text-stone-300'
+            }`}
           >
             Configuracoes
           </button>
-          <button 
-            onClick={() => { localStorage.removeItem('@avle:usuario'); window.location.href = '/'; }} 
-            className="text-stone-400 hover:text-red-400 text-xs font-bold transition-all cursor-pointer border border-white/10 px-2.5 py-1 rounded-xl bg-transparent hover:bg-white/5"
+          <button
+            onClick={() => { localStorage.removeItem('@avle:usuario'); window.location.href = '/'; }}
+            className="text-stone-500 hover:text-red-400 text-[10px] font-bold transition-all cursor-pointer tracking-wider uppercase"
           >
             Sair
           </button>
@@ -591,16 +598,22 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       <main className="flex-1 p-6 md:p-8 max-w-7xl overflow-x-hidden space-y-6">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-[#DFD9CE] pb-5">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-[#0B1E14] capitalize">
-              {grupoSelecionado 
-                 ? `Ficha Detalhada: ${grupoSelecionado.nome}` 
-                 : (abaLoja === 'geral' ? 'Visao geral comercial' 
-                    : abaLoja === 'clientes' ? 'Registro de Clientes'
-                    : abaLoja === 'configuracoes' ? 'Configuracoes da Loja' 
-                    : abaLoja === 'aprovacoes' ? 'Central de Aprovacoes de Credito'
-                    : abaLoja)}
+            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">
+              AVLE · {nomeLojaReal || 'Unidade'} · {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+            </p>
+            <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">
+              {grupoSelecionado
+                ? `Ficha: ${grupoSelecionado.nome}`
+                : abaLoja === 'geral'        ? 'Visao Geral Comercial'
+                : abaLoja === 'clientes'     ? 'Registro de Clientes'
+                : abaLoja === 'configuracoes'? 'Configuracoes da Loja'
+                : abaLoja === 'aprovacoes'   ? 'Central de Aprovacoes'
+                : abaLoja === 'sorteios'     ? 'Sorteios e Entregas'
+                : abaLoja === 'financeiro'   ? 'Financeiro / Extrato'
+                : abaLoja === 'relatorios'   ? 'Relatorios de Performance'
+                : abaLoja === 'grupos'       ? 'Grupos de Compras'
+                : abaLoja}
             </h2>
-            <p className="text-xs text-stone-400 font-medium">Gestao de cotas, faturamento da unidade e controle de entregas.</p>
           </div>
           
           {!grupoSelecionado && (abaLoja === 'geral' || abaLoja === 'grupos' || abaLoja === 'aprovacoes' || abaLoja === 'clientes') && (
@@ -737,22 +750,36 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             {abaLoja === 'geral' && (
               <div className="space-y-6 animate-fadeIn">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-xs relative overflow-hidden">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Faturamento Atual</span>
-                    <span className="text-2xl font-bold tracking-tight block mt-2 font-mono">R$ {recebidoEsteMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                    <div className="absolute right-3 top-3 w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                  <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-sm relative overflow-hidden border-t-2 border-t-[#BD6B42]">
+                    <div className="flex items-start justify-between mb-3">
+                      <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Faturamento Liquido</span>
+                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mt-0.5 flex-shrink-0"></div>
+                    </div>
+                    <span className="text-3xl font-bold tracking-tight block font-mono leading-none">
+                      R$ {recebidoEsteMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-[10px] text-stone-500 mt-2 block">receita acumulada</span>
                   </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs flex flex-col justify-center">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Clientes Cadastrados</span>
-                    <span className="text-2xl font-bold tracking-tight text-[#0B1E14] font-mono mt-1">{totalClientes}</span>
+                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#0B1E14] p-5 rounded-xl shadow-sm flex flex-col">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Clientes Ativos</span>
+                    <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">{totalClientes}</span>
+                    <span className="text-[10px] text-stone-400 mt-2">cadastrados na unidade</span>
                   </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs flex flex-col justify-center">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Clubes Criados</span>
-                    <span className="text-2xl font-bold tracking-tight text-[#0B1E14] font-mono mt-1">{totalGruposValidos}</span>
+                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#0B1E14] p-5 rounded-xl shadow-sm flex flex-col">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Clubes Criados</span>
+                    <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">{totalGruposValidos}</span>
+                    <span className="text-[10px] text-stone-400 mt-2">grupos de compras</span>
                   </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs flex flex-col justify-center">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Taxa de Cancelamento (Churn)</span>
-                    <span className="text-2xl font-bold tracking-tight text-rose-600 font-mono mt-1">{taxaChurn.toFixed(1)}%</span>
+                  <div className={`p-5 rounded-xl shadow-sm flex flex-col border-t-2 ${
+                    taxaChurn > 10
+                      ? 'bg-rose-50 border border-rose-200 border-t-rose-500'
+                      : 'bg-white border border-[#E6E2D8] border-t-emerald-500'
+                  }`}>
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Taxa de Churn</span>
+                    <span className={`text-3xl font-bold tracking-tight font-mono leading-none ${taxaChurn > 10 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {taxaChurn.toFixed(1)}%
+                    </span>
+                    <span className="text-[10px] text-stone-400 mt-2">cancelamentos</span>
                   </div>
                 </div>
               </div>

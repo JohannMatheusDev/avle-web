@@ -513,41 +513,57 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             <p className="text-[11px] text-stone-400 truncate max-w-[180px] mt-0.5">{usuario?.email}</p>
           </div>
 
-          <nav className="space-y-1">
+          <nav className="space-y-0.5 mt-2">
             {[
-              { id: 'inicio', label: isClienteAmarrado ? 'Meus Planos' : 'Rede Lojas / Meus Planos' },
-              { id: 'extrato', label: 'Historico Geral' },
+              { id: 'inicio', label: isClienteAmarrado ? 'Meus Planos' : 'Rede de Lojas' },
+              { id: 'extrato', label: 'Historico' },
               { id: 'regras', label: 'Regulamento' },
               { id: 'ajuda', label: 'Suporte' }
-            ].map((aba) => (
-              <button
-                key={aba.id}
-                onClick={() => { 
-                    setAbaAtiva(aba.id as any); 
+            ].map((aba) => {
+              const isActive = abaAtiva === aba.id;
+              return (
+                <button
+                  key={aba.id}
+                  onClick={() => {
+                    setAbaAtiva(aba.id as any);
                     if (aba.id === 'inicio') {
-                       // Lógica blindada: Se tá preso, NUNCA vai para "lojas"
-                       if (isClienteAmarrado || lojaEmFoco) {
-                           setNivelVisao('grupos');
-                       } else {
-                           setNivelVisao('lojas');
-                       }
+                      if (isClienteAmarrado || lojaEmFoco) {
+                        setNivelVisao('grupos');
+                      } else {
+                        setNivelVisao('lojas');
+                      }
                     }
-                    setStatusSalvar(null); 
-                    setStatusSalvarSenha(null); 
-                }}
-                className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
-                  abaAtiva === aba.id ? 'bg-white/10 text-white font-bold' : 'hover:bg-white/5 opacity-75'
-                }`}
-              >
-                {aba.label}
-              </button>
-            ))}
+                    setStatusSalvar(null);
+                    setStatusSalvarSenha(null);
+                  }}
+                  className={`w-full text-left py-2.5 text-[11px] font-bold tracking-widest uppercase transition-all duration-200 cursor-pointer flex items-center gap-3 border-l-2 ${
+                    isActive
+                      ? 'border-[#BD6B42] text-white bg-white/5 pl-5 pr-4'
+                      : 'border-transparent text-stone-500 hover:text-stone-300 hover:border-white/20 pl-4 pr-4 hover:pl-5'
+                  }`}
+                >
+                  {aba.label}
+                </button>
+              );
+            })}
           </nav>
         </div>
 
         <div className="pt-4 border-t border-white/10 flex justify-between items-center text-xs">
-          <button onClick={() => { setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }} className={`hover:text-white transition-all font-semibold cursor-pointer ${abaAtiva === 'perfil' ? 'text-white underline' : 'text-stone-400'}`}>Configuracoes</button>
-          <button onClick={() => { localStorage.removeItem('@avle:usuario'); router.push('/'); }} className="text-stone-400 hover:text-red-400 font-bold cursor-pointer">Sair</button>
+          <button
+            onClick={() => { setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }}
+            className={`text-[11px] font-bold tracking-widest uppercase transition-all cursor-pointer border-l-2 pl-3 py-1 ${
+              abaAtiva === 'perfil' ? 'border-[#BD6B42] text-white' : 'border-transparent text-stone-500 hover:text-stone-300'
+            }`}
+          >
+            Configuracoes
+          </button>
+          <button
+            onClick={() => { localStorage.removeItem('@avle:usuario'); router.push('/'); }}
+            className="text-stone-500 hover:text-red-400 text-[10px] font-bold cursor-pointer transition-all tracking-wider uppercase"
+          >
+            Sair
+          </button>
         </div>
       </aside>
 
@@ -558,9 +574,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
             {nivelVisao === 'lojas' && !isClienteAmarrado && (
               <div className="space-y-6 text-left">
-                <div>
-                  <h2 className="text-base font-bold uppercase tracking-wide text-[#0B1E14]">Marketplace / Rede Parceira</h2>
-                  <p className="text-xs text-stone-500 mt-1">Explore os estabelecimentos credenciados, consulte catálogos e acesse seus clubes de compras.</p>
+                <div className="border-b border-[#DFD9CE] pb-5">
+                  <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">
+                    AVLE · {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  </p>
+                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Rede de Lojas Parceiras</h2>
+                  <p className="text-xs text-stone-400 mt-1">Explore os estabelecimentos credenciados e acesse seus clubes de compras.</p>
                 </div>
 
                 {lojas.length === 0 && !erroConexao ? (
@@ -595,28 +614,26 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         }
 
                         return (
-                           <div 
+                           <div
                              key={loja.id}
                              onClick={() => {
-                                 if (statusAcesso !== 'BLOQUEADO') {
-                                     handleAbrirLoja(loja);
-                                 } else {
-                                     mostrarAviso('Acesso Restrito', 'O seu acesso a este estabelecimento esta suspenso no momento. Entre em contato com a loja para mais informacoes.', true);
-                                 }
-                             }} 
-                             className={`rounded-2xl p-6 cursor-pointer flex flex-col items-center justify-center text-center space-y-4 transition-all hover:-translate-y-1 border ${corBorda}`}
+                               if (statusAcesso !== 'BLOQUEADO') {
+                                 handleAbrirLoja(loja);
+                               } else {
+                                 mostrarAviso('Acesso Restrito', 'O seu acesso a este estabelecimento esta suspenso no momento. Entre em contato com a loja para mais informacoes.', true);
+                               }
+                             }}
+                             className={`rounded-2xl p-5 cursor-pointer flex flex-col items-center justify-center text-center space-y-3 transition-all hover:-translate-y-1 hover:shadow-md border-t-2 border ${corBorda}`}
                            >
-                              <div className="relative">
-                                <div className="w-16 h-16 rounded-full flex items-center justify-center font-serif font-bold text-2xl bg-[#F5F2EB] text-[#0B1E14] border border-stone-200">
-                                  {obterNomeLoja(loja).substring(0, 2).toUpperCase()}
-                                </div>
-                              </div>
-                              <div className="w-full">
-                                <h3 className="text-sm font-bold text-[#0B1E14] truncate w-full px-2">{obterNomeLoja(loja)}</h3>
-                                <span className={`inline-block mt-1 text-[9px] font-bold px-2 py-0.5 uppercase tracking-wider ${labelColor}`}>
-                                  {labelStatus}
-                                </span>
-                              </div>
+                             <div className="w-14 h-14 rounded-xl flex items-center justify-center font-serif font-bold text-xl bg-[#0B1E14] text-white shadow-sm">
+                               {obterNomeLoja(loja).substring(0, 2).toUpperCase()}
+                             </div>
+                             <div className="w-full">
+                               <h3 className="text-sm font-bold text-[#0B1E14] truncate w-full">{obterNomeLoja(loja)}</h3>
+                               <span className={`inline-block mt-1.5 text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border ${labelColor}`}>
+                                 {labelStatus}
+                               </span>
+                             </div>
                            </div>
                         )
                     })}
@@ -751,30 +768,40 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   ← Voltar para os Clubes
                 </button>
 
-                <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div>
-                    <span className="text-[10px] font-mono font-bold text-[#BD6B42] uppercase bg-[#F5F2EB] px-2 py-1 rounded">Painel de Acompanhamento Financeiro</span>
-                    <h2 className="text-xl font-serif font-bold text-[#0B1E14] mt-1.5">{grupoSelecionado?.nome}</h2>
-                    <p className="text-xs text-stone-400 mt-0.5">Estabelecimento: <strong className="text-stone-700 font-bold">{obterNomeLoja(lojaSelecionada)}</strong> | Cota Contratual: <strong className="font-mono">#0{clubeAtualSelecionado?.cotaId}</strong></p>
-                  </div>
+                <div className="border-b border-[#DFD9CE] pb-5">
+                  <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">
+                    {obterNomeLoja(lojaSelecionada)} · Cota <span className="font-mono">#{clubeAtualSelecionado?.cotaId}</span> · {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                  </p>
+                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">{grupoSelecionado?.nome}</h2>
+                  <span className="inline-block mt-1 text-[9px] font-black text-[#BD6B42] bg-[#F5F2EB] px-3 py-1 rounded-full uppercase tracking-widest border border-[#DFD9CE]">
+                    Painel de Acompanhamento
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Saldo Poupanca Individual</span>
-                    <span className="text-2xl font-bold tracking-tight block mt-2 font-mono">R$ {saldoPoupanca.toFixed(2)}</span>
+                  <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-sm relative overflow-hidden border-t-2 border-t-[#BD6B42]">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Saldo de Poupanca</span>
+                    <span className="text-3xl font-bold tracking-tight block font-mono leading-none">R$ {saldoPoupanca.toFixed(2)}</span>
+                    <span className="text-[10px] text-stone-500 mt-2 block">acumulado na cota</span>
                   </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Vencimento da Parcela</span>
-                    <span className="text-2xl font-bold text-[#BD6B42] block mt-2 font-mono">{dataVencimentoCota || '--/--'}</span>
+                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#BD6B42] p-5 rounded-xl shadow-sm flex flex-col">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Vencimento da Parcela</span>
+                    <span className="text-3xl font-bold text-[#BD6B42] font-mono leading-none">{dataVencimentoCota || '--/--'}</span>
+                    <span className="text-[10px] text-stone-400 mt-2">proxima cobranca</span>
                   </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Vigencia de Sorteios</span>
-                    <span className="text-2xl font-bold text-[#0B1E14] block mt-2 font-mono">{grupoSelecionado?.duracaoMeses || 0} Meses</span>
+                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#0B1E14] p-5 rounded-xl shadow-sm flex flex-col">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Vigencia do Plano</span>
+                    <span className="text-3xl font-bold text-[#0B1E14] font-mono leading-none">{grupoSelecionado?.duracaoMeses || 0}</span>
+                    <span className="text-[10px] text-stone-400 mt-2">meses de sorteios</span>
                   </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Aptidao Coletiva</span>
-                    <span className="text-2xl font-bold text-emerald-600 block mt-2 uppercase tracking-wide text-sm font-semibold">Fase 0{etapaAtual}</span>
+                  <div className={`p-5 rounded-xl shadow-sm flex flex-col border-t-2 ${
+                    etapaAtual >= 3 ? 'bg-emerald-50 border border-emerald-200 border-t-emerald-500' : 'bg-white border border-[#E6E2D8] border-t-[#0B1E14]'
+                  }`}>
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Fase do Contrato</span>
+                    <span className={`text-3xl font-bold font-mono leading-none ${etapaAtual >= 3 ? 'text-emerald-600' : 'text-[#0B1E14]'}`}>
+                      0{etapaAtual}
+                    </span>
+                    <span className="text-[10px] text-stone-400 mt-2">aptidao coletiva</span>
                   </div>
                 </div>
 
