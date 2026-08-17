@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TelaCarregamento from './dashboard/components/TelaCarregamento';
 
-// URL fixa do backend
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function Home() {
@@ -70,6 +69,8 @@ function Autenticacao() {
   
   const [aceitouTermos, setAceitouTermos] = useState(false);
   const [modalTermosAberto, setModalTermosAberto] = useState(false);
+  
+  // CORREÇÃO: Variável unificada para controlar a visualização da senha no login/cadastro
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
   const [lembrarSenha, setLembrarSenha] = useState(false);
@@ -448,9 +449,6 @@ function Autenticacao() {
   return (
     <div className="min-h-screen bg-[#F5F2EB] flex flex-col lg:flex-row font-sans overflow-hidden">
       
-      {/* =========================================================================
-          LADO ESQUERDO: SPLIT SCREEN ESTÁTICO (Super Rápido e Otimizado)
-          ========================================================================= */}
       <div className="hidden lg:flex w-1/2 bg-[#0B1E14] relative items-center justify-center overflow-hidden flex-col p-12">
         <div className="absolute w-[600px] h-[600px] bg-[#BD6B42] rounded-full blur-[140px] opacity-10 pointer-events-none" />
         
@@ -465,12 +463,8 @@ function Autenticacao() {
         </div>
       </div>
 
-      {/* =========================================================================
-          LADO DIREITO: FORMULÁRIO DE LOGIN/CADASTRO
-          ========================================================================= */}
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-[#F5F2EB] p-4 sm:p-8 lg:p-12 relative min-h-screen overflow-y-auto">
         
-        {/* LOGO MOBILE */}
         <div className="lg:hidden absolute top-8 left-0 right-0 flex flex-col items-center justify-center z-0 opacity-20 pointer-events-none">
            <span className="text-[#0B1E14] font-black text-6xl font-serif">AVLE</span>
         </div>
@@ -595,7 +589,6 @@ function Autenticacao() {
                       <div>
                         <label className="block text-[10px] font-bold uppercase text-stone-400 mb-1.5 tracking-wider">Tipo de Conta *</label>
                         
-                        {/* TOGGLE FLUIDO COM DESLIZAMENTO */}
                         <div className="relative flex p-1 bg-stone-100 rounded-2xl border border-stone-200/80 overflow-hidden">
                           <div 
                             className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#0B1E14] rounded-xl shadow-md transition-transform duration-500 ease-in-out transform-gpu ${
@@ -656,7 +649,6 @@ function Autenticacao() {
                         <input type="text" placeholder="(42) 99999-9999" value={telefoneCadastro} onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
                       </div>
                       
-                      {/* DESLIZAMENTO SUAVE PARA OS CAMPOS DA LOJA */}
                       <div className={`transition-all duration-500 ease-in-out overflow-hidden ${tipoUsuario === 'LOJA' ? 'max-h-[600px] opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'}`}>
                         <div className="space-y-3 p-4 bg-stone-50/80 border border-stone-200 rounded-2xl shadow-inner">
                           <p className="text-[10px] font-bold uppercase text-[#BD6B42] tracking-wider mb-2">Dados da Loja</p>
@@ -705,11 +697,11 @@ function Autenticacao() {
                       )}
                     </div>
                     <div className="relative">
+                      {/* CORREÇÃO: Utilizando o estado 'mostrarSenha' que agora alterna corretamente */}
                       <input type={mostrarSenha ? 'text' : 'password'} placeholder="••••••••" value={senha} onChange={(e) => setSenha(e.target.value)} className="w-full px-4 py-3 border rounded-xl bg-stone-50 focus:outline-none focus:border-[#0B1E14] text-sm h-[46px]" required disabled={carregando} />
-                      <button type="button" onClick={() => setMostrarNovaSenha(!mostrarSenha)} className="absolute right-4 top-3 text-stone-400 font-bold hover:text-stone-700 cursor-pointer" disabled={carregando}>Ver</button>
+                      <button type="button" onClick={() => setMostrarSenha(!mostrarSenha)} className="absolute right-4 top-3 text-stone-400 font-bold hover:text-stone-700 cursor-pointer text-xs" disabled={carregando}>VER</button>
                     </div>
 
-                    {/* LEMBRAR DE MIM INTEGRADO AO BACKEND */}
                     {isLogin && (
                       <div className="flex items-center mt-3 ml-1 space-x-2">
                         <input
