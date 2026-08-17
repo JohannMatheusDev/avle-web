@@ -77,7 +77,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   };
   
   const [nomeGrupo, setNomeGrupo] = useState('');
-  const [valorParcela, setValorParcela] = useState('');
+  const [valorTotal, setValorTotal] = useState('');
   const [duracaoMeses, setDuracaoMeses] = useState('24');
   const [maxCotas, setMaxCotas] = useState('40');
 
@@ -246,7 +246,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
      setModalBloqueioAberto(true);
   };
 
-  const confirmarBloqueioCliente = async (e: React.FormEvent) => {
+  const confirmarBloqueioCliente = async (e: React.SyntheticEvent<HTMLFormElement>) => {
      e.preventDefault();
      setProcessandoBloqueio(true);
      const lojaId = usuario?.lojaId || usuario?.id;
@@ -341,7 +341,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   };
 
-  const handleCadastrarCliente = async (e: React.FormEvent) => {
+  const handleCadastrarCliente = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setProcessandoCliente(true);
     const lojaId = usuario?.lojaId || usuario?.id;
@@ -381,37 +381,44 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   };
 
-  const handleCriarGrupo = async (e: React.FormEvent) => {
+  const handleCriarGrupo = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     const lojaId = usuario?.lojaId || usuario?.id;
+    const meses = parseInt(duracaoMeses);
+    const total = parseFloat(valorTotal);
+    if (!meses || meses <= 0 || !total || total <= 0) {
+      mostrarAviso('Dados Invalidos', 'Informe um valor total e duracao validos.', true);
+      return;
+    }
+    const parcela = parseFloat((total / meses).toFixed(2));
     try {
-      const payload = { 
-        nome: nomeGrupo, valorParcela: parseFloat(valorParcela), 
-        duracaoMeses: parseInt(duracaoMeses), quantidadeMaxCotas: parseInt(maxCotas), 
-        lojaId: lojaId 
+      const payload = {
+        nome: nomeGrupo, valorTotal: total, valorParcela: parcela,
+        duracaoMeses: meses, quantidadeMaxCotas: parseInt(maxCotas),
+        lojaId: lojaId
       };
-      
-      const res = await fetch(`${API_URL}/api/grupos/criar`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify(payload) 
+
+      const res = await fetch(`${API_URL}/api/grupos/criar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
-      
+
       if (!res.ok) {
         const erroServidor = await res.text();
         throw new Error(erroServidor || 'Falha ao registrar novo clube de compras.');
       }
-      
+
       mostrarAviso('Sucesso Comercial', 'Clube de Compras lancado com sucesso!', false);
-      setNomeGrupo(''); setValorParcela(''); 
+      setNomeGrupo(''); setValorTotal('');
       setModalNovoGrupoAberto(false);
       carregarGruposDoBanco();
-    } catch (err: any) { 
-      mostrarAviso('Erro Operacional', err.message, true); 
+    } catch (err: any) {
+      mostrarAviso('Erro Operacional', err.message, true);
     }
   };
 
-  const handleLancarPagamentoManual = async (e: React.FormEvent) => {
+  const handleLancarPagamentoManual = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (idOperacao === 'Nenhuma') {
       mostrarAviso('Selecao Necessaria', 'Selecione uma cota na tabela antes de lancar o pagamento.', true);
@@ -444,7 +451,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   };
 
-  const ejecutarSorteioLoja = async (e: React.FormEvent) => {
+  const ejecutarSorteioLoja = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoadingSorteio(true);
     try {
@@ -497,7 +504,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   };
 
-  const handleEnviarPdf = async (e: React.FormEvent) => {
+  const handleEnviarPdf = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!arquivoPdf) {
       mostrarAviso('Campo Requerido', 'Selecione um arquivo PDF antes de enviar.', true);
@@ -1246,39 +1253,48 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Valor da Parcela Mensal (R$)</label>
-                <input 
-                  type="number" 
+                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Valor Total do Grupo (R$)</label>
+                <input
+                  type="number"
                   step="0.01"
-                  placeholder="0.00" 
-                  value={valorParcela}
-                  onChange={(e) => setValorParcela(e.target.value)}
+                  placeholder="Ex: 2000.00"
+                  value={valorTotal}
+                  onChange={(e) => setValorTotal(e.target.value)}
                   className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
-                  required 
+                  required
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Duracao total (Meses)</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     value={duracaoMeses}
                     onChange={(e) => setDuracaoMeses(e.target.value)}
                     className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
-                    required 
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Quantidade Maxima de Cotas</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     value={maxCotas}
                     onChange={(e) => setMaxCotas(e.target.value)}
                     className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
-                    required 
+                    required
                   />
                 </div>
               </div>
+              {valorTotal && duracaoMeses && parseFloat(valorTotal) > 0 && parseInt(duracaoMeses) > 0 && (
+                <div className="bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl px-4 py-3 flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Parcela Mensal Calculada</span>
+                  <span className="text-lg font-black text-[#0B1E14] font-mono">
+                    R$ {(parseFloat(valorTotal) / parseInt(duracaoMeses)).toFixed(2)}
+                    <span className="text-[10px] font-normal text-stone-400 ml-1">/ mês</span>
+                  </span>
+                </div>
+              )}
               <div className="flex space-x-2 pt-2 border-t w-full">
                 <button type="button" onClick={() => setModalNovoGrupoAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer">Cancelar</button>
                 <button 
