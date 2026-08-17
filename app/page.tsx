@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import gsap from 'gsap';
 import TelaCarregamento from './dashboard/components/TelaCarregamento';
 
-// URL fixa do backend
-const API_URL = 'https://api.avle.com.br'//avle-ap;
+const API_URL = 'https://api.avle.com.br';
 
 export default function Home() {
   const [status, setStatus] = useState<'inicial' | 'intro' | 'login'>('inicial');
@@ -85,17 +84,11 @@ function Autenticacao() {
   const [cep, setCep] = useState('');
   const [faturamento, setFaturamento] = useState('');
   const [walletIdInput, setWalletIdInput] = useState(''); 
-  const [bancoCodigo, setBancoCodigo] = useState('001'); 
-  const [agencia, setAgencia] = useState('');
-  const [conta, setConta] = useState('');
-  const [contaDigito, setContaDigito] = useState('');
-  const [tipoConta, setTipoConta] = useState('CORRENTE');
   
   const [aceitouTermos, setAceitouTermos] = useState(false);
   const [modalTermosAberto, setModalTermosAberto] = useState(false);
 
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [modoLayout, setModoLayout] = useState<'mobile' | 'site'>('mobile');
 
   useEffect(() => {
     const querCadastro = sessionStorage.getItem('@avle:abrir_cadastro');
@@ -156,7 +149,7 @@ function Autenticacao() {
     }, containerRef);
 
     return () => ctx.revert();
-  }, [modoLayout]);
+  }, []);
 
   const aplicarMascaraTelefone = (valor: string) => {
     const v = valor.replace(/\D/g, '');
@@ -197,7 +190,6 @@ function Autenticacao() {
   const handleBuscarCnpj = async () => {
     const cnpjLimpo = cpf.replace(/\D/g, '');
     
-    // Só pesquisa se for LOJA e se tiver digitado os 14 números
     if (tipoUsuario !== 'LOJA' || cnpjLimpo.length !== 14) return;
 
     setCarregando(true);
@@ -211,12 +203,10 @@ function Autenticacao() {
       
       const data = await res.json();
       
-      // Valida se a empresa não está baixada ou inapta
       if (data.descricao_situacao_cadastral !== 'ATIVA') {
         throw new Error(`CNPJ Inválido: A situação da empresa consta como ${data.descricao_situacao_cadastral}.`);
       }
 
-      // Preenche os dados automaticamente para a loja!
       setNome(data.razao_social || data.nome_fantasia || '');
       if (data.cep) setCep(aplicarMascaraCep(data.cep.toString()));
       if (data.ddd_telefone_1) setTelefoneCadastro(aplicarMascaraTelefone(data.ddd_telefone_1.toString()));
@@ -224,7 +214,7 @@ function Autenticacao() {
       setMensagem({ tipo: 'sucesso', texto: 'Empresa validada e ativa na Receita Federal!' });
     } catch (err: any) {
       setMensagem({ tipo: 'erro', texto: err.message });
-      setCpf(''); // Limpa o CNPJ falso para obrigar a digitar o certo
+      setCpf(''); 
       setNome('');
     } finally {
       setCarregando(false);
@@ -256,10 +246,6 @@ function Autenticacao() {
   const cepLimpo = cep.replace(/\D/g, '');
   const cepValidoSeLoja = tipoUsuario === 'LOJA' ? cepLimpo.length === 8 : true;
   const faturamentoValidoSeLoja = tipoUsuario === 'LOJA' ? faturamento.trim().length > 0 : true;
-  const dadosBancariosValidosSeLoja =
-    tipoUsuario === 'LOJA'
-      ? agencia.trim().length >= 3 && conta.trim().length >= 4 && contaDigito.trim().length >= 1
-      : true;
 
   const formularioValido = isLogin
     ? loginValido && senha.length > 0
@@ -270,7 +256,6 @@ function Autenticacao() {
       tamanhoDocumentoValido &&
       cepValidoSeLoja &&
       faturamentoValidoSeLoja &&
-      dadosBancariosValidosSeLoja &&
       (tipoUsuario === 'LOJA' ? aceitouTermos : true);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -285,9 +270,6 @@ function Autenticacao() {
       return;
     }
 
-    // =====================================================================
-    // SEGURANÇA: VALIDAÇÃO ESTrita DO WALLET ID
-    // =====================================================================
     if (!isLogin && tipoUsuario === 'LOJA' && walletIdInput.trim() !== '') {
       if (!walletIdInput.trim().startsWith('wal_')) {
         setMensagem({ 
@@ -332,10 +314,6 @@ function Autenticacao() {
               cep: tipoUsuario === 'LOJA' ? cepLimpo : null,
               faturamento: tipoUsuario === 'LOJA' ? faturamentoNumerico : null,
               walletId: tipoUsuario === 'LOJA' && walletIdInput.trim() !== '' ? walletIdInput.trim() : null,
-              dadosBancarios:
-                tipoUsuario === 'LOJA'
-                  ? { bancoCodigo, agencia, conta, contaDigito, tipoConta }
-                  : null,
               lojaId: tipoUsuario === 'CLIENTE' && conviteLojaId ? Number(conviteLojaId) : null,
             };
         }
@@ -376,8 +354,7 @@ function Autenticacao() {
           setTimeout(() => {
             setIsLogin(true);
             setNome(''); setCpf(''); setEmailCadastro(''); setTelefoneCadastro(''); setCep('');
-            setFaturamento(''); setWalletIdInput(''); setAgencia(''); setConta('');
-            setContaDigito(''); setSenha(''); setAceitouTermos(false);
+            setFaturamento(''); setWalletIdInput(''); setSenha(''); setAceitouTermos(false);
             setMensagem({ tipo: '', texto: '' });
           }, 1500);
           setCarregando(false);
@@ -528,7 +505,7 @@ function Autenticacao() {
   return (
     <div
       ref={containerRef}
-      className="min-h-screen bg-[#F5F2EB] flex flex-col justify-center items-center p-4 text-[#0B1E14] relative select-none overflow-hidden transition-all duration-500"
+      className="min-h-screen bg-[#F5F2EB] flex flex-col justify-center items-center p-4 lg:p-8 text-[#0B1E14] relative select-none overflow-hidden"
     >
       <div ref={glowRef} className="absolute w-[550px] h-[550px] bg-[#BD6B42] rounded-full blur-[140px] pointer-events-none -z-10" />
 
@@ -544,55 +521,25 @@ function Autenticacao() {
         ))}
       </div>
 
-      <div className="mb-6 bg-stone-200/80 p-1 rounded-2xl flex space-x-1 border border-stone-300 shadow-inner z-50">
-        <button
-          type="button"
-          onClick={() => setModoLayout('mobile')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-            modoLayout === 'mobile' ? 'bg-[#0B1E14] text-white shadow-md' : 'text-stone-500 hover:text-stone-700'
-          }`}
-        >
-          Vista Mobile
-        </button>
-        <button
-          type="button"
-          onClick={() => setModoLayout('site')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-            modoLayout === 'site' ? 'bg-[#0B1E14] text-white shadow-md' : 'text-stone-500 hover:text-stone-700'
-          }`}
-        >
-          Vista Site
-        </button>
-      </div>
-
       <div
         ref={cardRef}
-        className={`w-full bg-white rounded-3xl shadow-xl border border-stone-200/60 overflow-hidden flex transition-all duration-500 ease-in-out hover:shadow-2xl ${
-          modoLayout === 'site' ? 'max-w-4xl min-h-[640px] flex-row' : 'max-w-md min-h-[660px] flex-col'
-        }`}
+        className="w-full max-w-md md:max-w-4xl bg-white rounded-[2rem] shadow-2xl border border-stone-200/60 overflow-hidden flex flex-col md:flex-row min-h-[80vh] md:min-h-[640px] z-10 relative transition-transform hover:shadow-3xl"
       >
-        <div
-          className={`bg-[#0B1E14] p-8 text-center flex flex-col items-center justify-center group transition-all duration-500 ${
-            modoLayout === 'site' ? 'w-1/2 rounded-r-3xl' : 'w-full'
-          }`}
-        >
-          <div className="w-20 h-20 mb-3 transition-transform duration-500 hover:scale-105 bg-[#F5F2EB] rounded-full flex items-center justify-center shadow-md">
-            <span className="text-[#0B1E14] font-black text-2xl">AV</span>
+        <div className="bg-[#0B1E14] p-8 md:p-12 text-center flex flex-col items-center justify-center w-full md:w-1/2 shrink-0 relative overflow-hidden">
+          {/* Opcional: Coloque a sua tag <img src="/logo.png" /> aqui quando tiver a árvore do VS Code */}
+          <div className="w-20 h-20 bg-[#F5F2EB] rounded-full flex items-center justify-center mb-4 shadow-lg transition-transform hover:scale-105">
+            <span className="text-[#0B1E14] font-black text-3xl">AV</span>
           </div>
-          <h1 className="text-white text-2xl font-bold tracking-wide">AVLE</h1>
-          <p className="text-stone-300 text-sm mt-1">Seu clube de compras planejado</p>
-          <p className="text-[#BD6B42] text-xs italic mt-3 max-w-xs">
+          <h1 className="text-white text-3xl font-bold tracking-wide font-serif">AVLE</h1>
+          <p className="text-stone-300 text-sm mt-2">Seu clube de compras planejado</p>
+          <p className="text-[#BD6B42] text-xs italic mt-4 max-w-[200px] opacity-80">
             "Onde suas escolhas criam raizes e geram frutos."
           </p>
         </div>
 
-        <div
-          className={`flex flex-col justify-between transition-all duration-500 overflow-y-auto max-h-[85vh] ${
-            modoLayout === 'site' ? 'w-1/2 p-4' : 'w-full p-2'
-          }`}
-        >
+        <div className="flex flex-col flex-1 overflow-y-auto w-full md:w-1/2 p-5 md:p-8 bg-white relative">
           {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
-            <div className="flex border-b border-stone-100 bg-stone-50/50">
+            <div className="flex border-b border-stone-100 bg-stone-50/50 mb-4 rounded-xl overflow-hidden shadow-sm">
               <button
                 type="button"
                 onClick={() => {
@@ -600,8 +547,8 @@ function Autenticacao() {
                   setMensagem({ tipo: '', texto: '' });
                   setAceitouTermos(false);
                 }}
-                className={`flex-1 py-4 font-bold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                  isLogin ? 'text-[#BD6B42] border-b-2 border-[#BD6B42] bg-white' : 'text-stone-400 hover:text-stone-600'
+                className={`flex-1 py-3.5 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                  isLogin ? 'text-white bg-[#BD6B42]' : 'text-stone-400 hover:text-stone-600 bg-transparent'
                 }`}
               >
                 Acessar Conta
@@ -614,8 +561,8 @@ function Autenticacao() {
                   setTipoUsuario('CLIENTE');
                   setAceitouTermos(false);
                 }}
-                className={`flex-1 py-4 font-bold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                  !isLogin ? 'text-[#BD6B42] border-b-2 border-[#BD6B42] bg-white' : 'text-stone-400 hover:text-stone-600'
+                className={`flex-1 py-3.5 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                  !isLogin ? 'text-white bg-[#BD6B42]' : 'text-stone-400 hover:text-stone-600 bg-transparent'
                 }`}
               >
                 Nova Conta
@@ -624,7 +571,7 @@ function Autenticacao() {
           )}
 
           {isVerificando && (
-            <form onSubmit={handleConfirmarCodigo} className="p-6 flex-1 flex flex-col justify-between space-y-4 text-left">
+            <form onSubmit={handleConfirmarCodigo} className="flex-1 flex flex-col justify-center space-y-4 text-left">
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificacao de Conta</h3>
@@ -654,7 +601,7 @@ function Autenticacao() {
                     placeholder="000000"
                     value={codigoOtp}
                     onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))}
-                    className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm focus:outline-none focus:border-[#0B1E14]"
+                    className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]"
                     required
                     disabled={carregando}
                   />
@@ -675,7 +622,7 @@ function Autenticacao() {
                 <button
                   type="button"
                   onClick={() => setIsVerificando(false)}
-                  className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-1 cursor-pointer"
+                  className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-2 cursor-pointer"
                 >
                   Cancelar e voltar
                 </button>
@@ -684,7 +631,7 @@ function Autenticacao() {
           )}
 
           {isEsqueceuSenha && (
-            <form onSubmit={handleSolicitarRecuperacao} className="p-6 flex-1 flex flex-col justify-between space-y-6 text-left">
+            <form onSubmit={handleSolicitarRecuperacao} className="flex-1 flex flex-col justify-center space-y-6 text-left">
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Recuperacao de Acesso</h3>
@@ -727,7 +674,7 @@ function Autenticacao() {
                 <button
                   type="button"
                   onClick={() => setIsEsqueceuSenha(false)}
-                  className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-1 cursor-pointer"
+                  className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-2 cursor-pointer"
                 >
                   Voltar ao Login
                 </button>
@@ -736,7 +683,7 @@ function Autenticacao() {
           )}
 
           {isResetandoSenha && (
-            <form onSubmit={handleSalvarNovaSenha} className="p-6 flex-1 flex flex-col justify-between space-y-4 text-left">
+            <form onSubmit={handleSalvarNovaSenha} className="flex-1 flex flex-col justify-center space-y-4 text-left">
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Criar Nova Senha</h3>
@@ -763,7 +710,7 @@ function Autenticacao() {
                     placeholder="000000"
                     value={codigoOtp}
                     onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))}
-                    className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm focus:outline-none focus:border-[#0B1E14]"
+                    className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]"
                     required
                     disabled={carregando}
                   />
@@ -783,14 +730,14 @@ function Autenticacao() {
                       placeholder="••••••••"
                       value={novaSenha}
                       onChange={(e) => setNovaSenha(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 text-sm h-[42px] focus:outline-none focus:border-[#0B1E14]"
+                      className="w-full px-4 py-3 border rounded-xl bg-stone-50 text-sm h-[46px] focus:outline-none focus:border-[#0B1E14]"
                       required
                       disabled={carregando}
                     />
                     <button
                       type="button"
                       onClick={() => setMostrarNovaSenha(!mostrarNovaSenha)}
-                      className="absolute right-3 top-2.5 text-stone-400 font-bold hover:text-stone-700 cursor-pointer"
+                      className="absolute right-4 top-3 text-stone-400 font-bold hover:text-stone-700 cursor-pointer"
                     >
                       Ver
                     </button>
@@ -808,7 +755,7 @@ function Autenticacao() {
                 <button
                   type="button"
                   onClick={() => setIsResetandoSenha(false)}
-                  className="w-full text-stone-400 text-center font-bold text-xs py-1 cursor-pointer"
+                  className="w-full text-stone-400 text-center font-bold text-xs py-2 cursor-pointer"
                 >
                   Desistir
                 </button>
@@ -817,7 +764,7 @@ function Autenticacao() {
           )}
 
           {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
-            <form onSubmit={handleSubmit} className="p-6 flex-1 flex flex-col justify-between text-left space-y-4">
+            <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-between text-left space-y-4">
               <div className="space-y-4">
                 {mensagem.texto && (
                   <div
@@ -865,7 +812,7 @@ function Autenticacao() {
                               tipoUsuario === 'CLIENTE' ? 'text-stone-300' : 'text-stone-400'
                             }`}
                           >
-                            Quero participar de clubes
+                            Quero participar
                           </span>
                         </button>
 
@@ -890,7 +837,7 @@ function Autenticacao() {
                               tipoUsuario === 'LOJA' ? 'text-stone-300' : 'text-stone-400'
                             }`}
                           >
-                            Quero gerenciar clientes
+                            Quero gerenciar
                           </span>
                         </button>
                       </div>
@@ -913,7 +860,7 @@ function Autenticacao() {
                         placeholder={tipoUsuario === 'LOJA' ? '00000000000000' : '00000000000'}
                         value={cpf}
                         onChange={(e) => setCpf(e.target.value.replace(/\D/g, ''))}
-                        onBlur={handleBuscarCnpj} // ATIVA A VALIDAÇÃO QUANDO O USUÁRIO SAI DO CAMPO
+                        onBlur={handleBuscarCnpj}
                         className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
                         required
                         disabled={carregando}
@@ -931,7 +878,7 @@ function Autenticacao() {
                         onChange={(e) => setNome(e.target.value)}
                         className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
                         required
-                        disabled={carregando || (tipoUsuario === 'LOJA')} // Se for loja, o nome vem da receita
+                        disabled={carregando || (tipoUsuario === 'LOJA')}
                       />
                     </div>
 
@@ -958,15 +905,15 @@ function Autenticacao() {
                     </div>
                     
                     {tipoUsuario === 'LOJA' && (
-                      <div className="space-y-3 p-3.5 bg-stone-50/80 border border-stone-200 rounded-2xl transition-all duration-300">
-                        <p className="text-[10px] font-bold uppercase text-[#BD6B42] tracking-wider">
+                      <div className="space-y-3 p-4 bg-stone-50/80 border border-stone-200 rounded-2xl transition-all duration-300 shadow-inner">
+                        <p className="text-[10px] font-bold uppercase text-[#BD6B42] tracking-wider mb-2">
                           Dados da Loja 
                         </p>
 
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                              CEP do Estabelecimento *
+                              CEP Base *
                             </label>
                             <input
                               type="text"
@@ -974,7 +921,7 @@ function Autenticacao() {
                               placeholder="85010-250"
                               value={cep}
                               onChange={(e) => setCep(aplicarMascaraCep(e.target.value))}
-                              className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[40px]"
+                              className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]"
                               required
                               disabled={carregando}
                             />
@@ -982,21 +929,21 @@ function Autenticacao() {
 
                           <div>
                             <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                              Faturamento Mensal *
+                              Faturamento *
                             </label>
                             <input
                               type="text"
                               placeholder="R$ 10.000,00"
                               value={faturamento}
                               onChange={(e) => setFaturamento(aplicarMascaraMoeda(e.target.value))}
-                              className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[40px]"
+                              className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]"
                               required
                               disabled={carregando}
                             />
                           </div>
                         </div>
 
-                        <div>
+                        <div className="pt-1">
                           <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between">
                             <span>Wallet ID Asaas</span>
                             <span className="text-stone-400 font-normal">Começa com wal_</span>
@@ -1005,117 +952,13 @@ function Autenticacao() {
                             type="text"
                             value={walletIdInput}
                             onChange={(e) => setWalletIdInput(e.target.value)}
-                            placeholder="wal_..."
-                            className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[40px] font-mono"
+                            placeholder="Deixe em branco para o sistema criar"
+                            className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono"
                             disabled={carregando}
                           />
-                          <p className="text-[9px] text-stone-400 mt-1 leading-relaxed">
-                            * Se você digitar um Wallet ID, ele DEVE começar com "wal_". Se deixar em branco, criaremos uma subconta pra você automaticamente!
+                          <p className="text-[9px] text-stone-400 mt-1.5 leading-relaxed">
+                            * O seu banco digital e conta de saque serão gerenciados diretamente no painel do Asaas após a criação da conta.
                           </p>
-                        </div>
-
-                        <div className="pt-2 border-t border-stone-200">
-                          <p className="text-[10px] font-bold uppercase text-[#0B1E14] mb-2">
-                            Conta Bancaria para Receber Vendas
-                          </p>
-
-                          <div className="space-y-2">
-                            <div>
-                              <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">
-                                Banco *
-                              </label>
-                              <select
-                                value={bancoCodigo}
-                                onChange={(e) => setBancoCodigo(e.target.value)}
-                                className="w-full h-[38px] px-2 bg-white border border-stone-200 rounded-xl text-stone-700 font-semibold text-xs focus:outline-none focus:border-[#0B1E14]"
-                              >
-                                <option value="001">001 - Banco do Brasil</option>
-                                <option value="237">237 - Bradesco</option>
-                                <option value="341">341 - Itau Unibanco</option>
-                                <option value="104">104 - Caixa Economica</option>
-                                <option value="033">033 - Santander</option>
-                                <option value="260">260 - Nubank</option>
-                                <option value="077">077 - Banco Inter</option>
-                                <option value="212">212 - Banco Original</option>
-                                <option value="336">336 - C6 Bank</option>
-                              </select>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-2">
-                              <div>
-                                <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">
-                                  Agencia *
-                                </label>
-                                <input
-                                  type="text"
-                                  placeholder="0001"
-                                  value={agencia}
-                                  onChange={(e) => setAgencia(e.target.value.replace(/\D/g, ''))}
-                                  className="w-full px-2 py-1.5 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[38px]"
-                                  required
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">
-                                  Conta *
-                                </label>
-                                <input
-                                  type="text"
-                                  placeholder="12345"
-                                  value={conta}
-                                  onChange={(e) => setConta(e.target.value.replace(/\D/g, ''))}
-                                  className="w-full px-2 py-1.5 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[38px]"
-                                  required
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">
-                                  Digito *
-                                </label>
-                                <input
-                                  type="text"
-                                  maxLength={2}
-                                  placeholder="0"
-                                  value={contaDigito}
-                                  onChange={(e) => setContaDigito(e.target.value)}
-                                  className="w-full px-2 py-1.5 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[38px]"
-                                  required
-                                />
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">
-                                Tipo de Conta *
-                              </label>
-                              <div className="flex space-x-2">
-                                <button
-                                  type="button"
-                                  onClick={() => setTipoConta('CORRENTE')}
-                                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all cursor-pointer ${
-                                    tipoConta === 'CORRENTE'
-                                      ? 'bg-[#0B1E14] text-white border-[#0B1E14]'
-                                      : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-100'
-                                  }`}
-                                >
-                                  Corrente
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setTipoConta('POUPANCA')}
-                                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all cursor-pointer ${
-                                    tipoConta === 'POUPANCA'
-                                      ? 'bg-[#0B1E14] text-white border-[#0B1E14]'
-                                      : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-100'
-                                  }`}
-                                >
-                                  Poupanca
-                                </button>
-                              </div>
-                            </div>
-                          </div>
                         </div>
                       </div>
                     )}
@@ -1193,14 +1036,14 @@ function Autenticacao() {
                       placeholder="••••••••"
                       value={senha}
                       onChange={(e) => setSenha(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 focus:outline-none focus:border-[#0B1E14] text-sm h-[42px]"
+                      className="w-full px-4 py-3 border rounded-xl bg-stone-50 focus:outline-none focus:border-[#0B1E14] text-sm h-[46px]"
                       required
                       disabled={carregando}
                     />
                     <button
                       type="button"
                       onClick={() => setMostrarNovaSenha(!mostrarSenha)}
-                      className="absolute right-3 top-2.5 text-stone-400 font-bold hover:text-stone-700 cursor-pointer"
+                      className="absolute right-4 top-3 text-stone-400 font-bold hover:text-stone-700 cursor-pointer"
                       disabled={carregando}
                     >
                       Ver
@@ -1275,7 +1118,7 @@ function Autenticacao() {
               <button
                 type="submit"
                 disabled={!formularioValido || carregando}
-                className="w-full mt-6 py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl tracking-wide uppercase transition-all disabled:opacity-50 cursor-pointer text-xs shadow-md hover:bg-[#08170f]"
+                className="w-full mt-6 py-4 bg-[#0B1E14] text-white font-bold rounded-xl tracking-wide uppercase transition-all disabled:opacity-50 cursor-pointer text-xs shadow-md hover:bg-[#08170f]"
               >
                 {carregando ? statusConexao : isLogin ? 'Entrar no Sistema' : 'Finalizar Cadastro'}
               </button>
