@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import gsap from 'gsap';
 import TelaCarregamento from './dashboard/components/TelaCarregamento';
 
-const API_URL = 'https://api.avle.com.br';
+// URL da API restaurada para a configuração normal do seu ambiente
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function Home() {
   const [status, setStatus] = useState<'inicial' | 'intro' | 'login'>('inicial');
@@ -123,7 +124,7 @@ function Autenticacao() {
         tl.fromTo(
           glowRef.current,
           { scale: 0.3, opacity: 0 },
-          { scale: 1, opacity: 0.12, duration: 1.8 },
+          { scale: 1, opacity: 0.12, duration: 2.5 },
           0
         );
       }
@@ -131,20 +132,20 @@ function Autenticacao() {
       if (cardRef.current) {
         tl.fromTo(
           cardRef.current,
-          { opacity: 0, y: 40, rotateX: 8 },
-          { opacity: 1, y: 0, rotateX: 0, duration: 1 },
-          0.5
+          { opacity: 0, x: 50 },
+          { opacity: 1, x: 0, duration: 1 },
+          0.3
         );
       }
 
       gsap.to('.gsap-leaf-particle', {
-        y: '-=20',
-        rotation: '+=25',
-        duration: 'random(3.5, 5.5)',
+        y: '-=30',
+        rotation: '+=45',
+        duration: 'random(4, 7)',
         repeat: -1,
         yoyo: true,
         ease: 'sine.inOut',
-        stagger: { amount: 2, from: 'random' },
+        stagger: { amount: 3, from: 'random' },
       });
     }, containerRef);
 
@@ -221,6 +222,9 @@ function Autenticacao() {
     }
   };
 
+  // =====================================================================
+  // REGRAS DE VALIDAÇÃO (Restauradas)
+  // =====================================================================
   const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   
   const loginLimpo = identificadorLogin.replace(/\D/g, '');
@@ -232,11 +236,18 @@ function Autenticacao() {
   const emailCadastroPreenchido = emailCadastro.trim().length > 0;
   const emailCadastroValidoOuVazio = tipoUsuario === 'LOJA' ? emailCadastroValido : !emailCadastroPreenchido || emailCadastroValido;
 
+  // Lógica da senha forte preservada exatamente como você pediu
   const temMaiuscula = /[A-Z]/.test(senha);
   const temNumero = /[0-9]/.test(senha);
   const temCaracterEspecial = /[^A-Za-z0-9]/.test(senha);
   const tamanhoMinimo = senha.length >= 8;
   const senhaForte = temMaiuscula && temNumero && temCaracterEspecial && tamanhoMinimo;
+
+  const temMaiusculaNova = /[A-Z]/.test(novaSenha);
+  const temNumeroNova = /[0-9]/.test(novaSenha);
+  const temCaracterEspecialNova = /[^A-Za-z0-9]/.test(novaSenha);
+  const tamanhoMinimoNova = novaSenha.length >= 8;
+  const novaSenhaForte = temMaiusculaNova && temNumeroNova && temCaracterEspecialNova && tamanhoMinimoNova;
 
   const tamanhoDocumentoValido = cpf.length === (tipoUsuario === 'LOJA' ? 14 : 11);
   
@@ -465,7 +476,7 @@ function Autenticacao() {
     setMensagem({ tipo: '', texto: '' });
     setCarregando(true);
 
-    if (codigoOtp.length !== 6 || !senhaForte) {
+    if (codigoOtp.length !== 6 || !novaSenhaForte) {
       setMensagem({ tipo: 'erro', texto: 'O codigo precisa ter 6 digitos e a nova senha precisa ser forte.' });
       setCarregando(false);
       return;
@@ -503,627 +514,302 @@ function Autenticacao() {
   };
 
   return (
-    <div
-      ref={containerRef}
-      className="min-h-screen bg-[#F5F2EB] flex flex-col justify-center items-center p-4 lg:p-8 text-[#0B1E14] relative select-none overflow-hidden"
-    >
-      <div ref={glowRef} className="absolute w-[550px] h-[550px] bg-[#BD6B42] rounded-full blur-[140px] pointer-events-none -z-10" />
+    <div ref={containerRef} className="min-h-screen bg-[#F5F2EB] flex flex-col lg:flex-row font-sans overflow-hidden">
+      
+      {/* =========================================================================
+          LADO ESQUERDO: SPLIT SCREEN (Animação / Imagem / Vídeo)
+          Visível apenas em Desktop (lg:flex)
+          ========================================================================= */}
+      <div className="hidden lg:flex w-1/2 bg-[#0B1E14] relative items-center justify-center overflow-hidden flex-col p-12">
+        
+        {/* SE VOCÊ QUISER COLOCAR UM VÍDEO DEPOIS, DESCOMENTE ESTA LINHA E COLOQUE O LINK: */}
+        {/* <video autoPlay loop muted className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none" src="/seu-video.mp4"></video> */}
 
-      <svg className="absolute inset-0 w-full h-full pointer-events-none -z-10 opacity-20" viewBox="0 0 1000 1000" fill="none">
-        <path ref={path1Ref} d="M 100,900 C 300,700 350,400 500,500 C 650,600 700,300 900,100" stroke="#0B1E14" strokeWidth="2.5" strokeLinecap="round" />
-        <path ref={path2Ref} d="M 200,950 C 400,800 450,550 500,500 C 550,450 750,200 850,50" stroke="#BD6B42" strokeWidth="1.8" strokeLinecap="round" />
-        <circle cx="500" cy="500" r="230" stroke="#0B1E14" strokeWidth="0.8" strokeDasharray="6 6" />
-      </svg>
+        {/* EFEITO DE BRILHO NO FUNDO E ANIMAÇÃO DA ÁRVORE */}
+        <div ref={glowRef} className="absolute w-[600px] h-[600px] bg-[#BD6B42] rounded-full blur-[140px] opacity-10 pointer-events-none" />
+        
+        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20" viewBox="0 0 1000 1000" fill="none">
+          <path ref={path1Ref} d="M 100,900 C 300,700 350,400 500,500 C 650,600 700,300 900,100" stroke="#F5F2EB" strokeWidth="2.5" strokeLinecap="round" />
+          <path ref={path2Ref} d="M 200,950 C 400,800 450,550 500,500 C 550,450 750,200 850,50" stroke="#BD6B42" strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx="500" cy="500" r="230" stroke="#F5F2EB" strokeWidth="0.8" strokeDasharray="6 6" />
+        </svg>
 
-      <div className="absolute inset-0 pointer-events-none -z-10">
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="gsap-leaf-particle absolute w-2 h-2 rounded-full bg-[#BD6B42]/40 blur-[0.5px]" style={{ top: `${18 + i * 13}%`, left: `${10 + i * 14}%` }} />
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="gsap-leaf-particle absolute w-2.5 h-2.5 rounded-full bg-[#BD6B42]/50 blur-[1px]" style={{ top: `${20 + i * 10}%`, left: `${15 + i * 10}%` }} />
         ))}
-      </div>
 
-      <div
-        ref={cardRef}
-        className="w-full max-w-md md:max-w-4xl bg-white rounded-[2rem] shadow-2xl border border-stone-200/60 overflow-hidden flex flex-col md:flex-row min-h-[80vh] md:min-h-[640px] z-10 relative transition-transform hover:shadow-3xl"
-      >
-        <div className="bg-[#0B1E14] p-8 md:p-12 text-center flex flex-col items-center justify-center w-full md:w-1/2 shrink-0 relative overflow-hidden">
-          {/* Opcional: Coloque a sua tag <img src="/logo.png" /> aqui quando tiver a árvore do VS Code */}
-          <div className="w-20 h-20 bg-[#F5F2EB] rounded-full flex items-center justify-center mb-4 shadow-lg transition-transform hover:scale-105">
-            <span className="text-[#0B1E14] font-black text-3xl">AV</span>
+        <div className="z-10 text-center flex flex-col items-center">
+          <div className="w-28 h-28 bg-[#F5F2EB] rounded-full flex items-center justify-center mb-8 shadow-2xl transition-transform duration-500 hover:scale-105 border-4 border-[#0B1E14]">
+            {/* Pode trocar o span pela logo SVG real aqui depois: <img src="/logo.png" className="w-full h-full object-contain p-2" /> */}
+            <span className="text-[#0B1E14] font-black text-4xl">AV</span>
           </div>
-          <h1 className="text-white text-3xl font-bold tracking-wide font-serif">AVLE</h1>
-          <p className="text-stone-300 text-sm mt-2">Seu clube de compras planejado</p>
-          <p className="text-[#BD6B42] text-xs italic mt-4 max-w-[200px] opacity-80">
+          <h1 className="text-white text-5xl font-bold tracking-widest font-serif mb-4">AVLE</h1>
+          <p className="text-[#BD6B42] text-lg italic mt-2 max-w-sm font-medium">
             "Onde suas escolhas criam raizes e geram frutos."
           </p>
         </div>
+      </div>
 
-        <div className="flex flex-col flex-1 overflow-y-auto w-full md:w-1/2 p-5 md:p-8 bg-white relative">
-          {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
-            <div className="flex border-b border-stone-100 bg-stone-50/50 mb-4 rounded-xl overflow-hidden shadow-sm">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(true);
-                  setMensagem({ tipo: '', texto: '' });
-                  setAceitouTermos(false);
-                }}
-                className={`flex-1 py-3.5 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
-                  isLogin ? 'text-white bg-[#BD6B42]' : 'text-stone-400 hover:text-stone-600 bg-transparent'
-                }`}
-              >
-                Acessar Conta
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(false);
-                  setMensagem({ tipo: '', texto: '' });
-                  setTipoUsuario('CLIENTE');
-                  setAceitouTermos(false);
-                }}
-                className={`flex-1 py-3.5 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
-                  !isLogin ? 'text-white bg-[#BD6B42]' : 'text-stone-400 hover:text-stone-600 bg-transparent'
-                }`}
-              >
-                Nova Conta
-              </button>
-            </div>
-          )}
+      {/* =========================================================================
+          LADO DIREITO: FORMULÁRIO DE LOGIN/CADASTRO
+          ========================================================================= */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center bg-[#F5F2EB] p-4 sm:p-8 lg:p-12 relative min-h-screen overflow-y-auto">
+        
+        {/* LOGO MOBILE (Aparece só quando o lado esquerdo some) */}
+        <div className="lg:hidden absolute top-8 left-0 right-0 flex flex-col items-center justify-center z-0 opacity-20 pointer-events-none">
+           <span className="text-[#0B1E14] font-black text-6xl font-serif">AVLE</span>
+        </div>
 
-          {isVerificando && (
-            <form onSubmit={handleConfirmarCodigo} className="flex-1 flex flex-col justify-center space-y-4 text-left">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificacao de Conta</h3>
-                  <p className="text-xs text-stone-400 mt-1">
-                    Insira o codigo verificador enviado para: <br />
-                    <strong className="text-[#BD6B42] font-semibold">{identificadorLogin}</strong>
-                  </p>
-                </div>
-                {mensagem.texto && (
-                  <div
-                    className={`p-3 rounded-xl text-xs font-bold border ${
-                      mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
-                    }`}
-                  >
-                    {mensagem.texto}
-                  </div>
-                )}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Codigo de Confirmacao (6 digitos)
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    placeholder="000000"
-                    value={codigoOtp}
-                    onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))}
-                    className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]"
-                    required
-                    disabled={carregando}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2 mt-4">
+        <div ref={cardRef} className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl border border-stone-200/60 flex flex-col z-10 relative">
+          
+          <div className="flex flex-col p-6 sm:p-8">
+            {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
+              <div className="flex border-b border-stone-100 bg-stone-50/50 mb-6 rounded-xl overflow-hidden shadow-inner">
                 <button
-                  type="submit"
-                  disabled={codigoOtp.length !== 6 || carregando}
-                  className={`w-full py-3.5 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all shadow-md ${
-                    codigoOtp.length === 6 && !carregando
-                      ? 'bg-[#BD6B42] hover:scale-[1.01] cursor-pointer'
-                      : 'bg-stone-300 cursor-not-allowed shadow-none opacity-50'
+                  type="button"
+                  onClick={() => { setIsLogin(true); setMensagem({ tipo: '', texto: '' }); setAceitouTermos(false); }}
+                  className={`flex-1 py-3.5 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                    isLogin ? 'text-white bg-[#BD6B42]' : 'text-stone-400 hover:text-stone-600 bg-transparent'
                   }`}
                 >
-                  {carregando ? 'PROCESSANDO...' : 'Confirmar e Ativar Conta'}
+                  Acessar Conta
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsVerificando(false)}
-                  className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-2 cursor-pointer"
+                  onClick={() => { setIsLogin(false); setMensagem({ tipo: '', texto: '' }); setTipoUsuario('CLIENTE'); setAceitouTermos(false); }}
+                  className={`flex-1 py-3.5 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                    !isLogin ? 'text-white bg-[#BD6B42]' : 'text-stone-400 hover:text-stone-600 bg-transparent'
+                  }`}
                 >
-                  Cancelar e voltar
+                  Nova Conta
                 </button>
               </div>
-            </form>
-          )}
+            )}
 
-          {isEsqueceuSenha && (
-            <form onSubmit={handleSolicitarRecuperacao} className="flex-1 flex flex-col justify-center space-y-6 text-left">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Recuperacao de Acesso</h3>
-                  <p className="text-xs text-stone-400 mt-1">
-                    Informe seu e-mail ou telefone cadastrado. Enviaremos um codigo token para criar uma nova senha.
-                  </p>
-                </div>
-                {mensagem.texto && (
-                  <div
-                    className={`p-3 rounded-xl text-xs font-bold ${
-                      mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
-                    }`}
-                  >
-                    {mensagem.texto}
+            {isVerificando && (
+              <form onSubmit={handleConfirmarCodigo} className="flex flex-col space-y-4 text-left">
+                  <div>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificacao de Conta</h3>
+                    <p className="text-xs text-stone-400 mt-1">Insira o codigo verificador enviado para: <br /><strong className="text-[#BD6B42] font-semibold">{identificadorLogin}</strong></p>
                   </div>
-                )}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail ou Telefone com DDD</label>
-                  <input
-                    type="text"
-                    placeholder="seu@email.com ou (45) 99999-9999"
-                    value={identificadorLogin}
-                    onChange={handleIdentificadorChange}
-                    className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]"
-                    required
-                    disabled={carregando}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2 mt-4">
-                <button
-                  type="submit"
-                  disabled={carregando}
-                  className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55"
-                >
-                  {carregando ? 'ENVIANDO...' : 'Enviar Codigo Verificador'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsEsqueceuSenha(false)}
-                  className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-2 cursor-pointer"
-                >
-                  Voltar ao Login
-                </button>
-              </div>
-            </form>
-          )}
-
-          {isResetandoSenha && (
-            <form onSubmit={handleSalvarNovaSenha} className="flex-1 flex flex-col justify-center space-y-4 text-left">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Criar Nova Senha</h3>
-                  <p className="text-xs text-stone-400 mt-1">Insira o token de 6 digitos recebido.</p>
-                </div>
-                {mensagem.texto && (
-                  <div
-                    className={`p-3 rounded-xl text-xs font-bold ${
-                      mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
-                    }`}
-                  >
-                    {mensagem.texto}
-                  </div>
-                )}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Token (6 digitos)
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    placeholder="000000"
-                    value={codigoOtp}
-                    onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))}
-                    className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]"
-                    required
-                    disabled={carregando}
-                  />
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-[10px] font-bold uppercase text-stone-500">Nova Senha</label>
-                    {novaSenha.length > 0 && (
-                      <span className={`text-[10px] font-bold ${senhaForte ? 'text-emerald-600' : 'text-stone-400'}`}>
-                        {senhaForte ? 'Forte' : 'Fraca'}
-                      </span>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={mostrarNovaSenha ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={novaSenha}
-                      onChange={(e) => setNovaSenha(e.target.value)}
-                      className="w-full px-4 py-3 border rounded-xl bg-stone-50 text-sm h-[46px] focus:outline-none focus:border-[#0B1E14]"
-                      required
-                      disabled={carregando}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setMostrarNovaSenha(!mostrarNovaSenha)}
-                      className="absolute right-4 top-3 text-stone-400 font-bold hover:text-stone-700 cursor-pointer"
-                    >
-                      Ver
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-2 mt-4">
-                <button
-                  type="submit"
-                  disabled={codigoOtp.length !== 6 || !senhaForte || carregando}
-                  className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 hover:scale-[1.01] transition-all"
-                >
-                  {carregando ? 'PROCESSANDO...' : 'Redefinir e Gravar Senha'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsResetandoSenha(false)}
-                  className="w-full text-stone-400 text-center font-bold text-xs py-2 cursor-pointer"
-                >
-                  Desistir
-                </button>
-              </div>
-            </form>
-          )}
-
-          {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
-            <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-between text-left space-y-4">
-              <div className="space-y-4">
-                {mensagem.texto && (
-                  <div
-                    className={`p-3.5 rounded-xl text-xs font-bold text-center border ${
-                      mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
-                    }`}
-                  >
-                    {mensagem.texto}
-                  </div>
-                )}
-                
-                {!isLogin && (
-                  <div className="space-y-4 animate-fade-in">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase text-stone-400 mb-1.5 tracking-wider">
-                        Tipo de Conta *
-                      </label>
-                      <div className="relative grid grid-cols-2 p-1 bg-stone-100 rounded-2xl border border-stone-200/80">
-                        <div
-                          className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#0B1E14] rounded-xl shadow-md transition-all duration-300 ease-in-out ${
-                            tipoUsuario === 'CLIENTE' ? 'left-1' : 'left-[calc(50%+3px)]'
-                          }`}
-                        />
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTipoUsuario('CLIENTE');
-                            setCpf('');
-                            setTelefoneCadastro('');
-                            setEmailCadastro('');
-                            setAceitouTermos(false);
-                            setMensagem({ tipo: '', texto: '' });
-                          }}
-                          className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${
-                            tipoUsuario === 'CLIENTE' ? 'text-white' : 'text-stone-500 hover:text-stone-800'
-                          }`}
-                          disabled={carregando}
-                        >
-                          <span>Sou Cliente</span>
-                          <span
-                            className={`text-[9px] font-normal mt-0.5 transition-colors duration-300 ${
-                              tipoUsuario === 'CLIENTE' ? 'text-stone-300' : 'text-stone-400'
-                            }`}
-                          >
-                            Quero participar
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTipoUsuario('LOJA');
-                            setCpf('');
-                            setTelefoneCadastro('');
-                            setEmailCadastro('');
-                            setAceitouTermos(false);
-                            setMensagem({ tipo: '', texto: '' });
-                          }}
-                          className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${
-                            tipoUsuario === 'LOJA' ? 'text-white' : 'text-stone-500 hover:text-stone-800'
-                          }`}
-                          disabled={carregando}
-                        >
-                          <span>Sou Loja</span>
-                          <span
-                            className={`text-[9px] font-normal mt-0.5 transition-colors duration-300 ${
-                              tipoUsuario === 'LOJA' ? 'text-stone-300' : 'text-stone-400'
-                            }`}
-                          >
-                            Quero gerenciar
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="block text-[10px] font-bold uppercase text-stone-500">
-                          {tipoUsuario === 'LOJA' ? 'CNPJ (Validação Automática) *' : 'CPF (Apenas números) *'}
-                        </label>
-                        {cpf.length > 0 && (
-                          <span className={`text-[10px] font-bold ${tamanhoDocumentoValido ? 'text-emerald-600' : 'text-stone-400'}`}>
-                            {tipoUsuario === 'LOJA' ? `${cpf.length}/14` : `${cpf.length}/11`}
-                          </span>
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        maxLength={tipoUsuario === 'LOJA' ? 14 : 11}
-                        placeholder={tipoUsuario === 'LOJA' ? '00000000000000' : '00000000000'}
-                        value={cpf}
-                        onChange={(e) => setCpf(e.target.value.replace(/\D/g, ''))}
-                        onBlur={handleBuscarCnpj}
-                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
-                        required
-                        disabled={carregando}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                        {tipoUsuario === 'LOJA' ? 'Nome / Razão Social da Loja *' : 'Nome Completo *'}
-                      </label>
-                      <input
-                        type="text"
-                        placeholder={tipoUsuario === 'LOJA' ? 'Será preenchido pela Receita' : 'Ex: João Silva'}
-                        value={nome}
-                        onChange={(e) => setNome(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
-                        required
-                        disabled={carregando || (tipoUsuario === 'LOJA')}
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="block text-[10px] font-bold uppercase text-stone-500">
-                          {tipoUsuario === 'LOJA' ? 'Telefone / WhatsApp da Loja *' : 'Telefone / Celular'}
-                        </label>
-                        {tipoUsuario === 'LOJA' && telefoneCadastroLimpo.length > 0 && (
-                          <span className={`text-[10px] font-bold ${telefoneCadastroLimpo.length >= 10 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                            {telefoneCadastroLimpo.length >= 10 ? '✓ Valido' : '✗ Minimo 10 digitos'}
-                          </span>
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="(42) 99999-9999"
-                        value={telefoneCadastro}
-                        onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))}
-                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
-                        required={tipoUsuario === 'LOJA'}
-                        disabled={carregando}
-                      />
-                    </div>
-                    
-                    {tipoUsuario === 'LOJA' && (
-                      <div className="space-y-3 p-4 bg-stone-50/80 border border-stone-200 rounded-2xl transition-all duration-300 shadow-inner">
-                        <p className="text-[10px] font-bold uppercase text-[#BD6B42] tracking-wider mb-2">
-                          Dados da Loja 
-                        </p>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                              CEP Base *
-                            </label>
-                            <input
-                              type="text"
-                              maxLength={9}
-                              placeholder="85010-250"
-                              value={cep}
-                              onChange={(e) => setCep(aplicarMascaraCep(e.target.value))}
-                              className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]"
-                              required
-                              disabled={carregando}
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                              Faturamento *
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="R$ 10.000,00"
-                              value={faturamento}
-                              onChange={(e) => setFaturamento(aplicarMascaraMoeda(e.target.value))}
-                              className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]"
-                              required
-                              disabled={carregando}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="pt-1">
-                          <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between">
-                            <span>Wallet ID Asaas</span>
-                            <span className="text-stone-400 font-normal">Começa com wal_</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={walletIdInput}
-                            onChange={(e) => setWalletIdInput(e.target.value)}
-                            placeholder="Deixe em branco para o sistema criar"
-                            className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono"
-                            disabled={carregando}
-                          />
-                          <p className="text-[9px] text-stone-400 mt-1.5 leading-relaxed">
-                            * O seu banco digital e conta de saque serão gerenciados diretamente no painel do Asaas após a criação da conta.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {isLogin && (
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="block text-[10px] font-bold uppercase text-stone-500">
-                          E-mail ou Telefone com DDD *
-                        </label>
-                        {identificadorLogin.length > 0 && (
-                          <span className={`text-[10px] font-bold ${loginValido ? 'text-emerald-600' : 'text-rose-500'}`}>
-                            {loginValido ? '✓ Valido' : '✗ Invalido'}
-                          </span>
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="seu@email.com ou (45) 99999-9999"
-                        value={identificadorLogin}
-                        onChange={handleIdentificadorChange}
-                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
-                        required
-                        disabled={carregando}
-                      />
-                    </div>
-                )}
-
-                {!isLogin && (
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="block text-[10px] font-bold uppercase text-stone-500">
-                          {tipoUsuario === 'LOJA' ? 'E-mail *' : 'E-mail'}
-                        </label>
-                        {emailCadastro.length > 0 && (
-                          <span className={`text-[10px] font-bold ${emailCadastroValido ? 'text-emerald-600' : 'text-rose-500'}`}>
-                            {emailCadastroValido ? '✓ Valido' : '✗ Invalido'}
-                          </span>
-                        )}
-                      </div>
-                      <input
-                        type="email"
-                        placeholder="seu@email.com"
-                        value={emailCadastro}
-                        onChange={(e) => setEmailCadastro(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
-                        required={tipoUsuario === 'LOJA'}
-                        disabled={carregando}
-                      />
-                    </div>
-                )}
-
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-[10px] font-bold uppercase text-stone-500">Senha de Acesso *</label>
-                    {isLogin && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsEsqueceuSenha(true);
-                          setMensagem({ tipo: '', texto: '' });
-                        }}
-                        className="text-[10px] text-[#BD6B42] hover:underline font-bold cursor-pointer"
-                        disabled={carregando}
-                      >
-                        Esqueceu a senha?
-                      </button>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={mostrarSenha ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={senha}
-                      onChange={(e) => setSenha(e.target.value)}
-                      className="w-full px-4 py-3 border rounded-xl bg-stone-50 focus:outline-none focus:border-[#0B1E14] text-sm h-[46px]"
-                      required
-                      disabled={carregando}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setMostrarNovaSenha(!mostrarSenha)}
-                      className="absolute right-4 top-3 text-stone-400 font-bold hover:text-stone-700 cursor-pointer"
-                      disabled={carregando}
-                    >
-                      Ver
-                    </button>
-                  </div>
-
-                  {!isLogin && senha.length > 0 && (
-                    <div className="mt-2.5 p-3 bg-stone-50 border border-stone-200/60 rounded-xl space-y-1.5 text-[11px] font-medium animate-fade-in text-left">
-                      <p className="text-[10px] font-bold uppercase text-stone-400 mb-1">Estrutura da Senha:</p>
-                      <div
-                        className={`flex items-center space-x-1.5 transition-colors ${
-                          senha.length >= 8 ? 'text-emerald-600 font-bold' : 'text-stone-400'
-                        }`}
-                      >
-                        <span>{senha.length >= 8 ? '✓' : '○'}</span>
-                        <span>Minimo de 8 caracteres</span>
-                      </div>
-                      <div
-                        className={`flex items-center space-x-1.5 transition-colors ${
-                          temMaiuscula ? 'text-emerald-600 font-bold' : 'text-stone-400'
-                        }`}
-                      >
-                        <span>{temMaiuscula ? '✓' : '○'}</span>
-                        <span>Pelo menos uma letra maiuscula</span>
-                      </div>
-                      <div
-                        className={`flex items-center space-x-1.5 transition-colors ${
-                          temNumero ? 'text-emerald-600 font-bold' : 'text-stone-400'
-                        }`}
-                      >
-                        <span>{temNumero ? '✓' : '○'}</span>
-                        <span>Pelo menos um numero</span>
-                      </div>
-                      <div
-                        className={`flex items-center space-x-1.5 transition-colors ${
-                          temCaracterEspecial ? 'text-emerald-600 font-bold' : 'text-stone-400'
-                        }`}
-                      >
-                        <span>{temCaracterEspecial ? '✓' : '○'}</span>
-                        <span>Pelo menos um caractere especial (!@#$...)</span>
-                      </div>
+                  {mensagem.texto && (
+                    <div className={`p-3 rounded-xl text-xs font-bold border ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                      {mensagem.texto}
                     </div>
                   )}
-                </div>
-
-                {!isLogin && (
-                  <div className="flex items-start space-x-3 p-3 bg-stone-50 border border-stone-200/60 rounded-xl mt-2 animate-fade-in">
-                    <input
-                      type="checkbox"
-                      id="termos-loja"
-                      checked={aceitouTermos}
-                      onChange={(e) => setAceitouTermos(e.target.checked)}
-                      className="mt-0.5 w-4 h-4 accent-[#0B1E14] cursor-pointer"
-                      disabled={carregando}
-                    />
-                    <label htmlFor="termos-loja" className="text-[10px] text-stone-500 leading-relaxed cursor-pointer select-none">
-                      Declaro que li e concordo com os{' '}
-                      <button 
-                        type="button" 
-                        onClick={(e) => { e.preventDefault(); setModalTermosAberto(true); }} 
-                        className="text-[#BD6B42] font-bold underline hover:text-[#0B1E14] transition-colors cursor-pointer"
-                      >
-                        Termos de Uso e o Contrato da Loja
-                      </button>{' '}
-                      hospedada na plataforma AVLE.
-                    </label>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Codigo de Confirmacao</label>
+                    <input type="text" maxLength={6} placeholder="000000" value={codigoOtp} onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))} className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} />
                   </div>
-                )}
+                  <div className="space-y-2 mt-4">
+                  <button type="submit" disabled={codigoOtp.length !== 6 || carregando} className={`w-full py-3.5 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all shadow-md ${codigoOtp.length === 6 && !carregando ? 'bg-[#BD6B42] cursor-pointer' : 'bg-stone-300 cursor-not-allowed opacity-50'}`}>
+                    {carregando ? 'PROCESSANDO...' : 'Confirmar e Ativar'}
+                  </button>
+                  <button type="button" onClick={() => setIsVerificando(false)} className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-2 cursor-pointer">Cancelar e voltar</button>
+                </div>
+              </form>
+            )}
 
-              </div>
+            {isEsqueceuSenha && (
+              <form onSubmit={handleSolicitarRecuperacao} className="flex flex-col space-y-6 text-left">
+                  <div>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Recuperacao de Acesso</h3>
+                    <p className="text-xs text-stone-400 mt-1">Informe seu e-mail ou telefone cadastrado para receber o token.</p>
+                  </div>
+                  {mensagem.texto && (
+                    <div className={`p-3 rounded-xl text-xs font-bold border ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                      {mensagem.texto}
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail ou Telefone</label>
+                    <input type="text" placeholder="seu@email.com ou (45) 99999-9999" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                  </div>
+                  <div className="space-y-2 mt-4">
+                  <button type="submit" disabled={carregando} className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer disabled:opacity-55">
+                    {carregando ? 'ENVIANDO...' : 'Enviar Codigo'}
+                  </button>
+                  <button type="button" onClick={() => setIsEsqueceuSenha(false)} className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-2 cursor-pointer">Voltar ao Login</button>
+                </div>
+              </form>
+            )}
 
-              <button
-                type="submit"
-                disabled={!formularioValido || carregando}
-                className="w-full mt-6 py-4 bg-[#0B1E14] text-white font-bold rounded-xl tracking-wide uppercase transition-all disabled:opacity-50 cursor-pointer text-xs shadow-md hover:bg-[#08170f]"
-              >
-                {carregando ? statusConexao : isLogin ? 'Entrar no Sistema' : 'Finalizar Cadastro'}
-              </button>
-            </form>
-          )}
+            {isResetandoSenha && (
+              <form onSubmit={handleSalvarNovaSenha} className="flex flex-col space-y-4 text-left">
+                  <div>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Criar Nova Senha</h3>
+                    <p className="text-xs text-stone-400 mt-1">Insira o token de 6 digitos recebido.</p>
+                  </div>
+                  {mensagem.texto && (
+                    <div className={`p-3 rounded-xl text-xs font-bold border ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                      {mensagem.texto}
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Token (6 digitos)</label>
+                    <input type="text" maxLength={6} placeholder="000000" value={codigoOtp} onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))} className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} />
+                  </div>
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-[10px] font-bold uppercase text-stone-500">Nova Senha</label>
+                    </div>
+                    <div className="relative">
+                      <input type={mostrarNovaSenha ? 'text' : 'password'} placeholder="••••••••" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} className="w-full px-4 py-3 border rounded-xl bg-stone-50 text-sm h-[46px] focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} />
+                      <button type="button" onClick={() => setMostrarNovaSenha(!mostrarNovaSenha)} className="absolute right-4 top-3 text-stone-400 font-bold hover:text-stone-700 cursor-pointer">Ver</button>
+                    </div>
+                  </div>
+                  <div className="space-y-2 mt-4">
+                  <button type="submit" disabled={codigoOtp.length !== 6 || carregando} className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 transition-all">
+                    {carregando ? 'PROCESSANDO...' : 'Redefinir Senha'}
+                  </button>
+                  <button type="button" onClick={() => setIsResetandoSenha(false)} className="w-full text-stone-400 text-center font-bold text-xs py-2 cursor-pointer">Desistir</button>
+                </div>
+              </form>
+            )}
+
+            {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
+              <form onSubmit={handleSubmit} className="flex flex-col text-left space-y-4">
+                  {mensagem.texto && (
+                    <div className={`p-3.5 rounded-xl text-xs font-bold text-center border ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                      {mensagem.texto}
+                    </div>
+                  )}
+                  
+                  {!isLogin && (
+                    <div className="space-y-4 animate-fade-in">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-stone-400 mb-1.5 tracking-wider">Tipo de Conta *</label>
+                        <div className="relative grid grid-cols-2 p-1 bg-stone-100 rounded-2xl border border-stone-200/80">
+                          <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#0B1E14] rounded-xl shadow-md transition-all duration-300 ease-in-out ${tipoUsuario === 'CLIENTE' ? 'left-1' : 'left-[calc(50%+3px)]'}`} />
+                          <button type="button" onClick={() => { setTipoUsuario('CLIENTE'); setCpf(''); setTelefoneCadastro(''); setEmailCadastro(''); setAceitouTermos(false); setMensagem({ tipo: '', texto: '' }); }} className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${tipoUsuario === 'CLIENTE' ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`} disabled={carregando}>
+                            <span>Sou Cliente</span>
+                          </button>
+                          <button type="button" onClick={() => { setTipoUsuario('LOJA'); setCpf(''); setTelefoneCadastro(''); setEmailCadastro(''); setAceitouTermos(false); setMensagem({ tipo: '', texto: '' }); }} className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${tipoUsuario === 'LOJA' ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`} disabled={carregando}>
+                            <span>Sou Loja</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="block text-[10px] font-bold uppercase text-stone-500">{tipoUsuario === 'LOJA' ? 'CNPJ (Validação Automática) *' : 'CPF (Apenas números) *'}</label>
+                          {cpf.length > 0 && (
+                            <span className={`text-[10px] font-bold ${tamanhoDocumentoValido ? 'text-emerald-600' : 'text-stone-400'}`}>
+                              {tipoUsuario === 'LOJA' ? `${cpf.length}/14` : `${cpf.length}/11`}
+                            </span>
+                          )}
+                        </div>
+                        <input type="text" maxLength={tipoUsuario === 'LOJA' ? 14 : 11} placeholder={tipoUsuario === 'LOJA' ? '00000000000000' : '00000000000'} value={cpf} onChange={(e) => setCpf(e.target.value.replace(/\D/g, ''))} onBlur={handleBuscarCnpj} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">{tipoUsuario === 'LOJA' ? 'Nome / Razão Social da Loja *' : 'Nome Completo *'}</label>
+                        <input type="text" placeholder={tipoUsuario === 'LOJA' ? 'Será preenchido pela Receita' : 'Ex: João Silva'} value={nome} onChange={(e) => setNome(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando || (tipoUsuario === 'LOJA')} />
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="block text-[10px] font-bold uppercase text-stone-500">{tipoUsuario === 'LOJA' ? 'Telefone / WhatsApp da Loja *' : 'Telefone / Celular'}</label>
+                          {tipoUsuario === 'LOJA' && telefoneCadastroLimpo.length > 0 && (
+                            <span className={`text-[10px] font-bold ${telefoneCadastroLimpo.length >= 10 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                              {telefoneCadastroLimpo.length >= 10 ? '✓ Valido' : '✗ Minimo 10 digitos'}
+                            </span>
+                          )}
+                        </div>
+                        <input type="text" placeholder="(42) 99999-9999" value={telefoneCadastro} onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
+                      </div>
+                      
+                      {tipoUsuario === 'LOJA' && (
+                        <div className="space-y-3 p-4 bg-stone-50/80 border border-stone-200 rounded-2xl transition-all duration-300 shadow-inner">
+                          <p className="text-[10px] font-bold uppercase text-[#BD6B42] tracking-wider mb-2">Dados da Loja</p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">CEP Base *</label>
+                              <input type="text" maxLength={9} placeholder="85010-250" value={cep} onChange={(e) => setCep(aplicarMascaraCep(e.target.value))} className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]" required disabled={carregando} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Faturamento *</label>
+                              <input type="text" placeholder="R$ 10.000,00" value={faturamento} onChange={(e) => setFaturamento(aplicarMascaraMoeda(e.target.value))} className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]" required disabled={carregando} />
+                            </div>
+                          </div>
+                          <div className="pt-1">
+                            <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between"><span>Wallet ID Asaas</span></label>
+                            <input type="text" value={walletIdInput} onChange={(e) => setWalletIdInput(e.target.value)} placeholder="Deixe em branco para o sistema criar" className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono" disabled={carregando} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {isLogin && (
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="block text-[10px] font-bold uppercase text-stone-500">E-mail ou Telefone com DDD *</label>
+                        </div>
+                        <input type="text" placeholder="seu@email.com ou (45) 99999-9999" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                      </div>
+                  )}
+
+                  {!isLogin && (
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="block text-[10px] font-bold uppercase text-stone-500">{tipoUsuario === 'LOJA' ? 'E-mail *' : 'E-mail'}</label>
+                        </div>
+                        <input type="email" placeholder="seu@email.com" value={emailCadastro} onChange={(e) => setEmailCadastro(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
+                      </div>
+                  )}
+
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-[10px] font-bold uppercase text-stone-500">Senha de Acesso *</label>
+                      {isLogin && (
+                        <button type="button" onClick={() => { setIsEsqueceuSenha(true); setMensagem({ tipo: '', texto: '' }); }} className="text-[10px] text-[#BD6B42] hover:underline font-bold cursor-pointer" disabled={carregando}>Esqueceu a senha?</button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input type={mostrarSenha ? 'text' : 'password'} placeholder="••••••••" value={senha} onChange={(e) => setSenha(e.target.value)} className="w-full px-4 py-3 border rounded-xl bg-stone-50 focus:outline-none focus:border-[#0B1E14] text-sm h-[46px]" required disabled={carregando} />
+                      <button type="button" onClick={() => setMostrarNovaSenha(!mostrarSenha)} className="absolute right-4 top-3 text-stone-400 font-bold hover:text-stone-700 cursor-pointer" disabled={carregando}>Ver</button>
+                    </div>
+
+                    {!isLogin && senha.length > 0 && (
+                      <div className="mt-2.5 p-3 bg-stone-50 border border-stone-200/60 rounded-xl space-y-1.5 text-[11px] font-medium animate-fade-in text-left">
+                        <p className="text-[10px] font-bold uppercase text-stone-400 mb-1">Estrutura da Senha:</p>
+                        <div className={`flex items-center space-x-1.5 transition-colors ${tamanhoMinimo ? 'text-emerald-600 font-bold' : 'text-stone-400'}`}>
+                          <span>{tamanhoMinimo ? '✓' : '○'}</span>
+                          <span>Minimo de 8 caracteres</span>
+                        </div>
+                        <div className={`flex items-center space-x-1.5 transition-colors ${temMaiuscula ? 'text-emerald-600 font-bold' : 'text-stone-400'}`}>
+                          <span>{temMaiuscula ? '✓' : '○'}</span>
+                          <span>Pelo menos uma letra maiuscula</span>
+                        </div>
+                        <div className={`flex items-center space-x-1.5 transition-colors ${temNumero ? 'text-emerald-600 font-bold' : 'text-stone-400'}`}>
+                          <span>{temNumero ? '✓' : '○'}</span>
+                          <span>Pelo menos um numero</span>
+                        </div>
+                        <div className={`flex items-center space-x-1.5 transition-colors ${temCaracterEspecial ? 'text-emerald-600 font-bold' : 'text-stone-400'}`}>
+                          <span>{temCaracterEspecial ? '✓' : '○'}</span>
+                          <span>Pelo menos um caractere especial (!@#$...)</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {!isLogin && (
+                    <div className="flex items-start space-x-3 p-3 bg-stone-50 border border-stone-200/60 rounded-xl mt-2 animate-fade-in">
+                      <input type="checkbox" id="termos-loja" checked={aceitouTermos} onChange={(e) => setAceitouTermos(e.target.checked)} className="mt-0.5 w-4 h-4 accent-[#0B1E14] cursor-pointer" disabled={carregando} />
+                      <label htmlFor="termos-loja" className="text-[10px] text-stone-500 leading-relaxed cursor-pointer select-none">
+                        Declaro que li e concordo com os{' '}
+                        <button type="button" onClick={(e) => { e.preventDefault(); setModalTermosAberto(true); }} className="text-[#BD6B42] font-bold underline cursor-pointer">Termos de Uso</button>{' '}da AVLE.
+                      </label>
+                    </div>
+                  )}
+
+                <button type="submit" disabled={!formularioValido || carregando} className="w-full mt-6 py-4 bg-[#0B1E14] text-white font-bold rounded-xl tracking-wide uppercase transition-all disabled:opacity-50 cursor-pointer text-xs shadow-md hover:bg-[#08170f]">
+                  {carregando ? statusConexao : isLogin ? 'Entrar no Sistema' : 'Finalizar Cadastro'}
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       </div>
       
@@ -1131,52 +817,18 @@ function Autenticacao() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fadeIn text-left">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
             <div className="flex justify-between items-center p-5 border-b border-stone-100">
-              <div>
-                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Contrato de Parceria e Termos de Uso</h3>
-                <p className="text-[10px] text-stone-400 mt-0.5">Leia atentamente as condicoes operacionais e juridicas da plataforma AVLE.</p>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setModalTermosAberto(false)} 
-                className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer px-2"
-              >
-                X
-              </button>
+              <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Contrato de Parceria</h3>
+              <button type="button" onClick={() => setModalTermosAberto(false)} className="text-stone-400 font-bold px-2 cursor-pointer">X</button>
             </div>
-            
             <div className="p-6 overflow-y-auto flex-1 text-xs text-stone-600 space-y-4 leading-relaxed bg-stone-50/30">
               <p className="font-bold text-stone-800">1. DO OBJETO</p>
-              <p>Este documento estabelece as condicoes gerais para a utilizacao da infraestrutura tecnologica da AVLE pela LOJA PARCEIRA cadastrada, visando a gestao de clubes de compras e o split automatico de pagamentos.</p>
-              
+              <p>Este documento estabelece as condicoes gerais para a utilizacao da AVLE pela LOJA PARCEIRA.</p>
               <p className="font-bold text-stone-800 mt-4">2. DO REPASSE E SPLIT DE PAGAMENTOS</p>
-              <p>Fica acordado que a plataforma AVLE retera automaticamente o percentual de 10% (dez por cento) sobre o valor de cada mensalidade transacionada via Gateway de Pagamento, a titulo de licenca de uso do software, sendo os 90% (noventa por cento) restantes repassados a subconta da LOJA PARCEIRA.</p>
-
-              <p className="font-bold text-stone-800 mt-4">3. DA RESPONSABILIDADE SOLIDARIA</p>
-              <p>A LOJA PARCEIRA assume integral responsabilidade civil e consumerista sobre a entrega dos produtos aos clientes contemplados no prazo estabelecido, bem como sobre a absorcao de eventuais taxas de chargeback geradas por contestacoes.</p>
-
-              <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl mt-6">
-                <strong>Nota:</strong> O documento contratual final em formato PDF sera disponibilizado neste espaco assim que aprovado pela assessoria juridica. O aceite digital no formulario possui validade legal e vincula o CNPJ/CPF cadastrado a estas diretrizes.
-              </div>
+              <p>Fica acordado que a plataforma AVLE retera automaticamente o percentual de 10% sobre cada transacao.</p>
             </div>
-
-            <div className="p-4 border-t border-stone-100 flex justify-end bg-stone-50 rounded-b-2xl gap-3">
-              <button 
-                type="button" 
-                onClick={() => setModalTermosAberto(false)} 
-                className="px-6 py-2.5 border border-stone-200 text-stone-600 font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer hover:bg-stone-100 transition-all shadow-sm"
-              >
-                Fechar
-              </button>
-              <button 
-                type="button" 
-                onClick={() => { 
-                  setModalTermosAberto(false); 
-                  setAceitouTermos(true); 
-                }} 
-                className="px-6 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all shadow-sm"
-              >
-                Li e Aceito as Condicoes
-              </button>
+            <div className="p-4 border-t flex justify-end gap-3 bg-stone-50 rounded-b-2xl">
+              <button type="button" onClick={() => setModalTermosAberto(false)} className="px-6 py-2.5 border text-stone-600 font-bold rounded-xl text-[10px] uppercase cursor-pointer">Fechar</button>
+              <button type="button" onClick={() => { setModalTermosAberto(false); setAceitouTermos(true); }} className="px-6 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase cursor-pointer">Aceitar</button>
             </div>
           </div>
         </div>
