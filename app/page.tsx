@@ -452,14 +452,39 @@ function Autenticacao() {
       <div className="hidden lg:flex w-1/2 bg-[#0B1E14] relative items-center justify-center overflow-hidden flex-col p-12">
         <div className="absolute w-[600px] h-[600px] bg-[#BD6B42] rounded-full blur-[140px] opacity-10 pointer-events-none" />
         
-        <div className="z-10 text-center flex flex-col items-center">
-          <div className="w-32 h-32 bg-[#F5F2EB] rounded-full flex items-center justify-center mb-8 shadow-2xl border-4 border-[#0B1E14]">
-            <span className="text-[#0B1E14] font-black text-5xl">AV</span>
+        <div className="z-10 text-center flex flex-col items-center gap-8">
+          <svg viewBox="0 0 160 210" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-48 h-56 drop-shadow-2xl">
+            {/* Raízes */}
+            <path d="M72 192 Q54 197 42 206" stroke="#F5F2EB" strokeWidth="5" strokeLinecap="round" opacity="0.45"/>
+            <path d="M88 192 Q106 197 118 206" stroke="#F5F2EB" strokeWidth="5" strokeLinecap="round" opacity="0.45"/>
+            <path d="M80 196 Q78 202 76 210" stroke="#F5F2EB" strokeWidth="4" strokeLinecap="round" opacity="0.35"/>
+            <path d="M80 196 Q82 202 84 210" stroke="#F5F2EB" strokeWidth="4" strokeLinecap="round" opacity="0.35"/>
+            {/* Tronco */}
+            <rect x="73" y="152" width="14" height="42" rx="7" fill="#F5F2EB"/>
+            {/* Copa — camada base (mais larga) */}
+            <ellipse cx="80" cy="128" rx="56" ry="36" fill="#F5F2EB" opacity="0.80"/>
+            {/* Copa — camada intermediária */}
+            <ellipse cx="80" cy="92" rx="42" ry="30" fill="#F5F2EB" opacity="0.90"/>
+            {/* Copa — camada superior */}
+            <ellipse cx="80" cy="58" rx="29" ry="24" fill="#F5F2EB"/>
+            {/* Copa — ponta */}
+            <ellipse cx="80" cy="28" rx="18" ry="18" fill="#F5F2EB"/>
+            {/* Frutos — terracota, espalhados pelas camadas */}
+            <circle cx="44" cy="118" r="4.5" fill="#BD6B42" opacity="0.90"/>
+            <circle cx="118" cy="120" r="4"   fill="#BD6B42" opacity="0.90"/>
+            <circle cx="52"  cy="85"  r="4"   fill="#BD6B42" opacity="0.85"/>
+            <circle cx="110" cy="82"  r="4.5" fill="#BD6B42" opacity="0.85"/>
+            <circle cx="60"  cy="52"  r="3.5" fill="#BD6B42" opacity="0.80"/>
+            <circle cx="101" cy="48"  r="3.5" fill="#BD6B42" opacity="0.80"/>
+            <circle cx="80"  cy="36"  r="3"   fill="#BD6B42" opacity="0.75"/>
+          </svg>
+
+          <div>
+            <h1 className="text-white text-5xl font-bold tracking-widest font-serif">AVLE</h1>
+            <p className="text-[#BD6B42] text-base italic mt-3 max-w-xs font-medium leading-relaxed">
+              "Onde suas escolhas criam raízes e geram frutos."
+            </p>
           </div>
-          <h1 className="text-white text-5xl font-bold tracking-widest font-serif mb-4">AVLE</h1>
-          <p className="text-[#BD6B42] text-lg italic mt-2 max-w-sm font-medium">
-            "Onde suas escolhas criam raizes e geram frutos."
-          </p>
         </div>
       </div>
 
