@@ -1,26 +1,22 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import gsap from 'gsap';
 import TelaCarregamento from './dashboard/components/TelaCarregamento';
 
-// URL da API restaurada para a configuração normal do seu ambiente
+// URL fixa do backend
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function Home() {
   const [status, setStatus] = useState<'inicial' | 'intro' | 'login'>('inicial');
-  const [deveAnimar, setDeveAnimar] = useState(false);
 
   useEffect(() => {
     const jaVisualizou = sessionStorage.getItem('@avle:splash-visualizado');
 
     if (jaVisualizou === 'true') {
       setStatus('login');
-      setDeveAnimar(false);
     } else {
       setStatus('intro');
-      setDeveAnimar(true);
     }
   }, []);
 
@@ -37,15 +33,7 @@ export default function Home() {
     <>
       {status === 'intro' && <TelaCarregamento onFinalizado={handleFinalizarCarregamento} />}
 
-      <div
-        className={
-          status !== 'login'
-            ? 'opacity-0 scale-95 pointer-events-none fixed'
-            : deveAnimar
-              ? 'transition-all duration-1000 transform opacity-100 scale-100'
-              : 'opacity-100 scale-100'
-        }
-      >
+      <div className={status !== 'login' ? 'hidden' : 'block'}>
         <Autenticacao />
       </div>
     </>
@@ -54,12 +42,6 @@ export default function Home() {
 
 function Autenticacao() {
   const router = useRouter();
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
-  const path1Ref = useRef<SVGPathElement>(null);
-  const path2Ref = useRef<SVGPathElement>(null);
-  const glowRef = useRef<HTMLDivElement>(null);
 
   const [isLogin, setIsLogin] = useState(true);
   const [isVerificando, setIsVerificando] = useState(false);
@@ -88,8 +70,10 @@ function Autenticacao() {
   
   const [aceitouTermos, setAceitouTermos] = useState(false);
   const [modalTermosAberto, setModalTermosAberto] = useState(false);
-
   const [mostrarSenha, setMostrarSenha] = useState(false);
+
+  // NOVO ESTADO: Lembrar de mim
+  const [lembrarSenha, setLembrarSenha] = useState(false);
 
   useEffect(() => {
     const querCadastro = sessionStorage.getItem('@avle:abrir_cadastro');
@@ -106,50 +90,6 @@ function Autenticacao() {
       fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
     }, 120000);
     return () => clearInterval(intervaloPing);
-  }, []);
-
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
-
-      [path1Ref.current, path2Ref.current].forEach((path) => {
-        if (path) {
-          const length = path.getTotalLength();
-          gsap.set(path, { strokeDasharray: length, strokeDashoffset: length });
-          tl.to(path, { strokeDashoffset: 0, duration: 2, ease: 'power2.inOut' }, 0.2);
-        }
-      });
-
-      if (glowRef.current) {
-        tl.fromTo(
-          glowRef.current,
-          { scale: 0.3, opacity: 0 },
-          { scale: 1, opacity: 0.12, duration: 2.5 },
-          0
-        );
-      }
-
-      if (cardRef.current) {
-        tl.fromTo(
-          cardRef.current,
-          { opacity: 0, x: 50 },
-          { opacity: 1, x: 0, duration: 1 },
-          0.3
-        );
-      }
-
-      gsap.to('.gsap-leaf-particle', {
-        y: '-=30',
-        rotation: '+=45',
-        duration: 'random(4, 7)',
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
-        stagger: { amount: 3, from: 'random' },
-      });
-    }, containerRef);
-
-    return () => ctx.revert();
   }, []);
 
   const aplicarMascaraTelefone = (valor: string) => {
@@ -185,9 +125,6 @@ function Autenticacao() {
     }
   };
 
-  // =====================================================================
-  // SEGURANÇA: VALIDAÇÃO DE CNPJ NA RECEITA FEDERAL VIA BRASIL API
-  // =====================================================================
   const handleBuscarCnpj = async () => {
     const cnpjLimpo = cpf.replace(/\D/g, '');
     
@@ -222,9 +159,6 @@ function Autenticacao() {
     }
   };
 
-  // =====================================================================
-  // REGRAS DE VALIDAÇÃO (Restauradas)
-  // =====================================================================
   const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   
   const loginLimpo = identificadorLogin.replace(/\D/g, '');
@@ -236,7 +170,6 @@ function Autenticacao() {
   const emailCadastroPreenchido = emailCadastro.trim().length > 0;
   const emailCadastroValidoOuVazio = tipoUsuario === 'LOJA' ? emailCadastroValido : !emailCadastroPreenchido || emailCadastroValido;
 
-  // Lógica da senha forte preservada exatamente como você pediu
   const temMaiuscula = /[A-Z]/.test(senha);
   const temNumero = /[0-9]/.test(senha);
   const temCaracterEspecial = /[^A-Za-z0-9]/.test(senha);
@@ -307,10 +240,11 @@ function Autenticacao() {
         let bodyPayload: any = {};
 
         if (isLogin) {
+            // AQUI É ENVIADA A FLAG DE LEMBRAR SENHA PARA O BACKEND
             if (identificadorLogin.includes('@')) {
-               bodyPayload = { email: identificadorLogin.trim(), senha };
+               bodyPayload = { email: identificadorLogin.trim(), senha, lembrarSenha };
             } else {
-               bodyPayload = { telefone: identificadorLogin.replace(/\D/g, ''), senha };
+               bodyPayload = { telefone: identificadorLogin.replace(/\D/g, ''), senha, lembrarSenha };
             }
         } else {
             const conviteLojaId = sessionStorage.getItem('@avle:convite_loja_id');
@@ -514,34 +448,17 @@ function Autenticacao() {
   };
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-[#F5F2EB] flex flex-col lg:flex-row font-sans overflow-hidden">
+    <div className="min-h-screen bg-[#F5F2EB] flex flex-col lg:flex-row font-sans overflow-hidden">
       
       {/* =========================================================================
-          LADO ESQUERDO: SPLIT SCREEN (Animação / Imagem / Vídeo)
-          Visível apenas em Desktop (lg:flex)
+          LADO ESQUERDO: SPLIT SCREEN ESTÁTICO (Super Rápido e Otimizado)
           ========================================================================= */}
       <div className="hidden lg:flex w-1/2 bg-[#0B1E14] relative items-center justify-center overflow-hidden flex-col p-12">
+        <div className="absolute w-[600px] h-[600px] bg-[#BD6B42] rounded-full blur-[140px] opacity-10 pointer-events-none" />
         
-        {/* SE VOCÊ QUISER COLOCAR UM VÍDEO DEPOIS, DESCOMENTE ESTA LINHA E COLOQUE O LINK: */}
-        {/* <video autoPlay loop muted className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none" src="/seu-video.mp4"></video> */}
-
-        {/* EFEITO DE BRILHO NO FUNDO E ANIMAÇÃO DA ÁRVORE */}
-        <div ref={glowRef} className="absolute w-[600px] h-[600px] bg-[#BD6B42] rounded-full blur-[140px] opacity-10 pointer-events-none" />
-        
-        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20" viewBox="0 0 1000 1000" fill="none">
-          <path ref={path1Ref} d="M 100,900 C 300,700 350,400 500,500 C 650,600 700,300 900,100" stroke="#F5F2EB" strokeWidth="2.5" strokeLinecap="round" />
-          <path ref={path2Ref} d="M 200,950 C 400,800 450,550 500,500 C 550,450 750,200 850,50" stroke="#BD6B42" strokeWidth="1.8" strokeLinecap="round" />
-          <circle cx="500" cy="500" r="230" stroke="#F5F2EB" strokeWidth="0.8" strokeDasharray="6 6" />
-        </svg>
-
-        {[...Array(8)].map((_, i) => (
-          <div key={i} className="gsap-leaf-particle absolute w-2.5 h-2.5 rounded-full bg-[#BD6B42]/50 blur-[1px]" style={{ top: `${20 + i * 10}%`, left: `${15 + i * 10}%` }} />
-        ))}
-
         <div className="z-10 text-center flex flex-col items-center">
-          <div className="w-28 h-28 bg-[#F5F2EB] rounded-full flex items-center justify-center mb-8 shadow-2xl transition-transform duration-500 hover:scale-105 border-4 border-[#0B1E14]">
-            {/* Pode trocar o span pela logo SVG real aqui depois: <img src="/logo.png" className="w-full h-full object-contain p-2" /> */}
-            <span className="text-[#0B1E14] font-black text-4xl">AV</span>
+          <div className="w-32 h-32 bg-[#F5F2EB] rounded-full flex items-center justify-center mb-8 shadow-2xl border-4 border-[#0B1E14]">
+            <span className="text-[#0B1E14] font-black text-5xl">AV</span>
           </div>
           <h1 className="text-white text-5xl font-bold tracking-widest font-serif mb-4">AVLE</h1>
           <p className="text-[#BD6B42] text-lg italic mt-2 max-w-sm font-medium">
@@ -555,12 +472,12 @@ function Autenticacao() {
           ========================================================================= */}
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-[#F5F2EB] p-4 sm:p-8 lg:p-12 relative min-h-screen overflow-y-auto">
         
-        {/* LOGO MOBILE (Aparece só quando o lado esquerdo some) */}
+        {/* LOGO MOBILE */}
         <div className="lg:hidden absolute top-8 left-0 right-0 flex flex-col items-center justify-center z-0 opacity-20 pointer-events-none">
            <span className="text-[#0B1E14] font-black text-6xl font-serif">AVLE</span>
         </div>
 
-        <div ref={cardRef} className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl border border-stone-200/60 flex flex-col z-10 relative">
+        <div className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl border border-stone-200/60 flex flex-col z-10 relative">
           
           <div className="flex flex-col p-6 sm:p-8">
             {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
@@ -659,7 +576,7 @@ function Autenticacao() {
                     </div>
                   </div>
                   <div className="space-y-2 mt-4">
-                  <button type="submit" disabled={codigoOtp.length !== 6 || carregando} className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 transition-all">
+                  <button type="submit" disabled={codigoOtp.length !== 6 || !senhaForte || carregando} className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 transition-all">
                     {carregando ? 'PROCESSANDO...' : 'Redefinir Senha'}
                   </button>
                   <button type="button" onClick={() => setIsResetandoSenha(false)} className="w-full text-stone-400 text-center font-bold text-xs py-2 cursor-pointer">Desistir</button>
@@ -770,6 +687,22 @@ function Autenticacao() {
                       <input type={mostrarSenha ? 'text' : 'password'} placeholder="••••••••" value={senha} onChange={(e) => setSenha(e.target.value)} className="w-full px-4 py-3 border rounded-xl bg-stone-50 focus:outline-none focus:border-[#0B1E14] text-sm h-[46px]" required disabled={carregando} />
                       <button type="button" onClick={() => setMostrarNovaSenha(!mostrarSenha)} className="absolute right-4 top-3 text-stone-400 font-bold hover:text-stone-700 cursor-pointer" disabled={carregando}>Ver</button>
                     </div>
+
+                    {isLogin && (
+                      <div className="flex items-center mt-3 ml-1 space-x-2">
+                        <input
+                          type="checkbox"
+                          id="lembrar-senha"
+                          checked={lembrarSenha}
+                          onChange={(e) => setLembrarSenha(e.target.checked)}
+                          className="w-4 h-4 accent-[#0B1E14] cursor-pointer"
+                          disabled={carregando}
+                        />
+                        <label htmlFor="lembrar-senha" className="text-[10px] text-stone-500 font-bold uppercase cursor-pointer select-none tracking-wider">
+                          Lembrar de mim
+                        </label>
+                      </div>
+                    )}
 
                     {!isLogin && senha.length > 0 && (
                       <div className="mt-2.5 p-3 bg-stone-50 border border-stone-200/60 rounded-xl space-y-1.5 text-[11px] font-medium animate-fade-in text-left">
