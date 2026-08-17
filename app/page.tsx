@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import TelaCarregamento from './dashboard/components/TelaCarregamento';
 
@@ -72,7 +72,6 @@ function Autenticacao() {
   const [modalTermosAberto, setModalTermosAberto] = useState(false);
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
-  // NOVO ESTADO: Lembrar de mim
   const [lembrarSenha, setLembrarSenha] = useState(false);
 
   useEffect(() => {
@@ -240,7 +239,6 @@ function Autenticacao() {
         let bodyPayload: any = {};
 
         if (isLogin) {
-            // AQUI É ENVIADA A FLAG DE LEMBRAR SENHA PARA O BACKEND
             if (identificadorLogin.includes('@')) {
                bodyPayload = { email: identificadorLogin.trim(), senha, lembrarSenha };
             } else {
@@ -543,7 +541,7 @@ function Autenticacao() {
                     <input type="text" placeholder="seu@email.com ou (45) 99999-9999" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                   </div>
                   <div className="space-y-2 mt-4">
-                  <button type="submit" disabled={carregando} className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer disabled:opacity-55">
+                  <button type="submit" disabled={carregando} className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55">
                     {carregando ? 'ENVIANDO...' : 'Enviar Codigo'}
                   </button>
                   <button type="button" onClick={() => setIsEsqueceuSenha(false)} className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-2 cursor-pointer">Voltar ao Login</button>
@@ -576,7 +574,7 @@ function Autenticacao() {
                     </div>
                   </div>
                   <div className="space-y-2 mt-4">
-                  <button type="submit" disabled={codigoOtp.length !== 6 || !senhaForte || carregando} className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 transition-all">
+                  <button type="submit" disabled={codigoOtp.length !== 6 || !novaSenhaForte || carregando} className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 transition-all">
                     {carregando ? 'PROCESSANDO...' : 'Redefinir Senha'}
                   </button>
                   <button type="button" onClick={() => setIsResetandoSenha(false)} className="w-full text-stone-400 text-center font-bold text-xs py-2 cursor-pointer">Desistir</button>
@@ -593,23 +591,41 @@ function Autenticacao() {
                   )}
                   
                   {!isLogin && (
-                    <div className="space-y-4 animate-fade-in">
+                    <div className="space-y-4">
                       <div>
                         <label className="block text-[10px] font-bold uppercase text-stone-400 mb-1.5 tracking-wider">Tipo de Conta *</label>
-                        <div className="relative grid grid-cols-2 p-1 bg-stone-100 rounded-2xl border border-stone-200/80">
-                          <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#0B1E14] rounded-xl shadow-md transition-all duration-300 ease-in-out ${tipoUsuario === 'CLIENTE' ? 'left-1' : 'left-[calc(50%+3px)]'}`} />
-                          <button type="button" onClick={() => { setTipoUsuario('CLIENTE'); setCpf(''); setTelefoneCadastro(''); setEmailCadastro(''); setAceitouTermos(false); setMensagem({ tipo: '', texto: '' }); }} className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${tipoUsuario === 'CLIENTE' ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`} disabled={carregando}>
-                            <span>Sou Cliente</span>
+                        
+                        {/* TOGGLE FLUIDO COM DESLIZAMENTO */}
+                        <div className="relative flex p-1 bg-stone-100 rounded-2xl border border-stone-200/80 overflow-hidden">
+                          <div 
+                            className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#0B1E14] rounded-xl shadow-md transition-transform duration-500 ease-in-out transform-gpu ${
+                              tipoUsuario === 'CLIENTE' ? 'translate-x-0' : 'translate-x-full'
+                            }`} 
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => { setTipoUsuario('CLIENTE'); setCpf(''); setTelefoneCadastro(''); setEmailCadastro(''); setAceitouTermos(false); setMensagem({ tipo: '', texto: '' }); }} 
+                            className={`relative z-10 flex-1 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-500 cursor-pointer ${tipoUsuario === 'CLIENTE' ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`} 
+                            disabled={carregando}
+                          >
+                            Sou Cliente
                           </button>
-                          <button type="button" onClick={() => { setTipoUsuario('LOJA'); setCpf(''); setTelefoneCadastro(''); setEmailCadastro(''); setAceitouTermos(false); setMensagem({ tipo: '', texto: '' }); }} className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${tipoUsuario === 'LOJA' ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`} disabled={carregando}>
-                            <span>Sou Loja</span>
+                          <button 
+                            type="button" 
+                            onClick={() => { setTipoUsuario('LOJA'); setCpf(''); setTelefoneCadastro(''); setEmailCadastro(''); setAceitouTermos(false); setMensagem({ tipo: '', texto: '' }); }} 
+                            className={`relative z-10 flex-1 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-500 cursor-pointer ${tipoUsuario === 'LOJA' ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`} 
+                            disabled={carregando}
+                          >
+                            Sou Loja
                           </button>
                         </div>
                       </div>
 
                       <div>
                         <div className="flex justify-between items-center mb-1">
-                          <label className="block text-[10px] font-bold uppercase text-stone-500">{tipoUsuario === 'LOJA' ? 'CNPJ (Validação Automática) *' : 'CPF (Apenas números) *'}</label>
+                          <label className="block text-[10px] font-bold uppercase text-stone-500">
+                            {tipoUsuario === 'LOJA' ? 'CNPJ (Validação Automática) *' : 'CPF (Apenas números) *'}
+                          </label>
                           {cpf.length > 0 && (
                             <span className={`text-[10px] font-bold ${tamanhoDocumentoValido ? 'text-emerald-600' : 'text-stone-400'}`}>
                               {tipoUsuario === 'LOJA' ? `${cpf.length}/14` : `${cpf.length}/11`}
@@ -620,13 +636,17 @@ function Autenticacao() {
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">{tipoUsuario === 'LOJA' ? 'Nome / Razão Social da Loja *' : 'Nome Completo *'}</label>
+                        <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
+                          {tipoUsuario === 'LOJA' ? 'Nome / Razão Social da Loja *' : 'Nome Completo *'}
+                        </label>
                         <input type="text" placeholder={tipoUsuario === 'LOJA' ? 'Será preenchido pela Receita' : 'Ex: João Silva'} value={nome} onChange={(e) => setNome(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando || (tipoUsuario === 'LOJA')} />
                       </div>
 
                       <div>
                         <div className="flex justify-between items-center mb-1">
-                          <label className="block text-[10px] font-bold uppercase text-stone-500">{tipoUsuario === 'LOJA' ? 'Telefone / WhatsApp da Loja *' : 'Telefone / Celular'}</label>
+                          <label className="block text-[10px] font-bold uppercase text-stone-500">
+                            {tipoUsuario === 'LOJA' ? 'Telefone / WhatsApp da Loja *' : 'Telefone / Celular'}
+                          </label>
                           {tipoUsuario === 'LOJA' && telefoneCadastroLimpo.length > 0 && (
                             <span className={`text-[10px] font-bold ${telefoneCadastroLimpo.length >= 10 ? 'text-emerald-600' : 'text-rose-500'}`}>
                               {telefoneCadastroLimpo.length >= 10 ? '✓ Valido' : '✗ Minimo 10 digitos'}
@@ -636,17 +656,18 @@ function Autenticacao() {
                         <input type="text" placeholder="(42) 99999-9999" value={telefoneCadastro} onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
                       </div>
                       
-                      {tipoUsuario === 'LOJA' && (
-                        <div className="space-y-3 p-4 bg-stone-50/80 border border-stone-200 rounded-2xl transition-all duration-300 shadow-inner">
+                      {/* DESLIZAMENTO SUAVE PARA OS CAMPOS DA LOJA */}
+                      <div className={`transition-all duration-500 ease-in-out overflow-hidden ${tipoUsuario === 'LOJA' ? 'max-h-[600px] opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'}`}>
+                        <div className="space-y-3 p-4 bg-stone-50/80 border border-stone-200 rounded-2xl shadow-inner">
                           <p className="text-[10px] font-bold uppercase text-[#BD6B42] tracking-wider mb-2">Dados da Loja</p>
                           <div className="grid grid-cols-2 gap-3">
                             <div>
                               <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">CEP Base *</label>
-                              <input type="text" maxLength={9} placeholder="85010-250" value={cep} onChange={(e) => setCep(aplicarMascaraCep(e.target.value))} className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]" required disabled={carregando} />
+                              <input type="text" maxLength={9} placeholder="85010-250" value={cep} onChange={(e) => setCep(aplicarMascaraCep(e.target.value))} className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
                             </div>
                             <div>
                               <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Faturamento *</label>
-                              <input type="text" placeholder="R$ 10.000,00" value={faturamento} onChange={(e) => setFaturamento(aplicarMascaraMoeda(e.target.value))} className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]" required disabled={carregando} />
+                              <input type="text" placeholder="R$ 10.000,00" value={faturamento} onChange={(e) => setFaturamento(aplicarMascaraMoeda(e.target.value))} className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
                             </div>
                           </div>
                           <div className="pt-1">
@@ -654,7 +675,7 @@ function Autenticacao() {
                             <input type="text" value={walletIdInput} onChange={(e) => setWalletIdInput(e.target.value)} placeholder="Deixe em branco para o sistema criar" className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono" disabled={carregando} />
                           </div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   )}
 
@@ -688,6 +709,7 @@ function Autenticacao() {
                       <button type="button" onClick={() => setMostrarNovaSenha(!mostrarSenha)} className="absolute right-4 top-3 text-stone-400 font-bold hover:text-stone-700 cursor-pointer" disabled={carregando}>Ver</button>
                     </div>
 
+                    {/* LEMBRAR DE MIM INTEGRADO AO BACKEND */}
                     {isLogin && (
                       <div className="flex items-center mt-3 ml-1 space-x-2">
                         <input
