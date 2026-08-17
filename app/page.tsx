@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import gsap from 'gsap';
 import TelaCarregamento from './dashboard/components/TelaCarregamento';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
+// URL fixa do backend
+const API_URL = 'https://api.avle.com.br'//avle-ap;
 
 export default function Home() {
   const [status, setStatus] = useState<'inicial' | 'intro' | 'login'>('inicial');
@@ -54,14 +55,12 @@ export default function Home() {
 function Autenticacao() {
   const router = useRouter();
 
-  // Elementos do GSAP
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const path1Ref = useRef<SVGPathElement>(null);
   const path2Ref = useRef<SVGPathElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
 
-  // Estados da interface
   const [isLogin, setIsLogin] = useState(true);
   const [isVerificando, setIsVerificando] = useState(false);
   const [carregando, setCarregando] = useState(false);
@@ -72,7 +71,6 @@ function Autenticacao() {
   const [novaSenha, setNovaSenha] = useState('');
   const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false);
 
-  // Dados Básicos
   const [tipoUsuario, setTipoUsuario] = useState('CLIENTE');
   
   const [identificadorLogin, setIdentificadorLogin] = useState(''); 
@@ -84,7 +82,6 @@ function Autenticacao() {
   const [codigoOtp, setCodigoOtp] = useState('');
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
 
-  // CAMPOS ADICIONAIS PARA LOJA
   const [cep, setCep] = useState('');
   const [faturamento, setFaturamento] = useState('');
   const [walletIdInput, setWalletIdInput] = useState(''); 
@@ -94,14 +91,21 @@ function Autenticacao() {
   const [contaDigito, setContaDigito] = useState('');
   const [tipoConta, setTipoConta] = useState('CORRENTE');
   
-  // Estados de Segurança Jurídica
   const [aceitouTermos, setAceitouTermos] = useState(false);
-  const [modalTermosAberto, setModalTermosAberto] = useState(false); // 🟢 NOVO: Controla a exibição do contrato
+  const [modalTermosAberto, setModalTermosAberto] = useState(false);
 
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [modoLayout, setModoLayout] = useState<'mobile' | 'site'>('mobile');
 
-  // Ping silencioso no carregamento da página
+  useEffect(() => {
+    const querCadastro = sessionStorage.getItem('@avle:abrir_cadastro');
+    if (querCadastro === 'true') {
+      setIsLogin(false);
+      setTipoUsuario('CLIENTE');
+      sessionStorage.removeItem('@avle:abrir_cadastro');
+    }
+  }, []);
+
   useEffect(() => {
     fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
     const intervaloPing = setInterval(() => {
@@ -110,7 +114,6 @@ function Autenticacao() {
     return () => clearInterval(intervaloPing);
   }, []);
 
-  // GSAP - Animações sutis
   useEffect(() => {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
@@ -155,7 +158,6 @@ function Autenticacao() {
     return () => ctx.revert();
   }, [modoLayout]);
 
-  // Máscaras de Input
   const aplicarMascaraTelefone = (valor: string) => {
     const v = valor.replace(/\D/g, '');
     if (v.length <= 2) return v;
@@ -189,7 +191,46 @@ function Autenticacao() {
     }
   };
 
-  // Validações
+  // =====================================================================
+  // SEGURANÇA: VALIDAÇÃO DE CNPJ NA RECEITA FEDERAL VIA BRASIL API
+  // =====================================================================
+  const handleBuscarCnpj = async () => {
+    const cnpjLimpo = cpf.replace(/\D/g, '');
+    
+    // Só pesquisa se for LOJA e se tiver digitado os 14 números
+    if (tipoUsuario !== 'LOJA' || cnpjLimpo.length !== 14) return;
+
+    setCarregando(true);
+    setStatusConexao('CONSULTANDO RECEITA FEDERAL...');
+    setMensagem({ tipo: '', texto: '' });
+
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      
+      if (!res.ok) throw new Error('CNPJ inválido ou não encontrado na base de dados.');
+      
+      const data = await res.json();
+      
+      // Valida se a empresa não está baixada ou inapta
+      if (data.descricao_situacao_cadastral !== 'ATIVA') {
+        throw new Error(`CNPJ Inválido: A situação da empresa consta como ${data.descricao_situacao_cadastral}.`);
+      }
+
+      // Preenche os dados automaticamente para a loja!
+      setNome(data.razao_social || data.nome_fantasia || '');
+      if (data.cep) setCep(aplicarMascaraCep(data.cep.toString()));
+      if (data.ddd_telefone_1) setTelefoneCadastro(aplicarMascaraTelefone(data.ddd_telefone_1.toString()));
+      
+      setMensagem({ tipo: 'sucesso', texto: 'Empresa validada e ativa na Receita Federal!' });
+    } catch (err: any) {
+      setMensagem({ tipo: 'erro', texto: err.message });
+      setCpf(''); // Limpa o CNPJ falso para obrigar a digitar o certo
+      setNome('');
+    } finally {
+      setCarregando(false);
+    }
+  };
+
   const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   
   const loginLimpo = identificadorLogin.replace(/\D/g, '');
@@ -206,12 +247,6 @@ function Autenticacao() {
   const temCaracterEspecial = /[^A-Za-z0-9]/.test(senha);
   const tamanhoMinimo = senha.length >= 8;
   const senhaForte = temMaiuscula && temNumero && temCaracterEspecial && tamanhoMinimo;
-
-  const temMaiusculaNova = /[A-Z]/.test(novaSenha);
-  const temNumeroNova = /[0-9]/.test(novaSenha);
-  const temCaracterEspecialNova = /[^A-Za-z0-9]/.test(novaSenha);
-  const tamanhoMinimoNova = novaSenha.length >= 8;
-  const novaSenhaForte = temMaiusculaNova && temNumeroNova && temCaracterEspecialNova && tamanhoMinimoNova;
 
   const tamanhoDocumentoValido = cpf.length === (tipoUsuario === 'LOJA' ? 14 : 11);
   
@@ -245,9 +280,23 @@ function Autenticacao() {
     setCarregando(true);
 
     if (!formularioValido) {
-      setMensagem({ tipo: 'erro', texto: 'Por favor, preencha todos os campos obrigatórios corretamente!' });
+      setMensagem({ tipo: 'erro', texto: 'Por favor, preencha todos os campos obrigatorios corretamente!' });
       setCarregando(false);
       return;
+    }
+
+    // =====================================================================
+    // SEGURANÇA: VALIDAÇÃO ESTrita DO WALLET ID
+    // =====================================================================
+    if (!isLogin && tipoUsuario === 'LOJA' && walletIdInput.trim() !== '') {
+      if (!walletIdInput.trim().startsWith('wal_')) {
+        setMensagem({ 
+          tipo: 'erro', 
+          texto: 'Bloqueio de Segurança: Um Wallet ID do Asaas deve obrigatoriamente começar com "wal_". Caso você não tenha um, apague e deixe o campo em branco para o sistema criar sua carteira automaticamente.' 
+        });
+        setCarregando(false);
+        return;
+      }
     }
 
     const maxTentativas = 4;
@@ -271,6 +320,8 @@ function Autenticacao() {
                bodyPayload = { telefone: identificadorLogin.replace(/\D/g, ''), senha };
             }
         } else {
+            const conviteLojaId = sessionStorage.getItem('@avle:convite_loja_id');
+            
             bodyPayload = {
               nome,
               email: emailCadastro.trim() !== '' ? emailCadastro : null,
@@ -285,6 +336,7 @@ function Autenticacao() {
                 tipoUsuario === 'LOJA'
                   ? { bancoCodigo, agencia, conta, contaDigito, tipoConta }
                   : null,
+              lojaId: tipoUsuario === 'CLIENTE' && conviteLojaId ? Number(conviteLojaId) : null,
             };
         }
 
@@ -298,7 +350,7 @@ function Autenticacao() {
         clearTimeout(timeoutId);
 
         if (resposta.status === 403) {
-          setMensagem({ tipo: 'erro', texto: 'Sua conta ainda não foi verificada.' });
+          setMensagem({ tipo: 'erro', texto: 'Sua conta ainda nao foi verificada.' });
           setIsVerificando(true);
           setCarregando(false);
           return;
@@ -313,7 +365,6 @@ function Autenticacao() {
           throw new Error('SERVER_STARTING');
         }
 
-        // SUCESSO!
         if (isLogin) {
           const dadosUsuario = await resposta.json();
           localStorage.setItem('@avle:usuario', JSON.stringify(dadosUsuario));
@@ -321,6 +372,7 @@ function Autenticacao() {
           return;
         } else {
           setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso!' });
+          sessionStorage.removeItem('@avle:convite_loja_id'); 
           setTimeout(() => {
             setIsLogin(true);
             setNome(''); setCpf(''); setEmailCadastro(''); setTelefoneCadastro(''); setCep('');
@@ -349,7 +401,7 @@ function Autenticacao() {
 
         setMensagem({
           tipo: 'erro',
-          texto: 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.',
+          texto: 'Nao foi possivel conectar ao servidor. Verifique sua conexao e tente novamente.',
         });
         setCarregando(false);
       }
@@ -375,10 +427,10 @@ function Autenticacao() {
 
       if (!resposta.ok) {
         const textoErro = await resposta.text();
-        throw new Error(textoErro || 'Código de verificação incorreto ou expirado.');
+        throw new Error(textoErro || 'Codigo de verificacao incorreto ou expirado.');
       }
 
-      setMensagem({ tipo: 'sucesso', texto: 'Conta ativada com sucesso! Faça seu login agora.' });
+      setMensagem({ tipo: 'sucesso', texto: 'Conta ativada com sucesso! Faca seu login agora.' });
       setIsVerificando(false);
       setIsLogin(true);
       setSenha('');
@@ -398,7 +450,7 @@ function Autenticacao() {
     const isTelefone = !identificadorLogin.includes('@');
 
     if (!isLoginEmailValido && !isTelefone) {
-      setMensagem({ tipo: 'erro', texto: 'Por favor, insira um e-mail ou telefone válido.' });
+      setMensagem({ tipo: 'erro', texto: 'Por favor, insira um e-mail ou telefone valido.' });
       setCarregando(false);
       return;
     }
@@ -414,9 +466,9 @@ function Autenticacao() {
         body: JSON.stringify(payload),
       });
 
-      if (!resposta.ok) throw new Error('Dados não localizados no ecossistema AVLE.');
+      if (!resposta.ok) throw new Error('Dados nao localizados no ecossistema AVLE.');
 
-      setMensagem({ tipo: 'sucesso', texto: 'Código de redefinição enviado!' });
+      setMensagem({ tipo: 'sucesso', texto: 'Codigo de redefinicao enviado!' });
 
       setTimeout(() => {
         setIsEsqueceuSenha(false);
@@ -436,8 +488,8 @@ function Autenticacao() {
     setMensagem({ tipo: '', texto: '' });
     setCarregando(true);
 
-    if (codigoOtp.length !== 6 || !novaSenhaForte) {
-      setMensagem({ tipo: 'erro', texto: 'O código precisa ter 6 dígitos e a nova senha precisa ser forte.' });
+    if (codigoOtp.length !== 6 || !senhaForte) {
+      setMensagem({ tipo: 'erro', texto: 'O codigo precisa ter 6 digitos e a nova senha precisa ser forte.' });
       setCarregando(false);
       return;
     }
@@ -454,9 +506,9 @@ function Autenticacao() {
         body: JSON.stringify(payload),
       });
 
-      if (!resposta.ok) throw new Error('Código incorreto, expirado ou já utilizado.');
+      if (!resposta.ok) throw new Error('Codigo incorreto, expirado ou ja utilizado.');
 
-      setMensagem({ tipo: 'sucesso', texto: 'Sua senha foi redefinida com sucesso! Faça seu login.' });
+      setMensagem({ tipo: 'sucesso', texto: 'Sua senha foi redefinida com sucesso! Faca seu login.' });
 
       setTimeout(() => {
         setIsResetandoSenha(false);
@@ -496,7 +548,7 @@ function Autenticacao() {
         <button
           type="button"
           onClick={() => setModoLayout('mobile')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
             modoLayout === 'mobile' ? 'bg-[#0B1E14] text-white shadow-md' : 'text-stone-500 hover:text-stone-700'
           }`}
         >
@@ -505,7 +557,7 @@ function Autenticacao() {
         <button
           type="button"
           onClick={() => setModoLayout('site')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
             modoLayout === 'site' ? 'bg-[#0B1E14] text-white shadow-md' : 'text-stone-500 hover:text-stone-700'
           }`}
         >
@@ -524,13 +576,13 @@ function Autenticacao() {
             modoLayout === 'site' ? 'w-1/2 rounded-r-3xl' : 'w-full'
           }`}
         >
-          <div className="w-16 h-16 bg-[#F5F2EB] rounded-full flex items-center justify-center mb-3 shadow-md transition-transform duration-500 ease-out group-hover:rotate-12 group-hover:scale-105">
+          <div className="w-20 h-20 mb-3 transition-transform duration-500 hover:scale-105 bg-[#F5F2EB] rounded-full flex items-center justify-center shadow-md">
             <span className="text-[#0B1E14] font-black text-2xl">AV</span>
           </div>
           <h1 className="text-white text-2xl font-bold tracking-wide">AVLE</h1>
           <p className="text-stone-300 text-sm mt-1">Seu clube de compras planejado</p>
           <p className="text-[#BD6B42] text-xs italic mt-3 max-w-xs">
-            "Onde suas escolhas criam raízes e geram frutos."
+            "Onde suas escolhas criam raizes e geram frutos."
           </p>
         </div>
 
@@ -548,7 +600,7 @@ function Autenticacao() {
                   setMensagem({ tipo: '', texto: '' });
                   setAceitouTermos(false);
                 }}
-                className={`flex-1 py-4 font-bold text-xs uppercase tracking-wider transition-all duration-200 ${
+                className={`flex-1 py-4 font-bold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer ${
                   isLogin ? 'text-[#BD6B42] border-b-2 border-[#BD6B42] bg-white' : 'text-stone-400 hover:text-stone-600'
                 }`}
               >
@@ -562,7 +614,7 @@ function Autenticacao() {
                   setTipoUsuario('CLIENTE');
                   setAceitouTermos(false);
                 }}
-                className={`flex-1 py-4 font-bold text-xs uppercase tracking-wider transition-all duration-200 ${
+                className={`flex-1 py-4 font-bold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer ${
                   !isLogin ? 'text-[#BD6B42] border-b-2 border-[#BD6B42] bg-white' : 'text-stone-400 hover:text-stone-600'
                 }`}
               >
@@ -575,9 +627,9 @@ function Autenticacao() {
             <form onSubmit={handleConfirmarCodigo} className="p-6 flex-1 flex flex-col justify-between space-y-4 text-left">
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificação de Conta</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificacao de Conta</h3>
                   <p className="text-xs text-stone-400 mt-1">
-                    Insira o código verificador enviado para: <br />
+                    Insira o codigo verificador enviado para: <br />
                     <strong className="text-[#BD6B42] font-semibold">{identificadorLogin}</strong>
                   </p>
                 </div>
@@ -594,7 +646,7 @@ function Autenticacao() {
                 )}
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Código de Confirmação (6 dígitos)
+                    Codigo de Confirmacao (6 digitos)
                   </label>
                   <input
                     type="text"
@@ -623,7 +675,7 @@ function Autenticacao() {
                 <button
                   type="button"
                   onClick={() => setIsVerificando(false)}
-                  className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-1"
+                  className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-1 cursor-pointer"
                 >
                   Cancelar e voltar
                 </button>
@@ -635,17 +687,17 @@ function Autenticacao() {
             <form onSubmit={handleSolicitarRecuperacao} className="p-6 flex-1 flex flex-col justify-between space-y-6 text-left">
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Recuperação de Acesso</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Recuperacao de Acesso</h3>
                   <p className="text-xs text-stone-400 mt-1">
-                    Informe seu e-mail ou telefone cadastrado. Enviaremos um código token para criar uma nova senha.
+                    Informe seu e-mail ou telefone cadastrado. Enviaremos um codigo token para criar uma nova senha.
                   </p>
                 </div>
                 {mensagem.texto && (
                   <div
                     className={`p-3 rounded-xl text-xs font-bold ${
                       mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
                     }`}
                   >
                     {mensagem.texto}
@@ -670,12 +722,12 @@ function Autenticacao() {
                   disabled={carregando}
                   className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55"
                 >
-                  {carregando ? 'ENVIANDO...' : 'Enviar Código Verificador'}
+                  {carregando ? 'ENVIANDO...' : 'Enviar Codigo Verificador'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsEsqueceuSenha(false)}
-                  className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-1"
+                  className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-1 cursor-pointer"
                 >
                   Voltar ao Login
                 </button>
@@ -688,14 +740,14 @@ function Autenticacao() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Criar Nova Senha</h3>
-                  <p className="text-xs text-stone-400 mt-1">Insira o token de 6 dígitos recebido.</p>
+                  <p className="text-xs text-stone-400 mt-1">Insira o token de 6 digitos recebido.</p>
                 </div>
                 {mensagem.texto && (
                   <div
                     className={`p-3 rounded-xl text-xs font-bold ${
                       mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
                     }`}
                   >
                     {mensagem.texto}
@@ -703,7 +755,7 @@ function Autenticacao() {
                 )}
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Token (6 dígitos)
+                    Token (6 digitos)
                   </label>
                   <input
                     type="text"
@@ -720,8 +772,8 @@ function Autenticacao() {
                   <div className="flex justify-between items-center mb-1">
                     <label className="block text-[10px] font-bold uppercase text-stone-500">Nova Senha</label>
                     {novaSenha.length > 0 && (
-                      <span className={`text-[10px] font-bold ${novaSenhaForte ? 'text-emerald-600' : 'text-stone-400'}`}>
-                        {novaSenhaForte ? 'Forte' : 'Fraca'}
+                      <span className={`text-[10px] font-bold ${senhaForte ? 'text-emerald-600' : 'text-stone-400'}`}>
+                        {senhaForte ? 'Forte' : 'Fraca'}
                       </span>
                     )}
                   </div>
@@ -738,7 +790,7 @@ function Autenticacao() {
                     <button
                       type="button"
                       onClick={() => setMostrarNovaSenha(!mostrarNovaSenha)}
-                      className="absolute right-3 top-2.5 text-stone-400 font-bold hover:text-stone-700"
+                      className="absolute right-3 top-2.5 text-stone-400 font-bold hover:text-stone-700 cursor-pointer"
                     >
                       Ver
                     </button>
@@ -748,7 +800,7 @@ function Autenticacao() {
               <div className="space-y-2 mt-4">
                 <button
                   type="submit"
-                  disabled={codigoOtp.length !== 6 || !novaSenhaForte || carregando}
+                  disabled={codigoOtp.length !== 6 || !senhaForte || carregando}
                   className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 hover:scale-[1.01] transition-all"
                 >
                   {carregando ? 'PROCESSANDO...' : 'Redefinir e Gravar Senha'}
@@ -756,7 +808,7 @@ function Autenticacao() {
                 <button
                   type="button"
                   onClick={() => setIsResetandoSenha(false)}
-                  className="w-full text-stone-400 text-center font-bold text-xs py-1"
+                  className="w-full text-stone-400 text-center font-bold text-xs py-1 cursor-pointer"
                 >
                   Desistir
                 </button>
@@ -778,6 +830,7 @@ function Autenticacao() {
                     {mensagem.texto}
                   </div>
                 )}
+                
                 {!isLogin && (
                   <div className="space-y-4 animate-fade-in">
                     <div>
@@ -799,6 +852,7 @@ function Autenticacao() {
                             setTelefoneCadastro('');
                             setEmailCadastro('');
                             setAceitouTermos(false);
+                            setMensagem({ tipo: '', texto: '' });
                           }}
                           className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${
                             tipoUsuario === 'CLIENTE' ? 'text-white' : 'text-stone-500 hover:text-stone-800'
@@ -823,6 +877,7 @@ function Autenticacao() {
                             setTelefoneCadastro('');
                             setEmailCadastro('');
                             setAceitouTermos(false);
+                            setMensagem({ tipo: '', texto: '' });
                           }}
                           className={`relative z-10 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${
                             tipoUsuario === 'LOJA' ? 'text-white' : 'text-stone-500 hover:text-stone-800'
@@ -842,24 +897,9 @@ function Autenticacao() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                        {tipoUsuario === 'LOJA' ? 'Nome / Razão Social da Loja *' : 'Nome Completo *'}
-                      </label>
-                      <input
-                        type="text"
-                        placeholder={tipoUsuario === 'LOJA' ? 'Nome/Razão Social da Loja' : 'Ex: João Silva'}
-                        value={nome}
-                        onChange={(e) => setNome(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
-                        required
-                        disabled={carregando}
-                      />
-                    </div>
-
-                    <div>
                       <div className="flex justify-between items-center mb-1">
                         <label className="block text-[10px] font-bold uppercase text-stone-500">
-                          {tipoUsuario === 'LOJA' ? 'CNPJ (Apenas números) *' : 'CPF (Apenas números) *'}
+                          {tipoUsuario === 'LOJA' ? 'CNPJ (Validação Automática) *' : 'CPF (Apenas números) *'}
                         </label>
                         {cpf.length > 0 && (
                           <span className={`text-[10px] font-bold ${tamanhoDocumentoValido ? 'text-emerald-600' : 'text-stone-400'}`}>
@@ -873,9 +913,25 @@ function Autenticacao() {
                         placeholder={tipoUsuario === 'LOJA' ? '00000000000000' : '00000000000'}
                         value={cpf}
                         onChange={(e) => setCpf(e.target.value.replace(/\D/g, ''))}
+                        onBlur={handleBuscarCnpj} // ATIVA A VALIDAÇÃO QUANDO O USUÁRIO SAI DO CAMPO
                         className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
                         required
                         disabled={carregando}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
+                        {tipoUsuario === 'LOJA' ? 'Nome / Razão Social da Loja *' : 'Nome Completo *'}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={tipoUsuario === 'LOJA' ? 'Será preenchido pela Receita' : 'Ex: João Silva'}
+                        value={nome}
+                        onChange={(e) => setNome(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
+                        required
+                        disabled={carregando || (tipoUsuario === 'LOJA')} // Se for loja, o nome vem da receita
                       />
                     </div>
 
@@ -886,7 +942,7 @@ function Autenticacao() {
                         </label>
                         {tipoUsuario === 'LOJA' && telefoneCadastroLimpo.length > 0 && (
                           <span className={`text-[10px] font-bold ${telefoneCadastroLimpo.length >= 10 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                            {telefoneCadastroLimpo.length >= 10 ? '✓ Válido' : '✗ Mínimo 10 dígitos'}
+                            {telefoneCadastroLimpo.length >= 10 ? '✓ Valido' : '✗ Minimo 10 digitos'}
                           </span>
                         )}
                       </div>
@@ -940,28 +996,27 @@ function Autenticacao() {
                           </div>
                         </div>
 
-                        {/* CAMPO OPCIONAL DE WALLET ID */}
                         <div>
                           <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between">
                             <span>Wallet ID Asaas</span>
-                            <span className="text-stone-400 font-normal">Obrigatório</span>
+                            <span className="text-stone-400 font-normal">Começa com wal_</span>
                           </label>
                           <input
                             type="text"
                             value={walletIdInput}
                             onChange={(e) => setWalletIdInput(e.target.value)}
+                            placeholder="wal_..."
                             className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[40px] font-mono"
                             disabled={carregando}
                           />
-                          <p className="text-[9px] text-stone-400 mt-1">
-                            * Se você não possui conta no Asaas, o sistema criará sua subconta integrada automaticamente ao finalizar o cadastro.
+                          <p className="text-[9px] text-stone-400 mt-1 leading-relaxed">
+                            * Se você digitar um Wallet ID, ele DEVE começar com "wal_". Se deixar em branco, criaremos uma subconta pra você automaticamente!
                           </p>
                         </div>
 
-                        {/* Dados Bancários */}
                         <div className="pt-2 border-t border-stone-200">
                           <p className="text-[10px] font-bold uppercase text-[#0B1E14] mb-2">
-                            Conta Bancária para Receber Vendas
+                            Conta Bancaria para Receber Vendas
                           </p>
 
                           <div className="space-y-2">
@@ -976,8 +1031,8 @@ function Autenticacao() {
                               >
                                 <option value="001">001 - Banco do Brasil</option>
                                 <option value="237">237 - Bradesco</option>
-                                <option value="341">341 - Itaú Unibanco</option>
-                                <option value="104">104 - Caixa Econômica</option>
+                                <option value="341">341 - Itau Unibanco</option>
+                                <option value="104">104 - Caixa Economica</option>
                                 <option value="033">033 - Santander</option>
                                 <option value="260">260 - Nubank</option>
                                 <option value="077">077 - Banco Inter</option>
@@ -989,7 +1044,7 @@ function Autenticacao() {
                             <div className="grid grid-cols-3 gap-2">
                               <div>
                                 <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">
-                                  Agência *
+                                  Agencia *
                                 </label>
                                 <input
                                   type="text"
@@ -1017,7 +1072,7 @@ function Autenticacao() {
 
                               <div>
                                 <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">
-                                  Dígito *
+                                  Digito *
                                 </label>
                                 <input
                                   type="text"
@@ -1039,7 +1094,7 @@ function Autenticacao() {
                                 <button
                                   type="button"
                                   onClick={() => setTipoConta('CORRENTE')}
-                                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all ${
+                                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all cursor-pointer ${
                                     tipoConta === 'CORRENTE'
                                       ? 'bg-[#0B1E14] text-white border-[#0B1E14]'
                                       : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-100'
@@ -1050,13 +1105,13 @@ function Autenticacao() {
                                 <button
                                   type="button"
                                   onClick={() => setTipoConta('POUPANCA')}
-                                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all ${
+                                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all cursor-pointer ${
                                     tipoConta === 'POUPANCA'
                                       ? 'bg-[#0B1E14] text-white border-[#0B1E14]'
                                       : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-100'
                                   }`}
                                 >
-                                  Poupança
+                                  Poupanca
                                 </button>
                               </div>
                             </div>
@@ -1067,7 +1122,6 @@ function Autenticacao() {
                   </div>
                 )}
 
-                {/* 🟢 CAMPO DE LOGIN UNIFICADO (E-mail ou Telefone) */}
                 {isLogin && (
                     <div>
                       <div className="flex justify-between items-center mb-1">
@@ -1076,7 +1130,7 @@ function Autenticacao() {
                         </label>
                         {identificadorLogin.length > 0 && (
                           <span className={`text-[10px] font-bold ${loginValido ? 'text-emerald-600' : 'text-rose-500'}`}>
-                            {loginValido ? '✓ Válido' : '✗ Inválido'}
+                            {loginValido ? '✓ Valido' : '✗ Invalido'}
                           </span>
                         )}
                       </div>
@@ -1092,7 +1146,6 @@ function Autenticacao() {
                     </div>
                 )}
 
-                {/* Campo E-mail apenas para Cadastro */}
                 {!isLogin && (
                     <div>
                       <div className="flex justify-between items-center mb-1">
@@ -1101,7 +1154,7 @@ function Autenticacao() {
                         </label>
                         {emailCadastro.length > 0 && (
                           <span className={`text-[10px] font-bold ${emailCadastroValido ? 'text-emerald-600' : 'text-rose-500'}`}>
-                            {emailCadastroValido ? '✓ Válido' : '✗ Inválido'}
+                            {emailCadastroValido ? '✓ Valido' : '✗ Invalido'}
                           </span>
                         )}
                       </div>
@@ -1127,7 +1180,7 @@ function Autenticacao() {
                           setIsEsqueceuSenha(true);
                           setMensagem({ tipo: '', texto: '' });
                         }}
-                        className="text-[10px] text-[#BD6B42] hover:underline font-bold"
+                        className="text-[10px] text-[#BD6B42] hover:underline font-bold cursor-pointer"
                         disabled={carregando}
                       >
                         Esqueceu a senha?
@@ -1146,8 +1199,8 @@ function Autenticacao() {
                     />
                     <button
                       type="button"
-                      onClick={() => setMostrarSenha(!mostrarSenha)}
-                      className="absolute right-3 top-2.5 text-stone-400 font-bold hover:text-stone-700"
+                      onClick={() => setMostrarNovaSenha(!mostrarSenha)}
+                      className="absolute right-3 top-2.5 text-stone-400 font-bold hover:text-stone-700 cursor-pointer"
                       disabled={carregando}
                     >
                       Ver
@@ -1163,7 +1216,7 @@ function Autenticacao() {
                         }`}
                       >
                         <span>{senha.length >= 8 ? '✓' : '○'}</span>
-                        <span>Mínimo de 8 caracteres</span>
+                        <span>Minimo de 8 caracteres</span>
                       </div>
                       <div
                         className={`flex items-center space-x-1.5 transition-colors ${
@@ -1171,7 +1224,7 @@ function Autenticacao() {
                         }`}
                       >
                         <span>{temMaiuscula ? '✓' : '○'}</span>
-                        <span>Pelo menos uma letra maiúscula</span>
+                        <span>Pelo menos uma letra maiuscula</span>
                       </div>
                       <div
                         className={`flex items-center space-x-1.5 transition-colors ${
@@ -1179,7 +1232,7 @@ function Autenticacao() {
                         }`}
                       >
                         <span>{temNumero ? '✓' : '○'}</span>
-                        <span>Pelo menos um número</span>
+                        <span>Pelo menos um numero</span>
                       </div>
                       <div
                         className={`flex items-center space-x-1.5 transition-colors ${
@@ -1193,8 +1246,7 @@ function Autenticacao() {
                   )}
                 </div>
 
-                {/* 🟢 CHECKBOX COM ABERTURA DO MODAL JURÍDICO */}
-                {!isLogin && tipoUsuario === 'LOJA' && (
+                {!isLogin && (
                   <div className="flex items-start space-x-3 p-3 bg-stone-50 border border-stone-200/60 rounded-xl mt-2 animate-fade-in">
                     <input
                       type="checkbox"
@@ -1209,11 +1261,11 @@ function Autenticacao() {
                       <button 
                         type="button" 
                         onClick={(e) => { e.preventDefault(); setModalTermosAberto(true); }} 
-                        className="text-[#BD6B42] font-bold underline hover:text-[#0B1E14] transition-colors"
+                        className="text-[#BD6B42] font-bold underline hover:text-[#0B1E14] transition-colors cursor-pointer"
                       >
-                        Termos de Uso e o Contrato de Parceria
+                        Termos de Uso e o Contrato da Loja
                       </button>{' '}
-                      da AVLE. Compreendo que as operações estão sujeitas à auditoria de compliance.
+                      hospedada na plataforma AVLE.
                     </label>
                   </div>
                 )}
@@ -1225,19 +1277,20 @@ function Autenticacao() {
                 disabled={!formularioValido || carregando}
                 className="w-full mt-6 py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl tracking-wide uppercase transition-all disabled:opacity-50 cursor-pointer text-xs shadow-md hover:bg-[#08170f]"
               >
-                {carregando ? statusConexao : isLogin ? 'Entrar no Sistema' : 'Criar minha Conta'}
+                {carregando ? statusConexao : isLogin ? 'Entrar no Sistema' : 'Finalizar Cadastro'}
               </button>
             </form>
           )}
         </div>
       </div>
+      
       {modalTermosAberto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fadeIn text-left">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
             <div className="flex justify-between items-center p-5 border-b border-stone-100">
               <div>
                 <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Contrato de Parceria e Termos de Uso</h3>
-                <p className="text-[10px] text-stone-400 mt-0.5">Leia atentamente as condições operacionais e jurídicas da plataforma AVLE.</p>
+                <p className="text-[10px] text-stone-400 mt-0.5">Leia atentamente as condicoes operacionais e juridicas da plataforma AVLE.</p>
               </div>
               <button 
                 type="button" 
@@ -1250,20 +1303,27 @@ function Autenticacao() {
             
             <div className="p-6 overflow-y-auto flex-1 text-xs text-stone-600 space-y-4 leading-relaxed bg-stone-50/30">
               <p className="font-bold text-stone-800">1. DO OBJETO</p>
-              <p>Este documento estabelece as condições gerais para a utilização da infraestrutura tecnológica da AVLE pela LOJA PARCEIRA cadastrada, visando a gestão de clubes de compras e o split automático de pagamentos.</p>
+              <p>Este documento estabelece as condicoes gerais para a utilizacao da infraestrutura tecnologica da AVLE pela LOJA PARCEIRA cadastrada, visando a gestao de clubes de compras e o split automatico de pagamentos.</p>
               
               <p className="font-bold text-stone-800 mt-4">2. DO REPASSE E SPLIT DE PAGAMENTOS</p>
-              <p>Fica acordado que a plataforma AVLE reterá automaticamente o percentual de 10% (dez por cento) sobre o valor de cada mensalidade transacionada via Gateway de Pagamento, a título de licença de uso do software, sendo os 90% (noventa por cento) restantes repassados à subconta da LOJA PARCEIRA.</p>
+              <p>Fica acordado que a plataforma AVLE retera automaticamente o percentual de 10% (dez por cento) sobre o valor de cada mensalidade transacionada via Gateway de Pagamento, a titulo de licenca de uso do software, sendo os 90% (noventa por cento) restantes repassados a subconta da LOJA PARCEIRA.</p>
 
-              <p className="font-bold text-stone-800 mt-4">3. DA RESPONSABILIDADE SOLIDÁRIA</p>
-              <p>A LOJA PARCEIRA assume integral responsabilidade civil e consumerista sobre a entrega dos produtos aos clientes contemplados no prazo estabelecido, bem como sobre a absorção de eventuais taxas de chargeback geradas por contestações.</p>
+              <p className="font-bold text-stone-800 mt-4">3. DA RESPONSABILIDADE SOLIDARIA</p>
+              <p>A LOJA PARCEIRA assume integral responsabilidade civil e consumerista sobre a entrega dos produtos aos clientes contemplados no prazo estabelecido, bem como sobre a absorcao de eventuais taxas de chargeback geradas por contestacoes.</p>
 
               <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl mt-6">
-                <strong>Nota:</strong> O documento contratual final em formato PDF será disponibilizado neste espaço assim que aprovado pela assessoria jurídica. O aceite digital no formulário possui validade legal e vincula o CNPJ/CPF cadastrado a estas diretrizes.
+                <strong>Nota:</strong> O documento contratual final em formato PDF sera disponibilizado neste espaco assim que aprovado pela assessoria juridica. O aceite digital no formulario possui validade legal e vincula o CNPJ/CPF cadastrado a estas diretrizes.
               </div>
             </div>
 
-            <div className="p-4 border-t border-stone-100 flex justify-end bg-stone-50 rounded-b-2xl">
+            <div className="p-4 border-t border-stone-100 flex justify-end bg-stone-50 rounded-b-2xl gap-3">
+              <button 
+                type="button" 
+                onClick={() => setModalTermosAberto(false)} 
+                className="px-6 py-2.5 border border-stone-200 text-stone-600 font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer hover:bg-stone-100 transition-all shadow-sm"
+              >
+                Fechar
+              </button>
               <button 
                 type="button" 
                 onClick={() => { 
@@ -1272,7 +1332,7 @@ function Autenticacao() {
                 }} 
                 className="px-6 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all shadow-sm"
               >
-                Li e Aceito as Condições
+                Li e Aceito as Condicoes
               </button>
             </div>
           </div>
