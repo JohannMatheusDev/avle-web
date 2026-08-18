@@ -158,6 +158,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   };
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [periodoClientes, setPeriodoClientes] = useState<1 | 6 | 12>(12);
+  const [paginaClientes, setPaginaClientes] = useState(1);
+  const CLIENTES_POR_PAGINA = 10;
 
   const aplicarMascaraTelefone = (valor: string) => {
     const apenasNumeros = valor.replace(/\D/g, '');
@@ -1264,13 +1266,22 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
             )}
 
-            {abaLoja === 'clientes' && (
+            {abaLoja === 'clientes' && (() => {
+              const totalPaginas = Math.max(1, Math.ceil(clientesAtivos.length / CLIENTES_POR_PAGINA));
+              const paginaSegura = Math.min(paginaClientes, totalPaginas);
+              const clientesPagina = clientesAtivos.slice(
+                (paginaSegura - 1) * CLIENTES_POR_PAGINA,
+                paginaSegura * CLIENTES_POR_PAGINA
+              );
+              return (
               <div className="space-y-6 animate-fadeIn text-left">
                   <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
                       <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                           <div>
                               <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Clientes da Unidade</h3>
-                              <p className="text-[10px] text-stone-400 font-medium">Consumidores registrados diretamente pela loja ou aprovados na plataforma.</p>
+                              <p className="text-[10px] text-stone-400 font-medium">
+                                {clientesAtivos.length} cliente{clientesAtivos.length !== 1 ? 's' : ''} · página {paginaSegura} de {totalPaginas}
+                              </p>
                           </div>
                       </div>
                       <div className="overflow-x-auto">
@@ -1288,7 +1299,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                             {clientesAtivos.length === 0 ? (
                                <tr><td colSpan={5} className="py-6 text-center text-stone-400 italic">Nenhum cliente ativo registrado na sua unidade.</td></tr>
                             ) : (
-                               clientesAtivos.map((cli, idx) => (
+                               clientesPagina.map((cli, idx) => (
                                  <tr key={idx} className="hover:bg-stone-50/60 transition-all">
                                    <td className="py-3 px-5">
                                      <span className="block font-bold text-[#0B1E14]">{cli.nome}</span>
@@ -1316,6 +1327,44 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           </tbody>
                         </table>
                       </div>
+
+                      {/* Paginação */}
+                      {totalPaginas > 1 && (
+                        <div className="px-5 py-3 border-t border-[#DFD9CE] bg-stone-50/30 flex items-center justify-between">
+                          <span className="text-[10px] text-stone-400 font-medium">
+                            Exibindo {(paginaSegura - 1) * CLIENTES_POR_PAGINA + 1}–{Math.min(paginaSegura * CLIENTES_POR_PAGINA, clientesAtivos.length)} de {clientesAtivos.length}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setPaginaClientes(p => Math.max(1, p - 1))}
+                              disabled={paginaSegura === 1}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#DFD9CE] bg-white text-stone-500 hover:bg-stone-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer text-sm"
+                            >
+                              ‹
+                            </button>
+                            {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(p => (
+                              <button
+                                key={p}
+                                onClick={() => setPaginaClientes(p)}
+                                className={`w-7 h-7 flex items-center justify-center rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                                  p === paginaSegura
+                                    ? 'bg-[#0B1E14] text-white'
+                                    : 'border border-[#DFD9CE] bg-white text-stone-500 hover:bg-stone-100'
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => setPaginaClientes(p => Math.min(totalPaginas, p + 1))}
+                              disabled={paginaSegura === totalPaginas}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#DFD9CE] bg-white text-stone-500 hover:bg-stone-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer text-sm"
+                            >
+                              ›
+                            </button>
+                          </div>
+                        </div>
+                      )}
                   </div>
 
                   {clientesBloqueados.length > 0 && (
@@ -1359,7 +1408,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                      </div>
                   )}
               </div>
-            )}
+              );
+            })()}
 
             {abaLoja === 'aprovacoes' && (
               <div className="space-y-6 animate-fadeIn text-left">
