@@ -145,7 +145,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   : 'hover:bg-white/5 opacity-75'
               }`}
             >
-              <span>Visao geral</span>
+              <span>Visão geral</span>
             </button>
             <button
               onClick={() => {
@@ -362,7 +362,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 <div className="flex justify-between items-center">
                   <div>
                     <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Dashboard Analitico</h2>
-                    <p className="text-xs text-stone-400 font-medium">Metricas de performance e engajamento coletivo.</p>
+                    <p className="text-xs text-stone-400 font-medium">Métricas de performance e engajamento coletivo.</p>
                   </div>
                   <button
                     onClick={carregarDadosDoBanco}

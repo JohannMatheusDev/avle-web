@@ -1,6 +1,6 @@
 // Regras de aceitação compartilhadas pelo login principal e pela página de
 // convite. As duas telas validavam por conta própria e checavam apenas o
-// tamanho dos campos, entao um CPF 99999999999 ou um telefone (00) 00000-0000
+// tamanho dos campos, então um CPF 99999999999 ou um telefone (00) 00000-0000
 // passavam direto. O servidor aplica as mesmas regras, aqui e so para o retorno
 // imediato ao usuário.
 

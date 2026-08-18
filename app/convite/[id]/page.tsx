@@ -178,11 +178,11 @@ export default function CadastroConvite() {
   const senhaForte = avaliarSenhaForte(senha);
   const novaSenhaForte = avaliarSenhaForte(novaSenha);
 
-  // Antes bastava ter 11 dígitos, entao 999.999.999-99 era aceito. Agora os
+  // Antes bastava ter 11 dígitos, então 999.999.999-99 era aceito. Agora os
   // dígitos verificadores são conferidos, aqui e também no servidor.
   const tamanhoDocumentoValido = cpfValido(cpf);
   // O telefone deixou de ser opcional no cadastro: e para ele que vai o código
-  // de verificação, entao sem número válido não ha como confirmar a conta.
+  // de verificação, então sem número válido não ha como confirmar a conta.
   const telefoneCadastroValido = telefoneValido(telefoneCadastro);
 
   const formularioValido = isLogin
@@ -377,7 +377,7 @@ export default function CadastroConvite() {
     setMensagem({ tipo: '', texto: '' });
     setCarregando(true);
 
-    // Quem acabou de se cadastrar nunca preencheu o campo de login, entao o
+    // Quem acabou de se cadastrar nunca preencheu o campo de login, então o
     // telefone guardado no cadastro e quem identifica a conta aqui.
     const payload = identificarContaEmVerificacao(codigoOtp);
 

@@ -256,7 +256,7 @@ export default function PainelAdminSaaS() {
             <div className="space-y-5 animate-fade-in">
               <p className="text-xs text-stone-400 leading-relaxed">
                 O agendamento congela a lista de cotas aptas e grava o hash dela. A contemplada sai do concurso da
-                Loteria Federal seguinte a data de corte, entao o resultado pode ser conferido por qualquer pessoa e
+                Loteria Federal seguinte a data de corte, então o resultado pode ser conferido por qualquer pessoa e
                 não depende de confiar no sistema.
               </p>
 

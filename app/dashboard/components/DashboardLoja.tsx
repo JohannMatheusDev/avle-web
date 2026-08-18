@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CardContemplacao, CotaElegivel, SorteioResumo, mensagemDeErro } from '../../lib/contemplacao';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
+import { grupoDisponivel, grupoEncerrado, vagasDoGrupo } from '../../lib/grupos';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Cell,
@@ -25,6 +26,20 @@ interface Grupo {
   valorParcela: number;
   duracaoMeses: number;
   quantidadeMaxCotas: number;
+  // Enviados pelo backend para separar grupo aberto de grupo lotado/encerrado.
+  // Opcionais: ver a regra em app/lib/grupos.ts.
+  status?: 'ABERTO' | 'ENCERRADO';
+  cotasOcupadas?: number;
+}
+
+interface ItemFilaEspera {
+  id: number;
+  clienteId: number;
+  nome: string;
+  email: string | null;
+  telefone: string | null;
+  cpf: string | null;
+  criadoEm: string | null;
 }
 
 interface ClienteDisponivel {
@@ -56,7 +71,7 @@ interface ResumoFinanceiro {
 export default function DashboardLoja({ usuario }: { usuario: any }) {
   const router = useRouter();
   
-  const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'grupos' | 'sorteios' | 'financeiro' | 'relatorios' | 'configuracoes'>('geral');
+  const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'fila' | 'grupos' | 'sorteios' | 'financeiro' | 'relatorios' | 'configuracoes'>('geral');
   const [obrigacoesFuturas, setObrigacoesFuturas] = useState<number>(0);
   const [idOperacao, setIdOperacao] = useState('Nenhuma');
   const [grupoSorteioId, setGrupoSorteioId] = useState('');
@@ -119,7 +134,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [nomeLojaReal, setNomeLojaReal] = useState<string>('');
 
   // Falhas de carregamento por seção, exibidas no topo do painel. Sem isso uma
-  // API fora do ar aparece como "nenhum registro", que e indistinguivel de vazio.
+  // API fora do ar aparece como "nenhum registro", que e indistinguível de vazio.
   const [errosApi, setErrosApi] = useState<Record<string, string>>({});
 
   const [notificacao, setNotificacao] = useState<{
@@ -128,6 +143,13 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     mensagem: string;
     isError?: boolean;
   }>({ aberto: false, titulo: '', mensagem: '', isError: false });
+
+  // Fila de espera: clientes que pediram vaga quando nao havia grupo aberto.
+  // A loja convoca manualmente, escolhendo em qual grupo a pessoa entra.
+  const [filaEspera, setFilaEspera] = useState<ItemFilaEspera[]>([]);
+  const [modalConvocar, setModalConvocar] = useState<{ aberto: boolean; item: ItemFilaEspera | null }>({ aberto: false, item: null });
+  const [grupoDestinoConvocacao, setGrupoDestinoConvocacao] = useState('');
+  const [processandoFilaId, setProcessandoFilaId] = useState<number | null>(null);
 
   const [solicitacoesAcesso, setSolicitacoesAcesso] = useState<any[]>([]);
   const [processandoAcessoId, setProcessandoAcessoId] = useState<number | null>(null);
@@ -245,7 +267,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       buscarJson<number>('Obrigações futuras', `${API_URL}/api/financeiro/obrigacoes/loja/${lojaId}`, 0),
       buscarJson<ResumoFinanceiro>('Resumo financeiro', `${API_URL}/api/financeiro/loja/${lojaId}/resumo`, { recebidoEsteMes: 0, aReceberContemplados: 0, emNegociacao: 0, acordosAtivos: 0, repasses: [] }),
       buscarJson<unknown[]>('Histórico de transações', `${API_URL}/api/financeiro/lojas/${lojaId}/transacoes`, []),
-      buscarJson<{ taxaChurn: number }>('Metricas de churn', `${API_URL}/api/lojas/${lojaId}/metricas-churn`, { taxaChurn: 0 }),
+      buscarJson<{ taxaChurn: number }>('Métricas de churn', `${API_URL}/api/lojas/${lojaId}/metricas-churn`, { taxaChurn: 0 }),
     ]);
 
     setObrigacoesFuturas(Number(obrigacoes) || 0);
@@ -277,6 +299,65 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     if (Array.isArray(data)) setSolicitacoesAcesso(data);
   };
 
+  // Convoca alguem da fila para um grupo especifico. O vinculo em si e feito
+  // pelo servidor, que revalida a vaga antes de gravar: entre a tela carregar
+  // e a loja clicar, a ultima cota pode ter sido preenchida por outro caminho.
+  const handleConvocarDaFila = async () => {
+    const item = modalConvocar.item;
+    const grupoId = Number(grupoDestinoConvocacao);
+
+    if (!item || !grupoId) {
+      mostrarAviso('Seleção Necessária', 'Escolha em qual grupo de compras esta cliente vai entrar.', true);
+      return;
+    }
+
+    setProcessandoFilaId(item.id);
+
+    try {
+      const lojaId = usuario?.lojaId || usuario?.id;
+      const res = await fetch(`${API_URL}/api/lojas/${lojaId}/fila-espera/${item.id}/convocar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grupoId }),
+      });
+
+      if (!res.ok) throw new Error(await lerMensagemErro(res) || 'Falha ao convocar a cliente da fila.');
+
+      setModalConvocar({ aberto: false, item: null });
+      setGrupoDestinoConvocacao('');
+      await Promise.all([carregarFilaEspera(), carregarGruposDoBanco()]);
+      mostrarAviso('Cliente Convocada', `${item.nome} entrou no grupo de compras e saiu da fila de espera.`, false);
+    } catch (err) {
+      mostrarAviso('Erro', mensagemDeErro(err, 'Falha ao convocar a cliente da fila.'), true);
+    } finally {
+      setProcessandoFilaId(null);
+    }
+  };
+
+  const handleRemoverDaFila = async (item: ItemFilaEspera) => {
+    setProcessandoFilaId(item.id);
+
+    try {
+      const lojaId = usuario?.lojaId || usuario?.id;
+      const res = await fetch(`${API_URL}/api/lojas/${lojaId}/fila-espera/${item.id}`, { method: 'DELETE' });
+
+      if (!res.ok) throw new Error(await lerMensagemErro(res) || 'Falha ao remover a cliente da fila.');
+
+      await carregarFilaEspera();
+      mostrarAviso('Removida da Fila', `${item.nome} saiu da fila de espera desta unidade.`, false);
+    } catch (err) {
+      mostrarAviso('Erro', mensagemDeErro(err, 'Falha ao remover a cliente da fila.'), true);
+    } finally {
+      setProcessandoFilaId(null);
+    }
+  };
+
+  const carregarFilaEspera = async () => {
+    const lojaId = usuario?.lojaId || usuario?.id;
+    const data = await buscarJson<unknown[]>('Fila de espera', `${API_URL}/api/lojas/${lojaId}/fila-espera`, []);
+    if (Array.isArray(data)) setFilaEspera(data as ItemFilaEspera[]);
+  };
+
   const recarregarParticipantesDoGrupo = async () => {
     if (!grupoSelecionado) return;
     const data = await buscarJson<unknown[]>('Participantes do grupo', `${API_URL}/api/usuarios/comunidade/${grupoSelecionado.id}/participantes`, []);
@@ -297,6 +378,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     carregarDadosFinanceiros();
     carregarContagemClientes(lojaId);
     carregarSolicitacoesAcesso();
+    carregarFilaEspera();
     carregarListaClientesDaLoja();
     carregarAnalytics();
 
@@ -501,7 +583,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       const incluidos = Array.isArray(data?.adicionados) ? data.adicionados.length : 0;
       const recusados: ClienteRecusado[] = Array.isArray(data?.ignorados) ? data.ignorados : [];
 
-      // A API avalia cliente a cliente, entao a seleção pode entrar so em parte.
+      // A API avalia cliente a cliente, então a seleção pode entrar so em parte.
       // O detalhe de quem ficou de fora precisa chegar ao operador.
       const detalhe = recusados.length > 0
         ? `\n\nNao incluidos:\n${recusados.map((r) => `- ${r.nome}: ${r.motivo}`).join('\n')}`
@@ -838,13 +920,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           
           <nav className="space-y-0.5 mt-2">
             {[
-              { id: 'geral',      label: 'Visao Geral' },
+              { id: 'geral',      label: 'Visão Geral' },
               { id: 'clientes',   label: 'Clientes' },
-              { id: 'aprovacoes', label: 'Aprovacoes' },
+              { id: 'aprovacoes', label: 'Aprovações' },
+              { id: 'fila',       label: 'Fila de Espera' },
               { id: 'grupos',     label: 'Grupos' },
               { id: 'sorteios',   label: 'Sorteios / Entrega' },
               { id: 'financeiro', label: 'Financeiro' },
-              { id: 'relatorios', label: 'Relatorios' }
+              { id: 'relatorios', label: 'Relatórios' }
             ].map((tab) => {
               const isActive = abaLoja === tab.id && !grupoSelecionado;
               return (
@@ -861,6 +944,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   {tab.id === 'aprovacoes' && solicitacoesAcesso.length > 0 && (
                     <span className="bg-rose-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md animate-pulse">
                       {solicitacoesAcesso.length}
+                    </span>
+                  )}
+                  {tab.id === 'fila' && filaEspera.length > 0 && (
+                    <span className="bg-[#BD6B42] text-white text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                      {filaEspera.length}
                     </span>
                   )}
                 </button>
@@ -898,7 +986,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </p>
             ))}
             <p className="text-[10px] text-red-600 pt-1">
-              Os números abaixo podem estar zerados ou incompletos. Isso não significa ausencia de registros.
+              Os números abaixo podem estar zerados ou incompletos. Isso não significa ausência de registros.
             </p>
           </div>
         )}
@@ -911,13 +999,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">
               {grupoSelecionado
                 ? `Ficha: ${grupoSelecionado.nome}`
-                : abaLoja === 'geral'        ? 'Visao Geral Comercial'
+                : abaLoja === 'geral'        ? 'Visão Geral Comercial'
                 : abaLoja === 'clientes'     ? 'Registro de Clientes'
                 : abaLoja === 'configuracoes'? 'Configurações da Loja'
                 : abaLoja === 'aprovacoes'   ? 'Central de Aprovações'
                 : abaLoja === 'sorteios'     ? 'Sorteios e Entregas'
                 : abaLoja === 'financeiro'   ? 'Financeiro / Extrato'
                 : abaLoja === 'relatorios'   ? 'Relatórios de Performance'
+                : abaLoja === 'fila'         ? 'Fila de Espera'
                 : abaLoja === 'grupos'       ? 'Grupos de Compras'
                 : abaLoja}
             </h2>
@@ -1497,6 +1586,105 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
             )}
 
+            {abaLoja === 'fila' && (() => {
+              const gruposAbertos = listaGrupos.filter(grupoDisponivel);
+
+              return (
+                <div className="space-y-6 animate-fadeIn text-left">
+                  <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
+                    <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <div>
+                        <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Fila de Espera</h3>
+                        <p className="text-[10px] text-stone-400 font-medium">
+                          Clientes que pediram vaga enquanto todos os grupos estavam preenchidos, na ordem de chegada.
+                        </p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-3 py-1.5 rounded-full border ${
+                        gruposAbertos.length > 0
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-stone-100 text-stone-500 border-stone-200'
+                      }`}>
+                        {gruposAbertos.length > 0
+                          ? `${gruposAbertos.length} grupo(s) com vaga`
+                          : 'Nenhum grupo com vaga'}
+                      </span>
+                    </div>
+
+                    <div className="p-6">
+                      {filaEspera.length === 0 ? (
+                        <div className="text-center text-stone-400 text-xs italic py-12 bg-stone-50 rounded-xl border border-dashed">
+                          Ninguém na fila de espera no momento.
+                        </div>
+                      ) : (
+                        <>
+                          {gruposAbertos.length === 0 && (
+                            <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5">
+                              Não há grupo com vaga aberta agora. Lance um novo grupo de compras para poder convocar quem está esperando.
+                            </p>
+                          )}
+
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse min-w-[640px]">
+                              <thead>
+                                <tr className="text-[9px] text-stone-400 uppercase tracking-widest border-b border-[#DFD9CE]">
+                                  <th className="py-3 px-5">Posição</th>
+                                  <th className="py-3 px-5">Cliente</th>
+                                  <th className="py-3 px-5">Contato</th>
+                                  <th className="py-3 px-5">Na fila desde</th>
+                                  <th className="py-3 px-5 text-center">Ações</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-stone-100">
+                                {filaEspera.map((item, indice) => (
+                                  <tr key={item.id} className="hover:bg-stone-50/60 transition-colors">
+                                    <td className="py-4 px-5">
+                                      <span className="text-sm font-bold font-mono text-[#BD6B42]">{indice + 1}º</span>
+                                    </td>
+                                    <td className="py-4 px-5">
+                                      <span className="block text-xs font-bold text-[#0B1E14]">{item.nome}</span>
+                                      <span className="block text-[10px] text-stone-400 font-mono mt-0.5">
+                                        {item.cpf ? aplicarMascaraCpf(item.cpf) : 'CPF não informado'}
+                                      </span>
+                                    </td>
+                                    <td className="py-4 px-5 text-[11px] text-stone-600">
+                                      <span className="block">{item.telefone ? aplicarMascaraTelefone(item.telefone) : 'Telefone não informado'}</span>
+                                      <span className="block text-stone-400">{item.email || 'E-mail não informado'}</span>
+                                    </td>
+                                    <td className="py-4 px-5 text-[11px] text-stone-500">
+                                      {item.criadoEm ? new Date(item.criadoEm).toLocaleDateString('pt-BR') : '—'}
+                                    </td>
+                                    <td className="py-4 px-5">
+                                      <div className="flex gap-2 justify-center">
+                                        <button
+                                          disabled={processandoFilaId === item.id || gruposAbertos.length === 0}
+                                          onClick={() => { setModalConvocar({ aberto: true, item }); setGrupoDestinoConvocacao(''); }}
+                                          title={gruposAbertos.length === 0 ? 'Nenhum grupo com vaga disponível' : 'Convocar para um grupo'}
+                                          className="bg-[#0B1E14] text-white text-[10px] font-bold px-4 py-2 rounded-lg hover:bg-opacity-90 transition-all uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                                        >
+                                          Convocar
+                                        </button>
+                                        <button
+                                          disabled={processandoFilaId === item.id}
+                                          onClick={() => handleRemoverDaFila(item)}
+                                          className="bg-white text-rose-600 border border-rose-200 text-[10px] font-bold px-4 py-2 rounded-lg hover:bg-rose-50 transition-all uppercase tracking-wider disabled:opacity-40 cursor-pointer"
+                                        >
+                                          Remover
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {abaLoja === 'grupos' && (
               <div className="space-y-4 animate-fadeIn text-left">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1509,6 +1697,28 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         </div>
                         <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-stone-50 border text-stone-500">ID #{grupo.id}</span>
                       </div>
+                      {(() => {
+                        const vagas = vagasDoGrupo(grupo);
+                        if (grupoEncerrado(grupo)) {
+                          return (
+                            <span className="text-[9px] font-bold px-2 py-1 rounded-md bg-stone-100 text-stone-500 border border-stone-200 uppercase tracking-wider w-fit">
+                              Encerrado · não aparece para novas clientes
+                            </span>
+                          );
+                        }
+                        if (vagas === 0) {
+                          return (
+                            <span className="text-[9px] font-bold px-2 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-wider w-fit">
+                              Lotado · fila de espera ativa
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="text-[9px] font-bold px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider w-fit">
+                            Aberto{vagas === null ? '' : ` · ${vagas} vaga(s)`}
+                          </span>
+                        );
+                      })()}
                       <div className="flex justify-between items-center text-xs border-t pt-3">
                         <span className="text-stone-400 font-medium">Parcela: <strong className="text-[#0B1E14]">R$ {grupo.valorParcela.toFixed(2)}</strong></span>
                         <div className="flex items-center gap-3">
@@ -1529,8 +1739,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   <div className="space-y-1">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">Agendar Sorteio Auditável</h3>
                     <p className="text-xs text-stone-500 leading-relaxed">
-                      Ao agendar, a lista de participantes e congelada e não muda mais. O resultado sai do concurso da
-                      Loteria Federal seguinte a data de corte, entao ninguem, nem a loja nem a AVLE, consegue influenciar
+                      Ao agendar, a lista de participantes é congelada e não muda mais. O resultado sai do concurso da
+                      Loteria Federal seguinte a data de corte, então ninguém, nem a loja nem a AVLE, consegue influenciar
                       em quem vai cair.
                     </p>
                   </div>
@@ -2013,6 +2223,65 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {modalConvocar.aberto && modalConvocar.item && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Convocar da Fila</h3>
+              <button
+                type="button"
+                onClick={() => setModalConvocar({ aberto: false, item: null })}
+                className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer"
+              >
+                X
+              </button>
+            </div>
+
+            <p className="text-[11px] text-stone-500 leading-relaxed bg-stone-50 p-3 rounded-xl border border-dashed">
+              <strong className="text-[#0B1E14]">{modalConvocar.item.nome}</strong> sai da fila de espera e passa a ocupar
+              uma cota no grupo escolhido abaixo.
+            </p>
+
+            <div>
+              <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Grupo de destino</label>
+              <select
+                value={grupoDestinoConvocacao}
+                onChange={(e) => setGrupoDestinoConvocacao(e.target.value)}
+                className="w-full px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42] cursor-pointer"
+              >
+                <option value="">Selecione um grupo com vaga</option>
+                {listaGrupos.filter(grupoDisponivel).map((grupo) => {
+                  const vagas = vagasDoGrupo(grupo);
+                  return (
+                    <option key={grupo.id} value={grupo.id}>
+                      {grupo.nome}{vagas === null ? '' : ` · ${vagas} vaga(s)`}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div className="flex space-x-2 pt-2 border-t w-full">
+              <button
+                type="button"
+                onClick={() => setModalConvocar({ aberto: false, item: null })}
+                className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConvocarDaFila}
+                disabled={processandoFilaId !== null || grupoDestinoConvocacao === ''}
+                className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processandoFilaId !== null ? 'Convocando...' : 'Confirmar convocação'}
+              </button>
+            </div>
           </div>
         </div>
       )}

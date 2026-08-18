@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { CardContemplacao, EtapaTrilha, mensagemDeErro } from '../../lib/contemplacao';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
+import { grupoDisponivel } from '../../lib/grupos';
 import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
@@ -37,6 +38,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [erroConexao, setErroConexao] = useState(false);
 
   const [acessosLoja, setAcessosLoja] = useState<any[]>([]);
+
+  // Fila de espera por loja: em qual delas esta cliente ja pediu vaga e em que
+  // posicao. Carregado junto dos acessos, no mesmo formato de lista por loja.
+  const [filasEspera, setFilasEspera] = useState<any[]>([]);
+  const [processandoFila, setProcessandoFila] = useState(false);
   const [modalAcessoAberto, setModalAcessoAberto] = useState(false);
   const [lojaParaAcesso, setLojaParaAcesso] = useState<any | null>(null);
   const [solicitandoAcesso, setSolicitandoAcesso] = useState(false);
@@ -225,6 +231,56 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     } catch (err) {}
   };
 
+  // Entra na fila da loja em foco. So e oferecido quando nao ha nenhum grupo
+  // aberto, então a cliente nunca escolhe fila tendo vaga disponivel.
+  const handleEntrarNaFila = async () => {
+    const userId = usuario?.id;
+    const lojaId = lojaEmFoco?.id;
+    if (!userId || !lojaId) return;
+
+    setProcessandoFila(true);
+
+    try {
+      const res = await fetch(`${API_URL}/api/lojas/${lojaId}/fila-espera`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clienteId: userId }),
+      });
+
+      if (!res.ok) throw new Error();
+
+      await buscarFilasEspera(userId);
+    } catch (err) {
+      // Silencioso de proposito: a tela mostra o estado real apos o recarregamento.
+    } finally {
+      setProcessandoFila(false);
+    }
+  };
+
+  const handleSairDaFila = async (filaId: number) => {
+    const userId = usuario?.id;
+    const lojaId = lojaEmFoco?.id;
+    if (!userId || !lojaId) return;
+
+    setProcessandoFila(true);
+
+    try {
+      await fetch(`${API_URL}/api/lojas/${lojaId}/fila-espera/${filaId}`, { method: 'DELETE' });
+      await buscarFilasEspera(userId);
+    } catch (err) {
+    } finally {
+      setProcessandoFila(false);
+    }
+  };
+
+  const buscarFilasEspera = async (userId: number) => {
+    try {
+      const res = await fetch(`${API_URL}/api/usuarios/${userId}/fila-espera`);
+      const data = await res.json();
+      if (Array.isArray(data)) setFilasEspera(data);
+    } catch (err) {}
+  };
+
   useEffect(() => {
     let currentUserId = usuario?.id;
     let currentUser = usuario;
@@ -243,6 +299,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       buscarCarteiraDeClubes(undefined, currentUserId);
       buscarContemplacoes(currentUserId);
       buscarAcessosLoja(currentUserId); 
+      buscarFilasEspera(currentUserId);
 
       fetch(`${API_URL}/api/usuarios/${currentUserId}`)
         .then((res) => {
@@ -368,6 +425,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
        if(res.ok) {
           mostrarAviso('Solicitação Enviada', 'A caixa de mensagens da loja foi notificada para realizar a análise de crédito. O processo costuma ser rápido.', false);
           buscarAcessosLoja(usuario?.id);
+          buscarFilasEspera(usuario?.id);
           setModalAcessoAberto(false);
        } else {
           mostrarAviso('Erro', 'Não foi possível enviar a solicitação no momento.', true);
@@ -624,7 +682,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           <div className="animate-fadeIn">
 
             {/* Ser sorteada e a coisa mais importante que acontece com a cliente,
-                entao o card vem antes de tudo na aba inicial. */}
+                então o card vem antes de tudo na aba inicial. */}
             {cardsContemplacao.map((card) => (
               <div
                 key={card.cotaId}
@@ -886,13 +944,72 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
                 {carregandoGrupos ? (
                    <div className="py-12 text-center text-xs font-bold text-stone-400 animate-pulse">Consultando planos no servidor...</div>
-                ) : gruposDaLoja.length === 0 ? (
-                   <div className="bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
-                      Este estabelecimento ainda não lançou nenhum grupo de compras na plataforma.
-                   </div>
-                ) : (
+                ) : (() => {
+                   // Um grupo encerrado ou lotado sai da vitrine, mas continua visivel
+                   // se a cliente ja tem cota nele: caso contrario ela perderia o acesso
+                   // ao painel do próprio clube.
+                   const gruposVisiveis = gruposDaLoja.filter(
+                      (grupo) => grupoDisponivel(grupo) || clubesAtivos.some((c) => c.grupo?.id === grupo.id)
+                   );
+                   const minhaFila = filasEspera.find((f) => f.lojaId === lojaEmFoco?.id);
+
+                   if (gruposDaLoja.length === 0) {
+                      return (
+                         <div className="bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
+                            Este estabelecimento ainda não lançou nenhum grupo de compras na plataforma.
+                         </div>
+                      );
+                   }
+
+                   if (gruposVisiveis.length === 0) {
+                      return (
+                         <div className="bg-white border border-[#DFD9CE] rounded-2xl p-8 text-center space-y-4 shadow-sm">
+                            <span className="inline-block text-[9px] font-black text-[#BD6B42] bg-[#F5F2EB] px-3 py-1 rounded-full uppercase tracking-widest border border-[#DFD9CE]">
+                               Grupos preenchidos
+                            </span>
+                            <h3 className="text-base font-serif font-bold text-[#0B1E14]">
+                               Todos os grupos desta loja já estão preenchidos
+                            </h3>
+
+                            {minhaFila ? (
+                               <>
+                                  <p className="text-xs text-stone-500 leading-relaxed max-w-md mx-auto">
+                                     Você já está na fila de espera desta loja
+                                     {typeof minhaFila.posicao === 'number' ? (
+                                        <> na <strong className="text-[#0B1E14]">{minhaFila.posicao}ª posição</strong></>
+                                     ) : null}
+                                     . Assim que a loja abrir um novo grupo, ela convoca quem está esperando pela ordem de chegada.
+                                  </p>
+                                  <button
+                                     onClick={() => handleSairDaFila(minhaFila.id)}
+                                     disabled={processandoFila}
+                                     className="text-[10px] font-bold text-stone-500 hover:text-rose-600 uppercase tracking-wider underline transition-colors cursor-pointer disabled:opacity-50"
+                                  >
+                                     {processandoFila ? 'Processando...' : 'Sair da fila de espera'}
+                                  </button>
+                               </>
+                            ) : (
+                               <>
+                                  <p className="text-xs text-stone-500 leading-relaxed max-w-md mx-auto">
+                                     No momento não há cota disponível para entrar. Você pode entrar na fila de espera:
+                                     assim que a loja abrir um novo grupo, você é chamada pela ordem de chegada.
+                                  </p>
+                                  <button
+                                     onClick={handleEntrarNaFila}
+                                     disabled={processandoFila}
+                                     className="bg-[#0B1E14] text-white px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                                  >
+                                     {processandoFila ? 'Entrando...' : 'Entrar na fila de espera'}
+                                  </button>
+                               </>
+                            )}
+                         </div>
+                      );
+                   }
+
+                   return (
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-2">
-                      {gruposDaLoja.slice().sort((a, b) => a.id - b.id).map(grupo => {
+                      {gruposVisiveis.slice().sort((a, b) => a.id - b.id).map(grupo => {
                          const cotaExistente = clubesAtivos.find(c => c.grupo?.id === grupo.id);
                          const isAtivo = !!cotaExistente;
                          
@@ -935,7 +1052,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                          )
                       })}
                    </div>
-                )}
+                   );
+                })()}
               </div>
             )}
 

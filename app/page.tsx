@@ -88,7 +88,7 @@ function Autenticacao() {
   // "Lembrar de mim" guarda apenas o e-mail ou telefone usado para entrar, nunca
   // a senha: preenche o campo na próxima visita sem deixar credencial gravada no
   // aparelho, que pode ser compartilhado. Antes o checkbox era enviado no
-  // payload do login e o servidor simplesmente ignorava, entao não fazia nada.
+  // payload do login e o servidor simplesmente ignorava, então não fazia nada.
   useEffect(() => {
     const identificadorGuardado = localStorage.getItem('@avle:identificador_lembrado');
     if (identificadorGuardado) {
@@ -375,7 +375,7 @@ function Autenticacao() {
     }
   };
 
-  // Quem acabou de se cadastrar nunca preencheu o campo de login, entao o
+  // Quem acabou de se cadastrar nunca preencheu o campo de login, então o
   // telefone guardado no cadastro e quem identifica a conta na verificação.
   const identificarContaEmVerificacao = (codigo?: string) => {
     const base: Record<string, string> = {};
