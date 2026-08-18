@@ -1146,7 +1146,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         <YAxis tick={{ fontSize: 10, fill: '#78716C' }} axisLine={false} tickLine={false} allowDecimals={false} />
                         <Tooltip
                           contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 8, boxShadow: '0 2px 8px #0001' }}
-                          formatter={(v: number) => [v, 'Novos clientes']}
+                          formatter={(v) => [v ?? 0, 'Novos clientes']}
                         />
                         <Bar dataKey="total" radius={[4, 4, 0, 0]}>
                           {(analytics?.novosPorMes ?? []).slice(-periodoClientes).map((_, i, arr) => (
@@ -1182,7 +1182,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         <YAxis tick={{ fontSize: 9, fill: '#78716C' }} axisLine={false} tickLine={false} />
                         <Tooltip
                           contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 8 }}
-                          formatter={(v: number) => [`${v}%`, 'Churn']}
+                          formatter={(v) => [`${v ?? 0}%`, 'Churn']}
                         />
                         <Line
                           type="monotone"
@@ -1224,7 +1224,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           <YAxis type="category" dataKey="nome" width={110} tick={{ fontSize: 10, fill: '#0B1E14', fontWeight: 700 }} axisLine={false} tickLine={false} />
                           <Tooltip
                             contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 8 }}
-                            formatter={(v: number) => [`R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Faturamento']}
+                            formatter={(v) => [`R$ ${Number(v ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Faturamento']}
                           />
                           <Bar dataKey="total" fill="#0B1E14" radius={[0, 4, 4, 0]} />
                         </BarChart>
