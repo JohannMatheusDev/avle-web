@@ -1,21 +1,29 @@
 # Fila de espera — contrato de API
 
-O frontend da fila de espera está implementado e no ar, mas depende de campos e
-endpoints que **ainda precisam existir no backend**. Enquanto eles não existirem,
-a tela se comporta exatamente como antes: nenhum grupo é escondido e a fila
-aparece vazia. Nada quebra.
+Frontend e backend estão implementados. Este documento descreve o contrato entre
+os dois.
 
-Este documento descreve o que a API precisa entregar.
+O backend fica no repositório `avle-api` (Spring Boot). As classes envolvidas são
+`FilaEspera`, `FilaEsperaRepository`, `FilaEsperaService` e `FilaEsperaController`,
+mais as alterações em `Grupo`, `CotaRepository` e `GrupoController`.
+
+> **Ao publicar:** o projeto roda com `spring.jpa.hibernate.ddl-auto=update`, então
+> subir esta versão **altera o schema automaticamente** — cria a tabela
+> `fila_espera` e adiciona a coluna `status` em `grupo`. Vale um backup do banco
+> antes do deploy.
+
+O frontend continua tolerante: se a API responder 404 nessas rotas, a aba da loja
+diz que a funcionalidade não está publicada e nenhum grupo é escondido do cliente.
 
 ## 1. Disponibilidade do grupo (alteração em endpoint existente)
 
-`GET /api/grupos/loja/:lojaId` hoje devolve:
+`GET /api/grupos/loja/:lojaId` antes devolvia:
 
 ```json
 { "id": 12, "nome": "Clube Sala de Estar", "valorParcela": 250.0, "duracaoMeses": 24, "quantidadeMaxCotas": 30 }
 ```
 
-Precisa passar a devolver **dois campos a mais** em cada grupo:
+Agora devolve **dois campos a mais** em cada grupo:
 
 | Campo           | Tipo                        | Significado                                  |
 | --------------- | --------------------------- | -------------------------------------------- |
