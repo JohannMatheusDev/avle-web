@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CardContemplacao, CotaElegivel, SorteioResumo, mensagemDeErro } from '../../lib/contemplacao';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, Cell,
+} from 'recharts';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -145,6 +149,16 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     repasses: []
   });
 
+  type Analytics = {
+    novosPorMes: { mes: string; total: number }[];
+    faturamentoPorGrupo: { nome: string; total: number }[];
+    totalFaturado: number;
+    churnAtual: number;
+    churnHistorico: { mes: string; taxa: number }[];
+  };
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [periodoClientes, setPeriodoClientes] = useState<1 | 6 | 12>(12);
+
   const aplicarMascaraTelefone = (valor: string) => {
     const apenasNumeros = valor.replace(/\D/g, '');
     if (apenasNumeros.length <= 2) return apenasNumeros;
@@ -242,6 +256,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     setTotalClientes(Number(data?.totalClientes) || 0);
   };
 
+  const carregarAnalytics = async () => {
+    const lojaId = usuario?.lojaId || usuario?.id;
+    const data = await buscarJson<Analytics | null>('Analytics', `${API_URL}/api/analytics/loja/${lojaId}`, null);
+    if (data) setAnalytics(data);
+  };
+
   const carregarListaClientesDaLoja = async () => {
     const lojaId = usuario?.lojaId || usuario?.id;
     const data = await buscarJson<unknown[]>('Lista de clientes', `${API_URL}/api/usuarios/lojas/${lojaId}/clientes`, []);
@@ -273,8 +293,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     carregarGruposDoBanco();
     carregarDadosFinanceiros();
     carregarContagemClientes(lojaId);
-    carregarSolicitacoesAcesso(); 
+    carregarSolicitacoesAcesso();
     carregarListaClientesDaLoja();
+    carregarAnalytics();
 
     const intervaloNotificacoes = setInterval(carregarSolicitacoesAcesso, 15000);
     return () => clearInterval(intervaloNotificacoes);
@@ -1052,16 +1073,18 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           <>
             {abaLoja === 'geral' && (
               <div className="space-y-6 animate-fadeIn">
+
+                {/* ── KPI cards ── */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-sm relative overflow-hidden border-t-2 border-t-[#BD6B42]">
                     <div className="flex items-start justify-between mb-3">
-                      <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Faturamento Liquido</span>
+                      <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Faturamento Total</span>
                       <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mt-0.5 flex-shrink-0"></div>
                     </div>
                     <span className="text-3xl font-bold tracking-tight block font-mono leading-none">
-                      R$ {recebidoEsteMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(analytics?.totalFaturado ?? recebidoEsteMes).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
-                    <span className="text-[10px] text-stone-500 mt-2 block">receita acumulada</span>
+                    <span className="text-[10px] text-stone-500 mt-2 block">receita líquida acumulada</span>
                   </div>
                   <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#0B1E14] p-5 rounded-xl shadow-sm flex flex-col">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Clientes Ativos</span>
@@ -1069,22 +1092,175 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <span className="text-[10px] text-stone-400 mt-2">cadastrados na unidade</span>
                   </div>
                   <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#0B1E14] p-5 rounded-xl shadow-sm flex flex-col">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Clubes Criados</span>
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Grupos Ativos</span>
                     <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">{totalGruposValidos}</span>
                     <span className="text-[10px] text-stone-400 mt-2">grupos de compras</span>
                   </div>
                   <div className={`p-5 rounded-xl shadow-sm flex flex-col border-t-2 ${
-                    taxaChurn > 10
+                    (analytics?.churnAtual ?? taxaChurn) > 10
                       ? 'bg-rose-50 border border-rose-200 border-t-rose-500'
                       : 'bg-white border border-[#E6E2D8] border-t-emerald-500'
                   }`}>
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Taxa de Churn</span>
-                    <span className={`text-3xl font-bold tracking-tight font-mono leading-none ${taxaChurn > 10 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      {taxaChurn.toFixed(1)}%
+                    <span className={`text-3xl font-bold tracking-tight font-mono leading-none ${(analytics?.churnAtual ?? taxaChurn) > 10 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {(analytics?.churnAtual ?? taxaChurn).toFixed(1)}%
                     </span>
-                    <span className="text-[10px] text-stone-400 mt-2">cancelamentos</span>
+                    <span className="text-[10px] text-stone-400 mt-2">cotas encerradas / total</span>
                   </div>
                 </div>
+
+                {/* ── Linha 2: gráfico de clientes + churn histórico ── */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+                  {/* Novos clientes por mês */}
+                  <div className="lg:col-span-2 bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Novos Clientes</h3>
+                        <p className="text-[10px] text-stone-400 mt-0.5">cadastros por mês na unidade</p>
+                      </div>
+                      <div className="flex gap-1">
+                        {([1, 6, 12] as const).map(p => (
+                          <button
+                            key={p}
+                            onClick={() => setPeriodoClientes(p)}
+                            className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                              periodoClientes === p
+                                ? 'bg-[#0B1E14] text-white'
+                                : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                            }`}
+                          >
+                            {p === 1 ? '1M' : p === 6 ? '6M' : '12M'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart
+                        data={(analytics?.novosPorMes ?? []).slice(-(periodoClientes))}
+                        margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+                        barSize={periodoClientes === 1 ? 40 : periodoClientes === 6 ? 28 : 18}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#F0EEE8" vertical={false} />
+                        <XAxis dataKey="mes" tick={{ fontSize: 10, fill: '#78716C', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 10, fill: '#78716C' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                        <Tooltip
+                          contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 8, boxShadow: '0 2px 8px #0001' }}
+                          formatter={(v: number) => [v, 'Novos clientes']}
+                        />
+                        <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                          {(analytics?.novosPorMes ?? []).slice(-periodoClientes).map((_, i, arr) => (
+                            <Cell
+                              key={i}
+                              fill={i === arr.length - 1 ? '#BD6B42' : '#0B1E14'}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Churn histórico */}
+                  <div className="bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-sm flex flex-col">
+                    <div className="mb-4">
+                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Evolução do Churn</h3>
+                      <p className="text-[10px] text-stone-400 mt-0.5">últimos 6 meses</p>
+                    </div>
+                    <div className="flex items-end gap-2 mb-3">
+                      <span className={`text-4xl font-black font-mono leading-none ${(analytics?.churnAtual ?? 0) > 10 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {(analytics?.churnAtual ?? 0).toFixed(1)}%
+                      </span>
+                      <span className="text-[10px] text-stone-400 mb-1">atual</span>
+                    </div>
+                    <ResponsiveContainer width="100%" height={120}>
+                      <LineChart
+                        data={analytics?.churnHistorico ?? []}
+                        margin={{ top: 4, right: 4, left: -28, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#F0EEE8" vertical={false} />
+                        <XAxis dataKey="mes" tick={{ fontSize: 9, fill: '#78716C', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 9, fill: '#78716C' }} axisLine={false} tickLine={false} />
+                        <Tooltip
+                          contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 8 }}
+                          formatter={(v: number) => [`${v}%`, 'Churn']}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="taxa"
+                          stroke={(analytics?.churnAtual ?? 0) > 10 ? '#E11D48' : '#10B981'}
+                          strokeWidth={2.5}
+                          dot={{ r: 3, fill: (analytics?.churnAtual ?? 0) > 10 ? '#E11D48' : '#10B981' }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* ── Linha 3: faturamento por grupo ── */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+                  {/* Gráfico de barras horizontais por grupo */}
+                  <div className="lg:col-span-2 bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-sm">
+                    <div className="mb-4">
+                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Faturamento por Grupo</h3>
+                      <p className="text-[10px] text-stone-400 mt-0.5">receita líquida acumulada por clube de compras</p>
+                    </div>
+                    {(analytics?.faturamentoPorGrupo ?? []).length === 0 ? (
+                      <div className="flex items-center justify-center h-36 text-xs text-stone-400 italic">
+                        Nenhuma transação registrada ainda.
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={Math.max(120, (analytics?.faturamentoPorGrupo.length ?? 1) * 48)}>
+                        <BarChart
+                          layout="vertical"
+                          data={analytics?.faturamentoPorGrupo ?? []}
+                          margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
+                          barSize={22}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#F0EEE8" horizontal={false} />
+                          <XAxis type="number" tick={{ fontSize: 10, fill: '#78716C' }} axisLine={false} tickLine={false}
+                            tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`}
+                          />
+                          <YAxis type="category" dataKey="nome" width={110} tick={{ fontSize: 10, fill: '#0B1E14', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                          <Tooltip
+                            contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 8 }}
+                            formatter={(v: number) => [`R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Faturamento']}
+                          />
+                          <Bar dataKey="total" fill="#0B1E14" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+
+                  {/* Card resumo financeiro */}
+                  <div className="bg-[#0B1E14] rounded-xl p-5 shadow-sm flex flex-col justify-between text-white">
+                    <div>
+                      <h3 className="text-[9px] font-black text-stone-400 uppercase tracking-widest mb-1">Resumo Financeiro</h3>
+                      <p className="text-[10px] text-stone-500">posição atual da unidade</p>
+                    </div>
+                    <div className="space-y-4 mt-4">
+                      <div className="border-b border-white/10 pb-3">
+                        <span className="text-[10px] text-stone-400 uppercase tracking-wider block mb-1">Total Faturado</span>
+                        <span className="text-2xl font-black font-mono text-white">
+                          R$ {(analytics?.totalFaturado ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="border-b border-white/10 pb-3">
+                        <span className="text-[10px] text-stone-400 uppercase tracking-wider block mb-1">A Receber (Contempladas)</span>
+                        <span className="text-lg font-bold font-mono text-[#BD6B42]">
+                          R$ {aReceberContemplados.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-stone-400 uppercase tracking-wider block mb-1">Grupos com Faturamento</span>
+                        <span className="text-lg font-bold font-mono text-emerald-400">
+                          {analytics?.faturamentoPorGrupo.length ?? 0}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             )}
 
