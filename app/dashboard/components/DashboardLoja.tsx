@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
@@ -11,6 +11,14 @@ interface Grupo {
   valorParcela: number;
   duracaoMeses: number;
   quantidadeMaxCotas: number;
+}
+
+interface ResumoFinanceiro {
+  recebidoEsteMes: number;
+  aReceberContemplados: number;
+  emNegociacao: number;
+  acordosAtivos: number;
+  repasses: unknown[];
 }
 
 export default function DashboardLoja({ usuario }: { usuario: any }) {
@@ -61,6 +69,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [taxaChurn, setTaxaChurn] = useState<number>(0);
   const [nomeLojaReal, setNomeLojaReal] = useState<string>('');
 
+  // Falhas de carregamento por secao, exibidas no topo do painel. Sem isso uma
+  // API fora do ar aparece como "nenhum registro", que e indistinguivel de vazio.
+  const [errosApi, setErrosApi] = useState<Record<string, string>>({});
+
   const [notificacao, setNotificacao] = useState<{
     aberto: boolean;
     titulo: string;
@@ -106,88 +118,102 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
   };
 
-  const carregarGruposDoBanco = () => {
+  // A API devolve JSON {erro, status, timestamp} nas falhas inesperadas, mas
+  // ainda usa texto puro em varios 400/404. Este helper cobre os dois formatos.
+  const lerMensagemErro = async (res: Response) => {
+    const texto = await res.text();
+    try {
+      return JSON.parse(texto).erro ?? texto;
+    } catch {
+      return texto || `Erro ${res.status}`;
+    }
+  };
+
+  const registrarErro = useCallback((secao: string, mensagem: string) => {
+    console.error(`[${secao}]`, mensagem);
+    setErrosApi((prev) => ({ ...prev, [secao]: mensagem }));
+  }, []);
+
+  const limparErro = useCallback((secao: string) => {
+    setErrosApi((prev) => {
+      if (!(secao in prev)) return prev;
+      const resto = { ...prev };
+      delete resto[secao];
+      return resto;
+    });
+  }, []);
+
+  // Devolve o fallback quando a API falha, para a tela nao quebrar, mas registra
+  // a falha para o operador ver que o dado esta incompleto e nao vazio.
+  const buscarJson = useCallback(async <T,>(secao: string, url: string, fallback: T): Promise<T> => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        registrarErro(secao, await lerMensagemErro(res));
+        return fallback;
+      }
+      limparErro(secao);
+      return await res.json();
+    } catch {
+      registrarErro(secao, 'Nao foi possivel conectar ao servidor.');
+      return fallback;
+    }
+  }, [registrarErro, limparErro]);
+
+  const carregarGruposDoBanco = async () => {
     const lojaId = usuario?.lojaId || usuario?.id;
-    fetch(`${API_URL}/api/grupos/loja/${lojaId}`)
-      .then((res) => res.ok ? res.json() : [])
-      .then((data) => {
-        if (Array.isArray(data)) setListaGrupos(data);
-        else setListaGrupos([]);
-      })
-      .catch(() => setListaGrupos([]));
+    const data = await buscarJson<Grupo[]>('Grupos', `${API_URL}/api/grupos/loja/${lojaId}`, []);
+    setListaGrupos(Array.isArray(data) ? data : []);
   };
 
-  const carregarDadosFinanceiros = () => {
+  const carregarDadosFinanceiros = async () => {
     const lojaId = usuario?.lojaId || usuario?.id;
 
-    fetch(`${API_URL}/api/financeiro/obrigacoes/loja/${lojaId}`)
-      .then(res => res.ok ? res.json() : 0)
-      .then(valor => setObrigacoesFuturas(Number(valor) || 0))
-      .catch(() => setObrigacoesFuturas(0.00));
+    const [obrigacoes, resumo, transacoes, churn] = await Promise.all([
+      buscarJson<number>('Obrigacoes futuras', `${API_URL}/api/financeiro/obrigacoes/loja/${lojaId}`, 0),
+      buscarJson<ResumoFinanceiro>('Resumo financeiro', `${API_URL}/api/financeiro/loja/${lojaId}/resumo`, { recebidoEsteMes: 0, aReceberContemplados: 0, emNegociacao: 0, acordosAtivos: 0, repasses: [] }),
+      buscarJson<unknown[]>('Historico de transacoes', `${API_URL}/api/financeiro/lojas/${lojaId}/transacoes`, []),
+      buscarJson<{ taxaChurn: number }>('Metricas de churn', `${API_URL}/api/lojas/${lojaId}/metricas-churn`, { taxaChurn: 0 }),
+    ]);
 
-    fetch(`${API_URL}/api/financeiro/loja/${lojaId}/resumo`)
-      .then(res => res.ok ? res.json() : { recebidoEsteMes: 0, aReceberContemplados: 0, emNegociacao: 0, acordosAtivos: 0, repasses: [] })
-      .then(data => setDadosFinanceiros(data))
-      .catch(() => {});
-
-    fetch(`${API_URL}/api/financeiro/lojas/${lojaId}/transacoes`)
-      .then(res => res.ok ? res.json() : [])
-      .then(data => setHistoricoTransacoes(Array.isArray(data) ? data : []))
-      .catch(() => setHistoricoTransacoes([]));
-
-    fetch(`${API_URL}/api/lojas/${lojaId}/metricas-churn`)
-      .then(res => res.ok ? res.json() : { taxaChurn: 0 })
-      .then(data => setTaxaChurn(Number(data.taxaChurn) || 0))
-      .catch(() => setTaxaChurn(0));
+    setObrigacoesFuturas(Number(obrigacoes) || 0);
+    setDadosFinanceiros(resumo);
+    setHistoricoTransacoes(Array.isArray(transacoes) ? transacoes : []);
+    setTaxaChurn(Number(churn?.taxaChurn) || 0);
   };
 
-  const carregarContagemClientes = (lojaId: number) => {
-    fetch(`${API_URL}/api/usuarios/lojas/${lojaId}/clientes/contagem`)
-      .then((res) => res.ok ? res.json() : { totalClientes: 0 })
-      .then((data) => setTotalClientes(Number(data.totalClientes) || 0))
-      .catch(() => setTotalClientes(0));
+  const carregarContagemClientes = async (lojaId: number) => {
+    const data = await buscarJson<{ totalClientes: number }>('Contagem de clientes', `${API_URL}/api/usuarios/lojas/${lojaId}/clientes/contagem`, { totalClientes: 0 });
+    setTotalClientes(Number(data?.totalClientes) || 0);
   };
 
-  const carregarListaClientesDaLoja = () => {
+  const carregarListaClientesDaLoja = async () => {
     const lojaId = usuario?.lojaId || usuario?.id;
-    fetch(`${API_URL}/api/usuarios/lojas/${lojaId}/clientes`)
-      .then((res) => res.ok ? res.json() : [])
-      .then((data) => {
-         if (Array.isArray(data)) setListaClientesLoja(data);
-      })
-      .catch(() => setListaClientesLoja([]));
+    const data = await buscarJson<unknown[]>('Lista de clientes', `${API_URL}/api/usuarios/lojas/${lojaId}/clientes`, []);
+    if (Array.isArray(data)) setListaClientesLoja(data);
   };
 
-  const carregarSolicitacoesAcesso = () => {
+  const carregarSolicitacoesAcesso = async () => {
     const lojaId = usuario?.lojaId || usuario?.id;
-    fetch(`${API_URL}/api/lojas/${lojaId}/solicitacoes-acesso`)
-      .then(res => res.ok ? res.json() : [])
-      .then(data => {
-         if(Array.isArray(data)) setSolicitacoesAcesso(data);
-      })
-      .catch(() => {});
+    const data = await buscarJson<unknown[]>('Solicitacoes de acesso', `${API_URL}/api/lojas/${lojaId}/solicitacoes-acesso`, []);
+    if (Array.isArray(data)) setSolicitacoesAcesso(data);
   };
 
-  const recarregarParticipantesDoGrupo = () => {
+  const recarregarParticipantesDoGrupo = async () => {
     if (!grupoSelecionado) return;
-    fetch(`${API_URL}/api/usuarios/comunidade/${grupoSelecionado.id}/participantes`)
-      .then((res) => res.ok ? res.json() : [])
-      .then((data) => {
-        if (Array.isArray(data)) setParticipantesDoGrupo(data);
-      })
-      .catch(() => setParticipantesDoGrupo([]));
+    const data = await buscarJson<unknown[]>('Participantes do grupo', `${API_URL}/api/usuarios/comunidade/${grupoSelecionado.id}/participantes`, []);
+    if (Array.isArray(data)) setParticipantesDoGrupo(data);
   };
 
   useEffect(() => {
     const lojaId = usuario?.lojaId || usuario?.id;
     
-    fetch(`${API_URL}/api/lojas/${lojaId}`)
-      .then(res => res.ok ? res.json() : null)
+    buscarJson<{ nomeComercial?: string } | null>('Dados da loja', `${API_URL}/api/lojas/${lojaId}`, null)
       .then(data => {
          if(data && data.nomeComercial) {
             setNomeLojaReal(data.nomeComercial);
          }
-      }).catch(() => {});
+      });
 
     carregarGruposDoBanco();
     carregarDadosFinanceiros();
@@ -603,6 +629,22 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       </aside>
 
       <main className="flex-1 p-6 md:p-8 max-w-7xl overflow-x-hidden space-y-6">
+        {Object.keys(errosApi).length > 0 && (
+          <div className="border border-red-200 bg-red-50 rounded-xl p-4 space-y-1.5">
+            <p className="text-[10px] font-bold text-red-700 uppercase tracking-widest">
+              Falha ao carregar dados do servidor
+            </p>
+            {Object.entries(errosApi).map(([secao, mensagem]) => (
+              <p key={secao} className="text-xs text-red-800 break-words">
+                <span className="font-semibold">{secao}:</span> {mensagem}
+              </p>
+            ))}
+            <p className="text-[10px] text-red-600 pt-1">
+              Os numeros abaixo podem estar zerados ou incompletos. Isso nao significa ausencia de registros.
+            </p>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-[#DFD9CE] pb-5">
           <div>
             <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">
