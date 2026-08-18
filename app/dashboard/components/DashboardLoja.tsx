@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CardContemplacao, CotaElegivel, SorteioResumo, mensagemDeErro } from '../../lib/contemplacao';
+import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Cell,
@@ -1073,8 +1074,50 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           </div>
         ) : (
           <>
-            {abaLoja === 'geral' && (
+            {abaLoja === 'geral' && (() => {
+              const venc = proximoVencimento();
+              const sort = proximoSorteio();
+              const diasVenc = diasAte(venc);
+              const diasSort = diasAte(sort);
+              return (
               <div className="space-y-6 animate-fadeIn">
+
+                {/* ── Banner de datas fixas ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className={`flex items-center justify-between px-5 py-3.5 rounded-xl border ${
+                    diasVenc <= 3
+                      ? 'bg-amber-50 border-amber-200'
+                      : 'bg-white border-[#E6E2D8]'
+                  }`}>
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Próximo Vencimento</p>
+                      <p className={`text-base font-black font-mono mt-0.5 ${diasVenc <= 3 ? 'text-amber-700' : 'text-[#0B1E14]'}`}>
+                        {formatarData(venc)}
+                      </p>
+                      <p className="text-[10px] text-stone-400 mt-0.5">5º dia útil do mês · feriados excluídos</p>
+                    </div>
+                    <div className={`text-right flex-shrink-0 ml-4`}>
+                      <span className={`text-2xl font-black font-mono ${diasVenc <= 3 ? 'text-amber-600' : 'text-[#BD6B42]'}`}>
+                        {diasVenc}d
+                      </span>
+                      <p className="text-[9px] text-stone-400 uppercase tracking-wider">restantes</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between px-5 py-3.5 rounded-xl border bg-white border-[#E6E2D8]">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Próximo Sorteio</p>
+                      <p className="text-base font-black font-mono mt-0.5 text-[#0B1E14]">
+                        {formatarData(sort)}
+                      </p>
+                      <p className="text-[10px] text-stone-400 mt-0.5">dia 10 de cada mês · Loteria Federal</p>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-4">
+                      <span className="text-2xl font-black font-mono text-emerald-600">{diasSort}d</span>
+                      <p className="text-[9px] text-stone-400 uppercase tracking-wider">restantes</p>
+                    </div>
+                  </div>
+                </div>
 
                 {/* ── KPI cards ── */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1264,7 +1307,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </div>
 
               </div>
-            )}
+              );
+            })()}
 
             {abaLoja === 'clientes' && (() => {
               const totalPaginas = Math.max(1, Math.ceil(clientesAtivos.length / CLIENTES_POR_PAGINA));

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { CardContemplacao, EtapaTrilha, mensagemDeErro } from '../../lib/contemplacao';
+import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
 import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
@@ -111,28 +112,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   };
 
   useEffect(() => {
-    const hoje = new Date();
-    const diaAtual = hoje.getDate();
-    let ano = hoje.getFullYear();
-    let mes = hoje.getMonth() + 1;
-
-    if (diaAtual > 10) {
-      mes += 1;
-      if (mes > 12) { mes = 1; ano += 1; }
-    }
-
-    const dataVencimento = new Date(ano, mes - 1, 10);
-    const diffTime = dataVencimento.getTime() - hoje.getTime();
-    const diasCalculados = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    setDiasRestantesVencimento(diasCalculados);
-    setDataVencimentoCota(`10/${mes < 10 ? '0' + mes : mes}/${ano}`);
-
-    if ([1, 5, 8, 9, 10].includes(diaAtual) && diaAtual <= 10) {
-      setExibirBannerAlerta(true);
-    } else {
-      setExibirBannerAlerta(false);
-    }
+    const venc = proximoVencimento();
+    const dias = diasAte(venc);
+    setDiasRestantesVencimento(dias);
+    setDataVencimentoCota(formatarData(venc));
+    setExibirBannerAlerta(dias <= 3);
   }, [abaAtiva]);
 
   const buscarContemplacoes = async (fallbackUserId?: number) => {
@@ -974,6 +958,44 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </span>
                 </div>
 
+                {/* ── Datas fixas ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className={`flex items-center justify-between px-5 py-3.5 rounded-xl border ${
+                    diasRestantesVencimento <= 3
+                      ? 'bg-amber-50 border-amber-200'
+                      : 'bg-white border-[#E6E2D8]'
+                  }`}>
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Próximo Vencimento</p>
+                      <p className={`text-base font-black font-mono mt-0.5 ${diasRestantesVencimento <= 3 ? 'text-amber-700' : 'text-[#0B1E14]'}`}>
+                        {dataVencimentoCota || '--/--'}
+                      </p>
+                      <p className="text-[10px] text-stone-400 mt-0.5">5º dia útil do mês · feriados excluídos</p>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-4">
+                      <span className={`text-2xl font-black font-mono ${diasRestantesVencimento <= 3 ? 'text-amber-600' : 'text-[#BD6B42]'}`}>
+                        {diasRestantesVencimento}d
+                      </span>
+                      <p className="text-[9px] text-stone-400 uppercase tracking-wider">restantes</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between px-5 py-3.5 rounded-xl border bg-white border-[#E6E2D8]">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Próximo Sorteio</p>
+                      <p className="text-base font-black font-mono mt-0.5 text-[#0B1E14]">
+                        {formatarData(proximoSorteio())}
+                      </p>
+                      <p className="text-[10px] text-stone-400 mt-0.5">dia 10 de cada mês · Loteria Federal</p>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-4">
+                      <span className="text-2xl font-black font-mono text-emerald-600">
+                        {diasAte(proximoSorteio())}d
+                      </span>
+                      <p className="text-[9px] text-stone-400 uppercase tracking-wider">restantes</p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-sm relative overflow-hidden border-t-2 border-t-[#BD6B42]">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Saldo de Poupanca</span>
@@ -983,7 +1005,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#BD6B42] p-5 rounded-xl shadow-sm flex flex-col">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Vencimento da Parcela</span>
                     <span className="text-3xl font-bold text-[#BD6B42] font-mono leading-none">{dataVencimentoCota || '--/--'}</span>
-                    <span className="text-[10px] text-stone-400 mt-2">proxima cobranca</span>
+                    <span className="text-[10px] text-stone-400 mt-2">5º dia útil do mês</span>
                   </div>
                   <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#0B1E14] p-5 rounded-xl shadow-sm flex flex-col">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Vigencia do Plano</span>
