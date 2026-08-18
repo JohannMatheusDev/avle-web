@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { CardContemplacao, CotaElegivel, SorteioResumo, mensagemDeErro } from '../../lib/contemplacao';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -54,7 +55,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [obrigacoesFuturas, setObrigacoesFuturas] = useState<number>(0);
   const [idOperacao, setIdOperacao] = useState('Nenhuma');
   const [grupoSorteioId, setGrupoSorteioId] = useState('');
-  const [loadingSorteio, setLoadingSorteio] = useState(false);
 
   const [grupoSelecionado, setGrupoSelecionado] = useState<Grupo | null>(null);
   const [participantesDoGrupo, setParticipantesDoGrupo] = useState<any[]>([]);
@@ -78,6 +78,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [buscaClienteGrupo, setBuscaClienteGrupo] = useState('');
   const [clientesSelecionados, setClientesSelecionados] = useState<number[]>([]);
   const [salvandoParticipantes, setSalvandoParticipantes] = useState(false);
+
+  // Sorteio auditavel: agendamento congela a lista, apuracao le a Loteria Federal.
+  const [dataCorteSorteio, setDataCorteSorteio] = useState('');
+  const [sorteiosDoGrupo, setSorteiosDoGrupo] = useState<SorteioResumo[]>([]);
+  const [elegiveisDoGrupo, setElegiveisDoGrupo] = useState<CotaElegivel[]>([]);
+  const [contemplacoesEmCurso, setContemplacoesEmCurso] = useState<CardContemplacao[]>([]);
+  const [processandoSorteio, setProcessandoSorteio] = useState(false);
+  const [modalReprovaCredito, setModalReprovaCredito] = useState<{ aberto: boolean; cotaId: number | null }>({ aberto: false, cotaId: null });
+  const [motivoReprovaCredito, setMotivoReprovaCredito] = useState('');
 
   const [modalPagamentoManualAberto, setModalPagamentoManualAberto] = useState(false);
   const [qtdParcelasManual, setQtdParcelasManual] = useState('1');
@@ -611,44 +620,126 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   };
 
-  const ejecutarSorteioLoja = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+  const carregarPainelDeSorteio = async (grupoId: string) => {
+    if (!grupoId) {
+      setSorteiosDoGrupo([]); setElegiveisDoGrupo([]); setContemplacoesEmCurso([]);
+      return;
+    }
+
+    const [sorteios, elegiveis, participantes] = await Promise.all([
+      buscarJson<SorteioResumo[]>('Sorteios do grupo', `${API_URL}/api/sorteios/grupo/${grupoId}`, []),
+      buscarJson<CotaElegivel[]>('Cotas elegiveis', `${API_URL}/api/sorteios/grupo/${grupoId}/elegiveis`, []),
+      buscarJson<{ numeroCota: number }[]>('Participantes do grupo', `${API_URL}/api/usuarios/comunidade/${grupoId}/participantes`, []),
+    ]);
+
+    setSorteiosDoGrupo(Array.isArray(sorteios) ? sorteios : []);
+    setElegiveisDoGrupo(Array.isArray(elegiveis) ? elegiveis : []);
+
+    // O card de cada contemplada vem por cota; quem nunca foi sorteada devolve
+    // 204/erro e simplesmente nao entra na lista.
+    const cards = await Promise.all(
+      (Array.isArray(participantes) ? participantes : []).map(async (p) => {
+        try {
+          const res = await fetch(`${API_URL}/api/contemplacoes/cota/${p.numeroCota}`);
+          if (!res.ok) return null;
+          return (await res.json()) as CardContemplacao;
+        } catch {
+          return null;
+        }
+      })
+    );
+    setContemplacoesEmCurso(cards.filter((c): c is CardContemplacao => c !== null));
+  };
+
+  const agendarSorteio = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoadingSorteio(true);
+    if (!grupoSorteioId) return;
+
+    setProcessandoSorteio(true);
     try {
-      const res = await fetch(`${API_URL}/api/usuarios/sorteios/executar/${grupoSorteioId}`, { method: 'POST' });
-      if (!res.ok) {
-        const textoErro = await res.text();
-        throw new Error(textoErro || 'Nenhum participante adimplente apto encontrado neste ciclo.');
-      }
-      
-      const data = await res.json();
-      if (data.cotaPremiadaId) setIdOperacao(data.cotaPremiadaId.toString());
-      
-      mostrarAviso('Sorteio Homologado', `Contemplado: ${data.vencedorNome}\nContrato da Cota Alvo: #${data.cotaPremiadaId}\n\nAs notificacoes foram disparadas e o painel de liberacao foi atualizado.`, false);
-      setGrupoSorteioId('');
-      if (grupoSelecionado) recarregarParticipantesDoGrupo();
-    } catch (err: any) { 
-      mostrarAviso('Apuracao Suspensa', err.message, true); 
-    } finally { 
-      setLoadingSorteio(false); 
+      const res = await fetch(`${API_URL}/api/sorteios/agendar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          grupoId: Number(grupoSorteioId),
+          dataCorte: dataCorteSorteio || undefined,
+        }),
+      });
+
+      const retorno = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(retorno?.erro || 'Falha ao agendar o sorteio.');
+
+      mostrarAviso(
+        'Sorteio Agendado',
+        `Lista congelada com ${retorno.quantidadeParticipantes} participantes.\n\n` +
+        `Apuracao pelo concurso ${retorno.concursoLoteria ?? '(a definir)'} da Loteria Federal, ` +
+        `previsto para ${retorno.dataPrevistaConcurso}.\n\n` +
+        `Codigo de auditoria: ${retorno.codigoAuditoria}\n\n` +
+        'A partir de agora a lista nao muda mais. O resultado sai sozinho apos o concurso.',
+        false
+      );
+      carregarPainelDeSorteio(grupoSorteioId);
+    } catch (err) {
+      mostrarAviso('Nao foi possivel agendar', mensagemDeErro(err, 'Falha ao agendar o sorteio.'), true);
+    } finally {
+      setProcessandoSorteio(false);
     }
   };
 
-  const ejecutarFluxoEntrega = async (endpoint: string, query: string = '') => {
-    if (idOperacao === 'Nenhuma') {
-      mostrarAviso('Acao Bloqueada', 'Por favor, selecione uma cota na tabela de integrantes ou realize um sorteio antes de emitir a liberacao.', true);
-      return;
-    }
+  const apurarSorteio = async (sorteioId: number) => {
+    setProcessandoSorteio(true);
     try {
-      const res = await fetch(`${API_URL}/api/entregas/${idOperacao}/${endpoint}${query}`, { method: 'PUT' });
-      if (!res.ok) {
-        const textoErro = await res.text();
-        throw new Error(textoErro || 'Falha ao atualizar o status operacional no sistema.');
-      }
-      mostrarAviso('Fluxo Atualizado', 'Status de controle logistico atualizado com sucesso!', false);
-      if (grupoSelecionado) recarregarParticipantesDoGrupo();
-    } catch (err: any) { 
-      mostrarAviso('Erro de Conexao', err.message, true); 
+      const res = await fetch(`${API_URL}/api/sorteios/${sorteioId}/apurar`, { method: 'POST' });
+      const retorno = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(retorno?.erro || 'Falha ao apurar.');
+
+      mostrarAviso(
+        'Sorteio Apurado',
+        `Contemplada: ${retorno.contempladaNome}\nCota #${retorno.cotaContempladaId}\n\n` +
+        `Concurso ${retorno.concursoLoteria} · numero ${retorno.numeroSorteadoFonte}\n` +
+        `Codigo de auditoria: ${retorno.codigoAuditoria}`,
+        false
+      );
+      carregarPainelDeSorteio(grupoSorteioId);
+      carregarGruposDoBanco();
+    } catch (err) {
+      mostrarAviso('Apuracao Suspensa', mensagemDeErro(err, 'Falha ao apurar o sorteio.'), true);
+    } finally {
+      setProcessandoSorteio(false);
+    }
+  };
+
+  const avancarEtapaContemplacao = async (cotaId: number, rota: string, corpo?: Record<string, unknown>) => {
+    setProcessandoSorteio(true);
+    try {
+      const res = await fetch(`${API_URL}/api/contemplacoes/${cotaId}/${rota}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo || {}),
+      });
+      const retorno = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(retorno?.erro || 'Falha ao atualizar a etapa.');
+
+      setContemplacoesEmCurso((atual) => atual.map((c) => (c.cotaId === cotaId ? retorno : c)));
+      return true;
+    } catch (err) {
+      mostrarAviso('Erro na Etapa', mensagemDeErro(err, 'Falha ao atualizar a etapa.'), true);
+      return false;
+    } finally {
+      setProcessandoSorteio(false);
+    }
+  };
+
+  const confirmarReprovaCredito = async () => {
+    if (!modalReprovaCredito.cotaId || motivoReprovaCredito.trim() === '') return;
+    const ok = await avancarEtapaContemplacao(modalReprovaCredito.cotaId, 'credito', {
+      aprovado: false,
+      motivo: motivoReprovaCredito.trim(),
+    });
+    if (ok) {
+      setModalReprovaCredito({ aberto: false, cotaId: null });
+      setMotivoReprovaCredito('');
+      mostrarAviso('Credito Reprovado', 'A cliente foi avisada no painel dela e retira o produto quando o grupo encerrar.', false);
     }
   };
 
@@ -1162,26 +1253,168 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             )}
 
             {abaLoja === 'sorteios' && (
-              <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl space-y-6 shadow-xs animate-fadeIn">
-                <div className="space-y-1">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">Painel de Contemplacao e Liberacao</h3>
-                  <p className="text-xs text-stone-500 leading-relaxed">Dispare a apuracao de cotas do grupo digitando o identificador correspondente.</p>
-                </div>
-                <form onSubmit={ejecutarSorteioLoja} className="flex space-x-2">
-                  <input type="number" placeholder="ID do Grupo" value={grupoSorteioId} onChange={(e) => setGrupoSorteioId(e.target.value)} className="w-32 px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs font-mono" required />
-                  <button type="submit" disabled={loadingSorteio} className="bg-[#0B1E14] text-white text-xs font-bold px-5 py-2 rounded-xl cursor-pointer disabled:opacity-50 uppercase tracking-wider">{loadingSorteio ? 'Processando...' : 'Rodar Sorteio'}</button>
-                </form>
-                <div className="border-t border-stone-100 pt-4 space-y-3">
-                  <div className="flex justify-between items-center bg-stone-50 p-2.5 rounded-xl border border-dashed">
-                    <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wide block">Controles Operacionais de Despacho</span>
-                    <span className="text-[10px] bg-[#0B1E14] text-white px-3 py-1 rounded-md font-mono font-bold">CONTRATO ALVO: {idOperacao === 'Nenhuma' ? 'Nenhum' : `#${idOperacao}`}</span>
+              <div className="space-y-6 animate-fadeIn text-left">
+
+                <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl space-y-4 shadow-xs">
+                  <div className="space-y-1">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">Agendar Sorteio Auditavel</h3>
+                    <p className="text-xs text-stone-500 leading-relaxed">
+                      Ao agendar, a lista de participantes e congelada e nao muda mais. O resultado sai do concurso da
+                      Loteria Federal seguinte a data de corte, entao ninguem, nem a loja nem a AVLE, consegue influenciar
+                      em quem vai cair.
+                    </p>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px] font-bold uppercase">
-                    <button onClick={() => ejecutarFluxoEntrega('avaliar-credito', '?aprovado=true')} className="p-2.5 bg-[#0B1E14] text-white rounded-xl shadow-xs cursor-pointer hover:bg-opacity-90">Aprovar Credito</button>
-                    <button onClick={() => ejecutarFluxoEntrega('avaliar-credito', '?aprovado=false')} className="p-2.5 bg-rose-50 text-rose-700 border-rose-100 rounded-xl shadow-xs cursor-pointer hover:bg-rose-100">Rejeitar Credito</button>
-                    <button onClick={() => ejecutarFluxoEntrega('concluir')} className="p-2.5 bg-[#BD6B42] text-white rounded-xl shadow-xs cursor-pointer hover:bg-[#A95A33]">Finalizar Entrega</button>
-                  </div>
+
+                  <form onSubmit={agendarSorteio} className="flex flex-wrap gap-2 items-end">
+                    <div>
+                      <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Grupo</label>
+                      <input
+                        type="number"
+                        placeholder="ID do grupo"
+                        value={grupoSorteioId}
+                        onChange={(e) => { setGrupoSorteioId(e.target.value); carregarPainelDeSorteio(e.target.value); }}
+                        className="w-32 px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs font-mono"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Data de corte</label>
+                      <input
+                        type="date"
+                        value={dataCorteSorteio}
+                        onChange={(e) => setDataCorteSorteio(e.target.value)}
+                        className="px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs font-mono"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={processandoSorteio || !grupoSorteioId}
+                      className="bg-[#0B1E14] text-white text-[10px] font-bold px-5 py-2.5 rounded-xl cursor-pointer disabled:opacity-50 uppercase tracking-wider"
+                    >
+                      {processandoSorteio ? 'Processando...' : 'Congelar lista e agendar'}
+                    </button>
+                  </form>
+
+                  {grupoSorteioId && (
+                    <p className="text-[10px] text-stone-400 border-t pt-3">
+                      <strong className="text-[#0B1E14]">{elegiveisDoGrupo.length}</strong> cota(s) disputando o proximo sorteio.
+                      Cotas ja contempladas nao voltam a concorrer, mesmo com credito reprovado.
+                    </p>
+                  )}
                 </div>
+
+                {sorteiosDoGrupo.length > 0 && (
+                  <div className="bg-white border border-[#DFD9CE] rounded-2xl shadow-xs overflow-hidden">
+                    <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50">
+                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Historico de Sorteios</h3>
+                      <p className="text-[10px] text-stone-400">Cada linha pode ser conferida por terceiros pelo codigo de auditoria.</p>
+                    </div>
+                    <div className="divide-y divide-[#EFEAE1]">
+                      {sorteiosDoGrupo.map((s) => (
+                        <div key={s.codigoAuditoria} className="px-5 py-4 flex flex-wrap gap-3 justify-between items-center">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${
+                                s.status === 'APURADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : s.status === 'CANCELADO' ? 'bg-stone-100 text-stone-500 border-stone-200'
+                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}>{s.status}</span>
+                              <span className="font-mono text-[11px] font-bold text-[#0B1E14]">{s.codigoAuditoria}</span>
+                            </div>
+                            <p className="text-[10px] text-stone-400 mt-1">
+                              {s.quantidadeParticipantes} participantes · concurso {s.concursoLoteria ?? 'a definir'} ·
+                              {' '}previsto para {s.dataPrevistaConcurso}
+                              {s.contempladaNome && <> · <strong className="text-[#BD6B42]">{s.contempladaNome}</strong> (cota #{s.cotaContempladaId})</>}
+                            </p>
+                          </div>
+                          {s.status === 'AGENDADO' && (
+                            <button
+                              type="button"
+                              onClick={() => apurarSorteio(s.id)}
+                              disabled={processandoSorteio}
+                              className="px-4 py-2 bg-[#BD6B42] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-[#A95A33] transition-all cursor-pointer disabled:opacity-50"
+                            >
+                              Apurar agora
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {contemplacoesEmCurso.length > 0 && (
+                  <div className="bg-white border border-[#DFD9CE] rounded-2xl shadow-xs overflow-hidden">
+                    <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50">
+                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Contempladas em Andamento</h3>
+                      <p className="text-[10px] text-stone-400">A cliente age na escolha do produto e na assinatura; as demais etapas sao suas.</p>
+                    </div>
+                    <div className="divide-y divide-[#EFEAE1]">
+                      {contemplacoesEmCurso.map((c) => (
+                        <div key={c.cotaId} className="px-5 py-4 flex flex-wrap gap-3 justify-between items-center">
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-[#0B1E14]">
+                              Cota #{c.cotaId} · {c.etapaTitulo}
+                              {!c.aguardandoEncerramento && (
+                                <span className="text-stone-400 font-medium"> ({c.posicaoAtual}/{c.totalEtapas})</span>
+                              )}
+                            </p>
+                            <p className="text-[10px] text-stone-400 mt-0.5">
+                              {c.produtoEscolhido ? `Produto: ${c.produtoEscolhido}` : c.etapaDescricao}
+                            </p>
+                          </div>
+
+                          <div className="flex gap-2 flex-wrap">
+                            {c.etapaAtual === 'ANALISE_CREDITO' && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => avancarEtapaContemplacao(c.cotaId, 'credito', { aprovado: true })}
+                                  disabled={processandoSorteio}
+                                  className="px-3 py-1.5 bg-[#0B1E14] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                                >
+                                  Aprovar credito
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setModalReprovaCredito({ aberto: true, cotaId: c.cotaId }); setMotivoReprovaCredito(''); }}
+                                  className="px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer hover:bg-rose-100"
+                                >
+                                  Reprovar
+                                </button>
+                              </>
+                            )}
+                            {c.etapaAtual === 'SEPARACAO' && (
+                              <button
+                                type="button"
+                                onClick={() => avancarEtapaContemplacao(c.cotaId, 'separacao')}
+                                disabled={processandoSorteio}
+                                className="px-3 py-1.5 bg-[#BD6B42] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                              >
+                                Iniciar separacao
+                              </button>
+                            )}
+                            {c.etapaAtual === 'RETIRADA' && !c.concluido && (
+                              <button
+                                type="button"
+                                onClick={() => avancarEtapaContemplacao(c.cotaId, 'retirada')}
+                                disabled={processandoSorteio}
+                                className="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                              >
+                                Confirmar retirada
+                              </button>
+                            )}
+                            {c.concluido && (
+                              <span className="text-[9px] font-bold px-2 py-1 rounded-md uppercase border bg-emerald-50 text-emerald-700 border-emerald-200">
+                                Entregue
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1510,6 +1743,57 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {modalReprovaCredito.aberto && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Reprovar Credito</h3>
+              <button
+                type="button"
+                onClick={() => setModalReprovaCredito({ aberto: false, cotaId: null })}
+                className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer"
+              >
+                X
+              </button>
+            </div>
+
+            <p className="text-[11px] text-stone-500 leading-relaxed bg-stone-50 p-3 rounded-xl border border-dashed">
+              A contemplacao continua registrada e a cota nao volta a concorrer. A cliente retira o produto quando o
+              grupo encerrar, e o motivo abaixo aparece no painel dela.
+            </p>
+
+            <div>
+              <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Motivo da reprovacao</label>
+              <textarea
+                value={motivoReprovaCredito}
+                onChange={(e) => setMotivoReprovaCredito(e.target.value)}
+                rows={3}
+                placeholder="Ex: restricao ativa em consulta ao birô de credito"
+                className="w-full px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42] resize-none"
+              />
+            </div>
+
+            <div className="flex space-x-2 pt-2 border-t w-full">
+              <button
+                type="button"
+                onClick={() => setModalReprovaCredito({ aberto: false, cotaId: null })}
+                className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarReprovaCredito}
+                disabled={processandoSorteio || motivoReprovaCredito.trim() === ''}
+                className="flex-1 py-2.5 bg-rose-700 text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-rose-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processandoSorteio ? 'Registrando...' : 'Confirmar reprovacao'}
+              </button>
+            </div>
           </div>
         </div>
       )}

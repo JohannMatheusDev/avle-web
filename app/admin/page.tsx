@@ -3,14 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-interface SorteioResultado {
-  id: number;
-  hashAuditoria: string;
-  dataSorteio: string;
-  participacaoContemplada: {
-    usuario: { nome: string; cpf: string }
-  };
-}
+import { SorteioResumo, mensagemDeErro } from '../lib/contemplacao';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function PainelAdminSaaS() {
   const router = useRouter();
@@ -29,7 +24,8 @@ export default function PainelAdminSaaS() {
 
   // Seus Estados Originais para a Execução do Sorteio
   const [grupoSorteioId, setGrupoSorteioId] = useState('');
-  const [resultado, setResultado] = useState<SorteioResultado | null>(null);
+  const [dataCorteSorteio, setDataCorteSorteio] = useState('');
+  const [sorteiosDoGrupo, setSorteiosDoGrupo] = useState<SorteioResumo[]>([]);
   const [erroSorteio, setErroSorteio] = useState('');
   const [loadingSorteio, setLoadingSorteio] = useState(false);
 
@@ -84,27 +80,58 @@ export default function PainelAdminSaaS() {
     }
   };
 
-  // 🎲 SEU MOTOR DE SORTEIO ORIGINAL
-  const executarSorteio = async (e: React.FormEvent) => {
+  // Sorteio em duas fases: agendar congela a lista, apurar le a Loteria Federal.
+  // A rota instantanea anterior continua no backend, mas nao deixa registro
+  // conferivel - por isso o painel deixou de usa-la.
+  const carregarSorteios = async (grupoId: string) => {
+    if (!grupoId) { setSorteiosDoGrupo([]); return; }
+    try {
+      const res = await fetch(`${API_URL}/api/sorteios/grupo/${grupoId}`);
+      if (!res.ok) return;
+      const dados = await res.json();
+      setSorteiosDoGrupo(Array.isArray(dados) ? dados : []);
+    } catch {
+      // lista vazia ja comunica que nao ha o que mostrar
+    }
+  };
+
+  const agendarSorteio = async (e: React.FormEvent) => {
     e.preventDefault();
     setErroSorteio('');
-    setResultado(null);
     setLoadingSorteio(true);
 
     try {
-      const res = await fetch(`http://localhost:8080/api/sorteios/executar/${grupoSorteioId}`, {
-        method: 'POST'
+      const res = await fetch(`${API_URL}/api/sorteios/agendar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          grupoId: Number(grupoSorteioId),
+          dataCorte: dataCorteSorteio || undefined,
+        }),
       });
 
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg || 'Falha ao executar o sorteio. Verifique se há clientes adimplentes.');
-      }
+      const dados = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(dados?.erro || 'Falha ao agendar o sorteio.');
 
-      const dados = await res.json();
-      setResultado(dados);
-    } catch (err: any) {
-      setErroSorteio(err.message);
+      await carregarSorteios(grupoSorteioId);
+    } catch (err) {
+      setErroSorteio(mensagemDeErro(err, 'Falha ao agendar o sorteio.'));
+    } finally {
+      setLoadingSorteio(false);
+    }
+  };
+
+  const apurarSorteio = async (sorteioId: number) => {
+    setErroSorteio('');
+    setLoadingSorteio(true);
+    try {
+      const res = await fetch(`${API_URL}/api/sorteios/${sorteioId}/apurar`, { method: 'POST' });
+      const dados = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(dados?.erro || 'Falha ao apurar.');
+
+      await carregarSorteios(grupoSorteioId);
+    } catch (err) {
+      setErroSorteio(mensagemDeErro(err, 'Falha ao apurar o sorteio.'));
     } finally {
       setLoadingSorteio(false);
     }
@@ -227,32 +254,81 @@ export default function PainelAdminSaaS() {
           {/* ---------------- ABA C: SEU MOTOR DE SORTEIOS ORIGINAL ---------------- */}
           {abaAtiva === 'sorteio' && (
             <div className="space-y-5 animate-fade-in">
-              <p className="text-xs text-stone-400 leading-relaxed">Selecione o grupo para realizar a apuração mensal imutável. Apenas cotas em dia concorrem.</p>
+              <p className="text-xs text-stone-400 leading-relaxed">
+                O agendamento congela a lista de cotas aptas e grava o hash dela. A contemplada sai do concurso da
+                Loteria Federal seguinte a data de corte, entao o resultado pode ser conferido por qualquer pessoa e
+                nao depende de confiar no sistema.
+              </p>
 
-              <form onSubmit={executarSorteio} className="space-y-4">
+              <form onSubmit={agendarSorteio} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">ID numérico do Grupo</label>
-                  <input type="number" placeholder="Ex: 1" value={grupoSorteioId} onChange={(e) => setGrupoSorteioId(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm bg-stone-50" required />
+                  <input
+                    type="number"
+                    placeholder="Ex: 1"
+                    value={grupoSorteioId}
+                    onChange={(e) => { setGrupoSorteioId(e.target.value); carregarSorteios(e.target.value); }}
+                    className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm bg-stone-50"
+                    required
+                  />
                 </div>
-                <button type="submit" disabled={loadingSorteio} className="w-full bg-avle-verde text-white font-bold py-3 rounded-xl text-xs tracking-wider shadow-sm transition-all active:scale-95 disabled:opacity-50">
-                  {loadingSorteio ? 'CRIPTOGRAFANDO CHAVES...' : '🎲 EXECUTAR APURAÇÃO SEGURA'}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Data de corte</label>
+                  <input
+                    type="date"
+                    value={dataCorteSorteio}
+                    onChange={(e) => setDataCorteSorteio(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm bg-stone-50"
+                  />
+                  <p className="text-[10px] text-stone-400 mt-1">
+                    Em branco usa hoje. A apuração pega o primeiro concurso a partir dessa data.
+                  </p>
+                </div>
+                <button
+                  type="submit"
+                  disabled={loadingSorteio}
+                  className="w-full bg-avle-verde text-white font-bold py-3 rounded-xl text-xs tracking-wider shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {loadingSorteio ? 'PROCESSANDO...' : 'CONGELAR LISTA E AGENDAR'}
                 </button>
               </form>
 
               {erroSorteio && <div className="p-3.5 bg-rose-50 text-rose-700 rounded-xl text-xs font-semibold border border-rose-100">{erroSorteio}</div>}
 
-              {resultado && (
-                <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-3 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-600" />
-                  <h4 className="text-emerald-700 font-bold text-xs">🎉 Cliente Contemplado!</h4>
-                  <div className="space-y-1 text-xs text-stone-600">
-                    <p><strong>Nome:</strong> {resultado.participacaoContemplada.usuario.nome}</p>
-                    <p><strong>Data:</strong> {new Date(resultado.dataSorteio).toLocaleString('pt-BR')}</p>
-                  </div>
-                  <div className="bg-white p-2.5 rounded-lg border border-stone-200 text-center">
-                    <span className="block text-[8px] uppercase font-bold text-stone-400">Chave de Auditoria Eletrônica</span>
-                    <span className="text-[11px] font-mono font-bold text-avle-terracotta tracking-wider">{resultado.hashAuditoria}</span>
-                  </div>
+              {sorteiosDoGrupo.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-[10px] font-bold uppercase text-stone-500 tracking-wider">Sorteios do grupo</h4>
+                  {sorteiosDoGrupo.map((s) => (
+                    <div key={s.codigoAuditoria} className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${
+                          s.status === 'APURADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : s.status === 'CANCELADO' ? 'bg-stone-100 text-stone-500 border-stone-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>{s.status}</span>
+                        <span className="text-[11px] font-mono font-bold text-avle-terracotta tracking-wider">{s.codigoAuditoria}</span>
+                      </div>
+
+                      <div className="text-xs text-stone-600 space-y-0.5">
+                        <p><strong>Participantes:</strong> {s.quantidadeParticipantes}</p>
+                        <p><strong>Concurso:</strong> {s.concursoLoteria ?? 'a definir'} · previsto para {s.dataPrevistaConcurso}</p>
+                        {s.contempladaNome && (
+                          <p className="text-emerald-700 font-bold">Contemplada: {s.contempladaNome} (cota #{s.cotaContempladaId})</p>
+                        )}
+                      </div>
+
+                      {s.status === 'AGENDADO' && (
+                        <button
+                          type="button"
+                          onClick={() => apurarSorteio(s.id)}
+                          disabled={loadingSorteio}
+                          className="w-full bg-avle-terracotta text-white font-bold py-2 rounded-lg text-[10px] uppercase tracking-wider disabled:opacity-50"
+                        >
+                          Apurar agora
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { CardContemplacao, EtapaTrilha, mensagemDeErro } from '../../lib/contemplacao';
 import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
@@ -45,6 +46,13 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [clubeAtualSelecionado, setClubeAtualSelecionado] = useState<any | null>(null);
   const [grupoSelecionado, setGrupoSelecionado] = useState<any | null>(null);
   const [lojaSelecionada, setLojaSelecionada] = useState<any | null>(null);
+
+  // Trilha pos-sorteio. Cada card e uma cota contemplada desta cliente.
+  const [cardsContemplacao, setCardsContemplacao] = useState<CardContemplacao[]>([]);
+  const [salvandoEtapa, setSalvandoEtapa] = useState(false);
+  const [modalProduto, setModalProduto] = useState<{ aberto: boolean; cotaId: number | null }>({ aberto: false, cotaId: null });
+  const [produtoEscolhido, setProdutoEscolhido] = useState('');
+  const [modalTermo, setModalTermo] = useState<{ aberto: boolean; cotaId: number | null }>({ aberto: false, cotaId: null });
 
   const [salvandoPerfil, setSalvandoPerfil] = useState(false);
   const [carregandoDados, setCarregandoDados] = useState(true);
@@ -127,6 +135,64 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     }
   }, [abaAtiva]);
 
+  const buscarContemplacoes = async (fallbackUserId?: number) => {
+    const userId = fallbackUserId || usuario?.id;
+    if (!userId) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/contemplacoes/cliente/${userId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setCardsContemplacao(Array.isArray(data) ? data : []);
+    } catch {
+      // Sem contemplacao a tela segue igual; nao vale bloquear o painel por isso.
+    }
+  };
+
+  const avancarEtapa = async (cotaId: number, rota: string, corpo?: Record<string, unknown>) => {
+    setSalvandoEtapa(true);
+    try {
+      const res = await fetch(`${API_URL}/api/contemplacoes/${cotaId}/${rota}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo || {}),
+      });
+
+      const retorno = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(retorno?.erro || 'Nao foi possivel concluir esta etapa.');
+
+      setCardsContemplacao((atual) =>
+        atual.map((card) => (card.cotaId === cotaId ? retorno : card))
+      );
+      return true;
+    } catch (erro) {
+      setNotificacao({
+        aberto: true,
+        titulo: 'Nao foi possivel avancar',
+        mensagem: mensagemDeErro(erro, 'Tente novamente em instantes.'),
+        isError: true,
+      });
+      return false;
+    } finally {
+      setSalvandoEtapa(false);
+    }
+  };
+
+  const confirmarProduto = async () => {
+    if (!modalProduto.cotaId || produtoEscolhido.trim() === '') return;
+    const ok = await avancarEtapa(modalProduto.cotaId, 'produto', { produto: produtoEscolhido.trim() });
+    if (ok) {
+      setModalProduto({ aberto: false, cotaId: null });
+      setProdutoEscolhido('');
+    }
+  };
+
+  const confirmarTermo = async () => {
+    if (!modalTermo.cotaId) return;
+    const ok = await avancarEtapa(modalTermo.cotaId, 'termo');
+    if (ok) setModalTermo({ aberto: false, cotaId: null });
+  };
+
   const buscarCarteiraDeClubes = async (forcedId?: number, fallbackUserId?: number) => {
     const userId = fallbackUserId || usuario?.id;
     if (!userId) return;
@@ -191,6 +257,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
     if (currentUserId) {
       buscarCarteiraDeClubes(undefined, currentUserId);
+      buscarContemplacoes(currentUserId);
       buscarAcessosLoja(currentUserId); 
 
       fetch(`${API_URL}/api/usuarios/${currentUserId}`)
@@ -571,6 +638,135 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
         {abaAtiva === 'inicio' && (
           <div className="animate-fadeIn">
+
+            {/* Ser sorteada e a coisa mais importante que acontece com a cliente,
+                entao o card vem antes de tudo na aba inicial. */}
+            {cardsContemplacao.map((card) => (
+              <div
+                key={card.cotaId}
+                className={`mb-6 rounded-2xl overflow-hidden shadow-lg border text-left ${
+                  card.aguardandoEncerramento ? 'border-amber-200' : 'border-[#0B1E14]/10'
+                }`}
+              >
+                <div className={`px-6 py-5 ${card.aguardandoEncerramento ? 'bg-amber-50' : 'bg-[#0B1E14]'}`}>
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                      <span className={`text-[10px] font-black uppercase tracking-widest block mb-1 ${
+                        card.aguardandoEncerramento ? 'text-amber-700' : 'text-[#BD6B42]'
+                      }`}>
+                        {card.aguardandoEncerramento ? 'Contemplacao registrada' : 'Voce foi contemplada'}
+                      </span>
+                      <h3 className={`text-lg font-bold tracking-tight ${
+                        card.aguardandoEncerramento ? 'text-amber-900' : 'text-white'
+                      }`}>
+                        {card.grupoNome}
+                      </h3>
+                      {card.dataContemplacao && (
+                        <p className={`text-[11px] mt-1 font-mono ${
+                          card.aguardandoEncerramento ? 'text-amber-700/70' : 'text-stone-400'
+                        }`}>
+                          Sorteio de {new Date(card.dataContemplacao).toLocaleDateString('pt-BR')}
+                        </p>
+                      )}
+                    </div>
+                    {!card.aguardandoEncerramento && (
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider bg-white/10 px-3 py-1.5 rounded-lg whitespace-nowrap">
+                        Etapa {card.posicaoAtual} de {card.totalEtapas}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-white px-6 py-5 space-y-5">
+                  {/* Trilha das etapas */}
+                  <div className="flex items-start gap-1 overflow-x-auto pb-1">
+                    {card.trilha?.map((passo: EtapaTrilha, indice: number) => (
+                      <div key={passo.etapa} className="flex-1 min-w-[86px]">
+                        <div className="flex items-center">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 ${
+                            passo.concluida ? 'bg-emerald-600 text-white'
+                              : passo.atual ? 'bg-[#BD6B42] text-white ring-4 ring-[#BD6B42]/15'
+                              : 'bg-stone-200 text-stone-400'
+                          }`}>
+                            {passo.concluida ? '✓' : passo.posicao}
+                          </div>
+                          {indice < card.trilha.length - 1 && (
+                            <div className={`h-0.5 flex-1 ${passo.concluida ? 'bg-emerald-600' : 'bg-stone-200'}`} />
+                          )}
+                        </div>
+                        <p className={`text-[9px] mt-2 leading-tight pr-2 ${
+                          passo.atual ? 'font-bold text-[#0B1E14]' : 'text-stone-400 font-medium'
+                        }`}>
+                          {passo.titulo}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className={`p-4 rounded-xl border ${
+                    card.aguardandoEncerramento
+                      ? 'bg-amber-50/60 border-amber-200'
+                      : 'bg-[#F5F2EB] border-[#DFD9CE]'
+                  }`}>
+                    <p className="text-xs font-bold text-[#0B1E14] mb-1">{card.etapaTitulo}</p>
+                    <p className="text-[11px] text-stone-500 leading-relaxed">{card.etapaDescricao}</p>
+
+                    {card.aguardandoEncerramento && card.motivoReprovacaoCredito && (
+                      <p className="text-[11px] text-amber-800 mt-2 leading-relaxed">
+                        <strong>Motivo informado pela loja:</strong> {card.motivoReprovacaoCredito}
+                      </p>
+                    )}
+
+                    {card.produtoEscolhido && (
+                      <p className="text-[11px] text-stone-600 mt-2">
+                        <strong>Produto escolhido:</strong> {card.produtoEscolhido}
+                      </p>
+                    )}
+                  </div>
+
+                  {card.acaoDoCliente === 'ESCOLHER_PRODUTO' && (
+                    <button
+                      type="button"
+                      onClick={() => { setModalProduto({ aberto: true, cotaId: card.cotaId }); setProdutoEscolhido(''); }}
+                      className="w-full py-3 bg-[#BD6B42] text-white font-bold rounded-xl text-[11px] uppercase tracking-wider hover:bg-[#A95A33] transition-all cursor-pointer shadow-sm"
+                    >
+                      Escolher meu produto
+                    </button>
+                  )}
+
+                  {card.acaoDoCliente === 'ASSINAR_TERMO' && (
+                    <button
+                      type="button"
+                      onClick={() => setModalTermo({ aberto: true, cotaId: card.cotaId })}
+                      className="w-full py-3 bg-[#0B1E14] text-white font-bold rounded-xl text-[11px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer shadow-sm"
+                    >
+                      Ler e aceitar o termo
+                    </button>
+                  )}
+
+                  {/* O codigo de auditoria e o que permite conferir o sorteio por
+                      fora do sistema, sem depender da palavra da loja. */}
+                  {card.sorteio && (
+                    <div className="border-t border-[#DFD9CE] pt-4 text-[10px] text-stone-400 leading-relaxed">
+                      <p className="font-bold text-stone-500 uppercase tracking-wider mb-1">Comprovante do sorteio</p>
+                      <p>
+                        Codigo <span className="font-mono font-bold text-[#0B1E14]">{card.sorteio.codigoAuditoria}</span>
+                        {card.sorteio.concursoLoteria && (
+                          <> · apurado pelo concurso <strong>{card.sorteio.concursoLoteria}</strong> da Loteria Federal</>
+                        )}
+                        {card.sorteio.quantidadeParticipantes && (
+                          <> · {card.sorteio.quantidadeParticipantes} participantes concorrendo</>
+                        )}
+                      </p>
+                      <p className="mt-1">
+                        O resultado foi definido por um numero publico, sorteado depois de a lista de participantes
+                        ser fechada. Qualquer pessoa pode refazer a conta com este codigo.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
 
             {nivelVisao === 'lojas' && !isClienteAmarrado && (
               <div className="space-y-6 text-left">
@@ -1302,6 +1498,105 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 className="flex-1 py-3 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-xs uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
               >
                 {solicitandoAcesso ? 'Enviando...' : 'Solicitar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalProduto.aberto && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Escolha do produto</h3>
+              <button
+                type="button"
+                onClick={() => setModalProduto({ aberto: false, cotaId: null })}
+                className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer"
+              >
+                X
+              </button>
+            </div>
+
+            <p className="text-[11px] text-stone-500 leading-relaxed bg-stone-50 p-3 rounded-xl border border-dashed">
+              Informe o produto que deseja retirar. A loja confere a disponibilidade antes de separar o pedido.
+            </p>
+
+            <div>
+              <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Produto desejado</label>
+              <input
+                type="text"
+                value={produtoEscolhido}
+                onChange={(e) => setProdutoEscolhido(e.target.value)}
+                placeholder="Ex: Geladeira Frost Free 400L"
+                className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
+              />
+            </div>
+
+            <div className="flex space-x-2 pt-2 border-t w-full">
+              <button
+                type="button"
+                onClick={() => setModalProduto({ aberto: false, cotaId: null })}
+                className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarProduto}
+                disabled={salvandoEtapa || produtoEscolhido.trim() === ''}
+                className="flex-1 py-2.5 bg-[#BD6B42] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-[#A95A33] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {salvandoEtapa ? 'Salvando...' : 'Confirmar escolha'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalTermo.aberto && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Termo de retirada</h3>
+              <button
+                type="button"
+                onClick={() => setModalTermo({ aberto: false, cotaId: null })}
+                className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer"
+              >
+                X
+              </button>
+            </div>
+
+            <div className="text-[11px] text-stone-600 leading-relaxed space-y-2 max-h-56 overflow-y-auto bg-stone-50 p-4 rounded-xl border">
+              <p>
+                Ao aceitar, voce confirma a retirada antecipada do produto do seu clube de compras e assume o
+                compromisso de seguir com as parcelas restantes do plano ate o encerramento do grupo.
+              </p>
+              <p>
+                A loja adianta o valor que ainda falta para completar o seu plano, e por isso a entrega so e
+                liberada apos este aceite.
+              </p>
+              <p>
+                O regulamento completo da sua loja esta disponivel na aba Regras do painel.
+              </p>
+            </div>
+
+            <div className="flex space-x-2 pt-2 border-t w-full">
+              <button
+                type="button"
+                onClick={() => setModalTermo({ aberto: false, cotaId: null })}
+                className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
+              >
+                Agora nao
+              </button>
+              <button
+                type="button"
+                onClick={confirmarTermo}
+                disabled={salvandoEtapa}
+                className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
+              >
+                {salvandoEtapa ? 'Registrando...' : 'Li e aceito'}
               </button>
             </div>
           </div>
