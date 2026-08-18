@@ -150,6 +150,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [modalConvocar, setModalConvocar] = useState<{ aberto: boolean; item: ItemFilaEspera | null }>({ aberto: false, item: null });
   const [grupoDestinoConvocacao, setGrupoDestinoConvocacao] = useState('');
   const [processandoFilaId, setProcessandoFilaId] = useState<number | null>(null);
+  // false enquanto o endpoint da fila nao existe neste servidor. Serve para a aba
+  // dizer "ainda nao publicada" em vez de "ninguem na fila", que seria mentira.
+  const [filaPublicadaNaApi, setFilaPublicadaNaApi] = useState(true);
 
   const [solicitacoesAcesso, setSolicitacoesAcesso] = useState<any[]>([]);
   const [processandoAcessoId, setProcessandoAcessoId] = useState<number | null>(null);
@@ -354,7 +357,34 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   const carregarFilaEspera = async () => {
     const lojaId = usuario?.lojaId || usuario?.id;
-    const data = await buscarJson<unknown[]>('Fila de espera', `${API_URL}/api/lojas/${lojaId}/fila-espera`, []);
+    const url = `${API_URL}/api/lojas/${lojaId}/fila-espera`;
+
+    // Uma requisicao so: 404 aqui quer dizer endpoint ainda nao publicado, e nao
+    // falha de carregamento. Os demais erros seguem pelo buscarJson, que avisa o
+    // operador no topo do painel.
+    try {
+      const res = await fetch(url);
+
+      if (res.status === 404) {
+        setFilaPublicadaNaApi(false);
+        setFilaEspera([]);
+        limparErro('Fila de espera');
+        return;
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        setFilaPublicadaNaApi(true);
+        setFilaEspera(Array.isArray(data) ? (data as ItemFilaEspera[]) : []);
+        limparErro('Fila de espera');
+        return;
+      }
+    } catch {
+      // Rede fora do ar: cai no buscarJson abaixo, que faz as tentativas e avisa.
+    }
+
+    setFilaPublicadaNaApi(true);
+    const data = await buscarJson<unknown[]>('Fila de espera', url, []);
     if (Array.isArray(data)) setFilaEspera(data as ItemFilaEspera[]);
   };
 
@@ -1611,7 +1641,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     </div>
 
                     <div className="p-6">
-                      {filaEspera.length === 0 ? (
+                      {!filaPublicadaNaApi ? (
+                        <div className="text-center text-xs py-12 bg-amber-50 rounded-xl border border-dashed border-amber-200 px-6 space-y-1">
+                          <p className="font-bold text-amber-900">Fila de espera ainda não publicada no servidor</p>
+                          <p className="text-amber-800">
+                            A tela está pronta, mas a API desta funcionalidade ainda não foi publicada. Assim que ela
+                            entrar no ar, a fila aparece aqui sozinha.
+                          </p>
+                        </div>
+                      ) : filaEspera.length === 0 ? (
                         <div className="text-center text-stone-400 text-xs italic py-12 bg-stone-50 rounded-xl border border-dashed">
                           Ninguém na fila de espera no momento.
                         </div>

@@ -250,8 +250,13 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       if (!res.ok) throw new Error();
 
       await buscarFilasEspera(userId);
+      mostrarAviso(
+        'Você entrou na fila',
+        'Assim que a loja abrir uma vaga, ela convoca quem está esperando pela ordem de chegada.',
+        false
+      );
     } catch (err) {
-      // Silencioso de proposito: a tela mostra o estado real apos o recarregamento.
+      mostrarAviso('Erro', 'Não foi possível entrar na fila de espera agora. Tente novamente em instantes.', true);
     } finally {
       setProcessandoFila(false);
     }
@@ -265,9 +270,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     setProcessandoFila(true);
 
     try {
-      await fetch(`${API_URL}/api/lojas/${lojaId}/fila-espera/${filaId}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/api/lojas/${lojaId}/fila-espera/${filaId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
       await buscarFilasEspera(userId);
     } catch (err) {
+      mostrarAviso('Erro', 'Não foi possível sair da fila de espera agora. Tente novamente em instantes.', true);
     } finally {
       setProcessandoFila(false);
     }
