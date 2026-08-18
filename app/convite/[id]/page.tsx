@@ -3,6 +3,14 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import gsap from 'gsap';
+import {
+  cpfValido,
+  identificadorLoginValido,
+  requisitosSenha,
+  senhaForte as avaliarSenhaForte,
+  somenteDigitos,
+  telefoneValido,
+} from '../../lib/validacao';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -43,7 +51,8 @@ export default function CadastroConvite() {
   const [aceitouTermos, setAceitouTermos] = useState(false);
   const [modalTermosAberto, setModalTermosAberto] = useState(false);
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [modoLayout, setModoLayout] = useState<'mobile' | 'site'>('mobile');
+  const [telefoneVerificacao, setTelefoneVerificacao] = useState('');
+  const [reenviandoCodigo, setReenviandoCodigo] = useState(false);
 
   // NOVIDADE: A busca agora compara o NOME do link com a lista de lojas!
   useEffect(() => {
@@ -128,7 +137,7 @@ export default function CadastroConvite() {
     }, containerRef);
 
     return () => ctx.revert();
-  }, [modoLayout, lojaValida]);
+  }, [lojaValida]);
 
   const aplicarMascaraTelefone = (valor: string) => {
     const v = valor.replace(/\D/g, '');
@@ -157,36 +166,32 @@ export default function CadastroConvite() {
   };
 
   const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  
-  const loginLimpo = identificadorLogin.replace(/\D/g, '');
-  const isLoginEmailValido = regexEmail.test(identificadorLogin);
-  const isLoginTelefoneValido = loginLimpo.length >= 10 && loginLimpo.length <= 11;
-  const loginValido = isLoginEmailValido || isLoginTelefoneValido;
 
-  const emailCadastroValido = regexEmail.test(emailCadastro);
+  const isLoginEmailValido = regexEmail.test(identificadorLogin.trim());
+  const loginValido = identificadorLoginValido(identificadorLogin);
+
+  const emailCadastroValido = regexEmail.test(emailCadastro.trim());
   const emailCadastroPreenchido = emailCadastro.trim().length > 0;
   const emailCadastroValidoOuVazio = !emailCadastroPreenchido || emailCadastroValido;
 
-  const temMaiuscula = /[A-Z]/.test(senha);
-  const temNumero = /[0-9]/.test(senha);
-  const temCaracterEspecial = /[^A-Za-z0-9]/.test(senha);
-  const tamanhoMinimo = senha.length >= 8;
-  const senhaForte = temMaiuscula && temNumero && temCaracterEspecial && tamanhoMinimo;
+  const { temMaiuscula, temNumero, temCaracterEspecial } = requisitosSenha(senha);
+  const senhaForte = avaliarSenhaForte(senha);
+  const novaSenhaForte = avaliarSenhaForte(novaSenha);
 
-  const temMaiusculaNova = /[A-Z]/.test(novaSenha);
-  const temNumeroNova = /[0-9]/.test(novaSenha);
-  const temCaracterEspecialNova = /[^A-Za-z0-9]/.test(novaSenha);
-  const tamanhoMinimoNova = novaSenha.length >= 8;
-  const novaSenhaForte = temMaiusculaNova && temNumeroNova && temCaracterEspecialNova && tamanhoMinimoNova;
+  // Antes bastava ter 11 digitos, entao 999.999.999-99 era aceito. Agora os
+  // digitos verificadores sao conferidos, aqui e tambem no servidor.
+  const tamanhoDocumentoValido = cpfValido(cpf);
+  // O telefone deixou de ser opcional no cadastro: e para ele que vai o codigo
+  // de verificacao, entao sem numero valido nao ha como confirmar a conta.
+  const telefoneCadastroValido = telefoneValido(telefoneCadastro);
 
-  const tamanhoDocumentoValido = cpf.length === 11;
-  
   const formularioValido = isLogin
     ? loginValido && senha.length > 0
     : emailCadastroValidoOuVazio &&
       senhaForte &&
       nome.trim() !== '' &&
       tamanhoDocumentoValido &&
+      telefoneCadastroValido &&
       aceitouTermos;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -247,7 +252,14 @@ export default function CadastroConvite() {
         clearTimeout(timeoutId);
 
         if (resposta.status === 403) {
-          setMensagem({ tipo: 'erro', texto: 'Sua conta ainda nao foi verificada.' });
+          const detalhe = await resposta.json().catch(() => null);
+          if (detalhe?.telefone) setTelefoneVerificacao(detalhe.telefone);
+          setMensagem({
+            tipo: 'erro',
+            texto: detalhe?.telefoneMascarado
+              ? `Confirme o codigo enviado para ${detalhe.telefoneMascarado}.`
+              : 'Sua conta ainda nao foi verificada.',
+          });
           setIsVerificando(true);
           setCarregando(false);
           return;
@@ -268,13 +280,28 @@ export default function CadastroConvite() {
           router.push('/dashboard');
           return;
         } else {
-          setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso! Faca o seu login.' });
-          setTimeout(() => {
-            setIsLogin(true);
-            setNome(''); setCpf(''); setEmailCadastro(''); setTelefoneCadastro('');
-            setSenha(''); setAceitouTermos(false);
-            setMensagem({ tipo: '', texto: '' });
-          }, 2000);
+          const retorno = await resposta.json().catch(() => null);
+          const telefoneLimpo = somenteDigitos(telefoneCadastro);
+
+          if (retorno?.verificacaoPendente) {
+            // O codigo vai para o telefone; guardamos o numero porque os campos
+            // do formulario sao limpos logo abaixo.
+            setTelefoneVerificacao(retorno.telefone || telefoneLimpo);
+            setMensagem({
+              tipo: 'sucesso',
+              texto: `Cadastro realizado! Enviamos um codigo para ${retorno.telefoneMascarado || 'o seu telefone'}.`,
+            });
+            setIsVerificando(true);
+          } else {
+            setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso! Faca o seu login.' });
+            setTimeout(() => {
+              setIsLogin(true);
+              setMensagem({ tipo: '', texto: '' });
+            }, 2000);
+          }
+
+          setNome(''); setCpf(''); setEmailCadastro(''); setTelefoneCadastro('');
+          setSenha(''); setAceitouTermos(false);
           setCarregando(false);
           return;
         }
@@ -303,15 +330,56 @@ export default function CadastroConvite() {
     }
   };
 
+  const identificarContaEmVerificacao = (codigo?: string) => {
+    const base: Record<string, string> = {};
+    if (codigo !== undefined) base.codigo = codigo;
+
+    if (telefoneVerificacao) {
+      return { ...base, telefone: somenteDigitos(telefoneVerificacao) };
+    }
+    if (identificadorLogin.includes('@')) {
+      return { ...base, email: identificadorLogin.trim() };
+    }
+    return { ...base, telefone: somenteDigitos(identificadorLogin) };
+  };
+
+  const handleReenviarCodigo = async () => {
+    setReenviandoCodigo(true);
+    setMensagem({ tipo: '', texto: '' });
+    try {
+      const resposta = await fetch(`${API_URL}/api/usuarios/reenviar-codigo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(identificarContaEmVerificacao()),
+      });
+
+      const retorno = await resposta.json().catch(() => null);
+      if (!resposta.ok) {
+        throw new Error(retorno?.erro || 'Nao foi possivel reenviar o codigo agora.');
+      }
+
+      setMensagem({
+        tipo: 'sucesso',
+        texto: `Novo codigo enviado para ${retorno?.telefoneMascarado || 'o seu telefone'}.`,
+      });
+    } catch (erro) {
+      setMensagem({
+        tipo: 'erro',
+        texto: erro instanceof Error ? erro.message : 'Falha ao reenviar o codigo.',
+      });
+    } finally {
+      setReenviandoCodigo(false);
+    }
+  };
+
   const handleConfirmarCodigo = async (e: React.FormEvent) => {
     e.preventDefault();
     setMensagem({ tipo: '', texto: '' });
     setCarregando(true);
 
-    const isTelefone = !identificadorLogin.includes('@');
-    const payload = isTelefone 
-        ? { telefone: identificadorLogin.replace(/\D/g, ''), codigo: codigoOtp } 
-        : { email: identificadorLogin.trim(), codigo: codigoOtp };
+    // Quem acabou de se cadastrar nunca preencheu o campo de login, entao o
+    // telefone guardado no cadastro e quem identifica a conta aqui.
+    const payload = identificarContaEmVerificacao(codigoOtp);
 
     try {
       const resposta = await fetch(`${API_URL}/api/usuarios/verificar`, {
@@ -454,38 +522,11 @@ export default function CadastroConvite() {
         ))}
       </div>
 
-      <div className="mb-6 bg-stone-200/80 p-1 rounded-2xl flex space-x-1 border border-stone-300 shadow-inner z-50">
-        <button
-          type="button"
-          onClick={() => setModoLayout('mobile')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-            modoLayout === 'mobile' ? 'bg-[#0B1E14] text-white shadow-md' : 'text-stone-500 hover:text-stone-700'
-          }`}
-        >
-          Vista Mobile
-        </button>
-        <button
-          type="button"
-          onClick={() => setModoLayout('site')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-            modoLayout === 'site' ? 'bg-[#0B1E14] text-white shadow-md' : 'text-stone-500 hover:text-stone-700'
-          }`}
-        >
-          Vista Site
-        </button>
-      </div>
-
       <div
         ref={cardRef}
-        className={`w-full bg-white rounded-3xl shadow-xl border border-stone-200/60 overflow-hidden flex transition-all duration-500 ease-in-out hover:shadow-2xl ${
-          modoLayout === 'site' ? 'max-w-4xl min-h-[640px] flex-row' : 'max-w-md min-h-[660px] flex-col'
-        }`}
+        className="w-full max-w-md min-h-[660px] flex-col md:max-w-4xl md:min-h-[640px] md:flex-row bg-white rounded-3xl shadow-xl border border-stone-200/60 overflow-hidden flex transition-all duration-500 ease-in-out hover:shadow-2xl"
       >
-        <div
-          className={`bg-[#0B1E14] p-8 text-center flex flex-col items-center justify-center group transition-all duration-500 ${
-            modoLayout === 'site' ? 'w-1/2 rounded-r-3xl' : 'w-full'
-          }`}
-        >
+        <div className="w-full md:w-1/2 md:rounded-r-3xl bg-[#0B1E14] p-8 text-center flex flex-col items-center justify-center group transition-all duration-500">
           <div className="w-16 h-16 bg-[#F5F2EB] rounded-full flex items-center justify-center mb-3 shadow-md transition-transform duration-500 ease-out group-hover:rotate-12 group-hover:scale-105">
             <span className="text-[#0B1E14] font-black text-2xl">AV</span>
           </div>
@@ -498,11 +539,7 @@ export default function CadastroConvite() {
           </div>
         </div>
 
-        <div
-          className={`flex flex-col justify-between transition-all duration-500 overflow-y-auto max-h-[85vh] ${
-            modoLayout === 'site' ? 'w-1/2 p-4' : 'w-full p-2'
-          }`}
-        >
+        <div className="w-full p-2 md:w-1/2 md:p-4 flex flex-col justify-between transition-all duration-500 overflow-y-auto max-h-[85vh]">
           {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
             <div className="flex border-b border-stone-100 bg-stone-50/50">
               <button
@@ -540,8 +577,10 @@ export default function CadastroConvite() {
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificacao de Conta</h3>
                   <p className="text-xs text-stone-400 mt-1">
-                    Insira o codigo verificador enviado para: <br />
-                    <strong className="text-[#BD6B42] font-semibold">{identificadorLogin}</strong>
+                    Insira o codigo verificador enviado por mensagem para: <br />
+                    <strong className="text-[#BD6B42] font-semibold">
+                      {telefoneVerificacao ? aplicarMascaraTelefone(telefoneVerificacao) : identificadorLogin}
+                    </strong>
                   </p>
                 </div>
                 {mensagem.texto && (
@@ -582,6 +621,14 @@ export default function CadastroConvite() {
                   }`}
                 >
                   {carregando ? 'PROCESSANDO...' : 'Confirmar e Ativar Conta'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReenviarCodigo}
+                  disabled={reenviandoCodigo || carregando}
+                  className="w-full text-[#BD6B42] hover:underline text-center font-bold text-xs py-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+                >
+                  {reenviandoCodigo ? 'Reenviando...' : 'Nao recebi o codigo. Reenviar'}
                 </button>
                 <button
                   type="button"
@@ -822,16 +869,26 @@ export default function CadastroConvite() {
 
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                        Telefone / WhatsApp (Opcional)
+                        Telefone / WhatsApp *
                       </label>
                       <input
                         type="text"
-                        placeholder="(42) 99999-9999"
+                        placeholder="(42) 98765-4321"
                         value={telefoneCadastro}
                         onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))}
-                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
+                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px] ${
+                          telefoneCadastro.length > 0 && !telefoneCadastroValido
+                            ? 'border-rose-300 focus:border-rose-400'
+                            : 'border-stone-200 focus:border-[#0B1E14]'
+                        }`}
+                        required
                         disabled={carregando}
                       />
+                      <p className="text-[10px] text-stone-400 mt-1 leading-relaxed">
+                        {telefoneCadastro.length > 0 && !telefoneCadastroValido
+                          ? 'Informe um numero real, com DDD valido.'
+                          : 'Enviaremos um codigo de verificacao para este numero.'}
+                      </p>
                     </div>
                   </div>
                 )}

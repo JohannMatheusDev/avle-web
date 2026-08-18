@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  cpfValido,
+  identificadorLoginValido,
+  requisitosSenha,
+  senhaForte as avaliarSenhaForte,
+  somenteDigitos,
+  telefoneValido,
+} from './lib/validacao';
 import TelaCarregamento from './dashboard/components/TelaCarregamento';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
@@ -61,6 +69,8 @@ function Autenticacao() {
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [codigoOtp, setCodigoOtp] = useState('');
+  const [telefoneVerificacao, setTelefoneVerificacao] = useState('');
+  const [reenviandoCodigo, setReenviandoCodigo] = useState(false);
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
 
   const [cep, setCep] = useState('');
@@ -74,6 +84,18 @@ function Autenticacao() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
   const [lembrarSenha, setLembrarSenha] = useState(false);
+
+  // "Lembrar de mim" guarda apenas o e-mail ou telefone usado para entrar, nunca
+  // a senha: preenche o campo na proxima visita sem deixar credencial gravada no
+  // aparelho, que pode ser compartilhado. Antes o checkbox era enviado no
+  // payload do login e o servidor simplesmente ignorava, entao nao fazia nada.
+  useEffect(() => {
+    const identificadorGuardado = localStorage.getItem('@avle:identificador_lembrado');
+    if (identificadorGuardado) {
+      setIdentificadorLogin(identificadorGuardado);
+      setLembrarSenha(true);
+    }
+  }, []);
 
   useEffect(() => {
     const querCadastro = sessionStorage.getItem('@avle:abrir_cadastro');
@@ -161,31 +183,27 @@ function Autenticacao() {
 
   const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   
-  const loginLimpo = identificadorLogin.replace(/\D/g, '');
-  const isLoginEmailValido = regexEmail.test(identificadorLogin);
-  const isLoginTelefoneValido = loginLimpo.length >= 10 && loginLimpo.length <= 11;
-  const loginValido = isLoginEmailValido || isLoginTelefoneValido;
+  const isLoginEmailValido = regexEmail.test(identificadorLogin.trim());
+  const loginValido = identificadorLoginValido(identificadorLogin);
 
-  const emailCadastroValido = regexEmail.test(emailCadastro);
+  const emailCadastroValido = regexEmail.test(emailCadastro.trim());
   const emailCadastroPreenchido = emailCadastro.trim().length > 0;
   const emailCadastroValidoOuVazio = tipoUsuario === 'LOJA' ? emailCadastroValido : !emailCadastroPreenchido || emailCadastroValido;
 
-  const temMaiuscula = /[A-Z]/.test(senha);
-  const temNumero = /[0-9]/.test(senha);
-  const temCaracterEspecial = /[^A-Za-z0-9]/.test(senha);
-  const tamanhoMinimo = senha.length >= 8;
-  const senhaForte = temMaiuscula && temNumero && temCaracterEspecial && tamanhoMinimo;
+  const { tamanhoMinimo, temMaiuscula, temNumero, temCaracterEspecial } = requisitosSenha(senha);
+  const senhaForte = avaliarSenhaForte(senha);
 
-  const temMaiusculaNova = /[A-Z]/.test(novaSenha);
-  const temNumeroNova = /[0-9]/.test(novaSenha);
-  const temCaracterEspecialNova = /[^A-Za-z0-9]/.test(novaSenha);
-  const tamanhoMinimoNova = novaSenha.length >= 8;
-  const novaSenhaForte = temMaiusculaNova && temNumeroNova && temCaracterEspecialNova && tamanhoMinimoNova;
+  const novaSenhaForte = avaliarSenhaForte(novaSenha);
 
-  const tamanhoDocumentoValido = cpf.length === (tipoUsuario === 'LOJA' ? 14 : 11);
-  
-  const telefoneCadastroLimpo = telefoneCadastro.replace(/\D/g, '');
-  const telefoneCadastroValidoSeLoja = tipoUsuario === 'LOJA' ? telefoneCadastroLimpo.length >= 10 : true;
+  // A loja usa este mesmo campo para o CNPJ, que tem outra regra; os digitos
+  // verificadores so sao conferidos no CPF do cliente.
+  const tamanhoDocumentoValido = tipoUsuario === 'LOJA' ? cpf.length === 14 : cpfValido(cpf);
+
+  const telefoneCadastroLimpo = somenteDigitos(telefoneCadastro);
+  // Loja precisa de telefone; cliente so precisa que, se informado, seja real.
+  const telefoneCadastroValidoSeLoja = tipoUsuario === 'LOJA'
+    ? telefoneValido(telefoneCadastroLimpo)
+    : telefoneCadastroLimpo.length === 0 || telefoneValido(telefoneCadastroLimpo);
 
   const cepLimpo = cep.replace(/\D/g, '');
   const cepValidoSeLoja = tipoUsuario === 'LOJA' ? cepLimpo.length === 8 : true;
@@ -241,9 +259,9 @@ function Autenticacao() {
 
         if (isLogin) {
             if (identificadorLogin.includes('@')) {
-               bodyPayload = { email: identificadorLogin.trim(), senha, lembrarSenha };
+               bodyPayload = { email: identificadorLogin.trim(), senha };
             } else {
-               bodyPayload = { telefone: identificadorLogin.replace(/\D/g, ''), senha, lembrarSenha };
+               bodyPayload = { telefone: somenteDigitos(identificadorLogin), senha };
             }
         } else {
             const conviteLojaId = sessionStorage.getItem('@avle:convite_loja_id');
@@ -272,7 +290,14 @@ function Autenticacao() {
         clearTimeout(timeoutId);
 
         if (resposta.status === 403) {
-          setMensagem({ tipo: 'erro', texto: 'Sua conta ainda nao foi verificada.' });
+          const detalhe = await resposta.json().catch(() => null);
+          if (detalhe?.telefone) setTelefoneVerificacao(detalhe.telefone);
+          setMensagem({
+            tipo: 'erro',
+            texto: detalhe?.telefoneMascarado
+              ? `Confirme o codigo enviado para ${detalhe.telefoneMascarado}.`
+              : 'Sua conta ainda nao foi verificada.',
+          });
           setIsVerificando(true);
           setCarregando(false);
           return;
@@ -290,17 +315,38 @@ function Autenticacao() {
         if (isLogin) {
           const dadosUsuario = await resposta.json();
           localStorage.setItem('@avle:usuario', JSON.stringify(dadosUsuario));
+
+          if (lembrarSenha) {
+            localStorage.setItem('@avle:identificador_lembrado', identificadorLogin.trim());
+          } else {
+            localStorage.removeItem('@avle:identificador_lembrado');
+          }
+
           router.push('/dashboard');
           return;
         } else {
-          setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso!' });
-          sessionStorage.removeItem('@avle:convite_loja_id'); 
-          setTimeout(() => {
-            setIsLogin(true);
-            setNome(''); setCpf(''); setEmailCadastro(''); setTelefoneCadastro(''); setCep('');
-            setFaturamento(''); setWalletIdInput(''); setSenha(''); setAceitouTermos(false);
-            setMensagem({ tipo: '', texto: '' });
-          }, 1500);
+          const retorno = await resposta.json().catch(() => null);
+          sessionStorage.removeItem('@avle:convite_loja_id');
+
+          if (retorno?.verificacaoPendente) {
+            // O numero fica guardado porque os campos sao limpos logo abaixo e a
+            // tela do codigo precisa saber de qual conta se trata.
+            setTelefoneVerificacao(retorno.telefone || telefoneCadastroLimpo);
+            setMensagem({
+              tipo: 'sucesso',
+              texto: `Cadastro realizado! Enviamos um codigo para ${retorno.telefoneMascarado || 'o seu telefone'}.`,
+            });
+            setIsVerificando(true);
+          } else {
+            setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso!' });
+            setTimeout(() => {
+              setIsLogin(true);
+              setMensagem({ tipo: '', texto: '' });
+            }, 1500);
+          }
+
+          setNome(''); setCpf(''); setEmailCadastro(''); setTelefoneCadastro(''); setCep('');
+          setFaturamento(''); setWalletIdInput(''); setSenha(''); setAceitouTermos(false);
           setCarregando(false);
           return;
         }
@@ -329,15 +375,54 @@ function Autenticacao() {
     }
   };
 
+  // Quem acabou de se cadastrar nunca preencheu o campo de login, entao o
+  // telefone guardado no cadastro e quem identifica a conta na verificacao.
+  const identificarContaEmVerificacao = (codigo?: string) => {
+    const base: Record<string, string> = {};
+    if (codigo !== undefined) base.codigo = codigo;
+
+    if (telefoneVerificacao) {
+      return { ...base, telefone: somenteDigitos(telefoneVerificacao) };
+    }
+    if (identificadorLogin.includes('@')) {
+      return { ...base, email: identificadorLogin.trim() };
+    }
+    return { ...base, telefone: somenteDigitos(identificadorLogin) };
+  };
+
+  const handleReenviarCodigo = async () => {
+    setReenviandoCodigo(true);
+    setMensagem({ tipo: '', texto: '' });
+    try {
+      const resposta = await fetch(`${API_URL}/api/usuarios/reenviar-codigo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(identificarContaEmVerificacao()),
+      });
+
+      const retorno = await resposta.json().catch(() => null);
+      if (!resposta.ok) throw new Error(retorno?.erro || 'Nao foi possivel reenviar o codigo agora.');
+
+      setMensagem({
+        tipo: 'sucesso',
+        texto: `Novo codigo enviado para ${retorno?.telefoneMascarado || 'o seu telefone'}.`,
+      });
+    } catch (erro) {
+      setMensagem({
+        tipo: 'erro',
+        texto: erro instanceof Error ? erro.message : 'Falha ao reenviar o codigo.',
+      });
+    } finally {
+      setReenviandoCodigo(false);
+    }
+  };
+
   const handleConfirmarCodigo = async (e: React.FormEvent) => {
     e.preventDefault();
     setMensagem({ tipo: '', texto: '' });
     setCarregando(true);
 
-    const isTelefone = !identificadorLogin.includes('@');
-    const payload = isTelefone 
-        ? { telefone: identificadorLogin.replace(/\D/g, ''), codigo: codigoOtp } 
-        : { email: identificadorLogin.trim(), codigo: codigoOtp };
+    const payload = identificarContaEmVerificacao(codigoOtp);
 
     try {
       const resposta = await fetch(`${API_URL}/api/usuarios/verificar`, {
@@ -499,7 +584,7 @@ function Autenticacao() {
               <form onSubmit={handleConfirmarCodigo} className="flex flex-col space-y-4 text-left">
                   <div>
                     <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificacao de Conta</h3>
-                    <p className="text-xs text-stone-400 mt-1">Insira o codigo verificador enviado para: <br /><strong className="text-[#BD6B42] font-semibold">{identificadorLogin}</strong></p>
+                    <p className="text-xs text-stone-400 mt-1">Insira o codigo verificador enviado por mensagem para: <br /><strong className="text-[#BD6B42] font-semibold">{telefoneVerificacao ? aplicarMascaraTelefone(telefoneVerificacao) : identificadorLogin}</strong></p>
                   </div>
                   {mensagem.texto && (
                     <div className={`p-3 rounded-xl text-xs font-bold border ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
@@ -513,6 +598,9 @@ function Autenticacao() {
                   <div className="space-y-2 mt-4">
                   <button type="submit" disabled={codigoOtp.length !== 6 || carregando} className={`w-full py-3.5 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all shadow-md ${codigoOtp.length === 6 && !carregando ? 'bg-[#BD6B42] cursor-pointer' : 'bg-stone-300 cursor-not-allowed opacity-50'}`}>
                     {carregando ? 'PROCESSANDO...' : 'Confirmar e Ativar'}
+                  </button>
+                  <button type="button" onClick={handleReenviarCodigo} disabled={reenviandoCodigo || carregando} className="w-full text-[#BD6B42] hover:underline text-center font-bold text-xs py-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline">
+                    {reenviandoCodigo ? 'Reenviando...' : 'Nao recebi o codigo. Reenviar'}
                   </button>
                   <button type="button" onClick={() => setIsVerificando(false)} className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-2 cursor-pointer">Cancelar e voltar</button>
                 </div>
