@@ -178,11 +178,11 @@ export default function CadastroConvite() {
   const senhaForte = avaliarSenhaForte(senha);
   const novaSenhaForte = avaliarSenhaForte(novaSenha);
 
-  // Antes bastava ter 11 digitos, entao 999.999.999-99 era aceito. Agora os
-  // digitos verificadores sao conferidos, aqui e tambem no servidor.
+  // Antes bastava ter 11 dígitos, entao 999.999.999-99 era aceito. Agora os
+  // dígitos verificadores são conferidos, aqui e também no servidor.
   const tamanhoDocumentoValido = cpfValido(cpf);
-  // O telefone deixou de ser opcional no cadastro: e para ele que vai o codigo
-  // de verificacao, entao sem numero valido nao ha como confirmar a conta.
+  // O telefone deixou de ser opcional no cadastro: e para ele que vai o código
+  // de verificação, entao sem número válido não ha como confirmar a conta.
   const telefoneCadastroValido = telefoneValido(telefoneCadastro);
 
   const formularioValido = isLogin
@@ -201,13 +201,13 @@ export default function CadastroConvite() {
     setCarregando(true);
 
     if (!lojaIdNum) {
-      setMensagem({ tipo: 'erro', texto: 'Falha na identificacao da loja. Recarregue a pagina.' });
+      setMensagem({ tipo: 'erro', texto: 'Falha na identificação da loja. Recarregue a página.' });
       setCarregando(false);
       return;
     }
 
     if (!formularioValido) {
-      setMensagem({ tipo: 'erro', texto: 'Por favor, preencha todos os campos obrigatorios corretamente e aceite os termos!' });
+      setMensagem({ tipo: 'erro', texto: 'Por favor, preencha todos os campos obrigatórios corretamente e aceite os termos!' });
       setCarregando(false);
       return;
     }
@@ -257,8 +257,8 @@ export default function CadastroConvite() {
           setMensagem({
             tipo: 'erro',
             texto: detalhe?.telefoneMascarado
-              ? `Confirme o codigo enviado para ${detalhe.telefoneMascarado}.`
-              : 'Sua conta ainda nao foi verificada.',
+              ? `Confirme o código enviado para ${detalhe.telefoneMascarado}.`
+              : 'Sua conta ainda não foi verificada.',
           });
           setIsVerificando(true);
           setCarregando(false);
@@ -284,16 +284,16 @@ export default function CadastroConvite() {
           const telefoneLimpo = somenteDigitos(telefoneCadastro);
 
           if (retorno?.verificacaoPendente) {
-            // O codigo vai para o telefone; guardamos o numero porque os campos
-            // do formulario sao limpos logo abaixo.
+            // O código vai para o telefone; guardamos o número porque os campos
+            // do formulário são limpos logo abaixo.
             setTelefoneVerificacao(retorno.telefone || telefoneLimpo);
             setMensagem({
               tipo: 'sucesso',
-              texto: `Cadastro realizado! Enviamos um codigo para ${retorno.telefoneMascarado || 'o seu telefone'}.`,
+              texto: `Cadastro realizado! Enviamos um código para ${retorno.telefoneMascarado || 'o seu telefone'}.`,
             });
             setIsVerificando(true);
           } else {
-            setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso! Faca o seu login.' });
+            setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso! Faça o seu login.' });
             setTimeout(() => {
               setIsLogin(true);
               setMensagem({ tipo: '', texto: '' });
@@ -323,7 +323,7 @@ export default function CadastroConvite() {
 
         setMensagem({
           tipo: 'erro',
-          texto: 'Nao foi possivel conectar ao servidor. Verifique sua conexao e tente novamente.',
+          texto: 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.',
         });
         setCarregando(false);
       }
@@ -355,17 +355,17 @@ export default function CadastroConvite() {
 
       const retorno = await resposta.json().catch(() => null);
       if (!resposta.ok) {
-        throw new Error(retorno?.erro || 'Nao foi possivel reenviar o codigo agora.');
+        throw new Error(retorno?.erro || 'Não foi possível reenviar o código agora.');
       }
 
       setMensagem({
         tipo: 'sucesso',
-        texto: `Novo codigo enviado para ${retorno?.telefoneMascarado || 'o seu telefone'}.`,
+        texto: `Novo código enviado para ${retorno?.telefoneMascarado || 'o seu telefone'}.`,
       });
     } catch (erro) {
       setMensagem({
         tipo: 'erro',
-        texto: erro instanceof Error ? erro.message : 'Falha ao reenviar o codigo.',
+        texto: erro instanceof Error ? erro.message : 'Falha ao reenviar o código.',
       });
     } finally {
       setReenviandoCodigo(false);
@@ -390,10 +390,10 @@ export default function CadastroConvite() {
 
       if (!resposta.ok) {
         const textoErro = await resposta.text();
-        throw new Error(textoErro || 'Codigo de verificacao incorreto ou expirado.');
+        throw new Error(textoErro || 'Código de verificação incorreto ou expirado.');
       }
 
-      setMensagem({ tipo: 'sucesso', texto: 'Conta ativada com sucesso! Faca seu login agora.' });
+      setMensagem({ tipo: 'sucesso', texto: 'Conta ativada com sucesso! Faça seu login agora.' });
       setIsVerificando(false);
       setIsLogin(true);
       setSenha('');
@@ -413,7 +413,7 @@ export default function CadastroConvite() {
     const isTelefone = !identificadorLogin.includes('@');
 
     if (!isLoginEmailValido && !isTelefone) {
-      setMensagem({ tipo: 'erro', texto: 'Por favor, insira um e-mail ou telefone valido.' });
+      setMensagem({ tipo: 'erro', texto: 'Por favor, insira um e-mail ou telefone válido.' });
       setCarregando(false);
       return;
     }
@@ -429,9 +429,9 @@ export default function CadastroConvite() {
         body: JSON.stringify(payload),
       });
 
-      if (!resposta.ok) throw new Error('Dados nao localizados no ecossistema AVLE.');
+      if (!resposta.ok) throw new Error('Dados não localizados no ecossistema AVLE.');
 
-      setMensagem({ tipo: 'sucesso', texto: 'Codigo de redefinicao enviado!' });
+      setMensagem({ tipo: 'sucesso', texto: 'Código de redefinição enviado!' });
 
       setTimeout(() => {
         setIsEsqueceuSenha(false);
@@ -452,7 +452,7 @@ export default function CadastroConvite() {
     setCarregando(true);
 
     if (codigoOtp.length !== 6 || !novaSenhaForte) {
-      setMensagem({ tipo: 'erro', texto: 'O codigo precisa ter 6 digitos e a nova senha precisa ser forte.' });
+      setMensagem({ tipo: 'erro', texto: 'O código precisa ter 6 dígitos e a nova senha precisa ser forte.' });
       setCarregando(false);
       return;
     }
@@ -469,9 +469,9 @@ export default function CadastroConvite() {
         body: JSON.stringify(payload),
       });
 
-      if (!resposta.ok) throw new Error('Codigo incorreto, expirado ou ja utilizado.');
+      if (!resposta.ok) throw new Error('Código incorreto, expirado ou já utilizado.');
 
-      setMensagem({ tipo: 'sucesso', texto: 'Sua senha foi redefinida com sucesso! Faca seu login.' });
+      setMensagem({ tipo: 'sucesso', texto: 'Sua senha foi redefinida com sucesso! Faça seu login.' });
 
       setTimeout(() => {
         setIsResetandoSenha(false);
@@ -495,9 +495,9 @@ export default function CadastroConvite() {
            <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-200">
               <span className="text-rose-600 font-bold text-2xl">!</span>
            </div>
-           <h2 className="text-xl font-bold text-rose-700 mb-2">Convite Invalido</h2>
-           <p className="text-sm text-stone-500">A loja que voce esta tentando acessar nao existe, ou o link expirou.</p>
-           <button onClick={() => router.push('/')} className="mt-6 px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:bg-opacity-90">Ir para o inicio</button>
+           <h2 className="text-xl font-bold text-rose-700 mb-2">Convite Inválido</h2>
+           <p className="text-sm text-stone-500">A loja que você está tentando acessar não existe, ou o link expirou.</p>
+           <button onClick={() => router.push('/')} className="mt-6 px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:bg-opacity-90">Ir para o início</button>
         </div>
       </div>
     );
@@ -575,7 +575,7 @@ export default function CadastroConvite() {
             <form onSubmit={handleConfirmarCodigo} className="p-6 flex-1 flex flex-col justify-between space-y-4 text-left">
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificacao de Conta</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificação de Conta</h3>
                   <p className="text-xs text-stone-400 mt-1">
                     Insira o codigo verificador enviado por mensagem para: <br />
                     <strong className="text-[#BD6B42] font-semibold">
@@ -596,7 +596,7 @@ export default function CadastroConvite() {
                 )}
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Codigo de Confirmacao (6 digitos)
+                    Código de Confirmação (6 dígitos)
                   </label>
                   <input
                     type="text"
@@ -628,7 +628,7 @@ export default function CadastroConvite() {
                   disabled={reenviandoCodigo || carregando}
                   className="w-full text-[#BD6B42] hover:underline text-center font-bold text-xs py-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
                 >
-                  {reenviandoCodigo ? 'Reenviando...' : 'Nao recebi o codigo. Reenviar'}
+                  {reenviandoCodigo ? 'Reenviando...' : 'Não recebi o código. Reenviar'}
                 </button>
                 <button
                   type="button"
@@ -645,9 +645,9 @@ export default function CadastroConvite() {
             <form onSubmit={handleSolicitarRecuperacao} className="p-6 flex-1 flex flex-col justify-between space-y-6 text-left">
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Recuperacao de Acesso</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Recuperação de Acesso</h3>
                   <p className="text-xs text-stone-400 mt-1">
-                    Informe seu e-mail ou telefone cadastrado. Enviaremos um codigo token para criar uma nova senha.
+                    Informe seu e-mail ou telefone cadastrado. Enviaremos um código token para criar uma nova senha.
                   </p>
                 </div>
                 {mensagem.texto && (
@@ -680,7 +680,7 @@ export default function CadastroConvite() {
                   disabled={carregando}
                   className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55"
                 >
-                  {carregando ? 'ENVIANDO...' : 'Enviar Codigo Verificador'}
+                  {carregando ? 'ENVIANDO...' : 'Enviar Código Verificador'}
                 </button>
                 <button
                   type="button"
@@ -698,7 +698,7 @@ export default function CadastroConvite() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Criar Nova Senha</h3>
-                  <p className="text-xs text-stone-400 mt-1">Insira o token de 6 digitos recebido.</p>
+                  <p className="text-xs text-stone-400 mt-1">Insira o token de 6 dígitos recebido.</p>
                 </div>
                 {mensagem.texto && (
                   <div
@@ -713,7 +713,7 @@ export default function CadastroConvite() {
                 )}
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Token (6 digitos)
+                    Token (6 dígitos)
                   </label>
                   <input
                     type="text"
@@ -797,7 +797,7 @@ export default function CadastroConvite() {
                         </label>
                         {identificadorLogin.length > 0 && (
                           <span className={`text-[10px] font-bold ${loginValido ? 'text-emerald-600' : 'text-rose-500'}`}>
-                            {loginValido ? '✓ Valido' : '✗ Invalido'}
+                            {loginValido ? '✓ Válido' : '✗ Inválido'}
                           </span>
                         )}
                       </div>
@@ -886,8 +886,8 @@ export default function CadastroConvite() {
                       />
                       <p className="text-[10px] text-stone-400 mt-1 leading-relaxed">
                         {telefoneCadastro.length > 0 && !telefoneCadastroValido
-                          ? 'Informe um numero real, com DDD valido.'
-                          : 'Enviaremos um codigo de verificacao para este numero.'}
+                          ? 'Informe um número real, com DDD válido.'
+                          : 'Enviaremos um código de verificação para este número.'}
                       </p>
                     </div>
                   </div>
@@ -939,7 +939,7 @@ export default function CadastroConvite() {
                         }`}
                       >
                         <span>{senha.length >= 8 ? '✓' : '○'}</span>
-                        <span>Minimo de 8 caracteres</span>
+                        <span>Mínimo de 8 caracteres</span>
                       </div>
                       <div
                         className={`flex items-center space-x-1.5 transition-colors ${
@@ -955,7 +955,7 @@ export default function CadastroConvite() {
                         }`}
                       >
                         <span>{temNumero ? '✓' : '○'}</span>
-                        <span>Pelo menos um numero</span>
+                        <span>Pelo menos um número</span>
                       </div>
                       <div
                         className={`flex items-center space-x-1.5 transition-colors ${
@@ -1012,7 +1012,7 @@ export default function CadastroConvite() {
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
             <div className="flex justify-between items-center p-5 border-b border-stone-100">
               <div>
-                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Contrato de Adesao</h3>
+                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Contrato de Adesão</h3>
                 <p className="text-[10px] text-stone-400 mt-0.5">Loja: {lojaNome}</p>
               </div>
               <button 
@@ -1050,7 +1050,7 @@ export default function CadastroConvite() {
                 }} 
                 className="px-6 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all shadow-sm"
               >
-                Li e Aceito as Condicoes
+                Li e Aceito as Condições
               </button>
             </div>
           </div>

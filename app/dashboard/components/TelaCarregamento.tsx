@@ -22,7 +22,7 @@ export default function TelaCarregamento({ onFinalizado }: { onFinalizado: () =>
         onEnded={onFinalizado} 
         className="w-full h-full object-cover opacity-80"
       >
-        <source src="/intro.mp4" type="video/mp4" />
+        <source src="/videos/intro.mp4" type="video/mp4" />
       </video>
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <h1 className="text-white text-5xl md:text-7xl font-bold tracking-widest font-serif opacity-80 animate-pulse">

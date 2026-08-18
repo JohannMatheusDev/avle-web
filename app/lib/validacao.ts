@@ -1,14 +1,14 @@
-// Regras de aceitacao compartilhadas pelo login principal e pela pagina de
-// convite. As duas telas validavam por conta propria e checavam apenas o
+// Regras de aceitação compartilhadas pelo login principal e pela página de
+// convite. As duas telas validavam por conta própria e checavam apenas o
 // tamanho dos campos, entao um CPF 99999999999 ou um telefone (00) 00000-0000
 // passavam direto. O servidor aplica as mesmas regras, aqui e so para o retorno
-// imediato ao usuario.
+// imediato ao usuário.
 
 export const somenteDigitos = (valor: string) => (valor || '').replace(/\D/g, '');
 
 /**
- * CPF conferido pelos digitos verificadores. O algoritmo ja recusa sozinho os
- * numeros de digito repetido (111.111.111-11, 999.999.999-99), que sao a forma
+ * CPF conferido pelos dígitos verificadores. O algoritmo já recusa sozinho os
+ * números de digito repetido (111.111.111-11, 999.999.999-99), que são a forma
  * mais comum de burlar um cadastro.
  */
 export const cpfValido = (cpf: string) => {
@@ -28,7 +28,7 @@ export const cpfValido = (cpf: string) => {
   return true;
 };
 
-// DDDs em uso no Brasil. A lista fechada barra numeros inventados como (00) e
+// DDDs em uso no Brasil. A lista fechada barra números inventados como (00) e
 // (10), que passariam por qualquer checagem baseada so em tamanho.
 const DDDS_VALIDOS = new Set([
   11, 12, 13, 14, 15, 16, 17, 18, 19,
@@ -44,7 +44,7 @@ const DDDS_VALIDOS = new Set([
 
 /**
  * Telefone brasileiro: DDD conhecido, 8 ou 9 digitos na linha e celular
- * comecando em 9. Numeros de digito repetido sao recusados mesmo quando o
+ * comecando em 9. Numeros de digito repetido são recusados mesmo quando o
  * tamanho bate, que era o caso do 99999999999.
  */
 export const telefoneValido = (telefone: string) => {
@@ -57,7 +57,7 @@ export const telefoneValido = (telefone: string) => {
   if (linha.length === 9 && linha[0] !== '9') return false;
   if (linha.length === 8 && (linha[0] === '0' || linha[0] === '1')) return false;
 
-  // Linha toda igual (999999999) passa nas regras acima, mas nao existe.
+  // Linha toda igual (999999999) passa nas regras acima, mas não existe.
   return new Set(linha).size !== 1;
 };
 

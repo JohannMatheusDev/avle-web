@@ -13,7 +13,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 // O servidor hiberna quando fica ocioso e a primeira chamada depois disso falha
 // enquanto a instancia volta a subir. Sem repetir, o painel inteiro abria com
-// "sem conexao" em todas as secoes de uma vez, mesmo com a API no ar.
+// "sem conexão" em todas as seções de uma vez, mesmo com a API no ar.
 const TENTATIVAS_POR_SECAO = 3;
 const ESPERA_ENTRE_TENTATIVAS_MS = 2500;
 
@@ -84,7 +84,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [clientesSelecionados, setClientesSelecionados] = useState<number[]>([]);
   const [salvandoParticipantes, setSalvandoParticipantes] = useState(false);
 
-  // Sorteio auditavel: agendamento congela a lista, apuracao le a Loteria Federal.
+  // Sorteio auditável: agendamento congela a lista, apuração le a Loteria Federal.
   const [dataCorteSorteio, setDataCorteSorteio] = useState('');
   const [sorteiosDoGrupo, setSorteiosDoGrupo] = useState<SorteioResumo[]>([]);
   const [elegiveisDoGrupo, setElegiveisDoGrupo] = useState<CotaElegivel[]>([]);
@@ -118,7 +118,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [taxaChurn, setTaxaChurn] = useState<number>(0);
   const [nomeLojaReal, setNomeLojaReal] = useState<string>('');
 
-  // Falhas de carregamento por secao, exibidas no topo do painel. Sem isso uma
+  // Falhas de carregamento por seção, exibidas no topo do painel. Sem isso uma
   // API fora do ar aparece como "nenhum registro", que e indistinguivel de vazio.
   const [errosApi, setErrosApi] = useState<Record<string, string>>({});
 
@@ -204,10 +204,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     });
   }, []);
 
-  // Devolve o fallback quando a API falha, para a tela nao quebrar, mas registra
-  // a falha para o operador ver que o dado esta incompleto e nao vazio.
+  // Devolve o fallback quando a API falha, para a tela não quebrar, mas registra
+  // a falha para o operador ver que o dado esta incompleto e não vazio.
   const buscarJson = useCallback(async <T,>(secao: string, url: string, fallback: T): Promise<T> => {
-    let ultimaFalha = 'Nao foi possivel conectar ao servidor.';
+    let ultimaFalha = 'Não foi possível conectar ao servidor.';
 
     for (let tentativa = 1; tentativa <= TENTATIVAS_POR_SECAO; tentativa++) {
       try {
@@ -217,10 +217,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           return await res.json();
         }
         ultimaFalha = await lerMensagemErro(res);
-        // Erro de 4xx e resposta definitiva da API: repetir nao muda o resultado.
+        // Erro de 4xx e resposta definitiva da API: repetir não muda o resultado.
         if (res.status < 500) break;
       } catch {
-        ultimaFalha = 'Nao foi possivel conectar ao servidor.';
+        ultimaFalha = 'Não foi possível conectar ao servidor.';
       }
 
       if (tentativa < TENTATIVAS_POR_SECAO) {
@@ -242,9 +242,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     const lojaId = usuario?.lojaId || usuario?.id;
 
     const [obrigacoes, resumo, transacoes, churn] = await Promise.all([
-      buscarJson<number>('Obrigacoes futuras', `${API_URL}/api/financeiro/obrigacoes/loja/${lojaId}`, 0),
+      buscarJson<number>('Obrigações futuras', `${API_URL}/api/financeiro/obrigacoes/loja/${lojaId}`, 0),
       buscarJson<ResumoFinanceiro>('Resumo financeiro', `${API_URL}/api/financeiro/loja/${lojaId}/resumo`, { recebidoEsteMes: 0, aReceberContemplados: 0, emNegociacao: 0, acordosAtivos: 0, repasses: [] }),
-      buscarJson<unknown[]>('Historico de transacoes', `${API_URL}/api/financeiro/lojas/${lojaId}/transacoes`, []),
+      buscarJson<unknown[]>('Histórico de transações', `${API_URL}/api/financeiro/lojas/${lojaId}/transacoes`, []),
       buscarJson<{ taxaChurn: number }>('Metricas de churn', `${API_URL}/api/lojas/${lojaId}/metricas-churn`, { taxaChurn: 0 }),
     ]);
 
@@ -273,7 +273,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   const carregarSolicitacoesAcesso = async () => {
     const lojaId = usuario?.lojaId || usuario?.id;
-    const data = await buscarJson<unknown[]>('Solicitacoes de acesso', `${API_URL}/api/lojas/${lojaId}/solicitacoes-acesso`, []);
+    const data = await buscarJson<unknown[]>('Solicitações de acesso', `${API_URL}/api/lojas/${lojaId}/solicitacoes-acesso`, []);
     if (Array.isArray(data)) setSolicitacoesAcesso(data);
   };
 
@@ -317,7 +317,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     navigator.clipboard.writeText(link).then(() => {
       mostrarAviso('Link Copiado', 'O link exclusivo da sua loja foi copiado com sucesso!', false);
     }).catch(() => {
-      mostrarAviso('Erro', 'Nao foi possivel copiar o link automaticamente.', true);
+      mostrarAviso('Erro', 'Não foi possível copiar o link automaticamente.', true);
     });
   };
 
@@ -328,7 +328,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         if(res.ok) {
            mostrarAviso(
               aprovado ? 'Acesso Liberado' : 'Acesso Rejeitado',
-              aprovado ? 'O cliente foi aprovado e agora tem acesso ao catalogo e planos da sua loja.' : 'A solicitacao do cliente foi bloqueada com sucesso.',
+              aprovado ? 'O cliente foi aprovado e agora tem acesso ao catálogo e planos da sua loja.' : 'A solicitação do cliente foi bloqueada com sucesso.',
               !aprovado
            );
            carregarSolicitacoesAcesso(); 
@@ -336,10 +336,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
            carregarDadosFinanceiros(); 
            carregarListaClientesDaLoja();
         } else {
-           mostrarAviso('Erro de Sistema', 'Falha ao processar analise. Tente novamente.', true);
+           mostrarAviso('Erro de Sistema', 'Falha ao processar análise. Tente novamente.', true);
         }
      } catch(e) {
-        mostrarAviso('Sem Conexao', 'Nao foi possivel conectar ao servidor.', true);
+        mostrarAviso('Sem Conexão', 'Não foi possível conectar ao servidor.', true);
      } finally {
         setProcessandoAcessoId(null);
      }
@@ -367,7 +367,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
            throw new Error(textoErro || 'Falha ao bloquear cliente.');
         }
 
-        mostrarAviso('Cliente Removido', 'O acesso deste cliente a sua loja foi bloqueado e o motivo gravado no historico corporativo com sucesso.', false);
+        mostrarAviso('Cliente Removido', 'O acesso deste cliente à sua loja foi bloqueado e o motivo gravado no histórico corporativo com sucesso.', false);
         setModalBloqueioAberto(false);
         carregarListaClientesDaLoja();
         carregarContagemClientes(lojaId);
@@ -385,7 +385,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       tipo: 'participante',
       idTarget: cotaId,
       titulo: 'Remover Participante',
-      mensagem: 'Tem certeza que deseja remover este participante do grupo? A cota sera zerada e o historico de participacao neste clube sera cancelado permanentemente.'
+      mensagem: 'Tem certeza que deseja remover este participante do grupo? A cota será zerada e o histórico de participação neste clube será cancelado permanentemente.'
     });
   };
 
@@ -396,7 +396,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       tipo: 'grupo',
       idTarget: grupoId,
       titulo: 'Excluir Grupo de Compras',
-      mensagem: 'Tem certeza que deseja excluir este grupo de compras? Esta acao nao pode ser desfeita e removera todas as cotas e recebimentos futuros atrelados a ele.'
+      mensagem: 'Tem certeza que deseja excluir este grupo de compras? Esta ação não pode ser desfeita e removerá todas as cotas e recebimentos futuros atrelados a ele.'
     });
   };
 
@@ -446,8 +446,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   };
 
-  // A lista sai do proprio grupo (e nao de listaClientesLoja) porque so o servidor
-  // sabe quem ja ocupa cota nele e quantas vagas ainda restam.
+  // A lista sai do próprio grupo (e não de listaClientesLoja) porque so o servidor
+  // sabe quem já ocupa cota nele e quantas vagas ainda restam.
   const carregarClientesDisponiveis = async (grupoId: number) => {
     setCarregandoDisponiveis(true);
     setErroDisponiveis('');
@@ -463,7 +463,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       setVagasDisponiveis(0);
       setErroDisponiveis(err instanceof Error && err.message
         ? err.message
-        : 'Nao foi possivel carregar os clientes da sua unidade.');
+        : 'Não foi possível carregar os clientes da sua unidade.');
     } finally {
       setCarregandoDisponiveis(false);
     }
@@ -501,7 +501,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       const incluidos = Array.isArray(data?.adicionados) ? data.adicionados.length : 0;
       const recusados: ClienteRecusado[] = Array.isArray(data?.ignorados) ? data.ignorados : [];
 
-      // A API avalia cliente a cliente, entao a selecao pode entrar so em parte.
+      // A API avalia cliente a cliente, entao a seleção pode entrar so em parte.
       // O detalhe de quem ficou de fora precisa chegar ao operador.
       const detalhe = recusados.length > 0
         ? `\n\nNao incluidos:\n${recusados.map((r) => `- ${r.nome}: ${r.motivo}`).join('\n')}`
@@ -519,14 +519,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         carregarListaClientesDaLoja();
         carregarContagemClientes(usuario?.lojaId || usuario?.id);
       } else {
-        // Modal segue aberto para corrigir a selecao, mas com a lista atualizada.
+        // Modal segue aberto para corrigir a seleção, mas com a lista atualizada.
         setClientesSelecionados([]);
         carregarClientesDisponiveis(grupoSelecionado.id);
       }
     } catch (err) {
       mostrarAviso(
         'Erro ao Adicionar',
-        err instanceof Error && err.message ? err.message : 'Nao foi possivel salvar os participantes.',
+        err instanceof Error && err.message ? err.message : 'Não foi possível salvar os participantes.',
         true
       );
     } finally {
@@ -559,7 +559,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       const data = await res.json();
       mostrarAviso(
         'Cliente Registrada', 
-        `${data.mensagem}\n\nLogin / E-mail: ${data.email || 'Nao informado'}\nSenha Padrao Inicial: ${data.senhaPadrao}\n\nA cliente ja pode acessar o Dashboard do Cliente utilizando estas credenciais ou o proprio CPF caso o email esteja em branco.`, 
+        `${data.mensagem}\n\nLogin / E-mail: ${data.email || 'Não informado'}\nSenha Padrão Inicial: ${data.senhaPadrao}\n\nA cliente já pode acessar o Dashboard do Cliente utilizando estas credenciais ou o próprio CPF caso o email esteja em branco.`, 
         false
       );
 
@@ -580,7 +580,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     const meses = parseInt(duracaoMeses);
     const total = parseFloat(valorTotal);
     if (!meses || meses <= 0 || !total || total <= 0) {
-      mostrarAviso('Dados Invalidos', 'Informe um valor total e duracao validos.', true);
+      mostrarAviso('Dados Inválidos', 'Informe um valor total e duração válidos.', true);
       return;
     }
     const parcela = parseFloat((total / meses).toFixed(2));
@@ -602,7 +602,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         throw new Error(erroServidor || 'Falha ao registrar novo clube de compras.');
       }
 
-      mostrarAviso('Sucesso Comercial', 'Clube de Compras lancado com sucesso!', false);
+      mostrarAviso('Sucesso Comercial', 'Clube de Compras lançado com sucesso!', false);
       setNomeGrupo(''); setValorTotal('');
       setModalNovoGrupoAberto(false);
       carregarGruposDoBanco();
@@ -614,7 +614,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const handleLancarPagamentoManual = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (idOperacao === 'Nenhuma') {
-      mostrarAviso('Selecao Necessaria', 'Selecione uma cota na tabela antes de lancar o pagamento.', true);
+      mostrarAviso('Seleção Necessária', 'Selecione uma cota na tabela antes de lançar o pagamento.', true);
       return;
     }
 
@@ -660,7 +660,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     setElegiveisDoGrupo(Array.isArray(elegiveis) ? elegiveis : []);
 
     // O card de cada contemplada vem por cota; quem nunca foi sorteada devolve
-    // 204/erro e simplesmente nao entra na lista.
+    // 204/erro e simplesmente não entra na lista.
     const cards = await Promise.all(
       (Array.isArray(participantes) ? participantes : []).map(async (p) => {
         try {
@@ -696,15 +696,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       mostrarAviso(
         'Sorteio Agendado',
         `Lista congelada com ${retorno.quantidadeParticipantes} participantes.\n\n` +
-        `Apuracao pelo concurso ${retorno.concursoLoteria ?? '(a definir)'} da Loteria Federal, ` +
+        `Apuração pelo concurso ${retorno.concursoLoteria ?? '(a definir)'} da Loteria Federal, ` +
         `previsto para ${retorno.dataPrevistaConcurso}.\n\n` +
-        `Codigo de auditoria: ${retorno.codigoAuditoria}\n\n` +
-        'A partir de agora a lista nao muda mais. O resultado sai sozinho apos o concurso.',
+        `Código de auditoria: ${retorno.codigoAuditoria}\n\n` +
+        'A partir de agora a lista não muda mais. O resultado sai sozinho após o concurso.',
         false
       );
       carregarPainelDeSorteio(grupoSorteioId);
     } catch (err) {
-      mostrarAviso('Nao foi possivel agendar', mensagemDeErro(err, 'Falha ao agendar o sorteio.'), true);
+      mostrarAviso('Não foi possível agendar', mensagemDeErro(err, 'Falha ao agendar o sorteio.'), true);
     } finally {
       setProcessandoSorteio(false);
     }
@@ -720,14 +720,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       mostrarAviso(
         'Sorteio Apurado',
         `Contemplada: ${retorno.contempladaNome}\nCota #${retorno.cotaContempladaId}\n\n` +
-        `Concurso ${retorno.concursoLoteria} · numero ${retorno.numeroSorteadoFonte}\n` +
-        `Codigo de auditoria: ${retorno.codigoAuditoria}`,
+        `Concurso ${retorno.concursoLoteria} · número ${retorno.numeroSorteadoFonte}\n` +
+        `Código de auditoria: ${retorno.codigoAuditoria}`,
         false
       );
       carregarPainelDeSorteio(grupoSorteioId);
       carregarGruposDoBanco();
     } catch (err) {
-      mostrarAviso('Apuracao Suspensa', mensagemDeErro(err, 'Falha ao apurar o sorteio.'), true);
+      mostrarAviso('Apuração Suspensa', mensagemDeErro(err, 'Falha ao apurar o sorteio.'), true);
     } finally {
       setProcessandoSorteio(false);
     }
@@ -763,7 +763,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     if (ok) {
       setModalReprovaCredito({ aberto: false, cotaId: null });
       setMotivoReprovaCredito('');
-      mostrarAviso('Credito Reprovado', 'A cliente foi avisada no painel dela e retira o produto quando o grupo encerrar.', false);
+      mostrarAviso('Crédito Reprovado', 'A cliente foi avisada no painel dela e retira o produto quando o grupo encerrar.', false);
     }
   };
 
@@ -771,7 +771,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.type !== 'application/pdf') {
-        mostrarAviso('Formato Invalido', 'Apenas arquivos em formato PDF sao aceitos.', true);
+        mostrarAviso('Formato Inválido', 'Apenas arquivos em formato PDF são aceitos.', true);
         setArquivoPdf(null);
         return;
       }
@@ -797,7 +797,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         method: 'POST',
         body: formData,
       });
-      if (!res.ok) throw new Error('Nao foi possivel salvar o documento de regras.');
+      if (!res.ok) throw new Error('Não foi possível salvar o documento de regras.');
       mostrarAviso('Regulamento Salvo', 'Regulamento contratual em PDF registrado com sucesso para esta loja!', false);
       setArquivoPdf(null);
     } catch (err: any) {
@@ -817,7 +817,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     if (!termoBuscaCliente) return true;
     return `${c.nome || ''} ${c.email || ''} ${c.cpf || ''}`.toLowerCase().includes(termoBuscaCliente);
   });
-  // Trava a selecao na quantidade de vagas para o operador nao montar um envio
+  // Trava a seleção na quantidade de vagas para o operador não montar um envio
   // que o servidor recusaria pela metade.
   const limiteSelecaoAtingido = clientesSelecionados.length >= vagasDisponiveis;
 
@@ -875,7 +875,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               abaLoja === 'configuracoes' ? 'border-[#BD6B42] text-white' : 'border-transparent text-stone-500 hover:text-stone-300'
             }`}
           >
-            Configuracoes
+            Configurações
           </button>
           <button
             onClick={() => { localStorage.removeItem('@avle:usuario'); window.location.href = '/'; }}
@@ -898,7 +898,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </p>
             ))}
             <p className="text-[10px] text-red-600 pt-1">
-              Os numeros abaixo podem estar zerados ou incompletos. Isso nao significa ausencia de registros.
+              Os números abaixo podem estar zerados ou incompletos. Isso não significa ausencia de registros.
             </p>
           </div>
         )}
@@ -913,11 +913,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 ? `Ficha: ${grupoSelecionado.nome}`
                 : abaLoja === 'geral'        ? 'Visao Geral Comercial'
                 : abaLoja === 'clientes'     ? 'Registro de Clientes'
-                : abaLoja === 'configuracoes'? 'Configuracoes da Loja'
-                : abaLoja === 'aprovacoes'   ? 'Central de Aprovacoes'
+                : abaLoja === 'configuracoes'? 'Configurações da Loja'
+                : abaLoja === 'aprovacoes'   ? 'Central de Aprovações'
                 : abaLoja === 'sorteios'     ? 'Sorteios e Entregas'
                 : abaLoja === 'financeiro'   ? 'Financeiro / Extrato'
-                : abaLoja === 'relatorios'   ? 'Relatorios de Performance'
+                : abaLoja === 'relatorios'   ? 'Relatórios de Performance'
                 : abaLoja === 'grupos'       ? 'Grupos de Compras'
                 : abaLoja}
             </h2>
@@ -978,7 +978,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <span className="text-base font-bold text-emerald-700 font-mono block mt-1">R$ {Number(grupoSelecionado.valorParcela).toFixed(2)}</span>
               </div>
               <div>
-                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Vigencia</span>
+                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Vigência</span>
                 <span className="text-base font-bold text-[#0B1E14] font-mono block mt-1">{grupoSelecionado.duracaoMeses} M</span>
               </div>
               <div>
@@ -1017,7 +1017,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <th className="py-3.5 px-5 text-right">SALDO QUITADO</th>
                       <th className="py-3.5 px-5 text-right">VALOR COBERTO (RISCO)</th>
                       <th className="py-3.5 px-5 text-center">STATUS DE ENTREGA</th>
-                      <th className="py-3.5 px-5 text-center">ACOES</th>
+                      <th className="py-3.5 px-5 text-center">AÇÕES</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
@@ -1334,9 +1334,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                             <tr className="text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                               <th className="py-3 px-5">CLIENTE</th>
                               <th className="py-3 px-5">DOCUMENTO</th>
-                              <th className="py-3 px-5">ULTIMO GRUPO</th>
+                              <th className="py-3 px-5">ÚLTIMO GRUPO</th>
                               <th className="py-3 px-5 text-center">STATUS DA CONTA</th>
-                              <th className="py-3 px-5 text-center">ACAO</th>
+                              <th className="py-3 px-5 text-center">AÇÃO</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
@@ -1350,7 +1350,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                      <span className="text-[10px] text-stone-400">{cli.email || 'Sem e-mail cadastrado'}</span>
                                    </td>
                                    <td className="py-3 px-5 font-mono text-stone-500">
-                                     {cli.cpf ? aplicarMascaraCpf(cli.cpf) : 'Nao informado'}
+                                     {cli.cpf ? aplicarMascaraCpf(cli.cpf) : 'Não informado'}
                                    </td>
                                    <td className="py-3 px-5 text-stone-500">
                                      {cli.ultimoGrupo || 'Nenhum grupo ativo'}
@@ -1415,7 +1415,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                      <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden mt-6">
                         <div className="px-5 py-4 border-b border-[#DFD9CE] bg-rose-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                             <div>
-                                <h3 className="text-xs font-bold text-rose-800 uppercase tracking-wider">Historico de Exclusoes e Bloqueios</h3>
+                                <h3 className="text-xs font-bold text-rose-800 uppercase tracking-wider">Histórico de Exclusões e Bloqueios</h3>
                                 <p className="text-[10px] text-rose-600 font-medium">Clientes banidos de participar de novos planos da unidade.</p>
                             </div>
                         </div>
@@ -1425,7 +1425,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                               <tr className="text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                                 <th className="py-3 px-5">CLIENTE BANIDO</th>
                                 <th className="py-3 px-5">DOCUMENTO</th>
-                                <th className="py-3 px-5">ULTIMO GRUPO</th>
+                                <th className="py-3 px-5">ÚLTIMO GRUPO</th>
                                 <th className="py-3 px-5">MOTIVO DA EXCLUSAO / BLOQUEIO</th>
                               </tr>
                             </thead>
@@ -1436,13 +1436,13 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                        <span className="block font-bold text-rose-800">{cli.nome}</span>
                                      </td>
                                      <td className="py-3 px-5 font-mono text-stone-500">
-                                       {cli.cpf ? aplicarMascaraCpf(cli.cpf) : 'Nao informado'}
+                                       {cli.cpf ? aplicarMascaraCpf(cli.cpf) : 'Não informado'}
                                      </td>
                                      <td className="py-3 px-5 text-stone-500">
                                        {cli.ultimoGrupo || 'Nenhum grupo ativo'}
                                      </td>
                                      <td className="py-3 px-5 text-stone-500 italic">
-                                        {cli.motivoBloqueio || 'Motivo nao registrado no sistema.'}
+                                        {cli.motivoBloqueio || 'Motivo não registrado no sistema.'}
                                      </td>
                                    </tr>
                                ))}
@@ -1460,14 +1460,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
                       <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                           <div>
-                              <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Fila de Analise de Credito</h3>
+                              <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Fila de Análise de Crédito</h3>
                               <p className="text-[10px] text-stone-400 font-medium">Clientes que solicitaram acesso para visualizar e participar dos seus planos.</p>
                           </div>
                       </div>
                       <div className="p-6">
                          {solicitacoesAcesso.length === 0 ? (
                             <div className="text-center text-stone-400 text-xs italic py-12 bg-stone-50 rounded-xl border border-dashed">
-                               Nenhuma solicitacao pendente no momento.
+                               Nenhuma solicitação pendente no momento.
                             </div>
                          ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -1478,7 +1478,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                         <span className="text-[9px] text-stone-400">{new Date(sol.dataSolicitacao).toLocaleDateString('pt-BR')}</span>
                                      </div>
                                      <h4 className="text-sm font-bold text-[#0B1E14] truncate">{sol.clienteNome}</h4>
-                                     <p className="text-xs text-stone-500 font-mono mt-1 bg-stone-50 p-2 rounded-lg border border-stone-100">CPF: {sol.clienteCpf ? aplicarMascaraCpf(sol.clienteCpf) : 'Nao informado'}</p>
+                                     <p className="text-xs text-stone-500 font-mono mt-1 bg-stone-50 p-2 rounded-lg border border-stone-100">CPF: {sol.clienteCpf ? aplicarMascaraCpf(sol.clienteCpf) : 'Não informado'}</p>
 
                                      <div className="mt-5 flex gap-3 pt-4 border-t border-stone-100">
                                         <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, false)} className="flex-1 bg-white text-rose-600 border border-rose-200 text-[10px] font-bold py-2.5 rounded-lg hover:bg-rose-50 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer">
@@ -1527,9 +1527,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
                 <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl space-y-4 shadow-xs">
                   <div className="space-y-1">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">Agendar Sorteio Auditavel</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">Agendar Sorteio Auditável</h3>
                     <p className="text-xs text-stone-500 leading-relaxed">
-                      Ao agendar, a lista de participantes e congelada e nao muda mais. O resultado sai do concurso da
+                      Ao agendar, a lista de participantes e congelada e não muda mais. O resultado sai do concurso da
                       Loteria Federal seguinte a data de corte, entao ninguem, nem a loja nem a AVLE, consegue influenciar
                       em quem vai cair.
                     </p>
@@ -1567,8 +1567,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
                   {grupoSorteioId && (
                     <p className="text-[10px] text-stone-400 border-t pt-3">
-                      <strong className="text-[#0B1E14]">{elegiveisDoGrupo.length}</strong> cota(s) disputando o proximo sorteio.
-                      Cotas ja contempladas nao voltam a concorrer, mesmo com credito reprovado.
+                      <strong className="text-[#0B1E14]">{elegiveisDoGrupo.length}</strong> cota(s) disputando o próximo sorteio.
+                      Cotas já contempladas não voltam a concorrer, mesmo com crédito reprovado.
                     </p>
                   )}
                 </div>
@@ -1576,8 +1576,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 {sorteiosDoGrupo.length > 0 && (
                   <div className="bg-white border border-[#DFD9CE] rounded-2xl shadow-xs overflow-hidden">
                     <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50">
-                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Historico de Sorteios</h3>
-                      <p className="text-[10px] text-stone-400">Cada linha pode ser conferida por terceiros pelo codigo de auditoria.</p>
+                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Histórico de Sorteios</h3>
+                      <p className="text-[10px] text-stone-400">Cada linha pode ser conferida por terceiros pelo código de auditoria.</p>
                     </div>
                     <div className="divide-y divide-[#EFEAE1]">
                       {sorteiosDoGrupo.map((s) => (
@@ -1617,7 +1617,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   <div className="bg-white border border-[#DFD9CE] rounded-2xl shadow-xs overflow-hidden">
                     <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50">
                       <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Contempladas em Andamento</h3>
-                      <p className="text-[10px] text-stone-400">A cliente age na escolha do produto e na assinatura; as demais etapas sao suas.</p>
+                      <p className="text-[10px] text-stone-400">A cliente age na escolha do produto e na assinatura; as demais etapas são suas.</p>
                     </div>
                     <div className="divide-y divide-[#EFEAE1]">
                       {contemplacoesEmCurso.map((c) => (
@@ -1643,7 +1643,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                   disabled={processandoSorteio}
                                   className="px-3 py-1.5 bg-[#0B1E14] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50"
                                 >
-                                  Aprovar credito
+                                  Aprovar crédito
                                 </button>
                                 <button
                                   type="button"
@@ -1661,7 +1661,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                 disabled={processandoSorteio}
                                 className="px-3 py-1.5 bg-[#BD6B42] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50"
                               >
-                                Iniciar separacao
+                                Iniciar separação
                               </button>
                             )}
                             {c.etapaAtual === 'RETIRADA' && !c.concluido && (
@@ -1703,10 +1703,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
                   <div className="bg-white border border-[#DFD9CE] p-5 rounded-2xl shadow-xs flex flex-col justify-between">
                     <div>
-                      <span className="text-[10px] font-bold text-[#BD6B42] block mb-1">CAPITAL AVANCADO (RISCO DA LOJA)</span>
+                      <span className="text-[10px] font-bold text-[#BD6B42] block mb-1">CAPITAL AVANÇADO (RISCO DA LOJA)</span>
                       <span className="text-xl font-bold text-[#BD6B42]">R$ {aReceberContemplados.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <p className="text-[10px] text-stone-400 mt-2 leading-relaxed border-t pt-2 border-dashed">Aporte em Haver: Valor referente a produtos entregues a clientes contemplados. A loja assume o custo contratual imediato e detem o direito de recebimento das parcelas futuras.</p>
+                    <p className="text-[10px] text-stone-400 mt-2 leading-relaxed border-t pt-2 border-dashed">Aporte em Haver: Valor referente a produtos entregues a clientes contemplados. A loja assume o custo contratual imediato e detém o direito de recebimento das parcelas futuras.</p>
                   </div>
 
                   <div className="bg-white border border-[#DFD9CE] p-5 rounded-2xl shadow-xs flex flex-col justify-between">
@@ -1714,13 +1714,13 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <span className="text-[10px] font-bold text-stone-400 block mb-1">CUMPRIMENTO DE ACORDOS</span>
                       <span className="text-xl font-bold text-stone-600">Ativos</span>
                     </div>
-                    <p className="text-[10px] text-stone-400 mt-2 leading-relaxed border-t pt-2 border-dashed">Garantia juridica de alienacao fiduciaria ou contrato assinado para resguardo do capital avancado.</p>
+                    <p className="text-[10px] text-stone-400 mt-2 leading-relaxed border-t pt-2 border-dashed">Garantia jurídica de alienação fiduciaria ou contrato assinado para resguardo do capital avançado.</p>
                   </div>
                 </div>
 
                 <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden mt-6">
                   <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex justify-between items-center">
-                    <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Historico de Transacoes (Livro Razao)</h3>
+                    <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Histórico de Transações (Livro Razão)</h3>
                     <span className="text-[9px] bg-[#0B1E14] text-white px-2 py-1 rounded font-mono">Atualizado em tempo real</span>
                   </div>
                   <div className="overflow-x-auto max-h-[400px]">
@@ -1728,22 +1728,22 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <thead className="sticky top-0 bg-stone-50 z-10 shadow-sm">
                         <tr className="text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                           <th className="py-3 px-5">DATA</th>
-                          <th className="py-3 px-5">CLIENTE / REFERENCIA</th>
+                          <th className="py-3 px-5">CLIENTE / REFERÊNCIA</th>
                           <th className="py-3 px-5">TIPO</th>
                           <th className="py-3 px-5 text-right">VALOR BRUTO</th>
                           <th className="py-3 px-5 text-right">TAXA (10%)</th>
-                          <th className="py-3 px-5 text-right">LIQUIDO (LOJA)</th>
+                          <th className="py-3 px-5 text-right">LÍQUIDO (LOJA)</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
                          {historicoTransacoes.length === 0 ? (
-                            <tr><td colSpan={6} className="py-6 text-center text-stone-400 italic">Nenhuma transacao registrada no sistema ainda.</td></tr>
+                            <tr><td colSpan={6} className="py-6 text-center text-stone-400 italic">Nenhuma transação registrada no sistema ainda.</td></tr>
                          ) : (
                             historicoTransacoes.map((t, idx) => (
                               <tr key={idx} className="hover:bg-stone-50/60 transition-all">
                                 <td className="py-3 px-5 text-stone-500 font-mono">{new Date(t.dataTransacao).toLocaleDateString('pt-BR')}</td>
                                 <td className="py-3 px-5">
-                                  <span className="block font-bold text-[#0B1E14]">{t.nomeCliente || 'Transacao Sistema'}</span>
+                                  <span className="block font-bold text-[#0B1E14]">{t.nomeCliente || 'Transação Sistema'}</span>
                                   <span className="text-[10px] text-stone-400">Cota #{t.cotaId}</span>
                                 </td>
                                 <td className="py-3 px-5">
@@ -1771,7 +1771,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <div>
                   <h3 className="font-serif font-bold text-lg text-[#0B1E14] uppercase tracking-wide">Regulamento Operacional da Loja</h3>
                   <p className="text-stone-400 text-xs mt-1 leading-relaxed">
-                    Envie os termos de contrato e politicas especificas para a sua comunidade de compras planejadas. Cada estabelecimento atua com total independencia juridica.
+                    Envie os termos de contrato e politicas especificas para a sua comunidade de compras planejadas. Cada estabelecimento atua com total independencia jurídica.
                   </p>
                 </div>
 
@@ -1815,7 +1815,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <div className="bg-[#0B1E14] text-white p-4 flex justify-between items-center">
                    <div className="flex items-center gap-2">
                       <span className="text-lg">INBOX</span>
-                      <h3 className="text-xs font-bold uppercase tracking-wider">Solicitacoes de Acesso</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-wider">Solicitações de Acesso</h3>
                    </div>
                    <button onClick={() => setCaixaMensagemAberta(false)} className="text-stone-400 hover:text-white font-bold px-2 cursor-pointer">X</button>
                 </div>
@@ -1823,18 +1823,18 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <div className="p-4 max-h-[400px] overflow-y-auto bg-stone-50/50">
                    {solicitacoesAcesso.length === 0 ? (
                       <div className="text-center text-stone-400 text-xs italic py-8">
-                         Nenhuma solicitacao pendente no momento.
+                         Nenhuma solicitação pendente no momento.
                       </div>
                    ) : (
                       <div className="space-y-3">
                          {solicitacoesAcesso.map(sol => (
                             <div key={sol.id} className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm text-left">
                                <div className="flex justify-between items-start mb-2">
-                                  <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Analise de Credito</span>
+                                  <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Análise de Crédito</span>
                                   <span className="text-[9px] text-stone-400">{new Date(sol.dataSolicitacao).toLocaleDateString('pt-BR')}</span>
                                </div>
                                <p className="text-sm font-bold text-[#0B1E14] truncate">{sol.clienteNome}</p>
-                               <p className="text-xs text-stone-500 font-mono mt-0.5">CPF: {sol.clienteCpf ? aplicarMascaraCpf(sol.clienteCpf) : 'Nao informado'}</p>
+                               <p className="text-xs text-stone-500 font-mono mt-0.5">CPF: {sol.clienteCpf ? aplicarMascaraCpf(sol.clienteCpf) : 'Não informado'}</p>
 
                                <div className="mt-4 flex gap-2 pt-3 border-t border-stone-100">
                                   <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, true)} className="flex-1 bg-[#0B1E14] text-white text-[10px] font-bold py-2 rounded-lg hover:bg-opacity-90 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer">
@@ -1872,7 +1872,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             <div className="flex justify-between items-center border-b pb-3">
               <div>
                 <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Cadastrar Nova Cliente</h3>
-                <p className="text-[10px] text-stone-400">Atribuicao de credencial de acesso inicial no sistema.</p>
+                <p className="text-[10px] text-stone-400">Atribuição de credencial de acesso inicial no sistema.</p>
               </div>
               <button onClick={() => setModalNovoClienteAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
             </div>
@@ -1890,7 +1890,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">E-mail de Notificacao / Login (Opcional)</label>
+                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">E-mail de Notificação / Login (Opcional)</label>
                 <input 
                   type="email" 
                   value={emailCliente}
@@ -1924,7 +1924,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
 
               <div className="bg-stone-50 p-3 rounded-xl border border-dashed text-[10px] text-stone-500 leading-relaxed">
-                A cliente recebera a senha padrao inicial <strong>Avle123</strong> para realizar o primeiro acesso ao Dashboard do Cliente e podera altera-la posteriormente nas suas configuracoes.
+                A cliente receberá a senha padrão inicial <strong>Avle123</strong> para realizar o primeiro acesso ao Dashboard do Cliente e podera altera-la posteriormente nas suas configurações.
               </div>
 
               <div className="flex space-x-2 pt-2 border-t w-full">
@@ -1946,7 +1946,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Lancar Novo Grupo de Compras</h3>
+              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Lançar Novo Grupo de Compras</h3>
               <button onClick={() => setModalNovoGrupoAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
             </div>
             <form onSubmit={handleCriarGrupo} className="space-y-3.5 text-xs text-[#0B1E14]">
@@ -1974,7 +1974,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Duracao total (Meses)</label>
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Duração total (Meses)</label>
                   <input
                     type="number"
                     value={duracaoMeses}
@@ -1984,7 +1984,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Quantidade Maxima de Cotas</label>
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Quantidade Máxima de Cotas</label>
                   <input
                     type="number"
                     value={maxCotas}
@@ -2021,7 +2021,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Reprovar Credito</h3>
+              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Reprovar Crédito</h3>
               <button
                 type="button"
                 onClick={() => setModalReprovaCredito({ aberto: false, cotaId: null })}
@@ -2032,17 +2032,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             </div>
 
             <p className="text-[11px] text-stone-500 leading-relaxed bg-stone-50 p-3 rounded-xl border border-dashed">
-              A contemplacao continua registrada e a cota nao volta a concorrer. A cliente retira o produto quando o
+              A contemplação continua registrada e a cota não volta a concorrer. A cliente retira o produto quando o
               grupo encerrar, e o motivo abaixo aparece no painel dela.
             </p>
 
             <div>
-              <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Motivo da reprovacao</label>
+              <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Motivo da reprovação</label>
               <textarea
                 value={motivoReprovaCredito}
                 onChange={(e) => setMotivoReprovaCredito(e.target.value)}
                 rows={3}
-                placeholder="Ex: restricao ativa em consulta ao birô de credito"
+                placeholder="Ex: restrição ativa em consulta ao birô de crédito"
                 className="w-full px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42] resize-none"
               />
             </div>
@@ -2061,7 +2061,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 disabled={processandoSorteio || motivoReprovaCredito.trim() === ''}
                 className="flex-1 py-2.5 bg-rose-700 text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-rose-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {processandoSorteio ? 'Registrando...' : 'Confirmar reprovacao'}
+                {processandoSorteio ? 'Registrando...' : 'Confirmar reprovação'}
               </button>
             </div>
           </div>
@@ -2113,14 +2113,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 ) : clientesDisponiveisFiltrados.length === 0 ? (
                   <p className="py-8 text-center text-stone-400 italic text-[11px]">
                     {clientesDisponiveis.length === 0
-                      ? 'Nenhuma cliente cadastrada na sua unidade ainda. Cadastre pelo botao "+ Nova Cliente".'
+                      ? 'Nenhuma cliente cadastrada na sua unidade ainda. Cadastre pelo botão "+ Nova Cliente".'
                       : 'Nenhuma cliente encontrada para esta busca.'}
                   </p>
                 ) : (
                   clientesDisponiveisFiltrados.map((cliente) => {
                     const selecionado = clientesSelecionados.includes(cliente.id);
-                    // Ja no grupo nao entra de novo; e sem vaga sobrando so da para
-                    // desmarcar quem ja foi escolhido.
+                    // Já no grupo não entra de novo; e sem vaga sobrando so da para
+                    // desmarcar quem já foi escolhido.
                     const bloqueado = cliente.jaNoGrupo || (!selecionado && limiteSelecaoAtingido);
 
                     return (
@@ -2145,7 +2145,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         </span>
                         {cliente.jaNoGrupo && (
                           <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border bg-emerald-50 text-emerald-700 border-emerald-200 whitespace-nowrap">
-                            Ja no grupo
+                            Já no grupo
                           </span>
                         )}
                       </label>
@@ -2163,7 +2163,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
               {vagasDisponiveis === 0 && !carregandoDisponiveis && (
                 <div className="bg-stone-50 p-3 rounded-xl border border-dashed text-[10px] text-stone-500 leading-relaxed">
-                  Este grupo ja atingiu a lotacao maxima de {grupoSelecionado.quantidadeMaxCotas} cotas. Remova um participante ou crie um novo grupo para continuar vendendo.
+                  Este grupo já atingiu a lotação máxima de {grupoSelecionado.quantidadeMaxCotas} cotas. Remova um participante ou crie um novo grupo para continuar vendendo.
                 </div>
               )}
 
@@ -2193,7 +2193,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
               <div>
-                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Lancar Pagamento Manual</h3>
+                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Lançar Pagamento Manual</h3>
                 <p className="text-[10px] text-stone-400 font-mono">Cota selecionada: #{idOperacao}</p>
               </div>
               <button onClick={() => setModalPagamentoManualAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
@@ -2201,7 +2201,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
             <form onSubmit={handleLancarPagamentoManual} className="space-y-4 text-xs">
               <p className="text-stone-500 bg-stone-50 p-3 rounded-xl border border-dashed text-[11px] leading-relaxed">
-                Utilize esta opcao para dar baixa nas parcelas que a participante ja pagou presencialmente na loja (dinheiro, PIX direto ou cartao).
+                Utilize esta opção para dar baixa nas parcelas que a participante já pagou presencialmente na loja (dinheiro, PIX direto ou cartão).
               </p>
 
               <div>
@@ -2287,7 +2287,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 
                 <form onSubmit={confirmarBloqueioCliente} className="space-y-4">
                     <p className="text-xs text-stone-500 leading-relaxed bg-stone-50 p-3 rounded-xl border border-dashed">
-                        O cliente sera impedido de acessar os planos e a vitrine da sua unidade. Para manter o historico de risco, detalhe o motivo abaixo.
+                        O cliente será impedido de acessar os planos e a vitrine da sua unidade. Para manter o histórico de risco, detalhe o motivo abaixo.
                     </p>
                     
                     <div>

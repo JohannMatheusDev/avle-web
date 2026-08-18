@@ -86,9 +86,9 @@ function Autenticacao() {
   const [lembrarSenha, setLembrarSenha] = useState(false);
 
   // "Lembrar de mim" guarda apenas o e-mail ou telefone usado para entrar, nunca
-  // a senha: preenche o campo na proxima visita sem deixar credencial gravada no
+  // a senha: preenche o campo na próxima visita sem deixar credencial gravada no
   // aparelho, que pode ser compartilhado. Antes o checkbox era enviado no
-  // payload do login e o servidor simplesmente ignorava, entao nao fazia nada.
+  // payload do login e o servidor simplesmente ignorava, entao não fazia nada.
   useEffect(() => {
     const identificadorGuardado = localStorage.getItem('@avle:identificador_lembrado');
     if (identificadorGuardado) {
@@ -195,8 +195,8 @@ function Autenticacao() {
 
   const novaSenhaForte = avaliarSenhaForte(novaSenha);
 
-  // A loja usa este mesmo campo para o CNPJ, que tem outra regra; os digitos
-  // verificadores so sao conferidos no CPF do cliente.
+  // A loja usa este mesmo campo para o CNPJ, que tem outra regra; os dígitos
+  // verificadores so são conferidos no CPF do cliente.
   const tamanhoDocumentoValido = tipoUsuario === 'LOJA' ? cpf.length === 14 : cpfValido(cpf);
 
   const telefoneCadastroLimpo = somenteDigitos(telefoneCadastro);
@@ -227,7 +227,7 @@ function Autenticacao() {
     setCarregando(true);
 
     if (!formularioValido) {
-      setMensagem({ tipo: 'erro', texto: 'Por favor, preencha todos os campos obrigatorios corretamente!' });
+      setMensagem({ tipo: 'erro', texto: 'Por favor, preencha todos os campos obrigatórios corretamente!' });
       setCarregando(false);
       return;
     }
@@ -295,8 +295,8 @@ function Autenticacao() {
           setMensagem({
             tipo: 'erro',
             texto: detalhe?.telefoneMascarado
-              ? `Confirme o codigo enviado para ${detalhe.telefoneMascarado}.`
-              : 'Sua conta ainda nao foi verificada.',
+              ? `Confirme o código enviado para ${detalhe.telefoneMascarado}.`
+              : 'Sua conta ainda não foi verificada.',
           });
           setIsVerificando(true);
           setCarregando(false);
@@ -329,12 +329,12 @@ function Autenticacao() {
           sessionStorage.removeItem('@avle:convite_loja_id');
 
           if (retorno?.verificacaoPendente) {
-            // O numero fica guardado porque os campos sao limpos logo abaixo e a
-            // tela do codigo precisa saber de qual conta se trata.
+            // O número fica guardado porque os campos são limpos logo abaixo e a
+            // tela do código precisa saber de qual conta se trata.
             setTelefoneVerificacao(retorno.telefone || telefoneCadastroLimpo);
             setMensagem({
               tipo: 'sucesso',
-              texto: `Cadastro realizado! Enviamos um codigo para ${retorno.telefoneMascarado || 'o seu telefone'}.`,
+              texto: `Cadastro realizado! Enviamos um código para ${retorno.telefoneMascarado || 'o seu telefone'}.`,
             });
             setIsVerificando(true);
           } else {
@@ -368,7 +368,7 @@ function Autenticacao() {
 
         setMensagem({
           tipo: 'erro',
-          texto: 'Nao foi possivel conectar ao servidor. Verifique sua conexao e tente novamente.',
+          texto: 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.',
         });
         setCarregando(false);
       }
@@ -376,7 +376,7 @@ function Autenticacao() {
   };
 
   // Quem acabou de se cadastrar nunca preencheu o campo de login, entao o
-  // telefone guardado no cadastro e quem identifica a conta na verificacao.
+  // telefone guardado no cadastro e quem identifica a conta na verificação.
   const identificarContaEmVerificacao = (codigo?: string) => {
     const base: Record<string, string> = {};
     if (codigo !== undefined) base.codigo = codigo;
@@ -401,16 +401,16 @@ function Autenticacao() {
       });
 
       const retorno = await resposta.json().catch(() => null);
-      if (!resposta.ok) throw new Error(retorno?.erro || 'Nao foi possivel reenviar o codigo agora.');
+      if (!resposta.ok) throw new Error(retorno?.erro || 'Não foi possível reenviar o código agora.');
 
       setMensagem({
         tipo: 'sucesso',
-        texto: `Novo codigo enviado para ${retorno?.telefoneMascarado || 'o seu telefone'}.`,
+        texto: `Novo código enviado para ${retorno?.telefoneMascarado || 'o seu telefone'}.`,
       });
     } catch (erro) {
       setMensagem({
         tipo: 'erro',
-        texto: erro instanceof Error ? erro.message : 'Falha ao reenviar o codigo.',
+        texto: erro instanceof Error ? erro.message : 'Falha ao reenviar o código.',
       });
     } finally {
       setReenviandoCodigo(false);
@@ -433,10 +433,10 @@ function Autenticacao() {
 
       if (!resposta.ok) {
         const textoErro = await resposta.text();
-        throw new Error(textoErro || 'Codigo de verificacao incorreto ou expirado.');
+        throw new Error(textoErro || 'Código de verificação incorreto ou expirado.');
       }
 
-      setMensagem({ tipo: 'sucesso', texto: 'Conta ativada com sucesso! Faca seu login agora.' });
+      setMensagem({ tipo: 'sucesso', texto: 'Conta ativada com sucesso! Faça seu login agora.' });
       setIsVerificando(false);
       setIsLogin(true);
       setSenha('');
@@ -456,7 +456,7 @@ function Autenticacao() {
     const isTelefone = !identificadorLogin.includes('@');
 
     if (!isLoginEmailValido && !isTelefone) {
-      setMensagem({ tipo: 'erro', texto: 'Por favor, insira um e-mail ou telefone valido.' });
+      setMensagem({ tipo: 'erro', texto: 'Por favor, insira um e-mail ou telefone válido.' });
       setCarregando(false);
       return;
     }
@@ -472,9 +472,9 @@ function Autenticacao() {
         body: JSON.stringify(payload),
       });
 
-      if (!resposta.ok) throw new Error('Dados nao localizados no ecossistema AVLE.');
+      if (!resposta.ok) throw new Error('Dados não localizados no ecossistema AVLE.');
 
-      setMensagem({ tipo: 'sucesso', texto: 'Codigo de redefinicao enviado!' });
+      setMensagem({ tipo: 'sucesso', texto: 'Código de redefinição enviado!' });
 
       setTimeout(() => {
         setIsEsqueceuSenha(false);
@@ -495,7 +495,7 @@ function Autenticacao() {
     setCarregando(true);
 
     if (codigoOtp.length !== 6 || !novaSenhaForte) {
-      setMensagem({ tipo: 'erro', texto: 'O codigo precisa ter 6 digitos e a nova senha precisa ser forte.' });
+      setMensagem({ tipo: 'erro', texto: 'O código precisa ter 6 dígitos e a nova senha precisa ser forte.' });
       setCarregando(false);
       return;
     }
@@ -512,9 +512,9 @@ function Autenticacao() {
         body: JSON.stringify(payload),
       });
 
-      if (!resposta.ok) throw new Error('Codigo incorreto, expirado ou ja utilizado.');
+      if (!resposta.ok) throw new Error('Código incorreto, expirado ou já utilizado.');
 
-      setMensagem({ tipo: 'sucesso', texto: 'Sua senha foi redefinida com sucesso! Faca seu login.' });
+      setMensagem({ tipo: 'sucesso', texto: 'Sua senha foi redefinida com sucesso! Faça seu login.' });
 
       setTimeout(() => {
         setIsResetandoSenha(false);
@@ -583,8 +583,8 @@ function Autenticacao() {
             {isVerificando && (
               <form onSubmit={handleConfirmarCodigo} className="flex flex-col space-y-4 text-left">
                   <div>
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificacao de Conta</h3>
-                    <p className="text-xs text-stone-400 mt-1">Insira o codigo verificador enviado por mensagem para: <br /><strong className="text-[#BD6B42] font-semibold">{telefoneVerificacao ? aplicarMascaraTelefone(telefoneVerificacao) : identificadorLogin}</strong></p>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificação de Conta</h3>
+                    <p className="text-xs text-stone-400 mt-1">Insira o código verificador enviado por mensagem para: <br /><strong className="text-[#BD6B42] font-semibold">{telefoneVerificacao ? aplicarMascaraTelefone(telefoneVerificacao) : identificadorLogin}</strong></p>
                   </div>
                   {mensagem.texto && (
                     <div className={`p-3 rounded-xl text-xs font-bold border ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
@@ -592,7 +592,7 @@ function Autenticacao() {
                     </div>
                   )}
                   <div>
-                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Codigo de Confirmacao</label>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Código de Confirmação</label>
                     <input type="text" maxLength={6} placeholder="000000" value={codigoOtp} onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))} className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} />
                   </div>
                   <div className="space-y-2 mt-4">
@@ -600,7 +600,7 @@ function Autenticacao() {
                     {carregando ? 'PROCESSANDO...' : 'Confirmar e Ativar'}
                   </button>
                   <button type="button" onClick={handleReenviarCodigo} disabled={reenviandoCodigo || carregando} className="w-full text-[#BD6B42] hover:underline text-center font-bold text-xs py-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline">
-                    {reenviandoCodigo ? 'Reenviando...' : 'Nao recebi o codigo. Reenviar'}
+                    {reenviandoCodigo ? 'Reenviando...' : 'Não recebi o código. Reenviar'}
                   </button>
                   <button type="button" onClick={() => setIsVerificando(false)} className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-2 cursor-pointer">Cancelar e voltar</button>
                 </div>
@@ -610,7 +610,7 @@ function Autenticacao() {
             {isEsqueceuSenha && (
               <form onSubmit={handleSolicitarRecuperacao} className="flex flex-col space-y-6 text-left">
                   <div>
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Recuperacao de Acesso</h3>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Recuperação de Acesso</h3>
                     <p className="text-xs text-stone-400 mt-1">Informe seu e-mail ou telefone cadastrado para receber o token.</p>
                   </div>
                   {mensagem.texto && (
@@ -624,7 +624,7 @@ function Autenticacao() {
                   </div>
                   <div className="space-y-2 mt-4">
                   <button type="submit" disabled={carregando} className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55">
-                    {carregando ? 'ENVIANDO...' : 'Enviar Codigo'}
+                    {carregando ? 'ENVIANDO...' : 'Enviar Código'}
                   </button>
                   <button type="button" onClick={() => setIsEsqueceuSenha(false)} className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-2 cursor-pointer">Voltar ao Login</button>
                 </div>
@@ -635,7 +635,7 @@ function Autenticacao() {
               <form onSubmit={handleSalvarNovaSenha} className="flex flex-col space-y-4 text-left">
                   <div>
                     <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Criar Nova Senha</h3>
-                    <p className="text-xs text-stone-400 mt-1">Insira o token de 6 digitos recebido.</p>
+                    <p className="text-xs text-stone-400 mt-1">Insira o token de 6 dígitos recebido.</p>
                   </div>
                   {mensagem.texto && (
                     <div className={`p-3 rounded-xl text-xs font-bold border ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
@@ -643,7 +643,7 @@ function Autenticacao() {
                     </div>
                   )}
                   <div>
-                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Token (6 digitos)</label>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Token (6 dígitos)</label>
                     <input type="text" maxLength={6} placeholder="000000" value={codigoOtp} onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))} className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} />
                   </div>
                   <div>
@@ -730,7 +730,7 @@ function Autenticacao() {
                           </label>
                           {tipoUsuario === 'LOJA' && telefoneCadastroLimpo.length > 0 && (
                             <span className={`text-[10px] font-bold ${telefoneCadastroLimpo.length >= 10 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                              {telefoneCadastroLimpo.length >= 10 ? '✓ Valido' : '✗ Minimo 10 digitos'}
+                              {telefoneCadastroLimpo.length >= 10 ? '✓ Válido' : '✗ Mínimo 10 dígitos'}
                             </span>
                           )}
                         </div>
@@ -811,7 +811,7 @@ function Autenticacao() {
                         <p className="text-[10px] font-bold uppercase text-stone-400 mb-1">Estrutura da Senha:</p>
                         <div className={`flex items-center space-x-1.5 transition-colors ${tamanhoMinimo ? 'text-emerald-600 font-bold' : 'text-stone-400'}`}>
                           <span>{tamanhoMinimo ? '✓' : '○'}</span>
-                          <span>Minimo de 8 caracteres</span>
+                          <span>Mínimo de 8 caracteres</span>
                         </div>
                         <div className={`flex items-center space-x-1.5 transition-colors ${temMaiuscula ? 'text-emerald-600 font-bold' : 'text-stone-400'}`}>
                           <span>{temMaiuscula ? '✓' : '○'}</span>
@@ -819,7 +819,7 @@ function Autenticacao() {
                         </div>
                         <div className={`flex items-center space-x-1.5 transition-colors ${temNumero ? 'text-emerald-600 font-bold' : 'text-stone-400'}`}>
                           <span>{temNumero ? '✓' : '○'}</span>
-                          <span>Pelo menos um numero</span>
+                          <span>Pelo menos um número</span>
                         </div>
                         <div className={`flex items-center space-x-1.5 transition-colors ${temCaracterEspecial ? 'text-emerald-600 font-bold' : 'text-stone-400'}`}>
                           <span>{temCaracterEspecial ? '✓' : '○'}</span>
@@ -857,9 +857,9 @@ function Autenticacao() {
             </div>
             <div className="p-6 overflow-y-auto flex-1 text-xs text-stone-600 space-y-4 leading-relaxed bg-stone-50/30">
               <p className="font-bold text-stone-800">1. DO OBJETO</p>
-              <p>Este documento estabelece as condicoes gerais para a utilizacao da AVLE pela LOJA PARCEIRA.</p>
+              <p>Este documento estabelece as condições gerais para a utilização da AVLE pela LOJA PARCEIRA.</p>
               <p className="font-bold text-stone-800 mt-4">2. DO REPASSE E SPLIT DE PAGAMENTOS</p>
-              <p>Fica acordado que a plataforma AVLE retera automaticamente o percentual de 10% sobre cada transacao.</p>
+              <p>Fica acordado que a plataforma AVLE reterá automaticamente o percentual de 10% sobre cada transação.</p>
             </div>
             <div className="p-4 border-t flex justify-end gap-3 bg-stone-50 rounded-b-2xl">
               <button type="button" onClick={() => setModalTermosAberto(false)} className="px-6 py-2.5 border text-stone-600 font-bold rounded-xl text-[10px] uppercase cursor-pointer">Fechar</button>

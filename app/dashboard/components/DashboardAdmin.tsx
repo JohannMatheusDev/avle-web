@@ -267,7 +267,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               <h3 className="text-sm font-bold text-[#0B1E14] uppercase tracking-wider mb-4">Controle de Expansao de Negocio</h3>
               <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
                 <div className="w-full sm:w-1/3">
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Limite de Clubes Ativos Simultaneos</label>
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Limite de Clubes Ativos Simultâneos</label>
                   <input
                     type="number"
                     min="0"
@@ -285,7 +285,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 </button>
               </div>
               <p className="text-[10px] text-stone-400 mt-3 leading-relaxed">
-                Define a quantidade maxima de clubes ou grupos de compras que esta loja tem permissao para manter operando simultaneamente na plataforma.
+                Define a quantidade máxima de clubes ou grupos de compras que esta loja tem permissao para manter operando simultaneamente na plataforma.
               </p>
             </div>
 
@@ -331,19 +331,19 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between min-h-[250px]">
                 <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block mb-4">
-                  Curva de Captacao Mensal da Unidade
+                  Curva de Captação Mensal da Unidade
                 </span>
                 <div className="h-32 w-full pt-2">
                   <svg className="w-full h-full" viewBox="0 0 100 30" preserveAspectRatio="none">
                     <path d="M0,30 L100,30" className="stroke-stone-200 stroke-2" fill="none" />
                   </svg>
-                  <p className="text-[11px] text-stone-400 italic mt-3 text-center">Historico consolidado em tempo real.</p>
+                  <p className="text-[11px] text-stone-400 italic mt-3 text-center">Histórico consolidado em tempo real.</p>
                 </div>
               </div>
 
               <div className="bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between min-h-[250px]">
                 <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block mb-2">
-                  Composicao de Carteira
+                  Composição de Carteira
                 </span>
                 <div className="w-24 h-24 mx-auto relative flex items-center justify-center my-auto">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
@@ -351,7 +351,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   </svg>
                   <span className="absolute text-xs font-mono font-bold text-stone-400">100%</span>
                 </div>
-                <p className="text-[10px] text-stone-400 font-medium text-center">Operacao ativa.</p>
+                <p className="text-[10px] text-stone-400 font-medium text-center">Operação ativa.</p>
               </div>
             </div>
           </div>
@@ -395,7 +395,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                     </span>
                   </div>
                   <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Retencao Media</span>
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Retenção Média</span>
                     <span className="text-2xl font-bold tracking-tight text-emerald-600 block mt-2 font-mono">100,0%</span>
                   </div>
                 </div>
@@ -568,7 +568,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                         <th className="py-4 px-5">Estabelecimento</th>
                         <th className="py-4 px-5 text-right">Volume Bruto Pix</th>
                         <th className="py-4 px-5 text-right">Taxa App (10%)</th>
-                        <th className="py-4 px-5 text-right">Fundo Liquido Repassado (90%)</th>
+                        <th className="py-4 px-5 text-right">Fundo Líquido Repassado (90%)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
@@ -606,7 +606,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 <div>
                   <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Central de Risco, Compliance e Fraude</h2>
                   <p className="text-xs text-stone-400 font-medium mt-0.5">
-                    Monitoramento em tempo real de contestacoes, inconsistencias cadastrais e integridade dos grupos.
+                    Monitoramento em tempo real de contestações, inconsistencias cadastrais e integridade dos grupos.
                   </p>
                 </div>
 
@@ -616,7 +616,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                       Taxa de Chargeback
                     </span>
                     <span className="text-2xl font-bold tracking-tight text-emerald-600 block mt-2 font-mono">0,00%</span>
-                    <p className="text-[9px] text-stone-400 mt-1">Limite de seguranca: ate 1,00%</p>
+                    <p className="text-[9px] text-stone-400 mt-1">Limite de segurança: até 1,00%</p>
                   </div>
 
                   <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
@@ -626,7 +626,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                     <span className="text-2xl font-bold tracking-tight text-[#0B1E14] block mt-2 font-mono">
                       {listaLojas.filter((l) => l.statusHomologacao !== 'APROVADO').length}
                     </span>
-                    <p className="text-[9px] text-amber-600 font-bold mt-1">Aguardando validacao ou contestacoes</p>
+                    <p className="text-[9px] text-amber-600 font-bold mt-1">Aguardando validação ou contestações</p>
                   </div>
 
                   <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
@@ -652,7 +652,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                       <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">
                         Lojas com Pendencias de Compliance
                       </h3>
-                      <span className="text-[10px] text-stone-400 font-bold font-mono">Validacao KYC/KYB</span>
+                      <span className="text-[10px] text-stone-400 font-bold font-mono">Validação KYC/KYB</span>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs border-collapse">
@@ -661,14 +661,14 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                             <th className="py-3.5 px-5">LOJA</th>
                             <th className="py-3.5 px-5">DOCUMENTO</th>
                             <th className="py-3.5 px-5 text-center">CONTA ASAAS</th>
-                            <th className="py-3.5 px-5 text-center">ACAO</th>
+                            <th className="py-3.5 px-5 text-center">AÇÃO</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
                           {listaLojas.length === 0 ? (
                             <tr>
                               <td colSpan={4} className="py-6 text-center text-stone-400 italic">
-                                Nenhum registro em analise.
+                                Nenhum registro em análise.
                               </td>
                             </tr>
                           ) : (
@@ -706,10 +706,10 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                     <div>
                       <div className="flex items-center space-x-2 text-[#0B1E14] mb-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        <h4 className="font-bold text-xs uppercase tracking-wider">Protecao de Split Ativa</h4>
+                        <h4 className="font-bold text-xs uppercase tracking-wider">Proteção de Split Ativa</h4>
                       </div>
                       <p className="text-[11px] text-stone-500 leading-relaxed">
-                        A retencao de 10% da plataforma e o repasse de 90% para a subconta da loja ocorrem de forma
+                        A retenção de 10% da plataforma e o repasse de 90% para a subconta da loja ocorrem de forma
                         automatizada e protegida via webhook.
                       </p>
                     </div>
@@ -720,11 +720,11 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                         <span className="font-bold text-emerald-700">Ativada (1.0%)</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span>Validacao Bancaria</span>
-                        <span className="font-bold text-emerald-700">Obrigatoria</span>
+                        <span>Validação Bancaria</span>
+                        <span className="font-bold text-emerald-700">Obrigatória</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span>Verificacao CPF/CNPJ</span>
+                        <span>Verificação CPF/CNPJ</span>
                         <span className="font-bold text-emerald-700">Ativa no Cadastro</span>
                       </div>
                     </div>

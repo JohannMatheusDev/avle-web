@@ -1,4 +1,4 @@
-// Formatos devolvidos pela API na trilha pos-sorteio. Ficam num modulo proprio
+// Formatos devolvidos pela API na trilha pos-sorteio. Ficam num modulo próprio
 // porque o painel da cliente e o da loja consomem exatamente os mesmos objetos.
 
 export interface EtapaTrilha {
@@ -37,7 +37,7 @@ export interface CardContemplacao {
   sorteio?: ResumoSorteio;
 }
 
-/** Uma linha do historico de sorteios no painel da loja. */
+/** Uma linha do histórico de sorteios no painel da loja. */
 export interface SorteioResumo {
   id: number;
   codigoAuditoria: string;

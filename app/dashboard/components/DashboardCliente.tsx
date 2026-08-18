@@ -129,7 +129,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       const data = await res.json();
       setCardsContemplacao(Array.isArray(data) ? data : []);
     } catch {
-      // Sem contemplacao a tela segue igual; nao vale bloquear o painel por isso.
+      // Sem contemplação a tela segue igual; não vale bloquear o painel por isso.
     }
   };
 
@@ -143,7 +143,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       });
 
       const retorno = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(retorno?.erro || 'Nao foi possivel concluir esta etapa.');
+      if (!res.ok) throw new Error(retorno?.erro || 'Não foi possível concluir esta etapa.');
 
       setCardsContemplacao((atual) =>
         atual.map((card) => (card.cotaId === cotaId ? retorno : card))
@@ -152,7 +152,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     } catch (erro) {
       setNotificacao({
         aberto: true,
-        titulo: 'Nao foi possivel avancar',
+        titulo: 'Não foi possível avançar',
         mensagem: mensagemDeErro(erro, 'Tente novamente em instantes.'),
         isError: true,
       });
@@ -194,7 +194,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           const removidos = cotasSalvas.filter((id: number) => !idsAtuais.includes(id));
           
           if (removidos.length > 0) {
-             mostrarAviso('Participacao Cancelada', 'A administracao da loja encerrou a sua participacao em um dos grupos de compras. O seu historico vinculado a esta cota foi fechado.', true);
+             mostrarAviso('Participação Cancelada', 'A administração da loja encerrou a sua participação em um dos grupos de compras. O seu histórico vinculado a esta cota foi fechado.', true);
              
              if (clubeAtualSelecionado && removidos.includes(clubeAtualSelecionado.cotaId)) {
                  if (lojaBloqueadaId) {
@@ -346,9 +346,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         .finally(() => setCarregandoGrupos(false));
         
     } else if (statusAcesso === 'PENDENTE') {
-      mostrarAviso('Aviso', 'Sua solicitacao de acesso esta em analise de credito pela loja. Aguarde a aprovacao para ver os planos.', false);
+      mostrarAviso('Aviso', 'Sua solicitação de acesso está em análise de crédito pela loja. Aguarde a aprovação para ver os planos.', false);
     } else if (statusAcesso === 'REJEITADO') {
-      mostrarAviso('Aviso', 'Infelizmente, o estabelecimento nao liberou o acesso aos grupos de compras neste momento devido a restricoes.', true);
+      mostrarAviso('Aviso', 'Infelizmente, o estabelecimento não liberou o acesso aos grupos de compras neste momento devido a restrições.', true);
     } else {
       setLojaParaAcesso(loja);
       setModalAcessoAberto(true);
@@ -366,14 +366,14 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
        });
        
        if(res.ok) {
-          mostrarAviso('Solicitacao Enviada', 'A caixa de mensagens da loja foi notificada para realizar a analise de credito. O processo costuma ser rapido.', false);
+          mostrarAviso('Solicitação Enviada', 'A caixa de mensagens da loja foi notificada para realizar a análise de crédito. O processo costuma ser rápido.', false);
           buscarAcessosLoja(usuario?.id);
           setModalAcessoAberto(false);
        } else {
-          mostrarAviso('Erro', 'Nao foi possivel enviar a solicitacao no momento.', true);
+          mostrarAviso('Erro', 'Não foi possível enviar a solicitação no momento.', true);
        }
     } catch(e) {
-       mostrarAviso('Erro de Conexao', 'Erro ao conectar ao servidor ao solicitar acesso.', true);
+       mostrarAviso('Erro de Conexão', 'Erro ao conectar ao servidor ao solicitar acesso.', true);
     } finally {
        setSolicitandoAcesso(false);
     }
@@ -417,7 +417,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             setNivelVisao('dashboard'); 
          }
       } catch {
-         mostrarAviso('Erro de Adesao', 'Falha ao registrar vinculo no clube. Tente novamente.', true);
+         mostrarAviso('Erro de Adesão', 'Falha ao registrar vínculo no clube. Tente novamente.', true);
       }
   };
 
@@ -433,8 +433,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const handleUploadFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const arquivo = e.target.files[0];
-      if (!arquivo.type.startsWith('image/')) { mostrarAviso('Formato Invalido', 'Apenas arquivos de imagem.', true); return; }
-      if (arquivo.size > 2 * 1024 * 1024) { mostrarAviso('Arquivo Muito Grande', 'A imagem deve ter no maximo 2MB.', true); return; }
+      if (!arquivo.type.startsWith('image/')) { mostrarAviso('Formato Inválido', 'Apenas arquivos de imagem.', true); return; }
+      if (arquivo.size > 2 * 1024 * 1024) { mostrarAviso('Arquivo Muito Grande', 'A imagem deve ter no máximo 2MB.', true); return; }
 
       const leitor = new FileReader();
       leitor.onloadend = async () => {
@@ -454,7 +454,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             localStorage.setItem('@avle:usuario', JSON.stringify(parsed));
           }
         } catch (err) {
-          mostrarAviso('Erro', 'Nao foi possivel salvar sua foto de perfil.', true);
+          mostrarAviso('Erro', 'Não foi possível salvar sua foto de perfil.', true);
         }
       };
       leitor.readAsDataURL(arquivo);
@@ -505,11 +505,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     setStatusSalvarSenha(null);
 
     if (novaSenhaInput !== confirmarNovaSenhaInput) {
-      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'As senhas nao coincidem.' });
+      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'As senhas não coincidem.' });
       return;
     }
     if (novaSenhaInput.length < 6) {
-      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'Minimo de 6 caracteres.' });
+      setStatusSalvarSenha({ tipo: 'erro', mensagem: 'Mínimo de 6 caracteres.' });
       return;
     }
 
@@ -567,7 +567,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           <nav className="space-y-0.5 mt-2">
             {[
               { id: 'inicio', label: isClienteAmarrado ? 'Meus Planos' : 'Rede de Lojas' },
-              { id: 'extrato', label: 'Historico' },
+              { id: 'extrato', label: 'Histórico' },
               { id: 'regras', label: 'Regulamento' },
               { id: 'ajuda', label: 'Suporte' }
             ].map((aba) => {
@@ -607,7 +607,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               abaAtiva === 'perfil' ? 'border-[#BD6B42] text-white' : 'border-transparent text-stone-500 hover:text-stone-300'
             }`}
           >
-            Configuracoes
+            Configurações
           </button>
           <button
             onClick={() => { localStorage.removeItem('@avle:usuario'); router.push('/'); }}
@@ -638,7 +638,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       <span className={`text-[10px] font-black uppercase tracking-widest block mb-1 ${
                         card.aguardandoEncerramento ? 'text-amber-700' : 'text-[#BD6B42]'
                       }`}>
-                        {card.aguardandoEncerramento ? 'Contemplacao registrada' : 'Voce foi contemplada'}
+                        {card.aguardandoEncerramento ? 'Contemplação registrada' : 'Você foi contemplada'}
                       </span>
                       <h3 className={`text-lg font-bold tracking-tight ${
                         card.aguardandoEncerramento ? 'text-amber-900' : 'text-white'
@@ -728,13 +728,13 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     </button>
                   )}
 
-                  {/* O codigo de auditoria e o que permite conferir o sorteio por
+                  {/* O código de auditoria e o que permite conferir o sorteio por
                       fora do sistema, sem depender da palavra da loja. */}
                   {card.sorteio && (
                     <div className="border-t border-[#DFD9CE] pt-4 text-[10px] text-stone-400 leading-relaxed">
                       <p className="font-bold text-stone-500 uppercase tracking-wider mb-1">Comprovante do sorteio</p>
                       <p>
-                        Codigo <span className="font-mono font-bold text-[#0B1E14]">{card.sorteio.codigoAuditoria}</span>
+                        Código <span className="font-mono font-bold text-[#0B1E14]">{card.sorteio.codigoAuditoria}</span>
                         {card.sorteio.concursoLoteria && (
                           <> · apurado pelo concurso <strong>{card.sorteio.concursoLoteria}</strong> da Loteria Federal</>
                         )}
@@ -743,8 +743,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         )}
                       </p>
                       <p className="mt-1">
-                        O resultado foi definido por um numero publico, sorteado depois de a lista de participantes
-                        ser fechada. Qualquer pessoa pode refazer a conta com este codigo.
+                        O resultado foi definido por um número público, sorteado depois de a lista de participantes
+                        ser fechada. Qualquer pessoa pode refazer a conta com este código.
                       </p>
                     </div>
                   )}
@@ -785,7 +785,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                             labelColor = 'text-emerald-700 font-bold';
                         } else if (statusAcesso === 'PENDENTE') {
                             corBorda = 'border-amber-400 bg-amber-50/50 shadow-sm';
-                            labelStatus = 'Em Analise';
+                            labelStatus = 'Em Análise';
                             labelColor = 'text-amber-700';
                         } else if (statusAcesso === 'REJEITADO' || statusAcesso === 'BLOQUEADO') {
                             corBorda = 'border-rose-300 bg-rose-50/20 shadow-sm opacity-80';
@@ -800,7 +800,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                                if (statusAcesso !== 'BLOQUEADO') {
                                  handleAbrirLoja(loja);
                                } else {
-                                 mostrarAviso('Acesso Restrito', 'O seu acesso a este estabelecimento esta suspenso no momento. Entre em contato com a loja para mais informacoes.', true);
+                                 mostrarAviso('Acesso Restrito', 'O seu acesso a este estabelecimento está suspenso no momento. Entre em contato com a loja para mais informações.', true);
                                }
                              }}
                              className={`rounded-2xl p-5 cursor-pointer flex flex-col items-center justify-center text-center space-y-3 transition-all hover:-translate-y-1 hover:shadow-md border-t-2 border ${corBorda}`}
@@ -998,7 +998,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-sm relative overflow-hidden border-t-2 border-t-[#BD6B42]">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Saldo de Poupanca</span>
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Saldo de Poupança</span>
                     <span className="text-3xl font-bold tracking-tight block font-mono leading-none">R$ {saldoPoupanca.toFixed(2)}</span>
                     <span className="text-[10px] text-stone-500 mt-2 block">acumulado na cota</span>
                   </div>
@@ -1008,7 +1008,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     <span className="text-[10px] text-stone-400 mt-2">5º dia útil do mês</span>
                   </div>
                   <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#0B1E14] p-5 rounded-xl shadow-sm flex flex-col">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Vigencia do Plano</span>
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Vigência do Plano</span>
                     <span className="text-3xl font-bold text-[#0B1E14] font-mono leading-none">{grupoSelecionado?.duracaoMeses || 0}</span>
                     <span className="text-[10px] text-stone-400 mt-2">meses de sorteios</span>
                   </div>
@@ -1026,11 +1026,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="lg:col-span-2 bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between min-h-[260px]">
                     <div className="flex justify-between items-center mb-4">
-                      <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Historico de Quitacao da Cota</span>
-                      <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded font-bold font-mono">Evolucao</span>
+                      <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Histórico de Quitação da Cota</span>
+                      <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded font-bold font-mono">Evolução</span>
                     </div>
                     <div className="flex items-end justify-between h-40 pt-4 border-b border-stone-100 px-2">
-                      {['Mes 1', 'Mes 2', 'Mes 3', 'Mes 4', 'Mes 5', 'Mes 6', 'Mes 7'].map((mes, i) => {
+                      {['Mês 1', 'Mês 2', 'Mês 3', 'Mês 4', 'Mês 5', 'Mês 6', 'Mês 7'].map((mes, i) => {
                         const parcelaQuitada = saldoPoupanca >= (valorMensalidade * (i + 1));
                         return (
                           <div key={i} className="flex flex-col items-center w-full max-w-[40px]">
@@ -1077,9 +1077,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     <thead>
                       <tr className="bg-stone-50 text-stone-400 font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                         <th className="py-3.5 px-5">CICLO</th>
-                        <th className="py-3.5 px-5">DESCRICAO</th>
+                        <th className="py-3.5 px-5">DESCRIÇÃO</th>
                         <th className="py-3.5 px-5 text-right">VALOR REQUERIDO</th>
-                        <th className="py-3.5 px-5 text-center">SITUACAO</th>
+                        <th className="py-3.5 px-5 text-center">SITUAÇÃO</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
@@ -1112,7 +1112,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         {abaAtiva === 'extrato' && (
           <div className="space-y-6 animate-fadeIn text-left">
             <div>
-              <h2 className="text-xl font-bold text-[#0B1E14]">Historico Financeiro Consolidado</h2>
+              <h2 className="text-xl font-bold text-[#0B1E14]">Histórico Financeiro Consolidado</h2>
               <p className="text-xs text-stone-400 mt-1">Extrato detalhado de cada aporte e parcela liquidada em todas as suas unidades ativas.</p>
             </div>
             <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
@@ -1120,7 +1120,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 <thead>
                   <tr className="bg-stone-50 text-stone-400 font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                     <th className="py-3.5 px-5">LOJA PARCEIRA</th>
-                    <th className="py-3.5 px-5">PLANO / IDENTIFICACAO</th>
+                    <th className="py-3.5 px-5">PLANO / IDENTIFICAÇÃO</th>
                     <th className="py-3.5 px-5 text-right">VOLUME APORTADO</th>
                     <th className="py-3.5 px-5 text-center">STATUS DIGITAL</th>
                   </tr>
@@ -1166,7 +1166,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           <div className="bg-white border border-[#DFD9CE] rounded-xl p-6 space-y-4 text-xs text-stone-600 leading-relaxed animate-fadeIn text-left max-w-2xl shadow-xs">
             <div>
               <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Regulamento AVLE</h3>
-              <p className="text-stone-400 mt-1">Confira as diretrizes da comunidade estruturada de compras programadas de moveis e decoracoes.</p>
+              <p className="text-stone-400 mt-1">Confira as diretrizes da comunidade estruturada de compras programadas de móveis e decorações.</p>
             </div>
 
             <p className="bg-stone-50 p-3 rounded-xl border border-dashed text-stone-500">
@@ -1189,7 +1189,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               </div>
             ) : (
               <p className="text-[10px] text-stone-400 italic pt-2">
-                Acesse um dos seus clubes ativos ou visualize as lojas na aba inicial para habilitar a visualizacao do documento de termos especificos em PDF.
+                Acesse um dos seus clubes ativos ou visualize as lojas na aba inicial para habilitar a visualização do documento de termos especificos em PDF.
               </p>
             )}
           </div>
@@ -1200,7 +1200,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6 shadow-xs">
               <div>
                 <h2 className="text-xl font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Meus Dados Cadastrais</h2>
-                <p className="text-xs text-stone-400 mt-1">Gerencie suas informacoes de conta salvas na plataforma e sincronizadas com o gateway do Asaas.</p>
+                <p className="text-xs text-stone-400 mt-1">Gerencie suas informações de conta salvas na plataforma e sincronizadas com o gateway do Asaas.</p>
               </div>
 
               <div className="flex items-center space-x-4 border-b border-stone-100 pb-5">
@@ -1219,19 +1219,19 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
                 <div>
                   <h4 className="text-xs font-bold uppercase text-stone-500">Foto de Perfil</h4>
-                  <p className="text-[11px] text-stone-400 mt-0.5">Selecione uma imagem quadrada de ate 2MB nos formatos comuns de imagem.</p>
+                  <p className="text-[11px] text-stone-400 mt-0.5">Selecione uma imagem quadrada de até 2MB nos formatos comuns de imagem.</p>
                 </div>
               </div>
 
               <form onSubmit={handleSalvarPerfil} className="space-y-5 text-xs">
                 {statusSalvar === 'sucesso' && (
                   <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold rounded-xl">
-                    Alteracoes gravadas com sucesso no sistema!
+                    Alterações gravadas com sucesso no sistema!
                   </div>
                 )}
                 {statusSalvar === 'erro' && (
                   <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 font-bold rounded-xl">
-                    Nao foi possivel salvar as alteracoes. Tente novamente mais tarde.
+                    Não foi possível salvar as alteracoes. Tente novamente mais tarde.
                   </div>
                 )}
 
@@ -1249,7 +1249,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">E-mail de Notificacao</label>
+                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">E-mail de Notificação</label>
                     <input
                       type="email"
                       value={emailInput}
@@ -1277,7 +1277,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 <div className="bg-stone-50 p-4 rounded-xl border border-dashed border-stone-200 space-y-2 max-w-sm">
                   <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider flex items-center justify-between">
                     <span>CPF / CNPJ do Titular</span>
-                    <span className="text-xs text-[#0B1E14]" title="Informacao imutavel por seguranca contratual">Protegido</span>
+                    <span className="text-xs text-[#0B1E14]" title="Informação imutavel por segurança contratual">Protegido</span>
                   </label>
                   <input
                     type="text"
@@ -1287,7 +1287,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     className="w-full px-3 py-2 border border-stone-200 rounded-xl bg-stone-100 text-stone-500 h-[40px] text-sm font-mono cursor-not-allowed font-bold"
                   />
                   <p className="text-[10px] text-stone-400 leading-relaxed pt-1">
-                    Este documento esta atrelado as faturas e regras de sorteio coletivo. Alteracoes cadastrais exigem auditoria direta com o administrador.
+                    Este documento esta atrelado as faturas e regras de sorteio coletivo. Alterações cadastrais exigem auditoria direta com o administrador.
                   </p>
                 </div>
 
@@ -1297,7 +1297,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     disabled={carregandoDados || salvandoPerfil}
                     className="px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 disabled:opacity-50 transition-all"
                   >
-                    {salvandoPerfil ? 'Salvando...' : 'Salvar Novas Informacoes'}
+                    {salvandoPerfil ? 'Salvando...' : 'Salvar Novas Informações'}
                   </button>
                 </div>
               </form>
@@ -1305,9 +1305,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
             <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-5 shadow-xs">
               <div>
-                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Segurança da Conta e Alteracao de Senha</h3>
+                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Segurança da Conta e Alteração de Senha</h3>
                 <p className="text-xs text-stone-400 mt-0.5">
-                  Se voce utilizou uma senha temporaria/padrao fornecida pelo estabelecimento no seu primeiro cadastro, atualize-a abaixo por uma senha pessoal.
+                  Se você utilizou uma senha temporaria/padrão fornecida pelo estabelecimento no seu primeiro cadastro, atualize-a abaixo por uma senha pessoal.
                 </p>
               </div>
 
@@ -1324,7 +1324,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 )}
 
                 <div>
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Senha Atual (ou Senha Padrao Inicial)</label>
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Senha Atual (ou Senha Padrão Inicial)</label>
                   <input
                     type="password"
                     placeholder="Digite sua senha atual ou Avle123"
@@ -1341,7 +1341,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Nova Senha</label>
                     <input
                       type="password"
-                      placeholder="Minimo de 6 caracteres"
+                      placeholder="Mínimo de 6 caracteres"
                       value={novaSenhaInput}
                       onChange={(e) => setNovaSenhaInput(e.target.value)}
                       className="w-full px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"
@@ -1382,7 +1382,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           <div className="bg-white border border-[#DFD9CE] rounded-xl p-6 space-y-6 animate-fadeIn text-left max-w-2xl shadow-xs">
             <div>
               <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Central de Atendimento e Suporte</h3>
-              <p className="text-stone-400 mt-1">Escolha o canal de atendimento ideal para resolver a sua duvida ou problema rapidamente.</p>
+              <p className="text-stone-400 mt-1">Escolha o canal de atendimento ideal para resolver a sua dúvida ou problema rapidamente.</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
@@ -1390,7 +1390,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 <div>
                   <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#0B1E14]/10 text-[#0B1E14] uppercase">Suporte do Site</span>
                   <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase">Atendimento Tecnico</h4>
-                  <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">Para duvidas sobre acesso a conta, faturas Pix, dificuldades de navegacao, atualizacao de dados pessoais ou instabilidades no sistema.</p>
+                  <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">Para duvidas sobre acesso a conta, faturas Pix, dificuldades de navegação, atualização de dados pessoais ou instabilidades no sistema.</p>
                 </div>
                 <div className="pt-2 border-t border-stone-200/60">
                   <p className="text-stone-500 font-bold text-xs font-mono mb-2">(42) 98411-7768</p>
@@ -1410,7 +1410,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     <div>
                       <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#BD6B42]/10 text-[#BD6B42] uppercase">Suporte da Loja</span>
                       <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase truncate max-w-[180px]">{obterNomeLoja(lojaSelecionada || lojaEmFoco)}</h4>
-                      <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">Para tratar diretamente sobre especificacoes de produtos, datas de assembleias locais, andamento de entregas ou retiradas de mercadorias.</p>
+                      <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">Para tratar diretamente sobre especificações de produtos, datas de assembleias locais, andamento de entregas ou retiradas de mercadorias.</p>
                     </div>
                     <div className="pt-2 border-t border-stone-200/60">
                       <p className="text-stone-500 font-bold text-xs font-mono mb-2">
@@ -1426,13 +1426,13 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         }}
                         className="w-full text-center py-2.5 bg-[#BD6B42] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer disabled:opacity-40"
                       >
-                        {(lojaSelecionada || lojaEmFoco).telefone ? 'Falar com Atendimento' : 'Telefone nao cadastrado'}
+                        {(lojaSelecionada || lojaEmFoco).telefone ? 'Falar com Atendimento' : 'Telefone não cadastrado'}
                       </button>
                     </div>
                   </>
                 ) : (
                   <div className="h-full flex flex-col justify-center items-center text-center p-4">
-                    <p className="text-[11px] text-stone-400 font-medium italic leading-relaxed">Acesse um de seus clubes ou selecione uma loja na pagina inicial para visualizar as opcoes de contato direto.</p>
+                    <p className="text-[11px] text-stone-400 font-medium italic leading-relaxed">Acesse um de seus clubes ou selecione uma loja na página inicial para visualizar as opções de contato direto.</p>
                   </div>
                 )}
               </div>
@@ -1445,7 +1445,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80] animate-fadeIn text-left">
             <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
                 <div className="bg-[#0B1E14] p-5 text-white">
-                    <h3 className="font-serif font-bold text-lg uppercase tracking-wide">Confirmar Participacao</h3>
+                    <h3 className="font-serif font-bold text-lg uppercase tracking-wide">Confirmar Participação</h3>
                     <p className="text-[10px] text-stone-300 mt-1">Revise os detalhes contratuais da cota antes de prosseguir.</p>
                 </div>
                 <div className="p-6 space-y-4">
@@ -1459,7 +1459,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                             <span className="text-xs font-bold font-mono text-[#BD6B42]">R$ {Number(modalAdesao.grupo.valorParcela).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-bold text-stone-400 uppercase">Duracao do Contrato</span>
+                            <span className="text-[10px] font-bold text-stone-400 uppercase">Duração do Contrato</span>
                             <span className="text-xs font-bold text-[#0B1E14]">{modalAdesao.grupo.duracaoMeses} Meses</span>
                         </div>
                     </div>
@@ -1467,7 +1467,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     <div className="flex items-start gap-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
                         <span className="text-blue-500 mt-0.5 text-xs font-bold">INFO</span>
                         <p className="text-[10px] text-stone-600 leading-relaxed">
-                            Antes de confirmar a sua participacao, e obrigatoria a leitura do{' '}
+                            Antes de confirmar a sua participação, e obrigatória a leitura do{' '}
                             <button onClick={() => window.open(`${API_URL}/api/lojas/${lojaEmFoco?.id}/regras`, '_blank')} className="text-blue-600 font-bold underline cursor-pointer">Regulamento Operacional da Loja</button>. Ao entrar no grupo, voce concorda legalmente com todos os termos estabelecidos pelo estabelecimento.
                         </p>
                     </div>
@@ -1485,24 +1485,24 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-5 shadow-xl">
             <div className="flex justify-between items-center border-b border-stone-100 pb-3">
               <div>
-                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Autorizacao de Acesso</h3>
+                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Autorização de Acesso</h3>
                 <p className="text-[10px] text-stone-400 mt-0.5">Estabelecimento: {obterNomeLoja(lojaParaAcesso)}</p>
               </div>
               <button onClick={() => setModalAcessoAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer px-2">X</button>
             </div>
             
             <div className="text-xs text-stone-600 leading-relaxed space-y-4">
-                <p>Para visualizar os planos disponiveis e registrar cotas na <strong>{obterNomeLoja(lojaParaAcesso)}</strong>, o estabelecimento exige uma analise de credito previa do seu CPF.</p>
+                <p>Para visualizar os planos disponíveis e registrar cotas na <strong>{obterNomeLoja(lojaParaAcesso)}</strong>, o estabelecimento exige uma análise de crédito previa do seu CPF.</p>
                 
                 <div className="bg-stone-50 border border-dashed border-stone-300 p-4 rounded-xl space-y-2">
                     <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Dados enviados para consulta:</p>
                     <div className="flex justify-between items-center">
                         <span className="font-bold text-[#0B1E14]">{usuario?.nome}</span>
-                        <span className="font-mono font-bold text-[#0B1E14]">{usuario?.cpf ? aplicarMascaraCpfCnpj(usuario.cpf) : 'Nao informado'}</span>
+                        <span className="font-mono font-bold text-[#0B1E14]">{usuario?.cpf ? aplicarMascaraCpfCnpj(usuario.cpf) : 'Não informado'}</span>
                     </div>
                 </div>
 
-                <p className="text-[11px] text-stone-500 italic">Ao confirmar, a loja recebera seus dados para consulta junto aos orgaos de protecao ao credito (SPC/Serasa). Assim que aprovado, o catalogo sera liberado.</p>
+                <p className="text-[11px] text-stone-500 italic">Ao confirmar, a loja receberá seus dados para consulta junto aos órgãos de proteção ao crédito (SPC/Serasa). Assim que aprovado, o catálogo será liberado.</p>
             </div>
 
             <div className="flex space-x-3 pt-3 border-t border-stone-100 w-full">
@@ -1592,15 +1592,15 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
             <div className="text-[11px] text-stone-600 leading-relaxed space-y-2 max-h-56 overflow-y-auto bg-stone-50 p-4 rounded-xl border">
               <p>
-                Ao aceitar, voce confirma a retirada antecipada do produto do seu clube de compras e assume o
-                compromisso de seguir com as parcelas restantes do plano ate o encerramento do grupo.
+                Ao aceitar, você confirma a retirada antecipada do produto do seu clube de compras e assume o
+                compromisso de seguir com as parcelas restantes do plano até o encerramento do grupo.
               </p>
               <p>
                 A loja adianta o valor que ainda falta para completar o seu plano, e por isso a entrega so e
-                liberada apos este aceite.
+                liberada após este aceite.
               </p>
               <p>
-                O regulamento completo da sua loja esta disponivel na aba Regras do painel.
+                O regulamento completo da sua loja esta disponível na aba Regras do painel.
               </p>
             </div>
 
@@ -1610,7 +1610,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 onClick={() => setModalTermo({ aberto: false, cotaId: null })}
                 className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
               >
-                Agora nao
+                Agora não
               </button>
               <button
                 type="button"
