@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://avle-api.onrender.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function DashboardCliente({ usuario: usuarioInicial }: { usuario: any }) {
   const router = useRouter();

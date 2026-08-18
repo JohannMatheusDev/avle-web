@@ -5,6 +5,14 @@ import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
+// O servidor hiberna quando fica ocioso e a primeira chamada depois disso falha
+// enquanto a instancia volta a subir. Sem repetir, o painel inteiro abria com
+// "sem conexao" em todas as secoes de uma vez, mesmo com a API no ar.
+const TENTATIVAS_POR_SECAO = 3;
+const ESPERA_ENTRE_TENTATIVAS_MS = 2500;
+
+const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 interface Grupo {
   id: number;
   nome: string;
@@ -146,18 +154,29 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   // Devolve o fallback quando a API falha, para a tela nao quebrar, mas registra
   // a falha para o operador ver que o dado esta incompleto e nao vazio.
   const buscarJson = useCallback(async <T,>(secao: string, url: string, fallback: T): Promise<T> => {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) {
-        registrarErro(secao, await lerMensagemErro(res));
-        return fallback;
+    let ultimaFalha = 'Nao foi possivel conectar ao servidor.';
+
+    for (let tentativa = 1; tentativa <= TENTATIVAS_POR_SECAO; tentativa++) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          limparErro(secao);
+          return await res.json();
+        }
+        ultimaFalha = await lerMensagemErro(res);
+        // Erro de 4xx e resposta definitiva da API: repetir nao muda o resultado.
+        if (res.status < 500) break;
+      } catch {
+        ultimaFalha = 'Nao foi possivel conectar ao servidor.';
       }
-      limparErro(secao);
-      return await res.json();
-    } catch {
-      registrarErro(secao, 'Nao foi possivel conectar ao servidor.');
-      return fallback;
+
+      if (tentativa < TENTATIVAS_POR_SECAO) {
+        await esperar(ESPERA_ENTRE_TENTATIVAS_MS * tentativa);
+      }
     }
+
+    registrarErro(secao, ultimaFalha);
+    return fallback;
   }, [registrarErro, limparErro]);
 
   const carregarGruposDoBanco = async () => {
