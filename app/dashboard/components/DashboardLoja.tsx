@@ -21,6 +21,24 @@ interface Grupo {
   quantidadeMaxCotas: number;
 }
 
+interface ClienteDisponivel {
+  id: number;
+  nome: string;
+  email: string | null;
+  cpf: string | null;
+  telefone: string | null;
+  statusAcesso: string;
+  ultimoGrupo: string;
+  jaNoGrupo: boolean;
+  cotaId: number | null;
+}
+
+interface ClienteRecusado {
+  clienteId: number;
+  nome: string;
+  motivo: string;
+}
+
 interface ResumoFinanceiro {
   recebidoEsteMes: number;
   aReceberContemplados: number;
@@ -51,6 +69,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [cpfCliente, setCpfCliente] = useState('');
   const [telefoneCliente, setTelefoneCliente] = useState('');
   const [processandoCliente, setProcessandoCliente] = useState(false);
+
+  const [modalAddParticipantesAberto, setModalAddParticipantesAberto] = useState(false);
+  const [clientesDisponiveis, setClientesDisponiveis] = useState<ClienteDisponivel[]>([]);
+  const [vagasDisponiveis, setVagasDisponiveis] = useState(0);
+  const [carregandoDisponiveis, setCarregandoDisponiveis] = useState(false);
+  const [erroDisponiveis, setErroDisponiveis] = useState('');
+  const [buscaClienteGrupo, setBuscaClienteGrupo] = useState('');
+  const [clientesSelecionados, setClientesSelecionados] = useState<number[]>([]);
+  const [salvandoParticipantes, setSalvandoParticipantes] = useState(false);
 
   const [modalPagamentoManualAberto, setModalPagamentoManualAberto] = useState(false);
   const [qtdParcelasManual, setQtdParcelasManual] = useState('1');
@@ -386,6 +413,94 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   };
 
+  // A lista sai do proprio grupo (e nao de listaClientesLoja) porque so o servidor
+  // sabe quem ja ocupa cota nele e quantas vagas ainda restam.
+  const carregarClientesDisponiveis = async (grupoId: number) => {
+    setCarregandoDisponiveis(true);
+    setErroDisponiveis('');
+    try {
+      const res = await fetch(`${API_URL}/api/grupos/${grupoId}/clientes-disponiveis`);
+      if (!res.ok) throw new Error(await lerMensagemErro(res));
+
+      const data = await res.json();
+      setClientesDisponiveis(Array.isArray(data?.clientes) ? data.clientes : []);
+      setVagasDisponiveis(Number(data?.vagasDisponiveis) || 0);
+    } catch (err) {
+      setClientesDisponiveis([]);
+      setVagasDisponiveis(0);
+      setErroDisponiveis(err instanceof Error && err.message
+        ? err.message
+        : 'Nao foi possivel carregar os clientes da sua unidade.');
+    } finally {
+      setCarregandoDisponiveis(false);
+    }
+  };
+
+  const handleAbrirAdicaoParticipantes = () => {
+    if (!grupoSelecionado) return;
+    setClientesSelecionados([]);
+    setBuscaClienteGrupo('');
+    setModalAddParticipantesAberto(true);
+    carregarClientesDisponiveis(grupoSelecionado.id);
+  };
+
+  const alternarSelecaoCliente = (clienteId: number) => {
+    setClientesSelecionados((atual) =>
+      atual.includes(clienteId) ? atual.filter((id) => id !== clienteId) : [...atual, clienteId]
+    );
+  };
+
+  const handleAdicionarParticipantes = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!grupoSelecionado || clientesSelecionados.length === 0) return;
+
+    setSalvandoParticipantes(true);
+    try {
+      const res = await fetch(`${API_URL}/api/grupos/${grupoSelecionado.id}/participantes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clienteIds: clientesSelecionados })
+      });
+
+      if (!res.ok) throw new Error(await lerMensagemErro(res));
+
+      const data = await res.json();
+      const incluidos = Array.isArray(data?.adicionados) ? data.adicionados.length : 0;
+      const recusados: ClienteRecusado[] = Array.isArray(data?.ignorados) ? data.ignorados : [];
+
+      // A API avalia cliente a cliente, entao a selecao pode entrar so em parte.
+      // O detalhe de quem ficou de fora precisa chegar ao operador.
+      const detalhe = recusados.length > 0
+        ? `\n\nNao incluidos:\n${recusados.map((r) => `- ${r.nome}: ${r.motivo}`).join('\n')}`
+        : '';
+
+      mostrarAviso(
+        incluidos > 0 ? 'Participantes Adicionados' : 'Nenhuma Inclusao Realizada',
+        `${data?.mensagem || ''}${detalhe}`,
+        incluidos === 0
+      );
+
+      if (incluidos > 0) {
+        setModalAddParticipantesAberto(false);
+        recarregarParticipantesDoGrupo();
+        carregarListaClientesDaLoja();
+        carregarContagemClientes(usuario?.lojaId || usuario?.id);
+      } else {
+        // Modal segue aberto para corrigir a selecao, mas com a lista atualizada.
+        setClientesSelecionados([]);
+        carregarClientesDisponiveis(grupoSelecionado.id);
+      }
+    } catch (err) {
+      mostrarAviso(
+        'Erro ao Adicionar',
+        err instanceof Error && err.message ? err.message : 'Nao foi possivel salvar os participantes.',
+        true
+      );
+    } finally {
+      setSalvandoParticipantes(false);
+    }
+  };
+
   const handleCadastrarCliente = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setProcessandoCliente(true);
@@ -582,6 +697,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const totalParticipantesValidos = Array.isArray(participantesDoGrupo) ? participantesDoGrupo.length : 0;
   const totalGruposValidos = Array.isArray(listaGrupos) ? listaGrupos.length : 0;
 
+  const termoBuscaCliente = buscaClienteGrupo.trim().toLowerCase();
+  const clientesDisponiveisFiltrados = clientesDisponiveis.filter((c) => {
+    if (!termoBuscaCliente) return true;
+    return `${c.nome || ''} ${c.email || ''} ${c.cpf || ''}`.toLowerCase().includes(termoBuscaCliente);
+  });
+  // Trava a selecao na quantidade de vagas para o operador nao montar um envio
+  // que o servidor recusaria pela metade.
+  const limiteSelecaoAtingido = clientesSelecionados.length >= vagasDisponiveis;
+
   const clientesAtivos = listaClientesLoja.filter(c => c.statusAcesso !== 'BLOQUEADO' && c.statusAcesso !== 'REJEITADO');
   const clientesBloqueados = listaClientesLoja.filter(c => c.statusAcesso === 'BLOQUEADO' || c.statusAcesso === 'REJEITADO');
 
@@ -712,12 +836,21 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           <div className="space-y-6 animate-fadeIn">
             <div className="flex justify-between items-center">
               <button onClick={() => setGrupoSelecionado(null)} className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] transition-all bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs"> Voltar para a Listagem</button>
-              <button 
-                 onClick={(e) => handleExcluirGrupo(grupoSelecionado.id, e)} 
-                 className="text-xs font-bold text-rose-700 hover:text-white hover:bg-rose-700 transition-all bg-rose-50 border border-rose-200 px-4 py-2 rounded-xl cursor-pointer shadow-xs"
-              >
-                Excluir Grupo
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                   type="button"
+                   onClick={handleAbrirAdicaoParticipantes}
+                   className="text-xs font-bold text-white bg-[#BD6B42] hover:bg-[#A95A33] transition-all border border-[#BD6B42] px-4 py-2 rounded-xl cursor-pointer shadow-xs"
+                >
+                  + Adicionar Cliente
+                </button>
+                <button 
+                   onClick={(e) => handleExcluirGrupo(grupoSelecionado.id, e)} 
+                   className="text-xs font-bold text-rose-700 hover:text-white hover:bg-rose-700 transition-all bg-rose-50 border border-rose-200 px-4 py-2 rounded-xl cursor-pointer shadow-xs"
+                >
+                  Excluir Grupo
+                </button>
+              </div>
             </div>
 
             <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
@@ -774,7 +907,18 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   </thead>
                   <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
                     {totalParticipantesValidos === 0 ? (
-                      <tr><td colSpan={6} className="py-6 text-center text-stone-400 italic">Nenhum participante vinculado a este grupo ainda.</td></tr>
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center">
+                          <p className="text-stone-400 italic mb-3">Nenhum participante vinculado a este grupo ainda.</p>
+                          <button
+                            type="button"
+                            onClick={handleAbrirAdicaoParticipantes}
+                            className="px-4 py-2 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer shadow-xs"
+                          >
+                            + Adicionar Cliente
+                          </button>
+                        </td>
+                      </tr>
                     ) : (
                       participantesDoGrupo.map((part) => {
                         const isSelecionado = idOperacao === part.numeroCota.toString();
@@ -1363,6 +1507,126 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold"
                 >
                   Registrar Grupo
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {modalAddParticipantesAberto && grupoSelecionado && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-start border-b pb-3">
+              <div>
+                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Adicionar Clientes ao Grupo</h3>
+                <p className="text-[10px] text-stone-400 font-mono">{grupoSelecionado.nome} · {vagasDisponiveis} vaga(s) livre(s)</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalAddParticipantesAberto(false)}
+                className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer"
+              >
+                X
+              </button>
+            </div>
+
+            <form onSubmit={handleAdicionarParticipantes} className="space-y-3.5 text-xs text-[#0B1E14]">
+              <input
+                type="text"
+                value={buscaClienteGrupo}
+                onChange={(e) => setBuscaClienteGrupo(e.target.value)}
+                placeholder="Buscar por nome, e-mail ou CPF"
+                className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
+              />
+
+              {erroDisponiveis && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl px-3 py-2.5 text-[11px] font-medium flex items-center justify-between gap-2">
+                  <span>{erroDisponiveis}</span>
+                  <button
+                    type="button"
+                    onClick={() => carregarClientesDisponiveis(grupoSelecionado.id)}
+                    className="font-bold uppercase text-[10px] underline cursor-pointer whitespace-nowrap"
+                  >
+                    Tentar de novo
+                  </button>
+                </div>
+              )}
+
+              <div className="border border-[#DFD9CE] rounded-xl max-h-72 overflow-y-auto divide-y divide-[#EFEAE1]">
+                {carregandoDisponiveis ? (
+                  <p className="py-8 text-center text-stone-400 italic text-[11px]">Carregando clientes da sua unidade...</p>
+                ) : clientesDisponiveisFiltrados.length === 0 ? (
+                  <p className="py-8 text-center text-stone-400 italic text-[11px]">
+                    {clientesDisponiveis.length === 0
+                      ? 'Nenhuma cliente cadastrada na sua unidade ainda. Cadastre pelo botao "+ Nova Cliente".'
+                      : 'Nenhuma cliente encontrada para esta busca.'}
+                  </p>
+                ) : (
+                  clientesDisponiveisFiltrados.map((cliente) => {
+                    const selecionado = clientesSelecionados.includes(cliente.id);
+                    // Ja no grupo nao entra de novo; e sem vaga sobrando so da para
+                    // desmarcar quem ja foi escolhido.
+                    const bloqueado = cliente.jaNoGrupo || (!selecionado && limiteSelecaoAtingido);
+
+                    return (
+                      <label
+                        key={cliente.id}
+                        className={`flex items-center gap-3 px-4 py-3 transition-all ${
+                          bloqueado ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-stone-50/70'
+                        } ${selecionado ? 'bg-amber-50/70' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selecionado}
+                          disabled={bloqueado}
+                          onChange={() => alternarSelecaoCliente(cliente.id)}
+                          className="w-4 h-4 accent-[#BD6B42] cursor-pointer disabled:cursor-not-allowed"
+                        />
+                        <span className="flex-1 min-w-0">
+                          <span className="block font-bold text-[#0B1E14] truncate">{cliente.nome}</span>
+                          <span className="block text-[10px] text-stone-400 font-mono truncate">
+                            {cliente.cpf ? aplicarMascaraCpf(cliente.cpf) : (cliente.email || 'Sem documento informado')}
+                          </span>
+                        </span>
+                        {cliente.jaNoGrupo && (
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border bg-emerald-50 text-emerald-700 border-emerald-200 whitespace-nowrap">
+                            Ja no grupo
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                <span>{clientesSelecionados.length} selecionada(s)</span>
+                {limiteSelecaoAtingido && vagasDisponiveis > 0 && (
+                  <span className="text-[#BD6B42]">Limite de vagas atingido</span>
+                )}
+              </div>
+
+              {vagasDisponiveis === 0 && !carregandoDisponiveis && (
+                <div className="bg-stone-50 p-3 rounded-xl border border-dashed text-[10px] text-stone-500 leading-relaxed">
+                  Este grupo ja atingiu a lotacao maxima de {grupoSelecionado.quantidadeMaxCotas} cotas. Remova um participante ou crie um novo grupo para continuar vendendo.
+                </div>
+              )}
+
+              <div className="flex space-x-2 pt-2 border-t w-full">
+                <button
+                  type="button"
+                  onClick={() => setModalAddParticipantesAberto(false)}
+                  className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={salvandoParticipantes || clientesSelecionados.length === 0}
+                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {salvandoParticipantes ? 'Salvando...' : 'Salvar no Grupo'}
                 </button>
               </div>
             </form>
