@@ -52,6 +52,12 @@ function Autenticacao() {
 
   const [isLogin, setIsLogin] = useState(true);
   const [isVerificando, setIsVerificando] = useState(false);
+
+  // Entrada sem senha: a pessoa pede um codigo e o troca pela sessao.
+  const [isLoginPorCodigo, setIsLoginPorCodigo] = useState(false);
+  const [codigoEnviado, setCodigoEnviado] = useState(false);
+  const [destinoCodigo, setDestinoCodigo] = useState('');
+  const [codigoAcesso, setCodigoAcesso] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [statusConexao, setStatusConexao] = useState('CONECTANDO...');
 
@@ -448,6 +454,64 @@ function Autenticacao() {
     }
   };
 
+  // Pede o codigo de uso unico. O identificador e o mesmo campo do login, entao
+  // quem ja digitou o e-mail nao precisa digitar de novo.
+  const handlePedirCodigoAcesso = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCarregando(true);
+    setMensagem({ tipo: '', texto: '' });
+
+    try {
+      const resposta = await fetch(`${API_URL}/api/auth/codigo/solicitar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identificador: identificadorLogin.trim() }),
+      });
+
+      const retorno = await resposta.json().catch(() => null);
+      if (!resposta.ok) throw new Error(retorno?.erro || 'Não foi possível enviar o código agora.');
+
+      setDestinoCodigo(retorno?.destinoMascarado || '');
+      setCodigoEnviado(true);
+      setMensagem({ tipo: 'sucesso', texto: `Código enviado para ${retorno?.destinoMascarado || 'o seu contato cadastrado'}.` });
+    } catch (erro) {
+      setMensagem({ tipo: 'erro', texto: erro instanceof Error ? erro.message : 'Não foi possível enviar o código agora.' });
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  const handleEntrarComCodigo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCarregando(true);
+    setMensagem({ tipo: '', texto: '' });
+
+    try {
+      const resposta = await fetch(`${API_URL}/api/auth/codigo/entrar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identificador: identificadorLogin.trim(), codigo: codigoAcesso }),
+      });
+
+      const retorno = await resposta.json().catch(() => null);
+      if (!resposta.ok) throw new Error(retorno?.erro || 'Código incorreto ou expirado.');
+
+      localStorage.setItem('@avle:usuario', JSON.stringify(retorno));
+      router.push('/dashboard');
+    } catch (erro) {
+      setMensagem({ tipo: 'erro', texto: erro instanceof Error ? erro.message : 'Código incorreto ou expirado.' });
+      setCarregando(false);
+    }
+  };
+
+  const voltarAoLogin = () => {
+    setIsLoginPorCodigo(false);
+    setCodigoEnviado(false);
+    setCodigoAcesso('');
+    setDestinoCodigo('');
+    setMensagem({ tipo: '', texto: '' });
+  };
+
   const handleSolicitarRecuperacao = async (e: React.FormEvent) => {
     e.preventDefault();
     setMensagem({ tipo: '', texto: '' });
@@ -557,7 +621,7 @@ function Autenticacao() {
         <div className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl border border-stone-200/60 flex flex-col z-10 relative">
           
           <div className="flex flex-col p-6 sm:p-8">
-            {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
+            {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && !isLoginPorCodigo && (
               <div className="flex border-b border-stone-100 bg-stone-50/50 mb-6 rounded-xl overflow-hidden shadow-inner">
                 <button
                   type="button"
@@ -604,6 +668,47 @@ function Autenticacao() {
                   </button>
                   <button type="button" onClick={() => setIsVerificando(false)} className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-2 cursor-pointer">Cancelar e voltar</button>
                 </div>
+              </form>
+            )}
+
+            {isLoginPorCodigo && (
+              <form onSubmit={codigoEnviado ? handleEntrarComCodigo : handlePedirCodigoAcesso} className="flex flex-col space-y-6 text-left">
+                  <div>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Entrar com Código</h3>
+                    <p className="text-xs text-stone-400 mt-1">
+                      {codigoEnviado
+                        ? `Digite o código de 6 dígitos enviado para ${destinoCodigo || 'o seu contato cadastrado'}.`
+                        : 'Informe seu e-mail ou telefone e enviamos um código de acesso. Não precisa de senha.'}
+                    </p>
+                  </div>
+
+                  {mensagem.texto && (
+                    <div className={`p-3 rounded-xl text-xs font-bold border ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                      {mensagem.texto}
+                    </div>
+                  )}
+
+                  {!codigoEnviado ? (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail ou Telefone</label>
+                      <input type="text" placeholder="seu@email.com ou (45) 99999-9999" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Código de Acesso</label>
+                      <input type="text" inputMode="numeric" maxLength={6} placeholder="000000" value={codigoAcesso} onChange={(e) => setCodigoAcesso(e.target.value.replace(/\D/g, ''))} className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} autoFocus />
+                      <button type="button" onClick={handlePedirCodigoAcesso} disabled={carregando} className="text-[10px] text-[#BD6B42] hover:underline font-bold cursor-pointer mt-2 disabled:opacity-50">
+                        Não recebi o código. Enviar outro
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 mt-4">
+                    <button type="submit" disabled={carregando} className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55">
+                      {carregando ? 'AGUARDE...' : codigoEnviado ? 'Entrar' : 'Enviar Código'}
+                    </button>
+                    <button type="button" onClick={voltarAoLogin} className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-2 cursor-pointer">Voltar ao Login</button>
+                  </div>
               </form>
             )}
 
@@ -664,7 +769,7 @@ function Autenticacao() {
               </form>
             )}
 
-            {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
+            {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && !isLoginPorCodigo && (
               <form onSubmit={handleSubmit} className="flex flex-col text-left space-y-4">
                   {mensagem.texto && (
                     <div className={`p-3.5 rounded-xl text-xs font-bold text-center border ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
@@ -781,7 +886,11 @@ function Autenticacao() {
                     <div className="flex justify-between items-center mb-1">
                       <label className="block text-[10px] font-bold uppercase text-stone-500">Senha de Acesso *</label>
                       {isLogin && (
-                        <button type="button" onClick={() => { setIsEsqueceuSenha(true); setMensagem({ tipo: '', texto: '' }); }} className="text-[10px] text-[#BD6B42] hover:underline font-bold cursor-pointer" disabled={carregando}>Esqueceu a senha?</button>
+                        <div className="flex items-center gap-3">
+                          <button type="button" onClick={() => { setIsLoginPorCodigo(true); setMensagem({ tipo: '', texto: '' }); }} className="text-[10px] text-stone-500 hover:text-[#0B1E14] hover:underline font-bold cursor-pointer" disabled={carregando}>Entrar com código</button>
+                          <span className="text-[10px] text-stone-300">|</span>
+                          <button type="button" onClick={() => { setIsEsqueceuSenha(true); setMensagem({ tipo: '', texto: '' }); }} className="text-[10px] text-[#BD6B42] hover:underline font-bold cursor-pointer" disabled={carregando}>Esqueceu a senha?</button>
+                        </div>
                       )}
                     </div>
                     <div className="relative">
