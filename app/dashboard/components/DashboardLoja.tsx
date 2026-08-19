@@ -1774,29 +1774,28 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <div className="space-y-6 animate-fadeIn text-left">
 
                 <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl space-y-4 shadow-xs">
-                  <div className="space-y-1">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">Agendar Sorteio Auditável</h3>
-                    <p className="text-xs text-stone-500 leading-relaxed">
-                      Ao agendar, a lista de participantes é congelada e não muda mais. O resultado sai do concurso da
-                      Loteria Federal seguinte a data de corte, então ninguém, nem a loja nem a AVLE, consegue influenciar
-                      em quem vai cair.
-                    </p>
-                  </div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">Agendar Sorteio Auditável</h3>
 
                   <form onSubmit={agendarSorteio} className="flex flex-wrap gap-2 items-end">
                     <div>
                       <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Grupo</label>
-                      <select
-                        value={grupoSorteioId}
-                        onChange={(e) => { setGrupoSorteioId(e.target.value); carregarPainelDeSorteio(e.target.value); }}
-                        className="min-w-[220px] px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs cursor-pointer"
-                        required
-                      >
-                        <option value="">Selecione o grupo de compras</option>
-                        {listaGrupos.map((grupo) => (
-                          <option key={grupo.id} value={grupo.id}>{grupo.nome}</option>
-                        ))}
-                      </select>
+                      {/* appearance-none tira o desenho nativo do navegador, que
+                          nao acompanha a altura nem a borda dos demais campos.
+                          A seta e desenhada por cima, sem capturar o clique. */}
+                      <div className="relative">
+                        <select
+                          value={grupoSorteioId}
+                          onChange={(e) => { setGrupoSorteioId(e.target.value); carregarPainelDeSorteio(e.target.value); }}
+                          className="appearance-none w-full min-w-[220px] h-[38px] pl-3 pr-9 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs text-[#0B1E14] cursor-pointer focus:outline-none focus:border-[#BD6B42] transition-colors"
+                          required
+                        >
+                          <option value="">Selecione o grupo de compras</option>
+                          {listaGrupos.map((grupo) => (
+                            <option key={grupo.id} value={grupo.id}>{grupo.nome}</option>
+                          ))}
+                        </select>
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[9px] text-stone-400">▼</span>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Data de corte</label>
@@ -1804,13 +1803,13 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         type="date"
                         value={dataCorteSorteio}
                         onChange={(e) => setDataCorteSorteio(e.target.value)}
-                        className="px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs font-mono"
+                        className="h-[38px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs font-mono text-[#0B1E14] focus:outline-none focus:border-[#BD6B42]"
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={processandoSorteio || !grupoSorteioId}
-                      className="bg-[#0B1E14] text-white text-[10px] font-bold px-5 py-2.5 rounded-xl cursor-pointer disabled:opacity-50 uppercase tracking-wider"
+                      className="h-[38px] bg-[#0B1E14] text-white text-[10px] font-bold px-5 rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider hover:bg-opacity-90 transition-all shadow-sm"
                     >
                       {processandoSorteio ? 'Processando...' : 'Congelar lista e agendar'}
                     </button>
@@ -2289,21 +2288,24 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
             <div>
               <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Grupo de destino</label>
-              <select
-                value={grupoDestinoConvocacao}
-                onChange={(e) => setGrupoDestinoConvocacao(e.target.value)}
-                className="w-full px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42] cursor-pointer"
-              >
-                <option value="">Selecione um grupo com vaga</option>
-                {listaGrupos.filter(grupoDisponivel).map((grupo) => {
-                  const vagas = vagasDoGrupo(grupo);
-                  return (
-                    <option key={grupo.id} value={grupo.id}>
-                      {grupo.nome}{vagas === null ? '' : ` · ${vagas} vaga(s)`}
-                    </option>
-                  );
-                })}
-              </select>
+              <div className="relative">
+                <select
+                  value={grupoDestinoConvocacao}
+                  onChange={(e) => setGrupoDestinoConvocacao(e.target.value)}
+                  className="appearance-none w-full h-[42px] pl-3 pr-9 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm text-[#0B1E14] focus:outline-none focus:border-[#BD6B42] cursor-pointer transition-colors"
+                >
+                  <option value="">Selecione um grupo com vaga</option>
+                  {listaGrupos.filter(grupoDisponivel).map((grupo) => {
+                    const vagas = vagasDoGrupo(grupo);
+                    return (
+                      <option key={grupo.id} value={grupo.id}>
+                        {grupo.nome}{vagas === null ? '' : ` · ${vagas} vaga(s)`}
+                      </option>
+                    );
+                  })}
+                </select>
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[9px] text-stone-400">▼</span>
+              </div>
             </div>
 
             <div className="flex space-x-2 pt-2 border-t w-full">
