@@ -24,6 +24,7 @@ export default function PainelAdminSaaS() {
 
   // Seus Estados Originais para a Execução do Sorteio
   const [grupoSorteioId, setGrupoSorteioId] = useState('');
+  const [listaGrupos, setListaGrupos] = useState<any[]>([]);
   const [dataCorteSorteio, setDataCorteSorteio] = useState('');
   const [sorteiosDoGrupo, setSorteiosDoGrupo] = useState<SorteioResumo[]>([]);
   const [erroSorteio, setErroSorteio] = useState('');
@@ -41,10 +42,21 @@ export default function PainelAdminSaaS() {
   // 📡 Conexão 1: Carrega faturamento e métricas globais do ecossistema SaaS
   useEffect(() => {
     if (abaAtiva === 'visao') {
-      fetch('http://localhost:8080/api/admin/metricas-globais')
+      fetch(`${API_URL}/api/admin/metricas-globais`)
         .then((res) => res.json())
         .then((data) => setMetricasSaaS(data))
         .catch((err) => console.error('Erro ao buscar métricas SaaS:', err));
+    }
+  }, [abaAtiva]);
+
+  // Grupos de todas as lojas, para o sorteio ser agendado escolhendo o nome do
+  // grupo em vez de exigir o id numerico decorado.
+  useEffect(() => {
+    if (abaAtiva === 'sorteio') {
+      fetch(`${API_URL}/api/grupos`)
+        .then((res) => res.json())
+        .then((data) => setListaGrupos(Array.isArray(data) ? data : []))
+        .catch(() => setListaGrupos([]));
     }
   }, [abaAtiva]);
 
@@ -52,7 +64,7 @@ export default function PainelAdminSaaS() {
   useEffect(() => {
     if (abaAtiva === 'lojas') {
       setLoadingLojas(true);
-      fetch('http://localhost:8080/api/admin/lojas/pendentes')
+      fetch(`${API_URL}/api/admin/lojas/pendentes`)
         .then((res) => res.json())
         .then((data) => {
           setLojasPendentes(data);
@@ -68,7 +80,7 @@ export default function PainelAdminSaaS() {
   // ⚡ Conexão 3: Homologar/Ativar Loja Parceira no ecossistema
   const handleAprovarLoja = async (lojaId: number) => {
     try {
-      const res = await fetch(`http://localhost:8080/api/admin/lojas/${lojaId}/aprovar`, {
+      const res = await fetch(`${API_URL}/api/admin/lojas/${lojaId}/aprovar`, {
         method: 'PUT'
       });
       if (!res.ok) throw new Error('Não foi possível ativar esta loja.');
@@ -145,7 +157,7 @@ export default function PainelAdminSaaS() {
     setLoadingGrupo(true);
 
     try {
-      const res = await fetch('http://localhost:8080/api/grupos/criar', {
+      const res = await fetch(`${API_URL}/api/grupos/criar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -262,15 +274,20 @@ export default function PainelAdminSaaS() {
 
               <form onSubmit={agendarSorteio} className="space-y-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">ID numérico do Grupo</label>
-                  <input
-                    type="number"
-                    placeholder="Ex: 1"
+                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Grupo de Compras</label>
+                  <select
                     value={grupoSorteioId}
                     onChange={(e) => { setGrupoSorteioId(e.target.value); carregarSorteios(e.target.value); }}
-                    className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm bg-stone-50"
+                    className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm bg-stone-50 cursor-pointer"
                     required
-                  />
+                  >
+                    <option value="">Selecione o grupo</option>
+                    {listaGrupos.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.nome}{g.lojaNome ? ` · ${g.lojaNome}` : ''}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Data de corte</label>

@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
+
 export default function CheckoutPix() {
   const [valorInput, setValorInput] = useState('49.90'); // Valor padrão simulado
   const [dadosPix, setDadosPix] = useState<{ pixCopiaECola: string; qrCodeUrl: string; idTransacao: string } | null>(null);
@@ -12,7 +14,7 @@ export default function CheckoutPix() {
     setCarregando(true);
     setCopiado(false);
     try {
-      const resposta = await fetch('http://localhost:8080/api/pagamentos/gerar-pix', {
+      const resposta = await fetch(`${API_URL}/api/pagamentos/gerar-pix`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ valor: valorInput }),

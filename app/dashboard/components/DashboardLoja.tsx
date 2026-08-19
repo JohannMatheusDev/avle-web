@@ -1786,14 +1786,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   <form onSubmit={agendarSorteio} className="flex flex-wrap gap-2 items-end">
                     <div>
                       <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Grupo</label>
-                      <input
-                        type="number"
-                        placeholder="ID do grupo"
+                      <select
                         value={grupoSorteioId}
                         onChange={(e) => { setGrupoSorteioId(e.target.value); carregarPainelDeSorteio(e.target.value); }}
-                        className="w-32 px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs font-mono"
+                        className="min-w-[220px] px-3 py-2 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs cursor-pointer"
                         required
-                      />
+                      >
+                        <option value="">Selecione o grupo de compras</option>
+                        {listaGrupos.map((grupo) => (
+                          <option key={grupo.id} value={grupo.id}>{grupo.nome}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Data de corte</label>
