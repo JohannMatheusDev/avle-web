@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css"; // 🔌 A fiação que faltava para ativar o Tailwind!
+import AvisoCookies from "./components/AvisoCookies";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,6 +20,7 @@ export default function RootLayout({
       
       <body className={`${inter.className} bg-avle-bege antialiased`}>
         {children}
+        <AvisoCookies />
       </body>
     </html>
   );

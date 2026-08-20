@@ -7,3 +7,14 @@
   --color-avle-verde: #1C3F24;
   --color-avle-texto: #2C2A29;
 }
+/* Entrada do aviso de privacidade. Nome proprio em vez de reaproveitar
+   "fadeIn": aquela classe e usada em varias telas sem nunca ter sido
+   definida, e defini-la agora mudaria a aparencia de tudo de uma vez. */
+@keyframes avle-subir {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-avle-subir {
+  animation: avle-subir 0.28s ease-out;
+}
