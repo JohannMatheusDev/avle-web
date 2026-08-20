@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { apiFetch } from '../../lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -14,7 +15,7 @@ export default function CheckoutPix() {
     setCarregando(true);
     setCopiado(false);
     try {
-      const resposta = await fetch(`${API_URL}/api/pagamentos/gerar-pix`, {
+      const resposta = await apiFetch(`${API_URL}/api/pagamentos/gerar-pix`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ valor: valorInput }),

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CardContemplacao, CotaElegivel, SorteioResumo, mensagemDeErro } from '../../lib/contemplacao';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
 import { grupoDisponivel, grupoEncerrado, vagasDoGrupo } from '../../lib/grupos';
+import { apiFetch, encerrarSessao } from '../../lib/api';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Cell,
@@ -236,7 +237,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
     for (let tentativa = 1; tentativa <= TENTATIVAS_POR_SECAO; tentativa++) {
       try {
-        const res = await fetch(url);
+        const res = await apiFetch(url);
         if (res.ok) {
           limparErro(secao);
           return await res.json();
@@ -318,7 +319,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
     try {
       const lojaId = usuario?.lojaId || usuario?.id;
-      const res = await fetch(`${API_URL}/api/lojas/${lojaId}/fila-espera/${item.id}/convocar`, {
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/fila-espera/${item.id}/convocar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ grupoId }),
@@ -342,7 +343,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
     try {
       const lojaId = usuario?.lojaId || usuario?.id;
-      const res = await fetch(`${API_URL}/api/lojas/${lojaId}/fila-espera/${item.id}`, { method: 'DELETE' });
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/fila-espera/${item.id}`, { method: 'DELETE' });
 
       if (!res.ok) throw new Error(await lerMensagemErro(res) || 'Falha ao remover a cliente da fila.');
 
@@ -363,7 +364,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     // falha de carregamento. Os demais erros seguem pelo buscarJson, que avisa o
     // operador no topo do painel.
     try {
-      const res = await fetch(url);
+      const res = await apiFetch(url);
 
       if (res.status === 404) {
         setFilaPublicadaNaApi(false);
@@ -436,7 +437,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const handleAnalisarAcesso = async (acessoId: number, aprovado: boolean) => {
      setProcessandoAcessoId(acessoId);
      try {
-        const res = await fetch(`${API_URL}/api/lojas/acessos/${acessoId}/analise?aprovado=${aprovado}`, { method: 'PUT' });
+        const res = await apiFetch(`${API_URL}/api/lojas/acessos/${acessoId}/analise?aprovado=${aprovado}`, { method: 'PUT' });
         if(res.ok) {
            mostrarAviso(
               aprovado ? 'Acesso Liberado' : 'Acesso Rejeitado',
@@ -468,7 +469,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
      setProcessandoBloqueio(true);
      const lojaId = usuario?.lojaId || usuario?.id;
      try {
-        const res = await fetch(`${API_URL}/api/lojas/${lojaId}/clientes/${clienteParaBloquear.id}/bloquear`, {
+        const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/clientes/${clienteParaBloquear.id}/bloquear`, {
            method: 'PUT',
            headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({ motivo: motivoBloqueio })
@@ -518,7 +519,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
     if (tipo === 'participante') {
       try {
-        const res = await fetch(`${API_URL}/api/cotas/${idTarget}`, { method: 'DELETE' });
+        const res = await apiFetch(`${API_URL}/api/cotas/${idTarget}`, { method: 'DELETE' });
         if (!res.ok) {
           const textoErro = await res.text();
           throw new Error(textoErro || 'Falha ao remover participante.');
@@ -538,7 +539,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       }
     } else if (tipo === 'grupo') {
       try {
-        const res = await fetch(`${API_URL}/api/grupos/${idTarget}`, { method: 'DELETE' });
+        const res = await apiFetch(`${API_URL}/api/grupos/${idTarget}`, { method: 'DELETE' });
         if (!res.ok) {
           const textoErro = await res.text();
           throw new Error(textoErro || 'Falha ao excluir grupo.');
@@ -564,7 +565,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     setCarregandoDisponiveis(true);
     setErroDisponiveis('');
     try {
-      const res = await fetch(`${API_URL}/api/grupos/${grupoId}/clientes-disponiveis`);
+      const res = await apiFetch(`${API_URL}/api/grupos/${grupoId}/clientes-disponiveis`);
       if (!res.ok) throw new Error(await lerMensagemErro(res));
 
       const data = await res.json();
@@ -601,7 +602,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
     setSalvandoParticipantes(true);
     try {
-      const res = await fetch(`${API_URL}/api/grupos/${grupoSelecionado.id}/participantes`, {
+      const res = await apiFetch(`${API_URL}/api/grupos/${grupoSelecionado.id}/participantes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clienteIds: clientesSelecionados })
@@ -657,7 +658,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         lojaId: lojaId
       };
 
-      const res = await fetch(`${API_URL}/api/usuarios/cadastrar-cliente`, {
+      const res = await apiFetch(`${API_URL}/api/usuarios/cadastrar-cliente`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -703,7 +704,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         lojaId: lojaId
       };
 
-      const res = await fetch(`${API_URL}/api/grupos/criar`, {
+      const res = await apiFetch(`${API_URL}/api/grupos/criar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -732,7 +733,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
     setProcessandoPagamentoManual(true);
     try {
-      const res = await fetch(`${API_URL}/api/entregas/${idOperacao}/pagamento-manual`, {
+      const res = await apiFetch(`${API_URL}/api/entregas/${idOperacao}/pagamento-manual`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quantidadeParcelas: parseInt(qtdParcelasManual) })
@@ -776,7 +777,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     const cards = await Promise.all(
       (Array.isArray(participantes) ? participantes : []).map(async (p) => {
         try {
-          const res = await fetch(`${API_URL}/api/contemplacoes/cota/${p.numeroCota}`);
+          const res = await apiFetch(`${API_URL}/api/contemplacoes/cota/${p.numeroCota}`);
           if (!res.ok) return null;
           return (await res.json()) as CardContemplacao;
         } catch {
@@ -793,7 +794,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
     setProcessandoSorteio(true);
     try {
-      const res = await fetch(`${API_URL}/api/sorteios/agendar`, {
+      const res = await apiFetch(`${API_URL}/api/sorteios/agendar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -825,7 +826,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const apurarSorteio = async (sorteioId: number) => {
     setProcessandoSorteio(true);
     try {
-      const res = await fetch(`${API_URL}/api/sorteios/${sorteioId}/apurar`, { method: 'POST' });
+      const res = await apiFetch(`${API_URL}/api/sorteios/${sorteioId}/apurar`, { method: 'POST' });
       const retorno = await res.json().catch(() => null);
       if (!res.ok) throw new Error(retorno?.erro || 'Falha ao apurar.');
 
@@ -848,7 +849,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const avancarEtapaContemplacao = async (cotaId: number, rota: string, corpo?: Record<string, unknown>) => {
     setProcessandoSorteio(true);
     try {
-      const res = await fetch(`${API_URL}/api/contemplacoes/${cotaId}/${rota}`, {
+      const res = await apiFetch(`${API_URL}/api/contemplacoes/${cotaId}/${rota}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(corpo || {}),
@@ -905,7 +906,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     const lojaId = usuario?.lojaId || usuario?.id;
 
     try {
-      const res = await fetch(`${API_URL}/api/lojas/${lojaId}/regras`, {
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/regras`, {
         method: 'POST',
         body: formData,
       });
@@ -996,7 +997,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             Configurações
           </button>
           <button
-            onClick={() => { localStorage.removeItem('@avle:usuario'); window.location.href = '/'; }}
+            onClick={async () => { await encerrarSessao(); window.location.href = '/'; }}
             className="text-stone-500 hover:text-red-400 text-[10px] font-bold transition-all cursor-pointer tracking-wider uppercase"
           >
             Sair

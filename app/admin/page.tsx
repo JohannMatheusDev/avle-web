@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { SorteioResumo, mensagemDeErro } from '../lib/contemplacao';
+import { apiFetch } from '../lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -42,7 +43,7 @@ export default function PainelAdminSaaS() {
   // 📡 Conexão 1: Carrega faturamento e métricas globais do ecossistema SaaS
   useEffect(() => {
     if (abaAtiva === 'visao') {
-      fetch(`${API_URL}/api/admin/metricas-globais`)
+      apiFetch(`${API_URL}/api/admin/metricas-globais`)
         .then((res) => res.json())
         .then((data) => setMetricasSaaS(data))
         .catch((err) => console.error('Erro ao buscar métricas SaaS:', err));
@@ -53,7 +54,7 @@ export default function PainelAdminSaaS() {
   // grupo em vez de exigir o id numerico decorado.
   useEffect(() => {
     if (abaAtiva === 'sorteio') {
-      fetch(`${API_URL}/api/grupos`)
+      apiFetch(`${API_URL}/api/grupos`)
         .then((res) => res.json())
         .then((data) => setListaGrupos(Array.isArray(data) ? data : []))
         .catch(() => setListaGrupos([]));
@@ -64,7 +65,7 @@ export default function PainelAdminSaaS() {
   useEffect(() => {
     if (abaAtiva === 'lojas') {
       setLoadingLojas(true);
-      fetch(`${API_URL}/api/admin/lojas/pendentes`)
+      apiFetch(`${API_URL}/api/admin/lojas/pendentes`)
         .then((res) => res.json())
         .then((data) => {
           setLojasPendentes(data);
@@ -80,7 +81,7 @@ export default function PainelAdminSaaS() {
   // ⚡ Conexão 3: Homologar/Ativar Loja Parceira no ecossistema
   const handleAprovarLoja = async (lojaId: number) => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/lojas/${lojaId}/aprovar`, {
+      const res = await apiFetch(`${API_URL}/api/admin/lojas/${lojaId}/aprovar`, {
         method: 'PUT'
       });
       if (!res.ok) throw new Error('Não foi possível ativar esta loja.');
@@ -98,7 +99,7 @@ export default function PainelAdminSaaS() {
   const carregarSorteios = async (grupoId: string) => {
     if (!grupoId) { setSorteiosDoGrupo([]); return; }
     try {
-      const res = await fetch(`${API_URL}/api/sorteios/grupo/${grupoId}`);
+      const res = await apiFetch(`${API_URL}/api/sorteios/grupo/${grupoId}`);
       if (!res.ok) return;
       const dados = await res.json();
       setSorteiosDoGrupo(Array.isArray(dados) ? dados : []);
@@ -113,7 +114,7 @@ export default function PainelAdminSaaS() {
     setLoadingSorteio(true);
 
     try {
-      const res = await fetch(`${API_URL}/api/sorteios/agendar`, {
+      const res = await apiFetch(`${API_URL}/api/sorteios/agendar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -137,7 +138,7 @@ export default function PainelAdminSaaS() {
     setErroSorteio('');
     setLoadingSorteio(true);
     try {
-      const res = await fetch(`${API_URL}/api/sorteios/${sorteioId}/apurar`, { method: 'POST' });
+      const res = await apiFetch(`${API_URL}/api/sorteios/${sorteioId}/apurar`, { method: 'POST' });
       const dados = await res.json().catch(() => null);
       if (!res.ok) throw new Error(dados?.erro || 'Falha ao apurar.');
 
@@ -157,7 +158,7 @@ export default function PainelAdminSaaS() {
     setLoadingGrupo(true);
 
     try {
-      const res = await fetch(`${API_URL}/api/grupos/criar`, {
+      const res = await apiFetch(`${API_URL}/api/grupos/criar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

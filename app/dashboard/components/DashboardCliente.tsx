@@ -5,6 +5,7 @@ import { CardContemplacao, EtapaTrilha, mensagemDeErro } from '../../lib/contemp
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
 import { grupoDisponivel } from '../../lib/grupos';
 import { useRouter } from 'next/navigation';
+import { apiFetch, encerrarSessao } from '../../lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -130,7 +131,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     if (!userId) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/contemplacoes/cliente/${userId}`);
+      const res = await apiFetch(`${API_URL}/api/contemplacoes/cliente/${userId}`);
       if (!res.ok) return;
       const data = await res.json();
       setCardsContemplacao(Array.isArray(data) ? data : []);
@@ -142,7 +143,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const avancarEtapa = async (cotaId: number, rota: string, corpo?: Record<string, unknown>) => {
     setSalvandoEtapa(true);
     try {
-      const res = await fetch(`${API_URL}/api/contemplacoes/${cotaId}/${rota}`, {
+      const res = await apiFetch(`${API_URL}/api/contemplacoes/${cotaId}/${rota}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(corpo || {}),
@@ -188,7 +189,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     if (!userId) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/usuarios/${userId}/clubes-ativos`);
+      const res = await apiFetch(`${API_URL}/api/usuarios/${userId}/clubes-ativos`);
       const data = await res.json();
       if (Array.isArray(data)) {
         const chaveArmazenamento = `@avle:cotas_${userId}`;
@@ -225,7 +226,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   const buscarAcessosLoja = async (userId: number) => {
     try {
-      const res = await fetch(`${API_URL}/api/usuarios/${userId}/acessos-loja`);
+      const res = await apiFetch(`${API_URL}/api/usuarios/${userId}/acessos-loja`);
       const data = await res.json();
       if (Array.isArray(data)) setAcessosLoja(data);
     } catch (err) {}
@@ -241,7 +242,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     setProcessandoFila(true);
 
     try {
-      const res = await fetch(`${API_URL}/api/lojas/${lojaId}/fila-espera`, {
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/fila-espera`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clienteId: userId }),
@@ -270,7 +271,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     setProcessandoFila(true);
 
     try {
-      const res = await fetch(`${API_URL}/api/lojas/${lojaId}/fila-espera/${filaId}`, { method: 'DELETE' });
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/fila-espera/${filaId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
       await buscarFilasEspera(userId);
     } catch (err) {
@@ -282,7 +283,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   const buscarFilasEspera = async (userId: number) => {
     try {
-      const res = await fetch(`${API_URL}/api/usuarios/${userId}/fila-espera`);
+      const res = await apiFetch(`${API_URL}/api/usuarios/${userId}/fila-espera`);
       const data = await res.json();
       if (Array.isArray(data)) setFilasEspera(data);
     } catch (err) {}
@@ -308,7 +309,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       buscarAcessosLoja(currentUserId); 
       buscarFilasEspera(currentUserId);
 
-      fetch(`${API_URL}/api/usuarios/${currentUserId}`)
+      apiFetch(`${API_URL}/api/usuarios/${currentUserId}`)
         .then((res) => {
           if (!res.ok) throw new Error();
           return res.json();
@@ -329,7 +330,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         .finally(() => setCarregandoDados(false));
     }
 
-    fetch(`${API_URL}/api/lojas/listar-todas`)
+    apiFetch(`${API_URL}/api/lojas/listar-todas`)
       .then((res) => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -358,7 +359,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   setNivelVisao('grupos');
                   setCarregandoGrupos(true);
                   
-                  fetch(`${API_URL}/api/grupos/loja/${lojaDoConvite.id}`)
+                  apiFetch(`${API_URL}/api/grupos/loja/${lojaDoConvite.id}`)
                      .then((res) => res.json())
                      .then((grupos) => setGruposDaLoja(Array.isArray(grupos) ? grupos : []))
                      .catch(() => setGruposDaLoja([]))
@@ -375,7 +376,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     setNivelVisao('grupos');
                     setCarregandoGrupos(true);
                     
-                    fetch(`${API_URL}/api/grupos/loja/${lojaVinculadaId}`)
+                    apiFetch(`${API_URL}/api/grupos/loja/${lojaVinculadaId}`)
                         .then((res) => res.json())
                         .then((grupos) => setGruposDaLoja(Array.isArray(grupos) ? grupos : []))
                         .catch(() => setGruposDaLoja([]))
@@ -403,7 +404,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       setCarregandoGrupos(true);
       setGruposDaLoja([]);
 
-      fetch(`${API_URL}/api/grupos/loja/${loja.id}`)
+      apiFetch(`${API_URL}/api/grupos/loja/${loja.id}`)
         .then((res) => res.json())
         .then((data) => setGruposDaLoja(Array.isArray(data) ? data : []))
         .catch(() => setGruposDaLoja([]))
@@ -423,7 +424,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     if (!lojaParaAcesso) return;
     setSolicitandoAcesso(true);
     try {
-       const res = await fetch(`${API_URL}/api/lojas/${lojaParaAcesso.id}/solicitar-acesso`, {
+       const res = await apiFetch(`${API_URL}/api/lojas/${lojaParaAcesso.id}/solicitar-acesso`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ usuarioId: usuario?.id })
@@ -461,7 +462,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       setModalAdesao({ aberto: false, grupo: null });
 
       try {
-         const res = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/vincular-clube`, {
+         const res = await apiFetch(`${API_URL}/api/usuarios/${usuario?.id}/vincular-clube`, {
            method: 'PUT',
            headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({ lojaId: Number(lojaEmFoco?.id), grupoId: Number(grupo?.id) })
@@ -469,7 +470,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
          
          if (!res.ok) throw new Error();
          
-         const resClubes = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/clubes-ativos`);
+         const resClubes = await apiFetch(`${API_URL}/api/usuarios/${usuario?.id}/clubes-ativos`);
          const dataClubes = await resClubes.json();
          setClubesAtivos(dataClubes);
          
@@ -505,7 +506,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       leitor.onloadend = async () => {
         const base64String = leitor.result as string;
         try {
-          const res = await fetch(`${API_URL}/api/usuarios/${usuario?.id}/foto`, {
+          const res = await apiFetch(`${API_URL}/api/usuarios/${usuario?.id}/foto`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fotoPerfil: base64String }),
@@ -542,7 +543,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/usuarios/${userId}`, {
+      const res = await apiFetch(`${API_URL}/api/usuarios/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -582,7 +583,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     const userId = usuario?.id || JSON.parse(localStorage.getItem('@avle:usuario') || '{}').id;
 
     try {
-      const res = await fetch(`${API_URL}/api/usuarios/${userId}/alterar-senha`, {
+      const res = await apiFetch(`${API_URL}/api/usuarios/${userId}/alterar-senha`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ senhaAtual: senhaAtualInput, novaSenha: novaSenhaInput })
@@ -675,7 +676,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             Configurações
           </button>
           <button
-            onClick={() => { localStorage.removeItem('@avle:usuario'); router.push('/'); }}
+            onClick={async () => { await encerrarSessao(); router.push('/'); }}
             className="text-stone-500 hover:text-red-400 text-[10px] font-bold cursor-pointer transition-all tracking-wider uppercase"
           >
             Sair
@@ -1816,7 +1817,7 @@ function CheckoutForm({
   useEffect(() => {
     if (!cotaId || metodo !== 'pix') return;
     setCarregandoPix(true);
-    fetch(`${API_URL}/api/pagamentos/gerar-pix`, {
+    apiFetch(`${API_URL}/api/pagamentos/gerar-pix`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ valor: valorCobrado, cotaId }),
@@ -1865,7 +1866,7 @@ function CheckoutForm({
     };
 
     try {
-      const res = await fetch(`${API_URL}${endpoint}`, {
+      const res = await apiFetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

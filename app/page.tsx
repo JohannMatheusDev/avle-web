@@ -11,6 +11,7 @@ import {
   telefoneValido,
 } from './lib/validacao';
 import TelaCarregamento from './dashboard/components/TelaCarregamento';
+import { apiFetch } from './lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -113,9 +114,9 @@ function Autenticacao() {
   }, []);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
+    apiFetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
     const intervaloPing = setInterval(() => {
-      fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
+      apiFetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
     }, 120000);
     return () => clearInterval(intervaloPing);
   }, []);
@@ -286,7 +287,7 @@ function Autenticacao() {
             };
         }
 
-        const resposta = await fetch(endpoint, {
+        const resposta = await apiFetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(bodyPayload),
@@ -400,7 +401,7 @@ function Autenticacao() {
     setReenviandoCodigo(true);
     setMensagem({ tipo: '', texto: '' });
     try {
-      const resposta = await fetch(`${API_URL}/api/usuarios/reenviar-codigo`, {
+      const resposta = await apiFetch(`${API_URL}/api/usuarios/reenviar-codigo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(identificarContaEmVerificacao()),
@@ -431,7 +432,7 @@ function Autenticacao() {
     const payload = identificarContaEmVerificacao(codigoOtp);
 
     try {
-      const resposta = await fetch(`${API_URL}/api/usuarios/verificar`, {
+      const resposta = await apiFetch(`${API_URL}/api/usuarios/verificar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -462,7 +463,7 @@ function Autenticacao() {
     setMensagem({ tipo: '', texto: '' });
 
     try {
-      const resposta = await fetch(`${API_URL}/api/auth/codigo/solicitar`, {
+      const resposta = await apiFetch(`${API_URL}/api/auth/codigo/solicitar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identificador: identificadorLogin.trim() }),
@@ -487,7 +488,7 @@ function Autenticacao() {
     setMensagem({ tipo: '', texto: '' });
 
     try {
-      const resposta = await fetch(`${API_URL}/api/auth/codigo/entrar`, {
+      const resposta = await apiFetch(`${API_URL}/api/auth/codigo/entrar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identificador: identificadorLogin.trim(), codigo: codigoAcesso }),
@@ -530,7 +531,7 @@ function Autenticacao() {
         : { email: identificadorLogin.trim() };
 
     try {
-      const resposta = await fetch(`${API_URL}/api/auth/esqueceu-senha`, {
+      const resposta = await apiFetch(`${API_URL}/api/auth/esqueceu-senha`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -570,7 +571,7 @@ function Autenticacao() {
         : { email: identificadorLogin.trim(), codigo: codigoOtp, novaSenha };
 
     try {
-      const resposta = await fetch(`${API_URL}/api/auth/redefinir-senha`, {
+      const resposta = await apiFetch(`${API_URL}/api/auth/redefinir-senha`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

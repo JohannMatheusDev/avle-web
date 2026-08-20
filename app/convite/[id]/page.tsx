@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import gsap from 'gsap';
+import { apiFetch } from '../../lib/api';
 import {
   cpfValido,
   identificadorLoginValido,
@@ -67,7 +68,7 @@ export default function CadastroConvite() {
     }
 
     // Busca diretamente pelo ID oficial da loja no Java
-    fetch(`${API_URL}/api/lojas/${idExtraido}`)
+    apiFetch(`${API_URL}/api/lojas/${idExtraido}`)
       .then(res => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -86,9 +87,9 @@ export default function CadastroConvite() {
   }, [slugDaLoja]);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
+    apiFetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
     const intervaloPing = setInterval(() => {
-      fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
+      apiFetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
     }, 120000);
     return () => clearInterval(intervaloPing);
   }, []);
@@ -242,7 +243,7 @@ export default function CadastroConvite() {
             };
         }
 
-        const resposta = await fetch(endpoint, {
+        const resposta = await apiFetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(bodyPayload),
@@ -347,7 +348,7 @@ export default function CadastroConvite() {
     setReenviandoCodigo(true);
     setMensagem({ tipo: '', texto: '' });
     try {
-      const resposta = await fetch(`${API_URL}/api/usuarios/reenviar-codigo`, {
+      const resposta = await apiFetch(`${API_URL}/api/usuarios/reenviar-codigo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(identificarContaEmVerificacao()),
@@ -382,7 +383,7 @@ export default function CadastroConvite() {
     const payload = identificarContaEmVerificacao(codigoOtp);
 
     try {
-      const resposta = await fetch(`${API_URL}/api/usuarios/verificar`, {
+      const resposta = await apiFetch(`${API_URL}/api/usuarios/verificar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -423,7 +424,7 @@ export default function CadastroConvite() {
         : { email: identificadorLogin.trim() };
 
     try {
-      const resposta = await fetch(`${API_URL}/api/auth/esqueceu-senha`, {
+      const resposta = await apiFetch(`${API_URL}/api/auth/esqueceu-senha`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -463,7 +464,7 @@ export default function CadastroConvite() {
         : { email: identificadorLogin.trim(), codigo: codigoOtp, novaSenha };
 
     try {
-      const resposta = await fetch(`${API_URL}/api/auth/redefinir-senha`, {
+      const resposta = await apiFetch(`${API_URL}/api/auth/redefinir-senha`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

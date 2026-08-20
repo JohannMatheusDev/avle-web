@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { apiFetch } from '../lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -58,7 +59,7 @@ export default function Faturas() {
     if (!raw) { router.push('/'); return; }
     const user = JSON.parse(raw);
     try {
-      const res = await fetch(`${API_URL}/api/financeiro/extrato/${user.id}`);
+      const res = await apiFetch(`${API_URL}/api/financeiro/extrato/${user.id}`);
       if (res.ok) setFaturas(await res.json());
     } catch (err) {
       console.error('Erro ao buscar extrato:', err);
@@ -93,7 +94,7 @@ export default function Faturas() {
     setMetodo('PIX');
     setProcessando(true);
     try {
-      const res = await fetch(`${API_URL}/api/pagamentos/gerar-pix`, {
+      const res = await apiFetch(`${API_URL}/api/pagamentos/gerar-pix`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cotaId: fatura.cotaId, valor: fatura.valorTotal }),
@@ -128,7 +129,7 @@ export default function Faturas() {
       };
       if (metodo === 'DEBITO') body.tipoCobranca = 'DEBIT_CARD';
 
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

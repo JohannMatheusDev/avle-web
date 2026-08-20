@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { apiFetch, encerrarSessao } from '../../lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -28,7 +29,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
     setCarregando(true);
 
     try {
-      const resMetricas = await fetch(`${API_URL}/api/financeiro/admin/dashboard`);
+      const resMetricas = await apiFetch(`${API_URL}/api/financeiro/admin/dashboard`);
       if (resMetricas.ok) {
         const data = await resMetricas.json();
         setMetricas(data);
@@ -37,7 +38,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
     }
 
     try {
-      const resLojas = await fetch(`${API_URL}/api/lojas/listar-todas`);
+      const resLojas = await apiFetch(`${API_URL}/api/lojas/listar-todas`);
       if (resLojas.ok) {
         const data = await resLojas.json();
         if (Array.isArray(data)) {
@@ -84,7 +85,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
   const alterarStatusLoja = async (lojaId: number, novoStatus: string) => {
     setProcessandoStatus(true);
     try {
-      const res = await fetch(`${API_URL}/api/lojas/${lojaId}/status-homologacao`, {
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/status-homologacao`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: novoStatus }),
@@ -104,7 +105,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
   const alterarLimiteGrupos = async (lojaId: number, limite: number) => {
     setProcessandoStatus(true);
     try {
-      const res = await fetch(`${API_URL}/api/lojas/${lojaId}/limite-grupos`, {
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/limite-grupos`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ limite }),
@@ -200,8 +201,8 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
             </div>
           </div>
           <button
-            onClick={() => {
-              localStorage.removeItem('@avle:usuario');
+            onClick={async () => {
+              await encerrarSessao();
               router.push('/');
             }}
             className="text-stone-500 hover:text-red-600 text-xs font-bold transition-all cursor-pointer border border-white/10 px-2.5 py-1 rounded-xl bg-white"
