@@ -19,6 +19,11 @@ export interface ResumoSorteio {
 
 export interface CardContemplacao {
   cotaId: number;
+  // Preenchidos para o painel da loja, onde o card e a lista de quem foi
+  // sorteado. No painel da cliente sao ignorados: la a conta e dela.
+  clienteNome: string | null;
+  clienteTelefone: string | null;
+  dataEntrega: string | null;
   grupoNome: string | null;
   dataContemplacao: string | null;
   etapaAtual: string;

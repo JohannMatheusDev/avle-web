@@ -1993,15 +1993,41 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 {contemplacoesEmCurso.length > 0 && (
                   <div className="bg-white border border-[#DFD9CE] rounded-2xl shadow-xs overflow-hidden">
                     <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50">
-                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Contempladas em Andamento</h3>
+                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Clientes Sorteadas</h3>
                       <p className="text-[10px] text-stone-400">A cliente age na escolha do produto e na assinatura; as demais etapas são suas.</p>
                     </div>
                     <div className="divide-y divide-[#EFEAE1]">
                       {contemplacoesEmCurso.map((c) => (
                         <div key={c.cotaId} className="px-5 py-4 flex flex-wrap gap-3 justify-between items-center">
                           <div className="min-w-0">
-                            <p className="text-xs font-bold text-[#0B1E14]">
-                              Cota #{c.cotaId} · {c.etapaTitulo}
+                            <p className="text-sm font-bold text-[#0B1E14] truncate">
+                              {c.clienteNome || `Cota #${c.cotaId}`}
+                            </p>
+
+                            <div className="flex items-center gap-2 flex-wrap mt-1">
+                              <span className="text-[9px] font-mono font-bold text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">
+                                Cota #{c.cotaId}
+                              </span>
+                              {c.dataContemplacao && (
+                                <span className="text-[10px] text-stone-500">
+                                  Sorteada em {new Date(c.dataContemplacao).toLocaleDateString('pt-BR')}
+                                </span>
+                              )}
+                              {c.clienteTelefone && (
+                                <a
+                                  href={`https://wa.me/55${c.clienteTelefone.replace(/\D/g, '')}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-[10px] font-bold text-[#BD6B42] hover:underline"
+                                >
+                                  {aplicarMascaraTelefone(c.clienteTelefone)}
+                                </a>
+                              )}
+                            </div>
+
+                            <p className="text-[11px] font-bold text-[#0B1E14] mt-1.5">
+                              {c.etapaTitulo}
                               {!c.aguardandoEncerramento && (
                                 <span className="text-stone-400 font-medium"> ({c.posicaoAtual}/{c.totalEtapas})</span>
                               )}
@@ -2009,6 +2035,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                             <p className="text-[10px] text-stone-400 mt-0.5">
                               {c.produtoEscolhido ? `Produto: ${c.produtoEscolhido}` : c.etapaDescricao}
                             </p>
+
+                            {c.dataEntrega && (
+                              <p className="text-[10px] text-emerald-700 font-bold mt-1">
+                                Retirado em {new Date(c.dataEntrega).toLocaleDateString('pt-BR')}
+                              </p>
+                            )}
                           </div>
 
                           <div className="flex gap-2 flex-wrap">
@@ -2845,7 +2877,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           </div>
         </div>
       )}
-
     </div>
   );
 }
