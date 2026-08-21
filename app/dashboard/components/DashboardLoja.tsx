@@ -151,6 +151,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [modalConvocar, setModalConvocar] = useState<{ aberto: boolean; item: ItemFilaEspera | null }>({ aberto: false, item: null });
   const [grupoDestinoConvocacao, setGrupoDestinoConvocacao] = useState('');
   const [processandoFilaId, setProcessandoFilaId] = useState<number | null>(null);
+  const [registrandoEntregaId, setRegistrandoEntregaId] = useState<number | null>(null);
   // false enquanto o endpoint da fila nao existe neste servidor. Serve para a aba
   // dizer "ainda nao publicada" em vez de "ninguem na fila", que seria mentira.
   const [filaPublicadaNaApi, setFilaPublicadaNaApi] = useState(true);
@@ -353,6 +354,25 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       mostrarAviso('Erro', mensagemDeErro(err, 'Falha ao remover a cliente da fila.'), true);
     } finally {
       setProcessandoFilaId(null);
+    }
+  };
+
+  // Registra a retirada do produto. A data e gravada pelo servidor, entao a tela
+  // recarrega a lista em vez de adivinhar o valor que foi salvo.
+  const handleRegistrarEntrega = async (cotaId: number, evento: React.MouseEvent) => {
+    evento.stopPropagation();
+    setRegistrandoEntregaId(cotaId);
+
+    try {
+      const res = await apiFetch(`${API_URL}/api/entregas/${cotaId}/registrar-entrega`, { method: 'PUT' });
+      if (!res.ok) throw new Error(await lerMensagemErro(res) || 'Falha ao registrar a retirada.');
+
+      await recarregarParticipantesDoGrupo();
+      mostrarAviso('Retirada Registrada', 'A data da entrega foi gravada e aparece no painel da cliente.', false);
+    } catch (err) {
+      mostrarAviso('Erro', mensagemDeErro(err, 'Falha ao registrar a retirada.'), true);
+    } finally {
+      setRegistrandoEntregaId(null);
     }
   };
 
@@ -1134,16 +1154,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <tr className="bg-stone-50 text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                       <th className="py-3.5 px-5 text-center">N DA COTA</th>
                       <th className="py-3.5 px-5">PARTICIPANTE</th>
+                      <th className="py-3.5 px-5 text-center">STATUS</th>
+                      <th className="py-3.5 px-5 text-center">ENTREGA</th>
                       <th className="py-3.5 px-5 text-right">SALDO QUITADO</th>
                       <th className="py-3.5 px-5 text-right">VALOR COBERTO (RISCO)</th>
-                      <th className="py-3.5 px-5 text-center">STATUS DE ENTREGA</th>
                       <th className="py-3.5 px-5 text-center">AÇÕES</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
                     {totalParticipantesValidos === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-8 text-center">
+                        <td colSpan={7} className="py-8 text-center">
                           <p className="text-stone-400 italic mb-3">Nenhum participante vinculado a este grupo ainda.</p>
                           <button
                             type="button"
@@ -1164,16 +1185,51 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                               <span className="block font-bold text-[#0B1E14]">{part.nome}</span>
                               <span className="text-[10px] text-stone-400 font-mono">{part.email}</span>
                             </td>
+                            <td className="py-3.5 px-5 text-center">
+                              {part.foiSorteada ? (
+                                <>
+                                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border bg-amber-50 text-amber-700 border-amber-200">
+                                    Sorteada
+                                  </span>
+                                  {part.dataContemplacao && (
+                                    <span className="block text-[9px] text-stone-400 font-mono mt-1">
+                                      {new Date(part.dataContemplacao).toLocaleDateString('pt-BR')}
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border bg-stone-50 text-stone-500 border-stone-200">
+                                  Aguardando sorteio
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="py-3.5 px-5 text-center">
+                              {part.dataEntrega ? (
+                                <>
+                                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border bg-emerald-50 text-emerald-700 border-emerald-200">
+                                    Entregue
+                                  </span>
+                                  <span className="block text-[9px] text-stone-500 font-mono mt-1">
+                                    {new Date(part.dataEntrega).toLocaleDateString('pt-BR')}
+                                  </span>
+                                </>
+                              ) : part.foiSorteada ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleRegistrarEntrega(part.id, e)}
+                                  disabled={registrandoEntregaId === part.id}
+                                  className="px-2.5 py-1 bg-[#0B1E14] text-white font-bold rounded-lg text-[9px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+                                >
+                                  {registrandoEntregaId === part.id ? 'Gravando...' : 'Registrar retirada'}
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-stone-300">—</span>
+                              )}
+                            </td>
+
                             <td className="py-3.5 px-5 text-right font-mono text-emerald-700">R$ {Number(part.saldoPoupanca).toFixed(2)}</td>
                             <td className="py-3.5 px-5 text-right font-mono text-rose-700">R$ {Number(part.custoFinanciadoLoja).toFixed(2)}</td>
-                            <td className="py-3.5 px-5 text-center">
-                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${
-                                part.statusEntrega === 'AGUARDANDO_SORTEIO' ? 'bg-stone-50 text-stone-500 border-stone-200' :
-                                part.statusEntrega === 'CONTEMPLADO_NO_PRAZO' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                part.statusEntrega === 'ENVIADO_OU_RETIRADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                'bg-stone-50 text-stone-500 border-stone-200'
-                              }`}>{part.statusEntrega ? part.statusEntrega.replace(/_/g, ' ') : 'AGUARDANDO SORTEIO'}</span>
-                            </td>
                             <td className="py-3.5 px-5 text-center">
                               <button
                                 type="button"
