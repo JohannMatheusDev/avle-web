@@ -37,6 +37,12 @@ export interface CardContemplacao {
   termoAssinado: boolean;
   aguardandoEncerramento: boolean;
   concluido: boolean;
+  // Situacao financeira da cota. A loja decide liberar a retirada olhando o
+  // card, e essa decisao dependia de abrir o financeiro em outra tela.
+  valorTotalPlano: number | null;
+  valorPago: number;
+  saldoDevedor: number | null;
+  quitada: boolean;
   acaoDoCliente: 'ESCOLHER_PRODUTO' | 'ASSINAR_TERMO' | null;
   trilha: EtapaTrilha[];
   sorteio?: ResumoSorteio;

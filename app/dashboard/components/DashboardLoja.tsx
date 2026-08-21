@@ -164,6 +164,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   }>({ aberto: false, tipo: 'sorteio', cotaId: null, nome: '' });
   const [dataManual, setDataManual] = useState('');
   const [processandoManual, setProcessandoManual] = useState(false);
+
+  // Baixa manual da quitacao de quem ja foi sorteada. Depois de contemplada a
+  // cliente segue devendo as parcelas, e parte delas e paga no balcao - dinheiro
+  // que nunca passa pela plataforma. Mesma excecao do lancamento manual: so a
+  // unidade autorizada ve estes controles.
+  const [modalQuitacao, setModalQuitacao] = useState<{ aberto: boolean; cotaId: number | null; nome: string }>(
+    { aberto: false, cotaId: null, nome: '' }
+  );
+  const [parcelasQuitacao, setParcelasQuitacao] = useState('1');
+  const [valorQuitacao, setValorQuitacao] = useState('');
+  const [processandoQuitacao, setProcessandoQuitacao] = useState(false);
   // false enquanto o endpoint da fila nao existe neste servidor. Serve para a aba
   // dizer "ainda nao publicada" em vez de "ninguem na fila", que seria mentira.
   const [filaPublicadaNaApi, setFilaPublicadaNaApi] = useState(true);
@@ -392,6 +403,58 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     evento.stopPropagation();
     setModalManual({ aberto: true, tipo, cotaId, nome });
     setDataManual('');
+  };
+
+  const abrirQuitacaoManual = (cotaId: number, nome: string, evento: React.MouseEvent) => {
+    evento.stopPropagation();
+    setModalQuitacao({ aberto: true, cotaId, nome });
+    setParcelasQuitacao('1');
+    setValorQuitacao('');
+  };
+
+  // Valor em reais vence a quantidade de parcelas quando os dois vem
+  // preenchidos: quem digitou um valor exato quis aquele valor, e o campo de
+  // parcelas fica com o "1" que ja vem por padrao.
+  const confirmarQuitacaoManual = async () => {
+    const { cotaId } = modalQuitacao;
+    if (!cotaId) return;
+
+    const valor = Number(valorQuitacao.replace(',', '.'));
+    const usaValor = valorQuitacao.trim() !== '' && !Number.isNaN(valor) && valor > 0;
+    const parcelas = parseInt(parcelasQuitacao, 10);
+
+    if (!usaValor && (Number.isNaN(parcelas) || parcelas <= 0)) {
+      mostrarAviso('Valor Necessário', 'Informe a quantidade de parcelas ou um valor em reais.', true);
+      return;
+    }
+
+    setProcessandoQuitacao(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/contemplacoes/${cotaId}/quitacao-manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(usaValor ? { valorCustomizado: valor } : { quantidadeParcelas: parcelas }),
+      });
+
+      if (!res.ok) throw new Error(await lerMensagemErro(res) || 'Falha ao lançar a baixa.');
+
+      const card: CardContemplacao = await res.json();
+      setModalQuitacao({ aberto: false, cotaId: null, nome: '' });
+      await recarregarParticipantesDoGrupo();
+      carregarDadosFinanceiros();
+
+      mostrarAviso(
+        card.quitada ? 'Cota Quitada' : 'Baixa Efetuada',
+        card.quitada
+          ? 'O plano desta cliente está quitado. A data do lançamento foi gravada pelo servidor.'
+          : `Lançado. Falta R$ ${Number(card.saldoDevedor ?? 0).toFixed(2)} para quitar.`,
+        false
+      );
+    } catch (err) {
+      mostrarAviso('Erro de Lançamento', mensagemDeErro(err, 'Falha ao lançar a baixa.'), true);
+    } finally {
+      setProcessandoQuitacao(false);
+    }
   };
 
   // Lancamento retroativo: serve para registrar o que ja aconteceu fora do
@@ -1252,6 +1315,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                     <span className="block text-[9px] text-stone-400 font-mono mt-1">
                                       {new Date(part.dataContemplacao).toLocaleDateString('pt-BR')}
                                     </span>
+                                  )}
+                                  {permiteSorteioManual && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => abrirQuitacaoManual(part.id, part.nome, e)}
+                                      className="block mx-auto mt-1.5 text-[9px] font-bold text-[#BD6B42] hover:underline cursor-pointer uppercase tracking-wider"
+                                    >
+                                      Baixa manual
+                                    </button>
                                   )}
                                 </>
                               ) : (
@@ -2422,6 +2494,85 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {modalQuitacao.aberto && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">
+                Baixa Manual da Contemplada
+              </h3>
+              <button
+                type="button"
+                onClick={() => setModalQuitacao({ aberto: false, cotaId: null, nome: '' })}
+                className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer"
+              >
+                X
+              </button>
+            </div>
+
+            <p className="text-[11px] text-stone-500 leading-relaxed bg-stone-50 p-3 rounded-xl border border-dashed">
+              <strong className="text-[#0B1E14]">{modalQuitacao.nome}</strong> já foi sorteada e segue pagando as
+              parcelas. Use este lançamento para o que foi recebido no balcão, fora da plataforma.
+            </p>
+
+            <div>
+              <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">
+                Quantidade de parcelas
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={parcelasQuitacao}
+                onChange={(e) => setParcelasQuitacao(e.target.value)}
+                disabled={valorQuitacao.trim() !== ''}
+                className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42] disabled:opacity-40"
+              />
+              {grupoSelecionado?.valorParcela && valorQuitacao.trim() === '' && (
+                <p className="text-[10px] text-stone-400 mt-1 font-mono">
+                  Total: R$ {(Number(parcelasQuitacao || 0) * Number(grupoSelecionado.valorParcela)).toFixed(2)}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">
+                Ou valor exato em reais
+              </label>
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="Deixe em branco para usar as parcelas"
+                value={valorQuitacao}
+                onChange={(e) => setValorQuitacao(e.target.value)}
+                className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
+              />
+              <p className="text-[10px] text-stone-400 mt-1">
+                Preenchido, o valor vence a quantidade de parcelas. Lançamento acima do que falta para quitar é
+                recusado pelo servidor.
+              </p>
+            </div>
+
+            <div className="flex space-x-2 pt-2 border-t w-full">
+              <button
+                type="button"
+                onClick={() => setModalQuitacao({ aberto: false, cotaId: null, nome: '' })}
+                className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarQuitacaoManual}
+                disabled={processandoQuitacao}
+                className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
+              >
+                {processandoQuitacao ? 'Gravando...' : 'Confirmar Baixa'}
+              </button>
+            </div>
           </div>
         </div>
       )}
