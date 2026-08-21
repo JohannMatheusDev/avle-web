@@ -169,9 +169,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   // cliente segue devendo as parcelas, e parte delas e paga no balcao - dinheiro
   // que nunca passa pela plataforma. Mesma excecao do lancamento manual: so a
   // unidade autorizada ve estes controles.
-  const [modalQuitacao, setModalQuitacao] = useState<{ aberto: boolean; cotaId: number | null; nome: string }>(
-    { aberto: false, cotaId: null, nome: '' }
-  );
+  const [modalQuitacao, setModalQuitacao] = useState<
+    { aberto: boolean; cotaId: number | null; nome: string; sorteada: boolean }
+  >({ aberto: false, cotaId: null, nome: '', sorteada: false });
   const [parcelasQuitacao, setParcelasQuitacao] = useState('1');
   const [valorQuitacao, setValorQuitacao] = useState('');
   const [processandoQuitacao, setProcessandoQuitacao] = useState(false);
@@ -405,9 +405,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     setDataManual('');
   };
 
-  const abrirQuitacaoManual = (cotaId: number, nome: string, evento: React.MouseEvent) => {
+  const abrirQuitacaoManual = (cotaId: number, nome: string, sorteada: boolean, evento: React.MouseEvent) => {
     evento.stopPropagation();
-    setModalQuitacao({ aberto: true, cotaId, nome });
+    setModalQuitacao({ aberto: true, cotaId, nome, sorteada });
     setParcelasQuitacao('1');
     setValorQuitacao('');
   };
@@ -416,7 +416,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   // preenchidos: quem digitou um valor exato quis aquele valor, e o campo de
   // parcelas fica com o "1" que ja vem por padrao.
   const confirmarQuitacaoManual = async () => {
-    const { cotaId } = modalQuitacao;
+    const { cotaId, sorteada } = modalQuitacao;
     if (!cotaId) return;
 
     const valor = Number(valorQuitacao.replace(',', '.'));
@@ -430,26 +430,38 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
     setProcessandoQuitacao(true);
     try {
-      const res = await apiFetch(`${API_URL}/api/contemplacoes/${cotaId}/quitacao-manual`, {
-        method: 'POST',
+      // Quem ja foi sorteada entra pela trilha de contemplacao, que devolve o
+      // card com o saldo devedor; quem ainda nao foi usa o aporte comum. Um
+      // botao so na tela, dois caminhos no servidor - a loja nao precisa saber
+      // qual e qual para lancar o dinheiro que recebeu no balcao.
+      const alvo = sorteada
+        ? `${API_URL}/api/contemplacoes/${cotaId}/quitacao-manual`
+        : `${API_URL}/api/entregas/${cotaId}/pagamento-manual`;
+
+      const res = await apiFetch(alvo, {
+        method: sorteada ? 'POST' : 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(usaValor ? { valorCustomizado: valor } : { quantidadeParcelas: parcelas }),
       });
 
       if (!res.ok) throw new Error(await lerMensagemErro(res) || 'Falha ao lançar a baixa.');
 
-      const card: CardContemplacao = await res.json();
-      setModalQuitacao({ aberto: false, cotaId: null, nome: '' });
+      setModalQuitacao({ aberto: false, cotaId: null, nome: '', sorteada: false });
       await recarregarParticipantesDoGrupo();
       carregarDadosFinanceiros();
 
-      mostrarAviso(
-        card.quitada ? 'Cota Quitada' : 'Baixa Efetuada',
-        card.quitada
-          ? 'O plano desta cliente está quitado. A data do lançamento foi gravada pelo servidor.'
-          : `Lançado. Falta R$ ${Number(card.saldoDevedor ?? 0).toFixed(2)} para quitar.`,
-        false
-      );
+      if (sorteada) {
+        const card: CardContemplacao = await res.json();
+        mostrarAviso(
+          card.quitada ? 'Cota Quitada' : 'Baixa Efetuada',
+          card.quitada
+            ? 'O plano desta cliente está quitado. A data do lançamento foi gravada pelo servidor.'
+            : `Lançado. Falta R$ ${Number(card.saldoDevedor ?? 0).toFixed(2)} para quitar.`,
+          false
+        );
+      } else {
+        mostrarAviso('Baixa Efetuada', 'Valor lançado na poupança desta cota.', false);
+      }
     } catch (err) {
       mostrarAviso('Erro de Lançamento', mensagemDeErro(err, 'Falha ao lançar a baixa.'), true);
     } finally {
@@ -1316,30 +1328,33 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                       {new Date(part.dataContemplacao).toLocaleDateString('pt-BR')}
                                     </span>
                                   )}
-                                  {permiteSorteioManual && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => abrirQuitacaoManual(part.id, part.nome, e)}
-                                      className="block mx-auto mt-1.5 text-[9px] font-bold text-[#BD6B42] hover:underline cursor-pointer uppercase tracking-wider"
-                                    >
-                                      Baixa manual
-                                    </button>
-                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => abrirQuitacaoManual(part.id, part.nome, true, e)}
+                                    className="block mx-auto mt-1.5 text-[9px] font-bold text-[#BD6B42] hover:underline cursor-pointer uppercase tracking-wider"
+                                  >
+                                    Baixa manual
+                                  </button>
                                 </>
                               ) : (
                                 <>
                                   <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border bg-stone-50 text-stone-500 border-stone-200">
                                     Aguardando sorteio
                                   </span>
-                                  {permiteSorteioManual && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => abrirLancamentoManual('sorteio', part.id, part.nome, e)}
-                                      className="block mx-auto mt-1.5 text-[9px] font-bold text-[#BD6B42] hover:underline cursor-pointer uppercase tracking-wider"
-                                    >
-                                      Lançar manual
-                                    </button>
-                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => abrirQuitacaoManual(part.id, part.nome, false, e)}
+                                    className="block mx-auto mt-1.5 text-[9px] font-bold text-[#BD6B42] hover:underline cursor-pointer uppercase tracking-wider"
+                                  >
+                                    Baixa manual
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => abrirLancamentoManual('sorteio', part.id, part.nome, e)}
+                                    className="block mx-auto mt-1 text-[9px] font-bold text-stone-500 hover:underline cursor-pointer uppercase tracking-wider"
+                                  >
+                                    Lançar sorteio
+                                  </button>
                                 </>
                               )}
                             </td>
@@ -2507,7 +2522,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </h3>
               <button
                 type="button"
-                onClick={() => setModalQuitacao({ aberto: false, cotaId: null, nome: '' })}
+                onClick={() => setModalQuitacao({ aberto: false, cotaId: null, nome: '', sorteada: false })}
                 className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer"
               >
                 X
@@ -2559,7 +2574,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             <div className="flex space-x-2 pt-2 border-t w-full">
               <button
                 type="button"
-                onClick={() => setModalQuitacao({ aberto: false, cotaId: null, nome: '' })}
+                onClick={() => setModalQuitacao({ aberto: false, cotaId: null, nome: '', sorteada: false })}
                 className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
               >
                 Cancelar
