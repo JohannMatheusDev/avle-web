@@ -152,6 +152,18 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [grupoDestinoConvocacao, setGrupoDestinoConvocacao] = useState('');
   const [processandoFilaId, setProcessandoFilaId] = useState<number | null>(null);
   const [registrandoEntregaId, setRegistrandoEntregaId] = useState<number | null>(null);
+
+  // Liberado pela AVLE por loja. Enquanto for falso, a tela nem oferece o
+  // lancamento manual: o caminho normal e o sorteio auditavel.
+  const [permiteSorteioManual, setPermiteSorteioManual] = useState(false);
+  const [modalManual, setModalManual] = useState<{
+    aberto: boolean;
+    tipo: 'sorteio' | 'entrega';
+    cotaId: number | null;
+    nome: string;
+  }>({ aberto: false, tipo: 'sorteio', cotaId: null, nome: '' });
+  const [dataManual, setDataManual] = useState('');
+  const [processandoManual, setProcessandoManual] = useState(false);
   // false enquanto o endpoint da fila nao existe neste servidor. Serve para a aba
   // dizer "ainda nao publicada" em vez de "ninguem na fila", que seria mentira.
   const [filaPublicadaNaApi, setFilaPublicadaNaApi] = useState(true);
@@ -376,6 +388,50 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   };
 
+  const abrirLancamentoManual = (tipo: 'sorteio' | 'entrega', cotaId: number, nome: string, evento: React.MouseEvent) => {
+    evento.stopPropagation();
+    setModalManual({ aberto: true, tipo, cotaId, nome });
+    setDataManual('');
+  };
+
+  // Lancamento retroativo: serve para registrar o que ja aconteceu fora do
+  // sistema. Sem data informada, o servidor usa o dia de hoje.
+  const confirmarLancamentoManual = async () => {
+    const { tipo, cotaId } = modalManual;
+    if (!cotaId) return;
+
+    setProcessandoManual(true);
+    try {
+      const alvo = tipo === 'sorteio'
+        ? `${API_URL}/api/sorteios/registro-manual`
+        : `${API_URL}/api/entregas/${cotaId}/registrar-entrega`;
+
+      const res = await apiFetch(alvo, {
+        method: tipo === 'sorteio' ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tipo === 'sorteio'
+          ? { cotaId, data: dataManual || undefined }
+          : { data: dataManual || undefined }),
+      });
+
+      if (!res.ok) throw new Error(await lerMensagemErro(res) || 'Falha ao registrar.');
+
+      setModalManual({ aberto: false, tipo: 'sorteio', cotaId: null, nome: '' });
+      await recarregarParticipantesDoGrupo();
+      mostrarAviso(
+        tipo === 'sorteio' ? 'Contemplação Registrada' : 'Retirada Registrada',
+        tipo === 'sorteio'
+          ? 'Lançada no histórico e marcada como registro manual, sem apuração auditável.'
+          : 'A data da entrega foi gravada e aparece no painel da cliente.',
+        false
+      );
+    } catch (err) {
+      mostrarAviso('Erro', mensagemDeErro(err, 'Falha ao registrar.'), true);
+    } finally {
+      setProcessandoManual(false);
+    }
+  };
+
   const carregarFilaEspera = async () => {
     const lojaId = usuario?.lojaId || usuario?.id;
     const url = `${API_URL}/api/lojas/${lojaId}/fila-espera`;
@@ -418,8 +474,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   useEffect(() => {
     const lojaId = usuario?.lojaId || usuario?.id;
     
-    buscarJson<{ nomeComercial?: string } | null>('Dados da loja', `${API_URL}/api/lojas/${lojaId}`, null)
+    buscarJson<{ nomeComercial?: string; permiteSorteioManual?: boolean } | null>('Dados da loja', `${API_URL}/api/lojas/${lojaId}`, null)
       .then(data => {
+         setPermiteSorteioManual(Boolean(data?.permiteSorteioManual));
          if(data && data.nomeComercial) {
             setNomeLojaReal(data.nomeComercial);
          }
@@ -1198,9 +1255,20 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                   )}
                                 </>
                               ) : (
-                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border bg-stone-50 text-stone-500 border-stone-200">
-                                  Aguardando sorteio
-                                </span>
+                                <>
+                                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border bg-stone-50 text-stone-500 border-stone-200">
+                                    Aguardando sorteio
+                                  </span>
+                                  {permiteSorteioManual && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => abrirLancamentoManual('sorteio', part.id, part.nome, e)}
+                                      className="block mx-auto mt-1.5 text-[9px] font-bold text-[#BD6B42] hover:underline cursor-pointer uppercase tracking-wider"
+                                    >
+                                      Lançar manual
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </td>
 
@@ -1217,7 +1285,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                               ) : part.foiSorteada ? (
                                 <button
                                   type="button"
-                                  onClick={(e) => handleRegistrarEntrega(part.id, e)}
+                                  onClick={(e) => permiteSorteioManual
+                                    ? abrirLancamentoManual('entrega', part.id, part.nome, e)
+                                    : handleRegistrarEntrega(part.id, e)}
                                   disabled={registrandoEntregaId === part.id}
                                   className="px-2.5 py-1 bg-[#0B1E14] text-white font-bold rounded-lg text-[9px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer disabled:opacity-50 shadow-xs"
                                 >
@@ -2320,6 +2390,76 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {modalManual.aberto && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">
+                {modalManual.tipo === 'sorteio' ? 'Registrar Contemplação' : 'Registrar Retirada'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setModalManual({ aberto: false, tipo: 'sorteio', cotaId: null, nome: '' })}
+                className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer"
+              >
+                X
+              </button>
+            </div>
+
+            <p className="text-[11px] text-stone-500 leading-relaxed bg-stone-50 p-3 rounded-xl border border-dashed">
+              <strong className="text-[#0B1E14]">{modalManual.nome}</strong>
+              {modalManual.tipo === 'sorteio'
+                ? ' será marcada como contemplada na data informada. Use apenas para lançar sorteio que já aconteceu fora do sistema.'
+                : ' terá a retirada registrada na data informada.'}
+            </p>
+
+            {modalManual.tipo === 'sorteio' && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <p className="text-[10px] text-amber-900 leading-relaxed">
+                  Este lançamento entra no histórico marcado como <strong>registro manual</strong>, sem código de
+                  auditoria conferível. Ele não substitui o sorteio pela Loteria Federal, e a cliente consegue
+                  distinguir os dois.
+                </p>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">
+                Data em que ocorreu
+              </label>
+              <input
+                type="date"
+                value={dataManual}
+                max={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setDataManual(e.target.value)}
+                className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
+              />
+              <p className="text-[10px] text-stone-400 mt-1">
+                Em branco, o sistema usa a data de hoje. Data futura não é aceita.
+              </p>
+            </div>
+
+            <div className="flex space-x-2 pt-2 border-t w-full">
+              <button
+                type="button"
+                onClick={() => setModalManual({ aberto: false, tipo: 'sorteio', cotaId: null, nome: '' })}
+                className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarLancamentoManual}
+                disabled={processandoManual}
+                className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
+              >
+                {processandoManual ? 'Registrando...' : 'Confirmar'}
+              </button>
+            </div>
           </div>
         </div>
       )}
