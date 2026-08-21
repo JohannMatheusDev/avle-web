@@ -22,6 +22,11 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
   });
 
   const [listaLojas, setListaLojas] = useState<any[]>([]);
+
+  // Split consolidado: separa a taxa ja recolhida pelo Asaas da que ficou a
+  // receber porque a loja deu baixa manual e o dinheiro nao passou pela
+  // plataforma.
+  const [split, setSplit] = useState<any | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [processandoStatus, setProcessandoStatus] = useState(false);
 
@@ -35,6 +40,13 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
         setMetricas(data);
       }
     } catch (erro) {
+    }
+
+    try {
+      const resSplit = await apiFetch(`${API_URL}/api/financeiro/admin/split`);
+      if (resSplit.ok) setSplit(await resSplit.json());
+    } catch (erro) {
+      // O painel continua util sem o consolidado; os cards apenas nao aparecem.
     }
 
     try {
@@ -557,26 +569,93 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
             {abaExibida === 'financeiro' && (
               <div className="space-y-6 animate-fadeIn">
                 <div>
-                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Fluxo de Caixa e Split Contabil</h2>
+                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Fluxo de Caixa e Split Contábil</h2>
                   <p className="text-xs text-stone-400 font-medium">
-                    Divisoes operacionais liquidadas em tempo real por estabelecimento.
+                    Divisão de 10% para a AVLE e 90% para a loja, sobre cada entrada registrada.
                   </p>
                 </div>
+
+                {split && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs">
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Faturamento bruto</span>
+                      <span className="text-2xl font-bold font-mono text-[#0B1E14] block mt-1">
+                        R$ {Number(split.faturamentoBruto).toFixed(2)}
+                      </span>
+                      <span className="text-[10px] text-stone-400">base de cálculo do split</span>
+                    </div>
+
+                    <div className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs">
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
+                        AVLE · {split.percentualAvle}%
+                      </span>
+                      <span className="text-2xl font-bold font-mono text-emerald-700 block mt-1">
+                        R$ {Number(split.taxaAvleTotal).toFixed(2)}
+                      </span>
+                      <span className="text-[10px] text-stone-400">taxa de administração total</span>
+                    </div>
+
+                    <div className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs">
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
+                        Lojas · {split.percentualLoja}%
+                      </span>
+                      <span className="text-2xl font-bold font-mono text-stone-600 block mt-1">
+                        R$ {Number(split.repasseLojaTotal).toFixed(2)}
+                      </span>
+                      <span className="text-[10px] text-stone-400">repasse às unidades</span>
+                    </div>
+
+                    <div className={`rounded-2xl p-5 shadow-xs border ${
+                      Number(split.taxaAReceber) > 0
+                        ? 'bg-amber-50 border-amber-200'
+                        : 'bg-white border-[#DFD9CE]'
+                    }`}>
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">A receber das lojas</span>
+                      <span className={`text-2xl font-bold font-mono block mt-1 ${
+                        Number(split.taxaAReceber) > 0 ? 'text-amber-800' : 'text-stone-400'
+                      }`}>
+                        R$ {Number(split.taxaAReceber).toFixed(2)}
+                      </span>
+                      <span className="text-[10px] text-stone-500">
+                        {Number(split.taxaAReceber) > 0
+                          ? 'baixa manual: dinheiro não passou pela plataforma'
+                          : 'nada pendente'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {split && Number(split.taxaAReceber) > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                    <p className="text-[11px] text-amber-900 leading-relaxed">
+                      <strong>R$ {Number(split.brutoBaixaManual).toFixed(2)}</strong> entraram por baixa manual, ou seja,
+                      a cliente pagou direto na loja e o valor não passou pelo Asaas. Como o split só acontece dentro do
+                      pagamento, os <strong>{split.percentualAvle}%</strong> desse montante não foram recolhidos e
+                      seguem como crédito da AVLE contra as unidades, listado abaixo.
+                    </p>
+                  </div>
+                )}
                 <div className="bg-white border border-[#DFD9CE] rounded-2xl shadow-xs overflow-hidden">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-stone-50 text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                         <th className="py-4 px-5">Estabelecimento</th>
-                        <th className="py-4 px-5 text-right">Volume Bruto Pix</th>
-                        <th className="py-4 px-5 text-right">Taxa App (10%)</th>
-                        <th className="py-4 px-5 text-right">Fundo Líquido Repassado (90%)</th>
+                        <th className="py-4 px-5 text-right">Faturamento bruto</th>
+                        <th className="py-4 px-5 text-right">AVLE (10%)</th>
+                        <th className="py-4 px-5 text-right">Loja (90%)</th>
+                        <th className="py-4 px-5 text-right">A receber</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
                       {listaLojas.map((loja, idx) => {
-                        const volumeBrutoReal = Number(loja.volumeBruto) || 0;
-                        const taxaApp = volumeBrutoReal * 0.10;
-                        const repasseLoja = volumeBrutoReal * 0.90;
+                        // Prefere os numeros do consolidado, que separam a taxa ja
+                        // recolhida da pendente. Sem ele, cai no calculo antigo
+                        // sobre o volume bruto conhecido pela lista de lojas.
+                        const doSplit = split?.lojas?.find((l: any) => l.lojaId === loja.id);
+                        const bruto = Number(doSplit?.faturamentoBruto ?? loja.volumeBruto) || 0;
+                        const taxaApp = Number(doSplit?.taxaAvle ?? bruto * 0.10);
+                        const repasseLoja = Number(doSplit?.repasseLoja ?? bruto * 0.90);
+                        const aReceber = Number(doSplit?.taxaAReceber ?? 0);
 
                         return (
                           <tr key={loja.id || idx} className="hover:bg-stone-50/50 transition-all">
@@ -585,13 +664,18 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                               <span className="text-[10px] text-stone-400 font-mono">{loja.cnpj}</span>
                             </td>
                             <td className="py-4 px-5 text-right font-mono font-bold text-[#0B1E14]">
-                              R$ {volumeBrutoReal.toFixed(2)}
+                              R$ {bruto.toFixed(2)}
                             </td>
                             <td className="py-4 px-5 text-right font-mono text-emerald-700 font-bold">
                               R$ {taxaApp.toFixed(2)}
                             </td>
                             <td className="py-4 px-5 text-right font-mono text-stone-600 font-bold">
                               R$ {repasseLoja.toFixed(2)}
+                            </td>
+                            <td className={`py-4 px-5 text-right font-mono font-bold ${
+                              aReceber > 0 ? 'text-amber-700' : 'text-stone-300'
+                            }`}>
+                              R$ {aReceber.toFixed(2)}
                             </td>
                           </tr>
                         );
