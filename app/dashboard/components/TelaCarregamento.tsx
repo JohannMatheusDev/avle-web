@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 // O desfecho da animacao - a arvore formada com o logotipo - acontece por volta
 // dos 9s. Um corte fixo antes disso derruba a marca justamente no quadro que
@@ -15,7 +15,6 @@ const LIMITE_SEGURANCA_MS = DURACAO_ESTIMADA_MS + 4_000;
 export default function TelaCarregamento({ onFinalizado }: { onFinalizado: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const jaFinalizou = useRef(false);
-  const [podePular, setPodePular] = useState(false);
 
   // onEnded, falha de carregamento e o limite de seguranca podem chegar juntos;
   // sem esta trava a navegacao seria disparada mais de uma vez.
@@ -27,19 +26,13 @@ export default function TelaCarregamento({ onFinalizado }: { onFinalizado: () =>
 
   useEffect(() => {
     const seguranca = setTimeout(finalizarUmaVez, LIMITE_SEGURANCA_MS);
-    // O atalho so aparece depois de um instante para nao competir com o inicio
-    // da animacao, mas existe para quem ja viu e nao quer rever.
-    const atalho = setTimeout(() => setPodePular(true), 2_000);
 
     // Navegador que recusa a reproducao automatica deixaria a tela parada num
     // quadro congelado. Sem video para assistir, seguir direto e melhor.
     const video = videoRef.current;
     video?.play?.().catch(() => finalizarUmaVez());
 
-    return () => {
-      clearTimeout(seguranca);
-      clearTimeout(atalho);
-    };
+    return () => clearTimeout(seguranca);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -65,16 +58,6 @@ export default function TelaCarregamento({ onFinalizado }: { onFinalizado: () =>
       >
         <source src="/videos/intro.mp4" type="video/mp4" />
       </video>
-
-      {podePular && (
-        <button
-          type="button"
-          onClick={finalizarUmaVez}
-          className="absolute bottom-8 right-8 text-[10px] font-bold uppercase tracking-widest text-white/50 hover:text-white/90 transition-colors cursor-pointer px-4 py-2"
-        >
-          Pular
-        </button>
-      )}
     </div>
   );
 }
