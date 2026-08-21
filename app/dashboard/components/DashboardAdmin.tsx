@@ -276,6 +276,65 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               </div>
             </div>
 
+            {(() => {
+              // Posicao financeira desta unidade. Fica na ficha porque e aqui que
+              // a decisao de cobrar acontece: ver a divida na lista geral nao
+              // ajuda quem ja abriu a loja para tratar dela.
+              const dados = split?.lojas?.find((l: any) => l.lojaId === lojaSelecionada.id);
+              if (!dados) return null;
+
+              const aReceber = Number(dados.taxaAReceber) || 0;
+
+              return (
+                <div className="bg-white border border-[#E6E2D8] rounded-2xl shadow-xs overflow-hidden">
+                  <div className="px-6 py-4 border-b border-[#E6E2D8] bg-stone-50/50">
+                    <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Posição do split</h3>
+                    <p className="text-[10px] text-stone-400 font-medium">
+                      Divisão de {split.percentualAvle}% para a AVLE e {split.percentualLoja}% para a unidade.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-[#E6E2D8]">
+                    <div className="p-5">
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Faturamento bruto</span>
+                      <span className="text-lg font-bold font-mono text-[#0B1E14] block mt-1">
+                        R$ {Number(dados.faturamentoBruto).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="p-5">
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">AVLE ({split.percentualAvle}%)</span>
+                      <span className="text-lg font-bold font-mono text-emerald-700 block mt-1">
+                        R$ {Number(dados.taxaAvle).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="p-5">
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Unidade ({split.percentualLoja}%)</span>
+                      <span className="text-lg font-bold font-mono text-stone-600 block mt-1">
+                        R$ {Number(dados.repasseLoja).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className={`p-5 ${aReceber > 0 ? 'bg-amber-50' : ''}`}>
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Deve à AVLE</span>
+                      <span className={`text-lg font-bold font-mono block mt-1 ${aReceber > 0 ? 'text-amber-800' : 'text-stone-300'}`}>
+                        R$ {aReceber.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {aReceber > 0 && (
+                    <div className="px-6 py-4 border-t border-[#E6E2D8] bg-amber-50/60">
+                      <p className="text-[11px] text-amber-900 leading-relaxed">
+                        Esta unidade registrou <strong>R$ {Number(dados.brutoBaixaManual).toFixed(2)}</strong> em baixas
+                        manuais. Esse dinheiro foi recebido no balcão e não passou pelo Asaas, então os
+                        {' '}{split.percentualAvle}% não foram retidos automaticamente: são
+                        {' '}<strong>R$ {aReceber.toFixed(2)}</strong> a cobrar da unidade.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="bg-white border border-[#E6E2D8] p-6 rounded-2xl shadow-xs">
               <h3 className="text-sm font-bold text-[#0B1E14] uppercase tracking-wider mb-4">Controle de Expansao de Negocio</h3>
               <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
