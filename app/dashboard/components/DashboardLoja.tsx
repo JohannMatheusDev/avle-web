@@ -158,7 +158,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [permiteSorteioManual, setPermiteSorteioManual] = useState(false);
   const [modalManual, setModalManual] = useState<{
     aberto: boolean;
-    tipo: 'sorteio' | 'entrega';
+    tipo: 'sorteio' | 'entrega' | 'correcao';
     cotaId: number | null;
     nome: string;
   }>({ aberto: false, tipo: 'sorteio', cotaId: null, nome: '' });
@@ -399,10 +399,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   };
 
-  const abrirLancamentoManual = (tipo: 'sorteio' | 'entrega', cotaId: number, nome: string, evento: React.MouseEvent) => {
+  const abrirLancamentoManual = (tipo: 'sorteio' | 'entrega' | 'correcao', cotaId: number, nome: string, evento: React.MouseEvent, dataAtual?: string | null) => {
     evento.stopPropagation();
     setModalManual({ aberto: true, tipo, cotaId, nome });
-    setDataManual('');
+    // Na correcao o campo ja abre com a data gravada: quem corrige esta
+    // ajustando um dia ou dois, nao redigitando do zero.
+    setDataManual(dataAtual ? dataAtual.slice(0, 10) : '');
   };
 
   const abrirQuitacaoManual = (cotaId: number, nome: string, sorteada: boolean, evento: React.MouseEvent) => {
@@ -479,7 +481,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     try {
       const alvo = tipo === 'sorteio'
         ? `${API_URL}/api/sorteios/registro-manual`
-        : `${API_URL}/api/entregas/${cotaId}/registrar-entrega`;
+        : tipo === 'correcao'
+          ? `${API_URL}/api/entregas/${cotaId}/corrigir-data-entrega`
+          : `${API_URL}/api/entregas/${cotaId}/registrar-entrega`;
+
+      if (tipo === 'correcao' && !dataManual) {
+        mostrarAviso('Data Necessária', 'Informe a data correta da entrega.', true);
+        setProcessandoManual(false);
+        return;
+      }
 
       const res = await apiFetch(alvo, {
         method: tipo === 'sorteio' ? 'POST' : 'PUT',
@@ -494,10 +504,13 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       setModalManual({ aberto: false, tipo: 'sorteio', cotaId: null, nome: '' });
       await recarregarParticipantesDoGrupo();
       mostrarAviso(
-        tipo === 'sorteio' ? 'Contemplação Registrada' : 'Retirada Registrada',
+        tipo === 'sorteio' ? 'Contemplação Registrada'
+          : tipo === 'correcao' ? 'Data Corrigida' : 'Retirada Registrada',
         tipo === 'sorteio'
           ? 'Lançada no histórico e marcada como registro manual, sem apuração auditável.'
-          : 'A data da entrega foi gravada e aparece no painel da cliente.',
+          : tipo === 'correcao'
+            ? 'A data da entrega foi ajustada e já aparece no painel da cliente.'
+            : 'A data da entrega foi gravada e aparece no painel da cliente.',
         false
       );
     } catch (err) {
@@ -1343,15 +1356,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                   </span>
                                   <button
                                     type="button"
-                                    onClick={(e) => abrirQuitacaoManual(part.id, part.nome, false, e)}
-                                    className="block mx-auto mt-1.5 text-[9px] font-bold text-[#BD6B42] hover:underline cursor-pointer uppercase tracking-wider"
-                                  >
-                                    Baixa manual
-                                  </button>
-                                  <button
-                                    type="button"
                                     onClick={(e) => abrirLancamentoManual('sorteio', part.id, part.nome, e)}
-                                    className="block mx-auto mt-1 text-[9px] font-bold text-stone-500 hover:underline cursor-pointer uppercase tracking-wider"
+                                    className="block mx-auto mt-1.5 text-[9px] font-bold text-[#BD6B42] hover:underline cursor-pointer uppercase tracking-wider"
                                   >
                                     Lançar sorteio
                                   </button>
@@ -1368,6 +1374,13 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                   <span className="block text-[9px] text-stone-500 font-mono mt-1">
                                     {new Date(part.dataEntrega).toLocaleDateString('pt-BR')}
                                   </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => abrirLancamentoManual('correcao', part.id, part.nome, e, part.dataEntrega)}
+                                    className="block mx-auto mt-1 text-[9px] font-bold text-stone-500 hover:underline cursor-pointer uppercase tracking-wider"
+                                  >
+                                    Corrigir data
+                                  </button>
                                 </>
                               ) : part.foiSorteada ? (
                                 <button
@@ -2597,7 +2610,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">
-                {modalManual.tipo === 'sorteio' ? 'Registrar Contemplação' : 'Registrar Retirada'}
+                {modalManual.tipo === 'sorteio' ? 'Registrar Contemplação'
+                  : modalManual.tipo === 'correcao' ? 'Corrigir Data da Entrega' : 'Registrar Retirada'}
               </h3>
               <button
                 type="button"
@@ -2612,7 +2626,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <strong className="text-[#0B1E14]">{modalManual.nome}</strong>
               {modalManual.tipo === 'sorteio'
                 ? ' será marcada como contemplada na data informada. Use apenas para lançar sorteio que já aconteceu fora do sistema.'
-                : ' terá a retirada registrada na data informada.'}
+                : modalManual.tipo === 'correcao'
+                  ? ' já tem a retirada registrada. Ajuste abaixo a data correta; a atual vem preenchida no campo.'
+                  : ' terá a retirada registrada na data informada.'}
             </p>
 
             {modalManual.tipo === 'sorteio' && (
@@ -2637,7 +2653,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
               />
               <p className="text-[10px] text-stone-400 mt-1">
-                Em branco, o sistema usa a data de hoje. Data futura não é aceita.
+                {modalManual.tipo === 'correcao'
+                  ? 'A data é obrigatória na correção. Data futura não é aceita.'
+                  : 'Em branco, o sistema usa a data de hoje. Data futura não é aceita.'}
               </p>
             </div>
 
@@ -2655,7 +2673,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 disabled={processandoManual}
                 className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
               >
-                {processandoManual ? 'Registrando...' : 'Confirmar'}
+                {processandoManual
+                  ? (modalManual.tipo === 'correcao' ? 'Corrigindo...' : 'Registrando...')
+                  : 'Confirmar'}
               </button>
             </div>
           </div>
