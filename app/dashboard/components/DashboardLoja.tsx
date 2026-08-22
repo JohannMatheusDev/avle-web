@@ -175,6 +175,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [parcelasQuitacao, setParcelasQuitacao] = useState('1');
   const [valorQuitacao, setValorQuitacao] = useState('');
   const [processandoQuitacao, setProcessandoQuitacao] = useState(false);
+
+  // Traz para a carteira uma cliente que ja tem conta mas se cadastrou por fora
+  // do link de convite. Sem isto ela nao aparece na lista nem entra em grupo,
+  // apesar de conseguir fazer login.
+  const [emailNovoCliente, setEmailNovoCliente] = useState('');
+  const [vinculandoCliente, setVinculandoCliente] = useState(false);
   // false enquanto o endpoint da fila nao existe neste servidor. Serve para a aba
   // dizer "ainda nao publicada" em vez de "ninguem na fila", que seria mentira.
   const [filaPublicadaNaApi, setFilaPublicadaNaApi] = useState(true);
@@ -319,6 +325,35 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     const lojaId = usuario?.lojaId || usuario?.id;
     const data = await buscarJson<unknown[]>('Lista de clientes', `${API_URL}/api/usuarios/lojas/${lojaId}/clientes`, []);
     if (Array.isArray(data)) setListaClientesLoja(data);
+  };
+
+  const vincularClientePorEmail = async () => {
+    const lojaId = usuario?.lojaId || usuario?.id;
+    const email = emailNovoCliente.trim();
+    if (!email) {
+      mostrarAviso('E-mail Necessário', 'Informe o e-mail da cliente.', true);
+      return;
+    }
+
+    setVinculandoCliente(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/clientes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!res.ok) throw new Error(await lerMensagemErro(res) || 'Falha ao adicionar a cliente.');
+
+      const dados = await res.json();
+      setEmailNovoCliente('');
+      await carregarListaClientesDaLoja();
+      mostrarAviso(dados.vinculoCriado ? 'Cliente Adicionada' : 'Já Cadastrada', dados.mensagem, !dados.vinculoCriado);
+    } catch (err) {
+      mostrarAviso('Erro', mensagemDeErro(err, 'Falha ao adicionar a cliente.'), true);
+    } finally {
+      setVinculandoCliente(false);
+    }
   };
 
   const carregarSolicitacoesAcesso = async () => {
@@ -1687,6 +1722,25 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                               <p className="text-[10px] text-stone-400 font-medium">
                                 {clientesAtivos.length} cliente{clientesAtivos.length !== 1 ? 's' : ''} · página {paginaSegura} de {totalPaginas}
                               </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <input
+                              type="email"
+                              placeholder="e-mail de quem já tem conta"
+                              value={emailNovoCliente}
+                              onChange={(e) => setEmailNovoCliente(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') vincularClientePorEmail(); }}
+                              className="h-[34px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-lg text-xs font-mono focus:outline-none focus:border-[#BD6B42] w-full sm:w-64"
+                            />
+                            <button
+                              type="button"
+                              onClick={vincularClientePorEmail}
+                              disabled={vinculandoCliente}
+                              className="bg-[#0B1E14] text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer shadow-xs disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {vinculandoCliente ? 'Adicionando...' : '+ Adicionar'}
+                            </button>
                           </div>
                       </div>
                       <div className="overflow-x-auto">
