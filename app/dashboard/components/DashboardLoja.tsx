@@ -217,7 +217,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }[];
     totalFaturado: number;
     churnAtual: number;
-    churnHistorico: { mes: string; taxa: number }[];
+    churnHistorico: { mes: string; taxa: number; saidas?: number }[];
+    clientesQueSairam?: number;
+    clientesNaCarteira?: number;
     // Todos opcionais: a API responde o painel zerado quando alguma consulta
     // falha, e a tela precisa continuar de pe com o campo ausente.
     clientesAtivos?: number;
@@ -1806,13 +1808,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   <div className="bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-sm flex flex-col">
                     <div className="mb-4">
                       <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Evolução do Churn</h3>
-                      <p className="text-[10px] text-stone-400 mt-0.5">últimos 6 meses</p>
+                      <p className="text-[10px] text-stone-400 mt-0.5">clientes que saíram da carteira</p>
                     </div>
                     <div className="flex items-end gap-2 mb-3">
                       <span className={`text-4xl font-black font-mono leading-none ${(analytics?.churnAtual ?? 0) > 10 ? 'text-rose-600' : 'text-emerald-600'}`}>
                         {(analytics?.churnAtual ?? 0).toFixed(1)}%
                       </span>
-                      <span className="text-[10px] text-stone-400 mb-1">atual</span>
+                      <span className="text-[10px] text-stone-400 mb-1">
+                        {analytics?.clientesQueSairam ?? 0} de {analytics?.clientesNaCarteira ?? 0} clientes
+                      </span>
                     </div>
                     <ResponsiveContainer width="100%" height={120}>
                       <LineChart
@@ -1824,7 +1828,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         <YAxis tick={{ fontSize: 9, fill: '#78716C' }} axisLine={false} tickLine={false} />
                         <Tooltip
                           contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 8 }}
-                          formatter={(v) => [`${v ?? 0}%`, 'Churn']}
+                          formatter={(v, _nome, item) => {
+                            const saidas = Number(item?.payload?.saidas ?? 0);
+                            return [`${Number(v ?? 0).toFixed(1)}%  ·  ${saidas} saída${saidas === 1 ? '' : 's'}`, 'Churn'];
+                          }}
                         />
                         <Line
                           type="monotone"
