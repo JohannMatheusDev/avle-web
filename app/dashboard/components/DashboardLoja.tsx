@@ -1215,6 +1215,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   };
 
+  // Faturamento de um grupo especifico. O analytics ja traz o consolidado por
+  // grupo, entao a ficha e o card leem daqui em vez de refazer a conta - duas
+  // contas separadas para o mesmo numero acabam divergindo.
+  const faturamentoDoGrupo = (grupoId?: number) =>
+    (analytics?.faturamentoPorGrupo ?? []).find((g) => g.grupoId === grupoId);
+
   const recebidoEsteMes = Number(dadosFinanceiros?.recebidoEsteMes) || 0;
   const aReceberContemplados = Number(dadosFinanceiros?.aReceberContemplados) || 0;
   const totalParticipantesValidos = Array.isArray(participantesDoGrupo) ? participantesDoGrupo.length : 0;
@@ -1395,6 +1401,18 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <div>
                 <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Vigência</span>
                 <span className="text-base font-bold text-[#0B1E14] font-mono block mt-1">{grupoSelecionado.duracaoMeses} M</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Faturado</span>
+                <span className="text-base font-bold text-emerald-700 font-mono block mt-1">
+                  R$ {(faturamentoDoGrupo(grupoSelecionado.id)?.faturado ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Previsto</span>
+                <span className="text-base font-bold text-stone-500 font-mono block mt-1">
+                  R$ {(faturamentoDoGrupo(grupoSelecionado.id)?.previsto ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
               </div>
               <div>
                 <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Cotas Preenchidas</span>
@@ -1881,10 +1899,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </div>
 
                 {/* ── Linha 3: faturamento por grupo ── */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4">
 
                   {/* Gráfico de barras horizontais por grupo */}
-                  <div className="lg:col-span-2 bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-sm">
+                  <div className="bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-sm">
                     <div className="mb-4">
                       <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Faturamento por Grupo</h3>
                       <p className="text-[10px] text-stone-400 mt-0.5">o total contratado pelas cotas ocupadas e o que já entrou</p>
@@ -1921,33 +1939,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     )}
                   </div>
 
-                  {/* Card resumo financeiro */}
-                  <div className="bg-[#0B1E14] rounded-xl p-5 shadow-sm flex flex-col justify-between text-white">
-                    <div>
-                      <h3 className="text-[9px] font-black text-stone-400 uppercase tracking-widest mb-1">Resumo Financeiro</h3>
-                      <p className="text-[10px] text-stone-500">posição atual da unidade</p>
-                    </div>
-                    <div className="space-y-4 mt-4">
-                      <div className="border-b border-white/10 pb-3">
-                        <span className="text-[10px] text-stone-400 uppercase tracking-wider block mb-1">Total Faturado</span>
-                        <span className="text-2xl font-black font-mono text-white">
-                          R$ {(analytics?.totalFaturado ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                      <div className="border-b border-white/10 pb-3">
-                        <span className="text-[10px] text-stone-400 uppercase tracking-wider block mb-1">A Receber (Contempladas)</span>
-                        <span className="text-lg font-bold font-mono text-[#BD6B42]">
-                          R$ {aReceberContemplados.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-stone-400 uppercase tracking-wider block mb-1">Grupos com Faturamento</span>
-                        <span className="text-lg font-bold font-mono text-emerald-400">
-                          {analytics?.faturamentoPorGrupo.length ?? 0}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
               </div>
@@ -1963,12 +1954,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
               const termo = normalizar(buscaCliente);
               const clientesFiltrados = termo
-                ? clientesAtivos.filter((c) => {
-                    const nome = normalizar(String(c.nome ?? ''));
-                    const email = normalizar(String(c.email ?? ''));
-                    const cpf = String(c.cpf ?? '').replace(/\D/g, '');
-                    return nome.includes(termo) || email.includes(termo) || cpf.includes(termo.replace(/\D/g, ''));
-                  })
+                ? clientesAtivos.filter((c) => normalizar(String(c.nome ?? '')).includes(termo))
                 : clientesAtivos;
 
               const totalPaginas = Math.max(1, Math.ceil(clientesFiltrados.length / CLIENTES_POR_PAGINA));
@@ -1994,7 +1980,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                             <div className="relative">
                               <input
                                 type="search"
-                                placeholder="buscar por nome, e-mail ou CPF"
+                                placeholder="buscar por nome"
                                 value={buscaCliente}
                                 onChange={(e) => {
                                   setBuscaCliente(e.target.value);
@@ -2339,6 +2325,37 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           </span>
                         );
                       })()}
+                      {(() => {
+                        const fat = faturamentoDoGrupo(grupo.id);
+                        const faturado = Number(fat?.faturado ?? 0);
+                        const previsto = Number(fat?.previsto ?? 0);
+                        const pct = previsto > 0 ? Math.min(100, (faturado / previsto) * 100) : 0;
+
+                        return (
+                          <div className="border-t border-stone-100 pt-3 space-y-1.5">
+                            <div className="flex justify-between items-baseline">
+                              <span className="text-[9px] font-bold text-stone-400 uppercase tracking-wider">Faturado</span>
+                              <span className="text-sm font-bold font-mono text-emerald-700">
+                                R$ {faturado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+
+                            {/* A barra compara com o contratado: o numero sozinho
+                                nao diz se o grupo esta adiantado ou atrasado. */}
+                            <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-emerald-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                            </div>
+
+                            <div className="flex justify-between items-baseline">
+                              <span className="text-[9px] text-stone-400">
+                                de R$ {previsto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} previstos
+                              </span>
+                              <span className="text-[9px] font-bold text-stone-500 font-mono">{pct.toFixed(0)}%</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
                       <div className="flex justify-between items-center text-xs border-t pt-3">
                         <span className="text-stone-400 font-medium">Parcela: <strong className="text-[#0B1E14]">R$ {grupo.valorParcela.toFixed(2)}</strong></span>
                         <div className="flex items-center gap-3">
