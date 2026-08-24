@@ -237,12 +237,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [paginaClientes, setPaginaClientes] = useState(1);
   const CLIENTES_POR_PAGINA = 10;
 
-  // Busca por nome na aba Clientes. Filtra no navegador porque a lista da loja
-  // ja vem inteira do servidor: pedir de novo a cada tecla digitada renderia
-  // uma chamada por letra sem trazer nenhum registro a mais.
+
   const [buscaCliente, setBuscaCliente] = useState('');
 
-  // Ficha da cliente aberta ao clicar no nome dela na tabela do grupo.
   const [fichaCliente, setFichaCliente] = useState<{
     aberta: boolean;
     carregando: boolean;
