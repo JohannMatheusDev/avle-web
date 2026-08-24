@@ -1653,8 +1653,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </div>
 
                 {/* ── KPI cards ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-sm relative overflow-hidden border-t-2 border-t-[#BD6B42]">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-sm relative overflow-hidden">
                     <div className="flex items-start justify-between mb-3">
                       <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Faturamento Total</span>
                       <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mt-0.5 flex-shrink-0"></div>
@@ -1664,32 +1664,21 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     </span>
                     <span className="text-[10px] text-stone-500 mt-2 block">receita líquida acumulada</span>
                   </div>
-                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#0B1E14] p-5 rounded-xl shadow-sm flex flex-col">
+                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Clientes Ativos</span>
                     <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">{totalClientes}</span>
                     <span className="text-[10px] text-stone-400 mt-2">cadastrados na unidade</span>
                   </div>
-                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#0B1E14] p-5 rounded-xl shadow-sm flex flex-col">
+                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Grupos Ativos</span>
                     <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">{totalGruposValidos}</span>
                     <span className="text-[10px] text-stone-400 mt-2">grupos de compras</span>
-                  </div>
-                  <div className={`p-5 rounded-xl shadow-sm flex flex-col border-t-2 ${
-                    (analytics?.churnAtual ?? taxaChurn) > 10
-                      ? 'bg-rose-50 border border-rose-200 border-t-rose-500'
-                      : 'bg-white border border-[#E6E2D8] border-t-emerald-500'
-                  }`}>
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Taxa de Churn</span>
-                    <span className={`text-3xl font-bold tracking-tight font-mono leading-none ${(analytics?.churnAtual ?? taxaChurn) > 10 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      {(analytics?.churnAtual ?? taxaChurn).toFixed(1)}%
-                    </span>
-                    <span className="text-[10px] text-stone-400 mt-2">cotas encerradas / total</span>
                   </div>
                 </div>
 
                 {/* ── Operação: onde estão as clientes e as cotas ── */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-emerald-600 p-5 rounded-xl shadow-sm flex flex-col">
+                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Clientes em Grupo</span>
                     <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">
                       {analytics?.clientesAtivosEmGrupo ?? 0}
@@ -1697,7 +1686,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <span className="text-[10px] text-stone-400 mt-2">participando de algum clube</span>
                   </div>
 
-                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#BD6B42] p-5 rounded-xl shadow-sm flex flex-col">
+                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Clientes sem Grupo</span>
                     <span className="text-3xl font-bold tracking-tight text-[#BD6B42] font-mono leading-none">
                       {analytics?.clientesAtivosSemGrupo ?? 0}
@@ -1705,7 +1694,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <span className="text-[10px] text-stone-400 mt-2">na carteira, fora de clube</span>
                   </div>
 
-                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-amber-500 p-5 rounded-xl shadow-sm flex flex-col">
+                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Sorteadas</span>
                     <span className="text-3xl font-bold tracking-tight text-amber-600 font-mono leading-none">
                       {analytics?.sorteadasEmGruposAtivos ?? 0}
@@ -1713,7 +1702,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <span className="text-[10px] text-stone-400 mt-2">contempladas em grupos abertos</span>
                   </div>
 
-                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#0B1E14] p-5 rounded-xl shadow-sm flex flex-col">
+                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Cotas Preenchidas</span>
                     <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">
                       {analytics?.cotasPreenchidas ?? 0}
@@ -1727,9 +1716,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   </div>
                 </div>
 
-                {/* ── Saída de produto e receita do mês ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-emerald-600 p-5 rounded-xl shadow-sm flex flex-col">
+                {/* ── Saída de produto ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Produtos Retirados</span>
                     <span className="text-2xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">
                       R$ {(analytics?.valorProdutosRetirados ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -1748,7 +1737,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     )}
                   </div>
 
-                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#BD6B42] p-5 rounded-xl shadow-sm flex flex-col">
+                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">UpSell</span>
                     <span className="text-2xl font-bold tracking-tight text-[#BD6B42] font-mono leading-none">
                       R$ {(analytics?.valorUpsell ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -1760,13 +1749,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     </span>
                   </div>
 
-                  <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-sm flex flex-col border-t-2 border-t-emerald-400">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Faturamento do Mês</span>
-                    <span className="text-2xl font-bold tracking-tight font-mono leading-none">
-                      R$ {(analytics?.faturamentoMesAtual ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                    <span className="text-[10px] text-stone-500 mt-2">receita líquida do mês corrente</span>
-                  </div>
                 </div>
 
                 {/* ── Linha 2: gráfico de clientes + churn histórico ── */}
@@ -1896,49 +1878,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       </BarChart>
                     </ResponsiveContainer>
                   )}
-                </div>
-
-                {/* ── Linha 3: faturamento por grupo ── */}
-                <div className="grid grid-cols-1 gap-4">
-
-                  {/* Gráfico de barras horizontais por grupo */}
-                  <div className="bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-sm">
-                    <div className="mb-4">
-                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Faturamento por Grupo</h3>
-                      <p className="text-[10px] text-stone-400 mt-0.5">o total contratado pelas cotas ocupadas e o que já entrou</p>
-                    </div>
-                    {(analytics?.faturamentoPorGrupo ?? []).length === 0 ? (
-                      <div className="flex items-center justify-center h-36 text-xs text-stone-400 italic">
-                        Nenhuma transação registrada ainda.
-                      </div>
-                    ) : (
-                      <ResponsiveContainer width="100%" height={Math.max(160, (analytics?.faturamentoPorGrupo.length ?? 1) * 72)}>
-                        <BarChart
-                          layout="vertical"
-                          data={analytics?.faturamentoPorGrupo ?? []}
-                          margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
-                          barSize={14}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" stroke="#F0EEE8" horizontal={false} />
-                          <XAxis type="number" tick={{ fontSize: 10, fill: '#78716C' }} axisLine={false} tickLine={false}
-                            tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`}
-                          />
-                          <YAxis type="category" dataKey="nome" width={110} tick={{ fontSize: 10, fill: '#0B1E14', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                          <Tooltip
-                            contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 8 }}
-                            formatter={(v, nome) => [`R$ ${Number(v ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, nome]}
-                          />
-                          <Legend wrapperStyle={{ fontSize: 10, fontWeight: 700 }} />
-                          {/* O previsto vem primeiro e mais claro para servir de
-                              fundo de comparacao: o que importa na leitura e o
-                              quanto do contratado ja entrou. */}
-                          <Bar dataKey="previsto" name="Previsto" fill="#DFD9CE" radius={[0, 4, 4, 0]} />
-                          <Bar dataKey="faturado" name="Faturado" fill="#0B1E14" radius={[0, 4, 4, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    )}
-                  </div>
-
                 </div>
 
               </div>
