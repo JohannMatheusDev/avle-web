@@ -603,9 +603,14 @@ function Autenticacao() {
         <div className="absolute w-[600px] h-[600px] bg-[#BD6B42] rounded-full blur-[140px] opacity-10 pointer-events-none" />
         
         <div className="z-10 text-center flex flex-col items-center">
-          <div className="w-32 h-32 bg-[#F5F2EB] rounded-full flex items-center justify-center mb-8 shadow-2xl border-4 border-[#0B1E14]">
-            <span className="text-[#0B1E14] font-black text-5xl">AV</span>
-          </div>
+          {/* A arvore solta no fundo, sem circulo: ela ja e a marca, e espremer
+              um desenho de galhos finos dentro de 128px so o transformava em
+              borrao. O painel ja e verde, entao a versao clara se apoia nele. */}
+          <img
+            src="/arvore-clara.png"
+            alt="AVLE"
+            className="w-[22rem] max-w-[80%] mb-6 drop-shadow-2xl"
+          />
           <h1 className="text-white text-5xl font-bold tracking-widest font-serif mb-4">AVLE</h1>
           <p className="text-[#BD6B42] text-lg italic mt-2 max-w-sm font-medium">
             "Onde suas escolhas criam raizes e geram frutos."
@@ -615,8 +620,8 @@ function Autenticacao() {
 
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-[#F5F2EB] p-4 sm:p-8 lg:p-12 relative min-h-screen overflow-y-auto">
         
-        <div className="lg:hidden absolute top-8 left-0 right-0 flex flex-col items-center justify-center z-0 opacity-20 pointer-events-none">
-           <span className="text-[#0B1E14] font-black text-6xl font-serif">AVLE</span>
+        <div className="lg:hidden absolute top-6 left-0 right-0 flex flex-col items-center justify-center z-0 opacity-[0.13] pointer-events-none">
+           <img src="/arvore-escura.png" alt="" className="w-64 max-w-[70%]" />
         </div>
 
         <div className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl border border-stone-200/60 flex flex-col z-10 relative">

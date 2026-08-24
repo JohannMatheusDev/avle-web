@@ -2676,7 +2676,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
              onClick={() => setCaixaMensagemAberta(!caixaMensagemAberta)}
              className="w-16 h-16 bg-[#0B1E14] rounded-full shadow-2xl flex items-center justify-center border-[3px] border-[#BD6B42] hover:scale-105 transition-transform relative cursor-pointer group"
           >
-             <span className="text-white font-serif font-bold text-xl group-hover:text-[#BD6B42] transition-colors">AV</span>
+             <img src="/arvore-clara.png" alt="AVLE" className="w-9 opacity-90 group-hover:opacity-100 transition-opacity" />
              
              {solicitacoesAcesso.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[11px] font-bold w-6 h-6 flex items-center justify-center rounded-full shadow-md animate-pulse">
