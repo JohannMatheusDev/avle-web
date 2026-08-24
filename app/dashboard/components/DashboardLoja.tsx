@@ -8,14 +8,11 @@ import { grupoDisponivel, grupoEncerrado, vagasDoGrupo } from '../../lib/grupos'
 import { apiFetch, encerrarSessao } from '../../lib/api';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, Cell,
+  LineChart, Line, Cell, Legend,
 } from 'recharts';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
-// O servidor hiberna quando fica ocioso e a primeira chamada depois disso falha
-// enquanto a instancia volta a subir. Sem repetir, o painel inteiro abria com
-// "sem conexão" em todas as seções de uma vez, mesmo com a API no ar.
 const TENTATIVAS_POR_SECAO = 3;
 const ESPERA_ENTRE_TENTATIVAS_MS = 2500;
 
@@ -27,10 +24,12 @@ interface Grupo {
   valorParcela: number;
   duracaoMeses: number;
   quantidadeMaxCotas: number;
-  // Enviados pelo backend para separar grupo aberto de grupo lotado/encerrado.
-  // Opcionais: ver a regra em app/lib/grupos.ts.
   status?: 'ABERTO' | 'ENCERRADO';
   cotasOcupadas?: number;
+  // Enviadas pela API. O inicio cai para a data de criacao quando a loja ainda
+  // nao informou, e o termino sai do inicio mais a duracao contratada.
+  dataInicio?: string | null;
+  dataTermino?: string | null;
 }
 
 interface ItemFilaEspera {
@@ -100,7 +99,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [clientesSelecionados, setClientesSelecionados] = useState<number[]>([]);
   const [salvandoParticipantes, setSalvandoParticipantes] = useState(false);
 
-  // Sorteio auditável: agendamento congela a lista, apuração le a Loteria Federal.
   const [dataCorteSorteio, setDataCorteSorteio] = useState('');
   const [sorteiosDoGrupo, setSorteiosDoGrupo] = useState<SorteioResumo[]>([]);
   const [elegiveisDoGrupo, setElegiveisDoGrupo] = useState<CotaElegivel[]>([]);
@@ -208,15 +206,52 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   type Analytics = {
     novosPorMes: { mes: string; total: number }[];
-    faturamentoPorGrupo: { nome: string; total: number }[];
+    faturamentoPorGrupo: {
+      grupoId?: number;
+      nome: string;
+      total: number;
+      faturado?: number;
+      previsto?: number;
+      cotasOcupadas?: number;
+      quantidadeMaxCotas?: number;
+    }[];
     totalFaturado: number;
     churnAtual: number;
     churnHistorico: { mes: string; taxa: number }[];
+    // Todos opcionais: a API responde o painel zerado quando alguma consulta
+    // falha, e a tela precisa continuar de pe com o campo ausente.
+    clientesAtivos?: number;
+    clientesAtivosEmGrupo?: number;
+    clientesAtivosSemGrupo?: number;
+    sorteadasEmGruposAtivos?: number;
+    cotasPreenchidas?: number;
+    cotasTotais?: number;
+    valorProdutosRetirados?: number;
+    valorUpsell?: number;
+    retiradasSemValorInformado?: number;
+    faturamentoMensal?: { mes: string; competencia: string; total: number }[];
+    faturamentoMesAtual?: number;
   };
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [periodoClientes, setPeriodoClientes] = useState<1 | 6 | 12>(12);
   const [paginaClientes, setPaginaClientes] = useState(1);
   const CLIENTES_POR_PAGINA = 10;
+
+
+  const [buscaCliente, setBuscaCliente] = useState('');
+
+  const [fichaCliente, setFichaCliente] = useState<{
+    aberta: boolean;
+    carregando: boolean;
+    nome: string;
+    dados: { id?: number; nome?: string; email?: string; cpf?: string; telefone?: string } | null;
+  }>({ aberta: false, carregando: false, nome: '', dados: null });
+
+  const [modalDataInicio, setModalDataInicio] = useState<{ aberto: boolean; valor: string; salvando: boolean }>({
+    aberto: false,
+    valor: '',
+    salvando: false,
+  });
 
   const aplicarMascaraTelefone = (valor: string) => {
     const apenasNumeros = valor.replace(/\D/g, '');
@@ -235,8 +270,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
   };
 
-  // A API devolve JSON {erro, status, timestamp} nas falhas inesperadas, mas
-  // ainda usa texto puro em varios 400/404. Este helper cobre os dois formatos.
   const lerMensagemErro = async (res: Response) => {
     const texto = await res.text();
     try {
@@ -260,8 +293,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     });
   }, []);
 
-  // Devolve o fallback quando a API falha, para a tela não quebrar, mas registra
-  // a falha para o operador ver que o dado esta incompleto e não vazio.
   const buscarJson = useCallback(async <T,>(secao: string, url: string, fallback: T): Promise<T> => {
     let ultimaFalha = 'Não foi possível conectar ao servidor.';
 
@@ -273,7 +304,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           return await res.json();
         }
         ultimaFalha = await lerMensagemErro(res);
-        // Erro de 4xx e resposta definitiva da API: repetir não muda o resultado.
         if (res.status < 500) break;
       } catch {
         ultimaFalha = 'Não foi possível conectar ao servidor.';
@@ -325,6 +355,65 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     const lojaId = usuario?.lojaId || usuario?.id;
     const data = await buscarJson<unknown[]>('Lista de clientes', `${API_URL}/api/usuarios/lojas/${lojaId}/clientes`, []);
     if (Array.isArray(data)) setListaClientesLoja(data);
+  };
+
+  /**
+   * Abre a ficha da cliente a partir da tabela de integrantes do grupo.
+   *
+   * Recebe o nome junto do id para o cabecalho aparecer imediatamente, enquanto
+   * o restante dos dados ainda esta vindo: a lista ja sabe o nome, e mostrar um
+   * cartao em branco por meio segundo passa a impressao de que travou.
+   */
+  const abrirFichaDoCliente = async (usuarioId: number | undefined, nome: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!usuarioId) return;
+
+    setFichaCliente({ aberta: true, carregando: true, nome, dados: null });
+    const dados = await buscarJson<{ id?: number; nome?: string; email?: string; cpf?: string; telefone?: string } | null>(
+      'Ficha do cliente',
+      `${API_URL}/api/usuarios/${usuarioId}`,
+      null,
+    );
+    setFichaCliente({ aberta: true, carregando: false, nome, dados });
+  };
+
+  const abrirEdicaoDataInicio = () => {
+    if (!grupoSelecionado) return;
+    // Preenche com a data que a tela ja mostra, para corrigir o dia ser questao
+    // de trocar um numero em vez de digitar tudo de novo.
+    const atual = grupoSelecionado.dataInicio ? grupoSelecionado.dataInicio.slice(0, 10) : '';
+    setModalDataInicio({ aberto: true, valor: atual, salvando: false });
+  };
+
+  const salvarDataInicioDoGrupo = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!grupoSelecionado || !modalDataInicio.valor) return;
+
+    setModalDataInicio((prev) => ({ ...prev, salvando: true }));
+    try {
+      const res = await apiFetch(`${API_URL}/api/grupos/${grupoSelecionado.id}/data-inicio`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataInicio: modalDataInicio.valor }),
+      });
+
+      if (!res.ok) {
+        mostrarAviso('Não foi possível salvar', await lerMensagemErro(res), true);
+        return;
+      }
+
+      const salvo = await res.json();
+      setGrupoSelecionado({ ...grupoSelecionado, dataInicio: salvo.dataInicio, dataTermino: salvo.dataTermino });
+      setModalDataInicio({ aberto: false, valor: '', salvando: false });
+      // A listagem tambem mostra as datas, entao recarrega para nao ficar
+      // exibindo a antiga ao voltar da ficha do grupo.
+      carregarGruposDoBanco();
+      mostrarAviso('Datas Atualizadas', 'O início do grupo foi registrado e o término já foi recalculado.', false);
+    } catch {
+      mostrarAviso('Não foi possível salvar', 'Não foi possível conectar ao servidor.', true);
+    } finally {
+      setModalDataInicio((prev) => ({ ...prev, salvando: false }));
+    }
   };
 
   const vincularClientePorEmail = async () => {
@@ -1294,7 +1383,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
             </div>
 
-            <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+            <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
               <div>
                 <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">ID do Grupo</span>
                 <span className="text-base font-bold text-[#0B1E14] font-mono block mt-1">#{grupoSelecionado.id}</span>
@@ -1310,6 +1399,30 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <div>
                 <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Cotas Preenchidas</span>
                 <span className="text-base font-bold text-[#BD6B42] font-mono block mt-1">{totalParticipantesValidos} / {grupoSelecionado.quantidadeMaxCotas}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Início</span>
+                <span className="text-base font-bold text-[#0B1E14] font-mono block mt-1">
+                  {grupoSelecionado.dataInicio
+                    ? new Date(grupoSelecionado.dataInicio).toLocaleDateString('pt-BR')
+                    : '—'}
+                </span>
+                <button
+                  type="button"
+                  onClick={abrirEdicaoDataInicio}
+                  className="text-[9px] font-bold text-stone-500 hover:underline cursor-pointer uppercase tracking-wider mt-0.5"
+                >
+                  {grupoSelecionado.dataInicio ? 'Corrigir' : 'Informar'}
+                </button>
+              </div>
+              <div>
+                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Término</span>
+                <span className="text-base font-bold text-[#0B1E14] font-mono block mt-1">
+                  {grupoSelecionado.dataTermino
+                    ? new Date(grupoSelecionado.dataTermino).toLocaleDateString('pt-BR')
+                    : '—'}
+                </span>
+                <span className="text-[9px] text-stone-400 block mt-0.5">início + {grupoSelecionado.duracaoMeses} meses</span>
               </div>
             </div>
 
@@ -1368,7 +1481,13 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           <tr key={part.id} onClick={() => setIdOperacao(part.numeroCota.toString())} className={`transition-all cursor-pointer ${isSelecionado ? 'bg-amber-50/70 hover:bg-amber-100/70 font-bold' : 'hover:bg-stone-50/60'}`}>
                             <td className="py-3.5 px-5 text-center font-mono font-bold text-[#BD6B42]">#0{part.numeroCota}</td>
                             <td className="py-3.5 px-5">
-                              <span className="block font-bold text-[#0B1E14]">{part.nome}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => abrirFichaDoCliente(part.usuarioId, part.nome, e)}
+                                className="block text-left font-bold text-[#0B1E14] hover:text-[#BD6B42] hover:underline cursor-pointer"
+                              >
+                                {part.nome}
+                              </button>
                               <span className="text-[10px] text-stone-400 font-mono">{part.email}</span>
                             </td>
                             <td className="py-3.5 px-5 text-center">
@@ -1550,6 +1669,88 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   </div>
                 </div>
 
+                {/* ── Operação: onde estão as clientes e as cotas ── */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-emerald-600 p-5 rounded-xl shadow-sm flex flex-col">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Clientes em Grupo</span>
+                    <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">
+                      {analytics?.clientesAtivosEmGrupo ?? 0}
+                    </span>
+                    <span className="text-[10px] text-stone-400 mt-2">participando de algum clube</span>
+                  </div>
+
+                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#BD6B42] p-5 rounded-xl shadow-sm flex flex-col">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Clientes sem Grupo</span>
+                    <span className="text-3xl font-bold tracking-tight text-[#BD6B42] font-mono leading-none">
+                      {analytics?.clientesAtivosSemGrupo ?? 0}
+                    </span>
+                    <span className="text-[10px] text-stone-400 mt-2">na carteira, fora de clube</span>
+                  </div>
+
+                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-amber-500 p-5 rounded-xl shadow-sm flex flex-col">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Sorteadas</span>
+                    <span className="text-3xl font-bold tracking-tight text-amber-600 font-mono leading-none">
+                      {analytics?.sorteadasEmGruposAtivos ?? 0}
+                    </span>
+                    <span className="text-[10px] text-stone-400 mt-2">contempladas em grupos abertos</span>
+                  </div>
+
+                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#0B1E14] p-5 rounded-xl shadow-sm flex flex-col">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Cotas Preenchidas</span>
+                    <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">
+                      {analytics?.cotasPreenchidas ?? 0}
+                      <span className="text-base text-stone-400">/{analytics?.cotasTotais ?? 0}</span>
+                    </span>
+                    <span className="text-[10px] text-stone-400 mt-2">
+                      {(analytics?.cotasTotais ?? 0) > 0
+                        ? `${Math.round(((analytics?.cotasPreenchidas ?? 0) / (analytics?.cotasTotais ?? 1)) * 100)}% de ocupação`
+                        : 'sem cotas cadastradas'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* ── Saída de produto e receita do mês ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-emerald-600 p-5 rounded-xl shadow-sm flex flex-col">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Produtos Retirados</span>
+                    <span className="text-2xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">
+                      R$ {(analytics?.valorProdutosRetirados ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                    {/* O aviso e a diferenca entre um numero conferido e um
+                        estimado pelo plano. Sem ele, a loja tomaria decisao
+                        achando que o valor foi somado produto a produto. */}
+                    {(analytics?.retiradasSemValorInformado ?? 0) > 0 ? (
+                      <span className="text-[10px] text-amber-700 mt-2 leading-snug">
+                        {analytics?.retiradasSemValorInformado} retirada
+                        {(analytics?.retiradasSemValorInformado ?? 0) !== 1 ? 's' : ''} ainda sem preço informado ·
+                        valor estimado pelo plano
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-stone-400 mt-2">valor conferido produto a produto</span>
+                    )}
+                  </div>
+
+                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#BD6B42] p-5 rounded-xl shadow-sm flex flex-col">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">UpSell</span>
+                    <span className="text-2xl font-bold tracking-tight text-[#BD6B42] font-mono leading-none">
+                      R$ {(analytics?.valorUpsell ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-[10px] text-stone-400 mt-2">
+                      {(analytics?.valorUpsell ?? 0) > 0
+                        ? 'levado acima do plano contratado'
+                        : 'depende do preço informado na retirada'}
+                    </span>
+                  </div>
+
+                  <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-sm flex flex-col border-t-2 border-t-emerald-400">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Faturamento do Mês</span>
+                    <span className="text-2xl font-bold tracking-tight font-mono leading-none">
+                      R$ {(analytics?.faturamentoMesAtual ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-[10px] text-stone-500 mt-2">receita líquida do mês corrente</span>
+                  </div>
+                </div>
+
                 {/* ── Linha 2: gráfico de clientes + churn histórico ── */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
@@ -1637,6 +1838,48 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   </div>
                 </div>
 
+                {/* ── Faturamento mês a mês ── */}
+                <div className="bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Faturamento Mensal</h3>
+                      <p className="text-[10px] text-stone-400 mt-0.5">receita líquida recebida por mês · últimos 12 meses</p>
+                    </div>
+                    <span className="text-lg font-black font-mono text-emerald-700">
+                      R$ {(analytics?.faturamentoMesAtual ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  {(analytics?.faturamentoMensal ?? []).length === 0 ? (
+                    <div className="flex items-center justify-center h-36 text-xs text-stone-400 italic">
+                      Nenhuma transação registrada ainda.
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart
+                        data={analytics?.faturamentoMensal ?? []}
+                        margin={{ top: 4, right: 4, left: -10, bottom: 0 }}
+                        barSize={18}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#F0EEE8" vertical={false} />
+                        <XAxis dataKey="mes" tick={{ fontSize: 10, fill: '#78716C', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                        <YAxis
+                          tick={{ fontSize: 10, fill: '#78716C' }} axisLine={false} tickLine={false}
+                          tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`}
+                        />
+                        <Tooltip
+                          contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 8 }}
+                          formatter={(v) => [`R$ ${Number(v ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Faturamento']}
+                        />
+                        <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                          {(analytics?.faturamentoMensal ?? []).map((_, i, arr) => (
+                            <Cell key={i} fill={i === arr.length - 1 ? '#BD6B42' : '#0B1E14'} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+
                 {/* ── Linha 3: faturamento por grupo ── */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
@@ -1644,19 +1887,19 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   <div className="lg:col-span-2 bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-sm">
                     <div className="mb-4">
                       <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Faturamento por Grupo</h3>
-                      <p className="text-[10px] text-stone-400 mt-0.5">receita líquida acumulada por clube de compras</p>
+                      <p className="text-[10px] text-stone-400 mt-0.5">o total contratado pelas cotas ocupadas e o que já entrou</p>
                     </div>
                     {(analytics?.faturamentoPorGrupo ?? []).length === 0 ? (
                       <div className="flex items-center justify-center h-36 text-xs text-stone-400 italic">
                         Nenhuma transação registrada ainda.
                       </div>
                     ) : (
-                      <ResponsiveContainer width="100%" height={Math.max(120, (analytics?.faturamentoPorGrupo.length ?? 1) * 48)}>
+                      <ResponsiveContainer width="100%" height={Math.max(160, (analytics?.faturamentoPorGrupo.length ?? 1) * 72)}>
                         <BarChart
                           layout="vertical"
                           data={analytics?.faturamentoPorGrupo ?? []}
                           margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
-                          barSize={22}
+                          barSize={14}
                         >
                           <CartesianGrid strokeDasharray="3 3" stroke="#F0EEE8" horizontal={false} />
                           <XAxis type="number" tick={{ fontSize: 10, fill: '#78716C' }} axisLine={false} tickLine={false}
@@ -1665,9 +1908,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           <YAxis type="category" dataKey="nome" width={110} tick={{ fontSize: 10, fill: '#0B1E14', fontWeight: 700 }} axisLine={false} tickLine={false} />
                           <Tooltip
                             contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 8 }}
-                            formatter={(v) => [`R$ ${Number(v ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Faturamento']}
+                            formatter={(v, nome) => [`R$ ${Number(v ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, nome]}
                           />
-                          <Bar dataKey="total" fill="#0B1E14" radius={[0, 4, 4, 0]} />
+                          <Legend wrapperStyle={{ fontSize: 10, fontWeight: 700 }} />
+                          {/* O previsto vem primeiro e mais claro para servir de
+                              fundo de comparacao: o que importa na leitura e o
+                              quanto do contratado ja entrou. */}
+                          <Bar dataKey="previsto" name="Previsto" fill="#DFD9CE" radius={[0, 4, 4, 0]} />
+                          <Bar dataKey="faturado" name="Faturado" fill="#0B1E14" radius={[0, 4, 4, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     )}
@@ -1707,9 +1955,25 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             })()}
 
             {abaLoja === 'clientes' && (() => {
-              const totalPaginas = Math.max(1, Math.ceil(clientesAtivos.length / CLIENTES_POR_PAGINA));
+              // Compara sem acento e sem caixa: quem procura "leticia" precisa
+              // achar "Letícia", senao a busca so serve para quem digita o nome
+              // exatamente como foi cadastrado.
+              const normalizar = (texto: string) =>
+                texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+              const termo = normalizar(buscaCliente);
+              const clientesFiltrados = termo
+                ? clientesAtivos.filter((c) => {
+                    const nome = normalizar(String(c.nome ?? ''));
+                    const email = normalizar(String(c.email ?? ''));
+                    const cpf = String(c.cpf ?? '').replace(/\D/g, '');
+                    return nome.includes(termo) || email.includes(termo) || cpf.includes(termo.replace(/\D/g, ''));
+                  })
+                : clientesAtivos;
+
+              const totalPaginas = Math.max(1, Math.ceil(clientesFiltrados.length / CLIENTES_POR_PAGINA));
               const paginaSegura = Math.min(paginaClientes, totalPaginas);
-              const clientesPagina = clientesAtivos.slice(
+              const clientesPagina = clientesFiltrados.slice(
                 (paginaSegura - 1) * CLIENTES_POR_PAGINA,
                 paginaSegura * CLIENTES_POR_PAGINA
               );
@@ -1720,11 +1984,29 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           <div>
                               <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Clientes da Unidade</h3>
                               <p className="text-[10px] text-stone-400 font-medium">
-                                {clientesAtivos.length} cliente{clientesAtivos.length !== 1 ? 's' : ''} · página {paginaSegura} de {totalPaginas}
+                                {termo
+                                  ? `${clientesFiltrados.length} de ${clientesAtivos.length} cliente${clientesAtivos.length !== 1 ? 's' : ''}`
+                                  : `${clientesAtivos.length} cliente${clientesAtivos.length !== 1 ? 's' : ''}`} · página {paginaSegura} de {totalPaginas}
                               </p>
                           </div>
 
-                          <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                            <div className="relative">
+                              <input
+                                type="search"
+                                placeholder="buscar por nome, e-mail ou CPF"
+                                value={buscaCliente}
+                                onChange={(e) => {
+                                  setBuscaCliente(e.target.value);
+                                  // Volta para a primeira pagina: filtrar deixando
+                                  // a pagina 5 selecionada mostraria uma tabela
+                                  // vazia com resultado existindo atras.
+                                  setPaginaClientes(1);
+                                }}
+                                className="h-[34px] pl-8 pr-3 bg-white border border-[#DFD9CE] rounded-lg text-xs focus:outline-none focus:border-[#BD6B42] w-full sm:w-64"
+                              />
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 text-xs pointer-events-none">⌕</span>
+                            </div>
                             <input
                               type="email"
                               placeholder="e-mail de quem já tem conta"
@@ -1755,8 +2037,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
-                            {clientesAtivos.length === 0 ? (
-                               <tr><td colSpan={5} className="py-6 text-center text-stone-400 italic">Nenhum cliente ativo registrado na sua unidade.</td></tr>
+                            {clientesFiltrados.length === 0 ? (
+                               <tr><td colSpan={5} className="py-6 text-center text-stone-400 italic">
+                                 {termo
+                                   ? `Nenhum cliente encontrado para "${buscaCliente}".`
+                                   : 'Nenhum cliente ativo registrado na sua unidade.'}
+                               </td></tr>
                             ) : (
                                clientesPagina.map((cli, idx) => (
                                  <tr key={idx} className="hover:bg-stone-50/60 transition-all">
@@ -1791,7 +2077,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       {totalPaginas > 1 && (
                         <div className="px-5 py-3 border-t border-[#DFD9CE] bg-stone-50/30 flex items-center justify-between">
                           <span className="text-[10px] text-stone-400 font-medium">
-                            Exibindo {(paginaSegura - 1) * CLIENTES_POR_PAGINA + 1}–{Math.min(paginaSegura * CLIENTES_POR_PAGINA, clientesAtivos.length)} de {clientesAtivos.length}
+                            Exibindo {(paginaSegura - 1) * CLIENTES_POR_PAGINA + 1}–{Math.min(paginaSegura * CLIENTES_POR_PAGINA, clientesFiltrados.length)} de {clientesFiltrados.length}
                           </span>
                           <div className="flex items-center gap-1">
                             <button
@@ -2980,6 +3266,130 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {salvandoParticipantes ? 'Salvando...' : 'Salvar no Grupo'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {fichaCliente.aberta && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-start border-b pb-3">
+              <div>
+                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">{fichaCliente.nome}</h3>
+                <p className="text-[10px] text-stone-400 font-mono">
+                  {fichaCliente.dados?.id ? `Cliente #${fichaCliente.dados.id}` : 'Ficha da cliente'}
+                </p>
+              </div>
+              <button
+                onClick={() => setFichaCliente({ aberta: false, carregando: false, nome: '', dados: null })}
+                className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer"
+              >
+                X
+              </button>
+            </div>
+
+            {fichaCliente.carregando ? (
+              <p className="text-xs text-stone-400 italic py-6 text-center">Carregando os dados da cliente...</p>
+            ) : !fichaCliente.dados ? (
+              <p className="text-xs text-rose-600 py-6 text-center">Não foi possível carregar a ficha desta cliente.</p>
+            ) : (
+              <div className="space-y-3 text-xs">
+                <div>
+                  <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">E-mail</span>
+                  <span className="font-mono text-stone-700">{fichaCliente.dados.email || 'Não informado'}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">CPF</span>
+                  <span className="font-mono text-stone-700">
+                    {fichaCliente.dados.cpf ? aplicarMascaraCpf(fichaCliente.dados.cpf) : 'Não informado'}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Telefone</span>
+                  <span className="font-mono text-stone-700">
+                    {fichaCliente.dados.telefone ? aplicarMascaraTelefone(fichaCliente.dados.telefone) : 'Não informado'}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setFichaCliente({ aberta: false, carregando: false, nome: '', dados: null })}
+              className="w-full py-2.5 border rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer text-xs"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {modalDataInicio.aberto && grupoSelecionado && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center border-b pb-3">
+              <div>
+                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Início do Grupo</h3>
+                <p className="text-[10px] text-stone-400 font-mono">{grupoSelecionado.nome}</p>
+              </div>
+              <button
+                onClick={() => setModalDataInicio({ aberto: false, valor: '', salvando: false })}
+                className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer"
+              >
+                X
+              </button>
+            </div>
+
+            <form onSubmit={salvarDataInicioDoGrupo} className="space-y-4 text-xs">
+              <p className="text-stone-500 bg-stone-50 p-3 rounded-xl border border-dashed text-[11px] leading-relaxed">
+                O dia em que o grupo passou a valer para as participantes, que nem sempre é o dia em que ele foi
+                cadastrado aqui. O término é calculado a partir dele e não precisa ser digitado.
+              </p>
+
+              <div>
+                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">
+                  Data de Início
+                </label>
+                <input
+                  type="date"
+                  value={modalDataInicio.valor}
+                  onChange={(e) => setModalDataInicio((prev) => ({ ...prev, valor: e.target.value }))}
+                  className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-bold focus:outline-none focus:border-[#BD6B42]"
+                  required
+                />
+                {modalDataInicio.valor && (
+                  <p className="text-[10px] text-emerald-700 font-mono font-bold mt-1.5">
+                    Término previsto:{' '}
+                    {(() => {
+                      // Monta a data em UTC e soma os meses: usar new Date com a
+                      // string crua joga o dia para o anterior em fuso negativo,
+                      // e o termino apareceria um dia antes do que sera gravado.
+                      const [ano, mes, dia] = modalDataInicio.valor.split('-').map(Number);
+                      const fim = new Date(Date.UTC(ano, mes - 1, dia));
+                      fim.setUTCMonth(fim.getUTCMonth() + Number(grupoSelecionado.duracaoMeses || 0));
+                      return fim.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+                    })()}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex space-x-2 pt-2 border-t w-full">
+                <button
+                  type="button"
+                  onClick={() => setModalDataInicio({ aberto: false, valor: '', salvando: false })}
+                  className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={modalDataInicio.salvando}
+                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
+                >
+                  {modalDataInicio.salvando ? 'Gravando...' : 'Salvar Data'}
                 </button>
               </div>
             </form>
