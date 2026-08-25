@@ -173,7 +173,9 @@ export default function CadastroConvite() {
 
   const emailCadastroValido = regexEmail.test(emailCadastro.trim());
   const emailCadastroPreenchido = emailCadastro.trim().length > 0;
-  const emailCadastroValidoOuVazio = !emailCadastroPreenchido || emailCadastroValido;
+  // Mesma regra do cadastro principal: e-mail obrigatorio, porque e por ele que
+  // chegam o codigo de acesso e a recuperacao de senha.
+  const emailCadastroValidoOuVazio = emailCadastroValido;
 
   const { temMaiuscula, temNumero, temCaracterEspecial } = requisitosSenha(senha);
   const senhaForte = avaliarSenhaForte(senha);
@@ -854,7 +856,7 @@ export default function CadastroConvite() {
                        <div>
                          <div className="flex justify-between items-center mb-1">
                            <label className="block text-[10px] font-bold uppercase text-stone-500">
-                             E-mail (Opcional)
+                             E-mail *
                            </label>
                          </div>
                          <input
@@ -863,6 +865,7 @@ export default function CadastroConvite() {
                            value={emailCadastro}
                            onChange={(e) => setEmailCadastro(e.target.value)}
                            className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
+                           required
                            disabled={carregando}
                          />
                        </div>

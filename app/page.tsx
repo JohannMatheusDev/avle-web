@@ -195,7 +195,10 @@ function Autenticacao() {
 
   const emailCadastroValido = regexEmail.test(emailCadastro.trim());
   const emailCadastroPreenchido = emailCadastro.trim().length > 0;
-  const emailCadastroValidoOuVazio = tipoUsuario === 'LOJA' ? emailCadastroValido : !emailCadastroPreenchido || emailCadastroValido;
+  // O e-mail e o unico canal por onde o codigo de acesso e a recuperacao de
+  // senha saem. Cadastro sem ele cria conta que so entra com senha e nao tem
+  // como recuperar nada se a pessoa esquecer.
+  const emailCadastroValidoOuVazio = emailCadastroValido;
 
   const { tamanhoMinimo, temMaiuscula, temNumero, temCaracterEspecial } = requisitosSenha(senha);
   const senhaForte = avaliarSenhaForte(senha);
@@ -207,10 +210,10 @@ function Autenticacao() {
   const tamanhoDocumentoValido = tipoUsuario === 'LOJA' ? cpf.length === 14 : cpfValido(cpf);
 
   const telefoneCadastroLimpo = somenteDigitos(telefoneCadastro);
-  // Loja precisa de telefone; cliente so precisa que, se informado, seja real.
-  const telefoneCadastroValidoSeLoja = tipoUsuario === 'LOJA'
-    ? telefoneValido(telefoneCadastroLimpo)
-    : telefoneCadastroLimpo.length === 0 || telefoneValido(telefoneCadastroLimpo);
+  // E-mail e telefone sao exigidos de todo mundo. O e-mail leva o codigo de
+  // acesso e a recuperacao de senha; o telefone e como a loja fala com a
+  // cliente. Conta sem os dois nasce sem caminho de contato nenhum.
+  const telefoneCadastroValidoSeLoja = telefoneValido(telefoneCadastroLimpo);
 
   const cepLimpo = cep.replace(/\D/g, '');
   const cepValidoSeLoja = tipoUsuario === 'LOJA' ? cepLimpo.length === 8 : true;
@@ -845,7 +848,7 @@ function Autenticacao() {
                       <div>
                         <div className="flex justify-between items-center mb-1">
                           <label className="block text-[10px] font-bold uppercase text-stone-500">
-                            {tipoUsuario === 'LOJA' ? 'Telefone / WhatsApp da Loja *' : 'Telefone / Celular'}
+                            {tipoUsuario === 'LOJA' ? 'Telefone / WhatsApp da Loja *' : 'Telefone / Celular *'}
                           </label>
                           {tipoUsuario === 'LOJA' && telefoneCadastroLimpo.length > 0 && (
                             <span className={`text-[10px] font-bold ${telefoneCadastroLimpo.length >= 10 ? 'text-emerald-600' : 'text-rose-500'}`}>
@@ -853,7 +856,7 @@ function Autenticacao() {
                             </span>
                           )}
                         </div>
-                        <input type="text" placeholder="(42) 99999-9999" value={telefoneCadastro} onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
+                        <input type="text" placeholder="(42) 99999-9999" value={telefoneCadastro} onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                       </div>
                       
                       <div className={`transition-all duration-500 ease-in-out overflow-hidden ${tipoUsuario === 'LOJA' ? 'max-h-[600px] opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'}`}>
@@ -895,9 +898,9 @@ function Autenticacao() {
                   {!isLogin && (
                       <div>
                         <div className="flex justify-between items-center mb-1">
-                          <label className="block text-[10px] font-bold uppercase text-stone-500">{tipoUsuario === 'LOJA' ? 'E-mail *' : 'E-mail'}</label>
+                          <label className="block text-[10px] font-bold uppercase text-stone-500">E-mail *</label>
                         </div>
-                        <input type="email" placeholder="seu@email.com" value={emailCadastro} onChange={(e) => setEmailCadastro(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
+                        <input type="email" placeholder="seu@email.com" value={emailCadastro} onChange={(e) => setEmailCadastro(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                       </div>
                   )}
 
