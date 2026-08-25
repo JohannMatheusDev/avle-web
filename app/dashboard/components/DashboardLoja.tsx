@@ -246,7 +246,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     aberta: boolean;
     carregando: boolean;
     nome: string;
-    dados: { id?: number; nome?: string; email?: string; cpf?: string; telefone?: string } | null;
+    dados: any | null;
   }>({ aberta: false, carregando: false, nome: '', dados: null });
 
   const [modalDataInicio, setModalDataInicio] = useState<{ aberto: boolean; valor: string; salvando: boolean }>({
@@ -371,9 +371,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     if (!usuarioId) return;
 
     setFichaCliente({ aberta: true, carregando: true, nome, dados: null });
-    const dados = await buscarJson<{ id?: number; nome?: string; email?: string; cpf?: string; telefone?: string } | null>(
+
+    // A ficha e sempre lida no contexto do grupo aberto: a pergunta da loja e
+    // como esta cliente esta neste plano, e nao quem ela e no cadastro.
+    const dados = await buscarJson<any>(
       'Ficha do cliente',
-      `${API_URL}/api/usuarios/${usuarioId}`,
+      `${API_URL}/api/usuarios/${usuarioId}/ficha/${grupoSelecionado?.id}`,
       null,
     );
     setFichaCliente({ aberta: true, carregando: false, nome, dados });
@@ -3238,7 +3241,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       {fichaCliente.aberta && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-start border-b pb-3">
               <div>
                 <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">{fichaCliente.nome}</h3>
@@ -3259,24 +3262,132 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             ) : !fichaCliente.dados ? (
               <p className="text-xs text-rose-600 py-6 text-center">Não foi possível carregar a ficha desta cliente.</p>
             ) : (
-              <div className="space-y-3 text-xs">
-                <div>
-                  <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">E-mail</span>
-                  <span className="font-mono text-stone-700">{fichaCliente.dados.email || 'Não informado'}</span>
+              (() => {
+                const f = fichaCliente.dados;
+                const din = (n: any) => `R$ ${(Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+                const pct = Number(f.percentualPago) || 0;
+
+                // A situacao e o que a loja quer saber de relance, entao vira
+                // etiqueta colorida em vez de mais uma linha de texto.
+                const sit: Record<string, { texto: string; cor: string }> = {
+                  QUITADA:    { texto: 'Plano quitado',  cor: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                  ADIANTADA:  { texto: 'Adiantada',      cor: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                  EM_DIA:     { texto: 'Em dia',         cor: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                  EM_ATRASO:  { texto: 'Em atraso',      cor: 'bg-rose-50 text-rose-700 border-rose-200' },
+                  INDEFINIDA: { texto: 'Sem referência', cor: 'bg-stone-100 text-stone-500 border-stone-200' },
+                };
+                const etiqueta = sit[f.situacao] ?? sit.INDEFINIDA;
+
+                return (
+                <div className="space-y-4 text-xs max-h-[60vh] overflow-y-auto pr-1">
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">CPF</span>
+                      <span className="font-mono text-stone-700">
+                        {f.cpf ? aplicarMascaraCpf(f.cpf) : 'Não informado'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Telefone</span>
+                      {f.telefone ? (
+                        <a href={`https://wa.me/55${String(f.telefone).replace(/\D/g, '')}`} target="_blank" rel="noreferrer"
+                           className="font-mono text-[#BD6B42] font-bold hover:underline">
+                          {aplicarMascaraTelefone(f.telefone)}
+                        </a>
+                      ) : <span className="font-mono text-stone-400">Não informado</span>}
+                    </div>
+                    <div className="col-span-2">
+                      <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">E-mail</span>
+                      <span className="font-mono text-stone-700 break-all">{f.email || 'Não informado'}</span>
+                    </div>
+                  </div>
+
+                  {!f.temCota ? (
+                    <p className="text-xs text-stone-400 italic border-t pt-3">
+                      Esta cliente não tem cota neste grupo.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="border-t pt-3 space-y-2.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Pagamento</span>
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${etiqueta.cor}`}>
+                            {etiqueta.texto}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-lg font-bold font-mono text-[#0B1E14]">{din(f.saldoPago)}</span>
+                          <span className="text-[10px] text-stone-400">de {din(f.valorTotalPlano)}</span>
+                        </div>
+
+                        <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${f.situacao === 'EM_ATRASO' ? 'bg-rose-500' : 'bg-emerald-600'}`}
+                               style={{ width: `${Math.min(100, pct)}%` }} />
+                        </div>
+
+                        <div className="flex justify-between text-[10px] text-stone-500">
+                          <span><strong className="text-[#0B1E14]">{f.parcelasPagas}</strong> de {f.parcelasTotal} parcelas</span>
+                          <span>{pct.toFixed(0)}% · falta {din(f.faltaPagar)}</span>
+                        </div>
+
+                        {f.parcelasEmAtraso > 0 && (
+                          <p className="text-[10px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5">
+                            {f.parcelasEmAtraso} parcela{f.parcelasEmAtraso > 1 ? 's' : ''} em atraso ·
+                            esperado {f.parcelasEsperadas} a esta altura do plano
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="border-t pt-3 grid grid-cols-2 gap-3">
+                        <div>
+                          <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Sorteio</span>
+                          {f.foiSorteada ? (
+                            <span className="text-amber-700 font-bold">
+                              Sorteada{f.dataContemplacao ? ` em ${new Date(f.dataContemplacao).toLocaleDateString('pt-BR')}` : ''}
+                            </span>
+                          ) : <span className="text-stone-500">Ainda não sorteada</span>}
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Etapa</span>
+                          <span className="text-stone-700">{f.etapa || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Cota</span>
+                          <span className="font-mono text-stone-700">#{f.cotaId}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Outros grupos</span>
+                          <span className="font-mono text-stone-700">{f.outrosGrupos}</span>
+                        </div>
+                      </div>
+
+                      {(f.transacoes ?? []).length > 0 && (
+                        <div className="border-t pt-3">
+                          <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">
+                            Últimos lançamentos
+                          </span>
+                          <div className="space-y-1.5">
+                            {(f.transacoes ?? []).slice(0, 6).map((t: any, i: number) => (
+                              <div key={i} className="flex justify-between items-center text-[11px]">
+                                <span className="text-stone-500">
+                                  {t.data ? new Date(t.data).toLocaleDateString('pt-BR') : '—'}
+                                  <span className="text-stone-400 ml-2">{String(t.status || '').replace(/_/g, ' ').toLowerCase()}</span>
+                                </span>
+                                <span className={`font-mono font-bold ${t.entrou ? 'text-emerald-700' : 'text-stone-400 line-through'}`}>
+                                  {din(t.valor)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-                <div>
-                  <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">CPF</span>
-                  <span className="font-mono text-stone-700">
-                    {fichaCliente.dados.cpf ? aplicarMascaraCpf(fichaCliente.dados.cpf) : 'Não informado'}
-                  </span>
-                </div>
-                <div>
-                  <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Telefone</span>
-                  <span className="font-mono text-stone-700">
-                    {fichaCliente.dados.telefone ? aplicarMascaraTelefone(fichaCliente.dados.telefone) : 'Não informado'}
-                  </span>
-                </div>
-              </div>
+                );
+              })()
             )}
 
             <button
