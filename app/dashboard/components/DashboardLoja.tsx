@@ -3241,162 +3241,280 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       {fichaCliente.aberta && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-xl">
-            <div className="flex justify-between items-start border-b pb-3">
-              <div>
-                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">{fichaCliente.nome}</h3>
-                <p className="text-[10px] text-stone-400 font-mono">
-                  {fichaCliente.dados?.id ? `Cliente #${fichaCliente.dados.id}` : 'Ficha da cliente'}
-                </p>
-              </div>
-              <button
-                onClick={() => setFichaCliente({ aberta: false, carregando: false, nome: '', dados: null })}
-                className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer"
-              >
-                X
-              </button>
-            </div>
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
 
-            {fichaCliente.carregando ? (
-              <p className="text-xs text-stone-400 italic py-6 text-center">Carregando os dados da cliente...</p>
-            ) : !fichaCliente.dados ? (
-              <p className="text-xs text-rose-600 py-6 text-center">Não foi possível carregar a ficha desta cliente.</p>
-            ) : (
-              (() => {
-                const f = fichaCliente.dados;
-                const din = (n: any) => `R$ ${(Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-                const pct = Number(f.percentualPago) || 0;
+            {(() => {
+              const f: any = fichaCliente.dados ?? {};
+              const din = (n: any) => `R$ ${(Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+              const data = (d: any) => (d ? new Date(d).toLocaleDateString('pt-BR') : null);
+              const mesAno = (d: any) =>
+                d ? new Date(d).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) : null;
+              const pct = Number(f.percentualPago) || 0;
 
-                // A situacao e o que a loja quer saber de relance, entao vira
-                // etiqueta colorida em vez de mais uma linha de texto.
-                const sit: Record<string, { texto: string; cor: string }> = {
-                  QUITADA:    { texto: 'Plano quitado',  cor: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-                  ADIANTADA:  { texto: 'Adiantada',      cor: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-                  EM_DIA:     { texto: 'Em dia',         cor: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-                  EM_ATRASO:  { texto: 'Em atraso',      cor: 'bg-rose-50 text-rose-700 border-rose-200' },
-                  INDEFINIDA: { texto: 'Sem referência', cor: 'bg-stone-100 text-stone-500 border-stone-200' },
-                };
-                const etiqueta = sit[f.situacao] ?? sit.INDEFINIDA;
+              const iniciais = (fichaCliente.nome || '')
+                .trim().split(/\s+/).slice(0, 2).map((n: string) => n[0] || '').join('').toUpperCase();
 
-                return (
-                <div className="space-y-4 text-xs max-h-[60vh] overflow-y-auto pr-1">
+              // A situacao e o que a loja quer saber de relance, entao vira
+              // etiqueta colorida em vez de mais uma linha de texto.
+              const situacoes: Record<string, { texto: string; cor: string }> = {
+                QUITADA:    { texto: 'Plano quitado',  cor: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                ADIANTADA:  { texto: 'Adiantada',      cor: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                EM_DIA:     { texto: 'Em dia',         cor: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                EM_ATRASO:  { texto: 'Em atraso',      cor: 'bg-rose-50 text-rose-700 border-rose-200' },
+                INDEFINIDA: { texto: 'Sem referência', cor: 'bg-stone-100 text-stone-500 border-stone-200' },
+              };
+              const etiqueta = situacoes[f.situacao] ?? situacoes.INDEFINIDA;
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">CPF</span>
-                      <span className="font-mono text-stone-700">
-                        {f.cpf ? aplicarMascaraCpf(f.cpf) : 'Não informado'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Telefone</span>
-                      {f.telefone ? (
-                        <a href={`https://wa.me/55${String(f.telefone).replace(/\D/g, '')}`} target="_blank" rel="noreferrer"
-                           className="font-mono text-[#BD6B42] font-bold hover:underline">
-                          {aplicarMascaraTelefone(f.telefone)}
-                        </a>
-                      ) : <span className="font-mono text-stone-400">Não informado</span>}
-                    </div>
-                    <div className="col-span-2">
-                      <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">E-mail</span>
-                      <span className="font-mono text-stone-700 break-all">{f.email || 'Não informado'}</span>
-                    </div>
-                  </div>
+              const Campo = ({ rot, children }: { rot: string; children: React.ReactNode }) => (
+                <div>
+                  <span className="block text-[9px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">{rot}</span>
+                  <span className="text-stone-700">{children}</span>
+                </div>
+              );
 
-                  {!f.temCota ? (
-                    <p className="text-xs text-stone-400 italic border-t pt-3">
-                      Esta cliente não tem cota neste grupo.
-                    </p>
-                  ) : (
-                    <>
-                      <div className="border-t pt-3 space-y-2.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Pagamento</span>
-                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${etiqueta.cor}`}>
-                            {etiqueta.texto}
-                          </span>
-                        </div>
+              const Titulo = ({ children }: { children: React.ReactNode }) => (
+                <h4 className="text-[10px] font-bold text-[#0B1E14] uppercase tracking-wider mb-2.5">{children}</h4>
+              );
 
-                        <div className="flex justify-between items-baseline">
-                          <span className="text-lg font-bold font-mono text-[#0B1E14]">{din(f.saldoPago)}</span>
-                          <span className="text-[10px] text-stone-400">de {din(f.valorTotalPlano)}</span>
-                        </div>
-
-                        <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full ${f.situacao === 'EM_ATRASO' ? 'bg-rose-500' : 'bg-emerald-600'}`}
-                               style={{ width: `${Math.min(100, pct)}%` }} />
-                        </div>
-
-                        <div className="flex justify-between text-[10px] text-stone-500">
-                          <span><strong className="text-[#0B1E14]">{f.parcelasPagas}</strong> de {f.parcelasTotal} parcelas</span>
-                          <span>{pct.toFixed(0)}% · falta {din(f.faltaPagar)}</span>
-                        </div>
-
-                        {f.parcelasEmAtraso > 0 && (
-                          <p className="text-[10px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5">
-                            {f.parcelasEmAtraso} parcela{f.parcelasEmAtraso > 1 ? 's' : ''} em atraso ·
-                            esperado {f.parcelasEsperadas} a esta altura do plano
-                          </p>
+              return (
+                <>
+                  <div className="flex justify-between items-start gap-4 px-6 pt-6 pb-4 border-b border-[#DFD9CE] bg-[#FAF8F4]">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 bg-[#0B1E14] flex items-center justify-center border border-[#DFD9CE]">
+                        {f.fotoPerfil ? (
+                          <img src={f.fotoPerfil} alt={fichaCliente.nome} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[#EFE9DF] font-serif font-bold text-lg">{iniciais || '—'}</span>
                         )}
                       </div>
-
-                      <div className="border-t pt-3 grid grid-cols-2 gap-3">
-                        <div>
-                          <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Sorteio</span>
-                          {f.foiSorteada ? (
-                            <span className="text-amber-700 font-bold">
-                              Sorteada{f.dataContemplacao ? ` em ${new Date(f.dataContemplacao).toLocaleDateString('pt-BR')}` : ''}
-                            </span>
-                          ) : <span className="text-stone-500">Ainda não sorteada</span>}
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Etapa</span>
-                          <span className="text-stone-700">{f.etapa || '—'}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Cota</span>
-                          <span className="font-mono text-stone-700">#{f.cotaId}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Outros grupos</span>
-                          <span className="font-mono text-stone-700">{f.outrosGrupos}</span>
-                        </div>
-                      </div>
-
-                      {(f.transacoes ?? []).length > 0 && (
-                        <div className="border-t pt-3">
-                          <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">
-                            Últimos lançamentos
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide truncate">
+                          {fichaCliente.nome}
+                        </h3>
+                        <p className="text-[10px] text-stone-400 font-mono">
+                          {f.id ? `Cliente #${f.id}` : 'Ficha da cliente'}
+                          {f.clienteDesde ? ` · desde ${mesAno(f.clienteDesde)}` : ''}
+                        </p>
+                        {f.temCota && (
+                          <span className={`inline-block mt-1.5 text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${etiqueta.cor}`}>
+                            {etiqueta.texto}
                           </span>
-                          <div className="space-y-1.5">
-                            {(f.transacoes ?? []).slice(0, 6).map((t: any, i: number) => (
-                              <div key={i} className="flex justify-between items-center text-[11px]">
-                                <span className="text-stone-500">
-                                  {t.data ? new Date(t.data).toLocaleDateString('pt-BR') : '—'}
-                                  <span className="text-stone-400 ml-2">{String(t.status || '').replace(/_/g, ' ').toLowerCase()}</span>
-                                </span>
-                                <span className={`font-mono font-bold ${t.entrou ? 'text-emerald-700' : 'text-stone-400 line-through'}`}>
-                                  {din(t.valor)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-                );
-              })()
-            )}
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setFichaCliente({ aberta: false, carregando: false, nome: '', dados: null })}
+                      className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer shrink-0"
+                    >
+                      X
+                    </button>
+                  </div>
 
-            <button
-              type="button"
-              onClick={() => setFichaCliente({ aberta: false, carregando: false, nome: '', dados: null })}
-              className="w-full py-2.5 border rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer text-xs"
-            >
-              Fechar
-            </button>
+                  <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 text-xs">
+                    {fichaCliente.carregando ? (
+                      <p className="text-xs text-stone-400 italic py-6 text-center">Carregando os dados da cliente...</p>
+                    ) : !fichaCliente.dados ? (
+                      <p className="text-xs text-rose-600 py-6 text-center">Não foi possível carregar a ficha desta cliente.</p>
+                    ) : (
+                      <>
+                        <div>
+                          <Titulo>Contato</Titulo>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                            <Campo rot="Telefone">
+                              {f.telefone ? (
+                                <a
+                                  href={`https://wa.me/55${String(f.telefone).replace(/\D/g, '')}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="font-mono text-[#BD6B42] font-bold hover:underline"
+                                >
+                                  {aplicarMascaraTelefone(f.telefone)}
+                                </a>
+                              ) : (
+                                <span className="text-stone-400">Não informado</span>
+                              )}
+                            </Campo>
+                            <Campo rot="CPF">
+                              <span className="font-mono">{f.cpf ? aplicarMascaraCpf(f.cpf) : 'Não informado'}</span>
+                            </Campo>
+                            <div className="col-span-2">
+                              <Campo rot="E-mail">
+                                <span className="font-mono break-all">{f.email || 'Não informado'}</span>
+                              </Campo>
+                            </div>
+                          </div>
+
+                          {f.verificacaoPendente && (
+                            <p className="mt-3 text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                              Cadastro ainda não confirmado: esta cliente não consegue entrar no aplicativo até
+                              digitar o código enviado por e-mail.
+                            </p>
+                          )}
+                        </div>
+
+                        {!f.temCota ? (
+                          <p className="text-xs text-stone-400 italic border-t border-[#DFD9CE] pt-4">
+                            Esta cliente não tem cota neste grupo.
+                          </p>
+                        ) : (
+                          <>
+                            <div className="border-t border-[#DFD9CE] pt-4">
+                              <Titulo>Pagamento</Titulo>
+
+                              <div className="flex justify-between items-baseline mb-2">
+                                <span className="text-2xl font-bold font-mono text-[#0B1E14]">{din(f.saldoPago)}</span>
+                                <span className="text-[10px] text-stone-400">de {din(f.valorTotalPlano)}</span>
+                              </div>
+
+                              <div className="h-2.5 bg-stone-100 rounded-full overflow-hidden mb-2">
+                                <div
+                                  className={`h-full rounded-full transition-all ${f.situacao === 'EM_ATRASO' ? 'bg-rose-500' : 'bg-emerald-600'}`}
+                                  style={{ width: `${Math.min(100, pct)}%` }}
+                                />
+                              </div>
+
+                              <div className="flex justify-between text-[10px] text-stone-500 mb-4">
+                                <span>
+                                  <strong className="text-[#0B1E14]">{f.parcelasPagas}</strong> de {f.parcelasTotal} parcelas
+                                  {f.valorParcela ? ` de ${din(f.valorParcela)}` : ''}
+                                </span>
+                                <span>{pct.toFixed(0)}% · falta {din(f.faltaPagar)}</span>
+                              </div>
+
+                              {f.parcelasEmAtraso > 0 && (
+                                <p className="text-[10px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5 mb-3">
+                                  {f.parcelasEmAtraso} parcela{f.parcelasEmAtraso > 1 ? 's' : ''} em atraso · a esta altura
+                                  do plano já eram esperadas {f.parcelasEsperadas}
+                                </p>
+                              )}
+
+                              <div className="grid grid-cols-3 gap-x-4 gap-y-3">
+                                <Campo rot="Último pagamento">
+                                  {f.ultimoPagamentoData ? (
+                                    <>
+                                      <span className="font-mono">{data(f.ultimoPagamentoData)}</span>
+                                      {f.diasSemPagar != null && (
+                                        <span className={`block text-[10px] ${f.diasSemPagar > 45 ? 'text-rose-600 font-bold' : 'text-stone-400'}`}>
+                                          há {f.diasSemPagar} dia{f.diasSemPagar === 1 ? '' : 's'}
+                                        </span>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <span className="text-stone-400">Nenhum</span>
+                                  )}
+                                </Campo>
+                                <Campo rot="Parcelas restantes">
+                                  <span className="font-mono">{f.parcelasRestantes ?? '—'}</span>
+                                </Campo>
+                                <Campo rot="Previsão de quitação">
+                                  {f.previsaoQuitacao ? (
+                                    <span className="capitalize">{mesAno(f.previsaoQuitacao)}</span>
+                                  ) : (
+                                    <span className="text-emerald-700 font-bold">Quitado</span>
+                                  )}
+                                </Campo>
+                              </div>
+                            </div>
+
+                            <div className="border-t border-[#DFD9CE] pt-4">
+                              <Titulo>Plano e contemplação</Titulo>
+                              <div className="grid grid-cols-3 gap-x-4 gap-y-3">
+                                <Campo rot="Sorteio">
+                                  {f.foiSorteada ? (
+                                    <span className="text-amber-700 font-bold">
+                                      Sorteada{f.dataContemplacao ? ` em ${data(f.dataContemplacao)}` : ''}
+                                    </span>
+                                  ) : (
+                                    <span className="text-stone-400">Ainda não sorteada</span>
+                                  )}
+                                </Campo>
+                                <Campo rot="Etapa">{f.etapa || '—'}</Campo>
+                                <Campo rot="Cota">
+                                  <span className="font-mono">#{f.cotaId}</span>
+                                </Campo>
+                                <Campo rot="Produto escolhido">{f.produtoEscolhido || '—'}</Campo>
+                                <Campo rot="Termo assinado">
+                                  {f.termoAssinado ? (
+                                    <span className="text-emerald-700 font-bold">
+                                      Sim{f.dataAssinaturaTermo ? ` · ${data(f.dataAssinaturaTermo)}` : ''}
+                                    </span>
+                                  ) : (
+                                    <span className="text-stone-400">Não</span>
+                                  )}
+                                </Campo>
+                                <Campo rot="Entrega">
+                                  {f.dataEntrega ? (
+                                    <span className="font-mono">{data(f.dataEntrega)}</span>
+                                  ) : (
+                                    <span className="text-stone-400">
+                                      {String(f.statusEntrega || '').replace(/_/g, ' ').toLowerCase() || '—'}
+                                    </span>
+                                  )}
+                                </Campo>
+                              </div>
+
+                              {f.creditoAprovado === false && (
+                                <p className="mt-3 text-[10px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5">
+                                  Crédito reprovado{f.motivoReprovacaoCredito ? `: ${f.motivoReprovacaoCredito}` : '.'}
+                                </p>
+                              )}
+                            </div>
+
+                            {(f.planos ?? []).length > 0 && (
+                              <div className="border-t border-[#DFD9CE] pt-4">
+                                <Titulo>Outros planos desta cliente</Titulo>
+                                <div className="space-y-1.5">
+                                  {(f.planos ?? []).map((p: any) => (
+                                    <div key={p.grupoId} className="flex justify-between items-center text-[11px]">
+                                      <span className="text-stone-600 truncate pr-3">
+                                        {p.grupoNome}
+                                        {p.foiSorteada && <span className="text-amber-700 ml-2">sorteada</span>}
+                                      </span>
+                                      <span className="font-mono text-stone-500 shrink-0">{din(p.saldoPago)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {(f.transacoes ?? []).length > 0 && (
+                              <div className="border-t border-[#DFD9CE] pt-4">
+                                <Titulo>Últimos lançamentos ({f.totalLancamentos})</Titulo>
+                                <div className="space-y-1.5">
+                                  {(f.transacoes ?? []).slice(0, 8).map((t: any, i: number) => (
+                                    <div key={i} className="flex justify-between items-center text-[11px]">
+                                      <span className="text-stone-500">
+                                        <span className="font-mono">{data(t.data) || '—'}</span>
+                                        <span className="text-stone-400 ml-2">
+                                          {String(t.status || '').replace(/_/g, ' ').toLowerCase()}
+                                        </span>
+                                      </span>
+                                      <span className={`font-mono font-bold ${t.entrou ? 'text-emerald-700' : 'text-stone-400 line-through'}`}>
+                                        {din(t.valor)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div className="px-6 py-4 border-t border-[#DFD9CE] bg-[#FAF8F4]">
+                    <button
+                      type="button"
+                      onClick={() => setFichaCliente({ aberta: false, carregando: false, nome: '', dados: null })}
+                      className="w-full py-2.5 border border-[#DFD9CE] rounded-xl text-stone-500 font-bold hover:bg-white transition-colors cursor-pointer text-xs"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
