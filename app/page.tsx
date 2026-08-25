@@ -76,7 +76,9 @@ function Autenticacao() {
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [codigoOtp, setCodigoOtp] = useState('');
-  const [telefoneVerificacao, setTelefoneVerificacao] = useState('');
+  // Para onde o codigo de verificacao foi. Antes era o telefone; agora e o
+  // e-mail, que e o canal por onde o codigo sai de fato.
+  const [emailVerificacao, setEmailVerificacao] = useState('');
   const [reenviandoCodigo, setReenviandoCodigo] = useState(false);
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
 
@@ -309,11 +311,11 @@ function Autenticacao() {
 
         if (resposta.status === 403) {
           const detalhe = await resposta.json().catch(() => null);
-          if (detalhe?.telefone) setTelefoneVerificacao(detalhe.telefone);
+          if (detalhe?.email) setEmailVerificacao(detalhe.email);
           setMensagem({
             tipo: 'erro',
-            texto: detalhe?.telefoneMascarado
-              ? `Confirme o código enviado para ${detalhe.telefoneMascarado}.`
+            texto: detalhe?.emailMascarado
+              ? `Confirme o código enviado para ${detalhe.emailMascarado}.`
               : 'Sua conta ainda não foi verificada.',
           });
           setIsVerificando(true);
@@ -349,10 +351,10 @@ function Autenticacao() {
           if (retorno?.verificacaoPendente) {
             // O número fica guardado porque os campos são limpos logo abaixo e a
             // tela do código precisa saber de qual conta se trata.
-            setTelefoneVerificacao(retorno.telefone || telefoneCadastroLimpo);
+            setEmailVerificacao(retorno.email || emailCadastro.trim());
             setMensagem({
               tipo: 'sucesso',
-              texto: `Cadastro realizado! Enviamos um código para ${retorno.telefoneMascarado || 'o seu telefone'}.`,
+              texto: `Cadastro realizado! Enviamos um código para ${retorno.emailMascarado || 'o seu e-mail'}.`,
             });
             setIsVerificando(true);
           } else {
@@ -399,8 +401,8 @@ function Autenticacao() {
     const base: Record<string, string> = {};
     if (codigo !== undefined) base.codigo = codigo;
 
-    if (telefoneVerificacao) {
-      return { ...base, telefone: somenteDigitos(telefoneVerificacao) };
+    if (emailVerificacao) {
+      return { ...base, email: emailVerificacao };
     }
     if (identificadorLogin.includes('@')) {
       return { ...base, email: identificadorLogin.trim() };
@@ -423,7 +425,7 @@ function Autenticacao() {
 
       setMensagem({
         tipo: 'sucesso',
-        texto: `Novo código enviado para ${retorno?.telefoneMascarado || 'o seu telefone'}.`,
+        texto: `Novo código enviado para ${retorno?.emailMascarado || 'o seu e-mail'}.`,
       });
     } catch (erro) {
       setMensagem({
@@ -665,7 +667,7 @@ function Autenticacao() {
               <form onSubmit={handleConfirmarCodigo} className="flex flex-col space-y-4 text-left">
                   <div>
                     <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificação de Conta</h3>
-                    <p className="text-xs text-stone-400 mt-1">Insira o código verificador enviado por mensagem para: <br /><strong className="text-[#BD6B42] font-semibold">{telefoneVerificacao ? aplicarMascaraTelefone(telefoneVerificacao) : identificadorLogin}</strong></p>
+                    <p className="text-xs text-stone-400 mt-1">Insira o código enviado por e-mail para: <br /><strong className="text-[#BD6B42] font-semibold">{emailVerificacao || identificadorLogin}</strong></p>
                   </div>
                   {mensagem.texto && (
                     <div className={`p-3 rounded-xl text-xs font-bold border ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
