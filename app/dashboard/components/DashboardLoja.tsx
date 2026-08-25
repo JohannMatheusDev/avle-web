@@ -272,6 +272,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
   };
 
+  // Numero da cliente dentro desta loja. Tres digitos porque a loja le e fala
+  // esse numero em voz alta, e "cliente 7" fica dificil de conferir numa lista.
+  const numeroDaCliente = (n: unknown) =>
+    n == null ? null : `#${String(n).padStart(3, '0')}`;
+
   const lerMensagemErro = async (res: Response) => {
     const texto = await res.text();
     try {
@@ -1511,7 +1516,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                               >
                                 {part.nome}
                               </button>
-                              <span className="text-[10px] text-stone-400 font-mono">{part.email}</span>
+                              <span className="text-[10px] text-stone-400 font-mono">
+                                {part.numeroCliente != null && (
+                                  <span className="text-stone-500 font-bold mr-2">
+                                    {numeroDaCliente(part.numeroCliente)}
+                                  </span>
+                                )}
+                                {part.email}
+                              </span>
                             </td>
                             <td className="py-3.5 px-5 text-center">
                               {part.foiSorteada ? (
@@ -1964,6 +1976,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         <table className="w-full text-left text-xs border-collapse">
                           <thead className="sticky top-0 bg-stone-50 z-10 shadow-sm">
                             <tr className="text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
+                              <th className="py-3 px-5 w-16">Nº</th>
                               <th className="py-3 px-5">CLIENTE</th>
                               <th className="py-3 px-5">DOCUMENTO</th>
                               <th className="py-3 px-5">ÚLTIMO GRUPO</th>
@@ -1973,7 +1986,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           </thead>
                           <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
                             {clientesFiltrados.length === 0 ? (
-                               <tr><td colSpan={5} className="py-6 text-center text-stone-400 italic">
+                               <tr><td colSpan={6} className="py-6 text-center text-stone-400 italic">
                                  {termo
                                    ? `Nenhum cliente encontrado para "${buscaCliente}".`
                                    : 'Nenhum cliente ativo registrado na sua unidade.'}
@@ -1981,6 +1994,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                             ) : (
                                clientesPagina.map((cli, idx) => (
                                  <tr key={idx} className="hover:bg-stone-50/60 transition-all">
+                                   <td className="py-3 px-5 font-mono font-bold text-[#BD6B42]">
+                                     {numeroDaCliente(cli.numeroCliente) ?? '—'}
+                                   </td>
                                    <td className="py-3 px-5">
                                      <span className="block font-bold text-[#0B1E14]">{cli.nome}</span>
                                      <span className="text-[10px] text-stone-400">{cli.email || 'Sem e-mail cadastrado'}</span>
@@ -3292,7 +3308,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           {fichaCliente.nome}
                         </h3>
                         <p className="text-[10px] text-stone-400 font-mono">
-                          {f.id ? `Cliente #${f.id}` : 'Ficha da cliente'}
+                          {f.numeroCliente != null
+                            ? `Cliente ${numeroDaCliente(f.numeroCliente)}`
+                            : f.id
+                              ? `Cliente #${f.id}`
+                              : 'Ficha da cliente'}
                           {f.clienteDesde ? ` · desde ${mesAno(f.clienteDesde)}` : ''}
                         </p>
                         {f.temCota && (
