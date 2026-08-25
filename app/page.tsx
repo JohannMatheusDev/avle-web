@@ -239,11 +239,19 @@ function Autenticacao() {
       return;
     }
 
-    if (!isLogin && tipoUsuario === 'LOJA' && walletIdInput.trim() !== '') {
+    if (!isLogin && tipoUsuario === 'LOJA') {
+      if (walletIdInput.trim() === '') {
+        setMensagem({
+          tipo: 'erro',
+          texto: 'Informe o Wallet ID da conta Asaas da loja. Crie a conta em asaas.com, abra Perfil e copie o Wallet ID.',
+        });
+        setCarregando(false);
+        return;
+      }
       if (!walletIdInput.trim().startsWith('wal_')) {
         setMensagem({ 
           tipo: 'erro', 
-          texto: 'Bloqueio de Segurança: Um Wallet ID do Asaas deve obrigatoriamente começar com "wal_". Caso você não tenha um, apague e deixe o campo em branco para o sistema criar sua carteira automaticamente.' 
+          texto: 'O Wallet ID do Asaas começa com "wal_". Confira em Perfil, dentro da conta Asaas da loja.' 
         });
         setCarregando(false);
         return;
@@ -282,7 +290,7 @@ function Autenticacao() {
               telefone: telefoneCadastroLimpo !== '' ? telefoneCadastroLimpo : null,
               cep: tipoUsuario === 'LOJA' ? cepLimpo : null,
               faturamento: tipoUsuario === 'LOJA' ? faturamentoNumerico : null,
-              walletId: tipoUsuario === 'LOJA' && walletIdInput.trim() !== '' ? walletIdInput.trim() : null,
+              walletId: tipoUsuario === 'LOJA' ? walletIdInput.trim() : null,
               lojaId: tipoUsuario === 'CLIENTE' && conviteLojaId ? Number(conviteLojaId) : null,
             };
         }
@@ -862,8 +870,13 @@ function Autenticacao() {
                             </div>
                           </div>
                           <div className="pt-1">
-                            <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between"><span>Wallet ID Asaas</span></label>
-                            <input type="text" value={walletIdInput} onChange={(e) => setWalletIdInput(e.target.value)} placeholder="Deixe em branco para o sistema criar" className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono" disabled={carregando} />
+                            <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between"><span>Wallet ID Asaas *</span></label>
+                            <input type="text" value={walletIdInput} onChange={(e) => setWalletIdInput(e.target.value)} placeholder="wal_000000000000" className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono" required disabled={carregando} />
+                            <p className="text-[10px] text-stone-500 mt-1.5 leading-relaxed">
+                              É para esta carteira que vão os 90% de cada pagamento. Crie a conta em{' '}
+                              <a href="https://www.asaas.com" target="_blank" rel="noreferrer" className="text-[#BD6B42] font-bold hover:underline">asaas.com</a>
+                              , abra <strong>Perfil</strong> e copie o Wallet ID.
+                            </p>
                           </div>
                         </div>
                       </div>
