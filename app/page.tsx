@@ -76,7 +76,9 @@ function Autenticacao() {
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [codigoOtp, setCodigoOtp] = useState('');
-  const [telefoneVerificacao, setTelefoneVerificacao] = useState('');
+  // Para onde o codigo de verificacao foi. Antes era o telefone; agora e o
+  // e-mail, que e o canal por onde o codigo sai de fato.
+  const [emailVerificacao, setEmailVerificacao] = useState('');
   const [reenviandoCodigo, setReenviandoCodigo] = useState(false);
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
 
@@ -195,7 +197,10 @@ function Autenticacao() {
 
   const emailCadastroValido = regexEmail.test(emailCadastro.trim());
   const emailCadastroPreenchido = emailCadastro.trim().length > 0;
-  const emailCadastroValidoOuVazio = tipoUsuario === 'LOJA' ? emailCadastroValido : !emailCadastroPreenchido || emailCadastroValido;
+  // O e-mail e o unico canal por onde o codigo de acesso e a recuperacao de
+  // senha saem. Cadastro sem ele cria conta que so entra com senha e nao tem
+  // como recuperar nada se a pessoa esquecer.
+  const emailCadastroValidoOuVazio = emailCadastroValido;
 
   const { tamanhoMinimo, temMaiuscula, temNumero, temCaracterEspecial } = requisitosSenha(senha);
   const senhaForte = avaliarSenhaForte(senha);
@@ -207,10 +212,10 @@ function Autenticacao() {
   const tamanhoDocumentoValido = tipoUsuario === 'LOJA' ? cpf.length === 14 : cpfValido(cpf);
 
   const telefoneCadastroLimpo = somenteDigitos(telefoneCadastro);
-  // Loja precisa de telefone; cliente so precisa que, se informado, seja real.
-  const telefoneCadastroValidoSeLoja = tipoUsuario === 'LOJA'
-    ? telefoneValido(telefoneCadastroLimpo)
-    : telefoneCadastroLimpo.length === 0 || telefoneValido(telefoneCadastroLimpo);
+  // E-mail e telefone sao exigidos de todo mundo. O e-mail leva o codigo de
+  // acesso e a recuperacao de senha; o telefone e como a loja fala com a
+  // cliente. Conta sem os dois nasce sem caminho de contato nenhum.
+  const telefoneCadastroValidoSeLoja = telefoneValido(telefoneCadastroLimpo);
 
   const cepLimpo = cep.replace(/\D/g, '');
   const cepValidoSeLoja = tipoUsuario === 'LOJA' ? cepLimpo.length === 8 : true;
@@ -239,11 +244,19 @@ function Autenticacao() {
       return;
     }
 
-    if (!isLogin && tipoUsuario === 'LOJA' && walletIdInput.trim() !== '') {
+    if (!isLogin && tipoUsuario === 'LOJA') {
+      if (walletIdInput.trim() === '') {
+        setMensagem({
+          tipo: 'erro',
+          texto: 'Informe o Wallet ID da conta Asaas da loja. Crie a conta em asaas.com, abra Perfil e copie o Wallet ID.',
+        });
+        setCarregando(false);
+        return;
+      }
       if (!walletIdInput.trim().startsWith('wal_')) {
         setMensagem({ 
           tipo: 'erro', 
-          texto: 'Bloqueio de Segurança: Um Wallet ID do Asaas deve obrigatoriamente começar com "wal_". Caso você não tenha um, apague e deixe o campo em branco para o sistema criar sua carteira automaticamente.' 
+          texto: 'O Wallet ID do Asaas começa com "wal_". Confira em Perfil, dentro da conta Asaas da loja.' 
         });
         setCarregando(false);
         return;
@@ -282,7 +295,7 @@ function Autenticacao() {
               telefone: telefoneCadastroLimpo !== '' ? telefoneCadastroLimpo : null,
               cep: tipoUsuario === 'LOJA' ? cepLimpo : null,
               faturamento: tipoUsuario === 'LOJA' ? faturamentoNumerico : null,
-              walletId: tipoUsuario === 'LOJA' && walletIdInput.trim() !== '' ? walletIdInput.trim() : null,
+              walletId: tipoUsuario === 'LOJA' ? walletIdInput.trim() : null,
               lojaId: tipoUsuario === 'CLIENTE' && conviteLojaId ? Number(conviteLojaId) : null,
             };
         }
@@ -298,11 +311,11 @@ function Autenticacao() {
 
         if (resposta.status === 403) {
           const detalhe = await resposta.json().catch(() => null);
-          if (detalhe?.telefone) setTelefoneVerificacao(detalhe.telefone);
+          if (detalhe?.email) setEmailVerificacao(detalhe.email);
           setMensagem({
             tipo: 'erro',
-            texto: detalhe?.telefoneMascarado
-              ? `Confirme o código enviado para ${detalhe.telefoneMascarado}.`
+            texto: detalhe?.emailMascarado
+              ? `Confirme o código enviado para ${detalhe.emailMascarado}.`
               : 'Sua conta ainda não foi verificada.',
           });
           setIsVerificando(true);
@@ -338,10 +351,10 @@ function Autenticacao() {
           if (retorno?.verificacaoPendente) {
             // O número fica guardado porque os campos são limpos logo abaixo e a
             // tela do código precisa saber de qual conta se trata.
-            setTelefoneVerificacao(retorno.telefone || telefoneCadastroLimpo);
+            setEmailVerificacao(retorno.email || emailCadastro.trim());
             setMensagem({
               tipo: 'sucesso',
-              texto: `Cadastro realizado! Enviamos um código para ${retorno.telefoneMascarado || 'o seu telefone'}.`,
+              texto: `Cadastro realizado! Enviamos um código para ${retorno.emailMascarado || 'o seu e-mail'}.`,
             });
             setIsVerificando(true);
           } else {
@@ -388,8 +401,8 @@ function Autenticacao() {
     const base: Record<string, string> = {};
     if (codigo !== undefined) base.codigo = codigo;
 
-    if (telefoneVerificacao) {
-      return { ...base, telefone: somenteDigitos(telefoneVerificacao) };
+    if (emailVerificacao) {
+      return { ...base, email: emailVerificacao };
     }
     if (identificadorLogin.includes('@')) {
       return { ...base, email: identificadorLogin.trim() };
@@ -412,7 +425,7 @@ function Autenticacao() {
 
       setMensagem({
         tipo: 'sucesso',
-        texto: `Novo código enviado para ${retorno?.telefoneMascarado || 'o seu telefone'}.`,
+        texto: `Novo código enviado para ${retorno?.emailMascarado || 'o seu e-mail'}.`,
       });
     } catch (erro) {
       setMensagem({
@@ -654,7 +667,7 @@ function Autenticacao() {
               <form onSubmit={handleConfirmarCodigo} className="flex flex-col space-y-4 text-left">
                   <div>
                     <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificação de Conta</h3>
-                    <p className="text-xs text-stone-400 mt-1">Insira o código verificador enviado por mensagem para: <br /><strong className="text-[#BD6B42] font-semibold">{telefoneVerificacao ? aplicarMascaraTelefone(telefoneVerificacao) : identificadorLogin}</strong></p>
+                    <p className="text-xs text-stone-400 mt-1">Insira o código enviado por e-mail para: <br /><strong className="text-[#BD6B42] font-semibold">{emailVerificacao || identificadorLogin}</strong></p>
                   </div>
                   {mensagem.texto && (
                     <div className={`p-3 rounded-xl text-xs font-bold border ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
@@ -837,7 +850,7 @@ function Autenticacao() {
                       <div>
                         <div className="flex justify-between items-center mb-1">
                           <label className="block text-[10px] font-bold uppercase text-stone-500">
-                            {tipoUsuario === 'LOJA' ? 'Telefone / WhatsApp da Loja *' : 'Telefone / Celular'}
+                            {tipoUsuario === 'LOJA' ? 'Telefone / WhatsApp da Loja *' : 'Telefone / Celular *'}
                           </label>
                           {tipoUsuario === 'LOJA' && telefoneCadastroLimpo.length > 0 && (
                             <span className={`text-[10px] font-bold ${telefoneCadastroLimpo.length >= 10 ? 'text-emerald-600' : 'text-rose-500'}`}>
@@ -845,7 +858,7 @@ function Autenticacao() {
                             </span>
                           )}
                         </div>
-                        <input type="text" placeholder="(42) 99999-9999" value={telefoneCadastro} onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
+                        <input type="text" placeholder="(42) 99999-9999" value={telefoneCadastro} onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                       </div>
                       
                       <div className={`transition-all duration-500 ease-in-out overflow-hidden ${tipoUsuario === 'LOJA' ? 'max-h-[600px] opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'}`}>
@@ -862,8 +875,13 @@ function Autenticacao() {
                             </div>
                           </div>
                           <div className="pt-1">
-                            <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between"><span>Wallet ID Asaas</span></label>
-                            <input type="text" value={walletIdInput} onChange={(e) => setWalletIdInput(e.target.value)} placeholder="Deixe em branco para o sistema criar" className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono" disabled={carregando} />
+                            <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between"><span>Wallet ID Asaas *</span></label>
+                            <input type="text" value={walletIdInput} onChange={(e) => setWalletIdInput(e.target.value)} placeholder="wal_000000000000" className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono" required disabled={carregando} />
+                            <p className="text-[10px] text-stone-500 mt-1.5 leading-relaxed">
+                              É para esta carteira que vão os 90% de cada pagamento. Crie a conta em{' '}
+                              <a href="https://www.asaas.com" target="_blank" rel="noreferrer" className="text-[#BD6B42] font-bold hover:underline">asaas.com</a>
+                              , abra <strong>Perfil</strong> e copie o Wallet ID.
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -882,9 +900,9 @@ function Autenticacao() {
                   {!isLogin && (
                       <div>
                         <div className="flex justify-between items-center mb-1">
-                          <label className="block text-[10px] font-bold uppercase text-stone-500">{tipoUsuario === 'LOJA' ? 'E-mail *' : 'E-mail'}</label>
+                          <label className="block text-[10px] font-bold uppercase text-stone-500">E-mail *</label>
                         </div>
-                        <input type="email" placeholder="seu@email.com" value={emailCadastro} onChange={(e) => setEmailCadastro(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
+                        <input type="email" placeholder="seu@email.com" value={emailCadastro} onChange={(e) => setEmailCadastro(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                       </div>
                   )}
 
