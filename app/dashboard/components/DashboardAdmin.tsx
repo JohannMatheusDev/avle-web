@@ -11,7 +11,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function DashboardAdmin({ usuario }: { usuario: any }) {
   const router = useRouter();
-  const [abaExibida, setAbaExibida] = useState<'geral' | 'lojas' | 'financeiro' | 'risco'>('geral');
+  const [abaExibida, setAbaExibida] = useState<'geral' | 'lojas' | 'financeiro'>('geral');
 
   const [lojaSelecionada, setLojaSelecionada] = useState<any | null>(null);
   const [limiteInput, setLimiteInput] = useState<number>(1);
@@ -199,19 +199,6 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
             >
               <span>Financeiro</span>
             </button>
-            <button
-              onClick={() => {
-                setLojaSelecionada(null);
-                setAbaExibida('risco');
-              }}
-              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
-                abaExibida === 'risco' && !lojaSelecionada
-                  ? 'bg-white/10 text-white font-bold'
-                  : 'hover:bg-white/5 opacity-75'
-              }`}
-            >
-              <span>Risco e fraude</span>
-            </button>
           </nav>
         </div>
 
@@ -311,25 +298,25 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                     <div className="p-5">
                       <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Faturamento bruto</span>
                       <span className="text-lg font-bold font-mono text-[#0B1E14] block mt-1">
-                        R$ {Number(dados.faturamentoBruto).toFixed(2)}
+                        R$ {Number(dados.faturamentoBruto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div className="p-5">
                       <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">AVLE ({split.percentualAvle}%)</span>
                       <span className="text-lg font-bold font-mono text-emerald-700 block mt-1">
-                        R$ {Number(dados.taxaAvle).toFixed(2)}
+                        R$ {Number(dados.taxaAvle).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div className="p-5">
                       <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Unidade ({split.percentualLoja}%)</span>
                       <span className="text-lg font-bold font-mono text-stone-600 block mt-1">
-                        R$ {Number(dados.repasseLoja).toFixed(2)}
+                        R$ {Number(dados.repasseLoja).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div className={`p-5 ${aReceber > 0 ? 'bg-amber-50' : ''}`}>
                       <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Deve à AVLE</span>
                       <span className={`text-lg font-bold font-mono block mt-1 ${aReceber > 0 ? 'text-amber-800' : 'text-stone-300'}`}>
-                        R$ {aReceber.toFixed(2)}
+                        R$ {aReceber.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                   </div>
@@ -337,10 +324,10 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   {aReceber > 0 && (
                     <div className="px-6 py-4 border-t border-[#E6E2D8] bg-amber-50/60">
                       <p className="text-[11px] text-amber-900 leading-relaxed">
-                        Esta unidade registrou <strong>R$ {Number(dados.brutoBaixaManual).toFixed(2)}</strong> em baixas
+                        Esta unidade registrou <strong>R$ {Number(dados.brutoBaixaManual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong> em baixas
                         manuais. Esse dinheiro foi recebido no balcão e não passou pelo Asaas, então os
                         {' '}{split.percentualAvle}% não foram retidos automaticamente: são
-                        {' '}<strong>R$ {aReceber.toFixed(2)}</strong> a cobrar da unidade.
+                        {' '}<strong>R$ {aReceber.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong> a cobrar da unidade.
                       </p>
                     </div>
                   )}
@@ -398,7 +385,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   Volume Transacionado Pix
                 </span>
                 <span className="text-2xl font-bold tracking-tight text-emerald-600 block mt-2 font-mono">
-                  R$ {(Number(lojaSelecionada.volumeBruto) || 0).toFixed(2)}
+                  R$ {(Number(lojaSelecionada.volumeBruto) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
                 <p className="text-[9px] text-stone-400 mt-1">Receita real processada via split</p>
               </div>
@@ -694,38 +681,38 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
-                          <div className="bg-[#F5F2EB]/40 border border-dashed border-[#DFD9CE] p-3.5 rounded-xl text-center">
-                            <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">
-                              Clientes Ativos
-                            </span>
-                            <span className="text-xl font-bold text-[#0B1E14] font-mono block mt-1">
-                              {loja.participantes}
-                            </span>
-                          </div>
-                          <div className="bg-[#F5F2EB]/40 border border-dashed border-[#DFD9CE] p-3.5 rounded-xl text-center">
-                            <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">
-                              Clubes Criados
-                            </span>
-                            <span className="text-xl font-bold text-[#0B1E14] font-mono block mt-1">{loja.grupos}</span>
-                          </div>
-                          <div className="bg-[#F5F2EB]/40 border border-dashed border-[#DFD9CE] p-3.5 rounded-xl text-center">
-                            <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">
-                              Faturamento Pix Real
-                            </span>
-                            <span className="text-xl font-bold text-emerald-700 font-mono block mt-1">
-                              R$ {Number(loja.volumeBruto).toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="bg-[#F5F2EB]/40 border border-dashed border-[#DFD9CE] p-3.5 rounded-xl text-center">
-                            <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">
-                              Inadimplencia
-                            </span>
-                            <span className="text-xl font-bold text-stone-400 font-mono block mt-1">
-                              {loja.inadimplencia}%
-                            </span>
-                          </div>
-                        </div>
+                        {(() => {
+                          // Os numeros vem do consolidado, e nao da listagem de
+                          // lojas: aquela rota nao devolve contagem nem valor, e
+                          // os quatro cards apareciam zerados em toda unidade.
+                          const d = (visaoGeral?.lojas ?? []).find((x: any) => x.id === loja.id);
+                          const real = (n: any) => Number(n) || 0;
+
+                          return (
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                              <div className="bg-[#F5F2EB]/50 border border-[#E6E2D8] p-4 rounded-xl">
+                                <span className="text-[9px] text-stone-400 font-bold block uppercase tracking-widest">Clientes</span>
+                                <span className="text-xl font-bold text-[#0B1E14] font-mono block mt-1.5">{real(d?.clientes)}</span>
+                              </div>
+                              <div className="bg-[#F5F2EB]/50 border border-[#E6E2D8] p-4 rounded-xl">
+                                <span className="text-[9px] text-stone-400 font-bold block uppercase tracking-widest">Grupos</span>
+                                <span className="text-xl font-bold text-[#0B1E14] font-mono block mt-1.5">{real(d?.grupos)}</span>
+                              </div>
+                              <div className="bg-[#F5F2EB]/50 border border-[#E6E2D8] p-4 rounded-xl">
+                                <span className="text-[9px] text-stone-400 font-bold block uppercase tracking-widest">Volume</span>
+                                <span className="text-xl font-bold text-[#0B1E14] font-mono block mt-1.5">
+                                  R$ {real(d?.faturamentoBruto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                              <div className="bg-[#F5F2EB]/50 border border-[#E6E2D8] p-4 rounded-xl">
+                                <span className="text-[9px] text-stone-400 font-bold block uppercase tracking-widest">Receita AVLE</span>
+                                <span className="text-xl font-bold text-emerald-700 font-mono block mt-1.5">
+                                  R$ {real(d?.taxaAvle).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     ))
                   )}
@@ -747,7 +734,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                     <div className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs">
                       <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Faturamento bruto</span>
                       <span className="text-2xl font-bold font-mono text-[#0B1E14] block mt-1">
-                        R$ {Number(split.faturamentoBruto).toFixed(2)}
+                        R$ {Number(split.faturamentoBruto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                       <span className="text-[10px] text-stone-400">base de cálculo do split</span>
                     </div>
@@ -757,7 +744,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                         AVLE · {split.percentualAvle}%
                       </span>
                       <span className="text-2xl font-bold font-mono text-emerald-700 block mt-1">
-                        R$ {Number(split.taxaAvleTotal).toFixed(2)}
+                        R$ {Number(split.taxaAvleTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                       <span className="text-[10px] text-stone-400">taxa de administração total</span>
                     </div>
@@ -767,7 +754,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                         Lojas · {split.percentualLoja}%
                       </span>
                       <span className="text-2xl font-bold font-mono text-stone-600 block mt-1">
-                        R$ {Number(split.repasseLojaTotal).toFixed(2)}
+                        R$ {Number(split.repasseLojaTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                       <span className="text-[10px] text-stone-400">repasse às unidades</span>
                     </div>
@@ -781,7 +768,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                       <span className={`text-2xl font-bold font-mono block mt-1 ${
                         Number(split.taxaAReceber) > 0 ? 'text-amber-800' : 'text-stone-400'
                       }`}>
-                        R$ {Number(split.taxaAReceber).toFixed(2)}
+                        R$ {Number(split.taxaAReceber).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                       <span className="text-[10px] text-stone-500">
                         {Number(split.taxaAReceber) > 0
@@ -795,7 +782,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 {split && Number(split.taxaAReceber) > 0 && (
                   <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
                     <p className="text-[11px] text-amber-900 leading-relaxed">
-                      <strong>R$ {Number(split.brutoBaixaManual).toFixed(2)}</strong> entraram por baixa manual, ou seja,
+                      <strong>R$ {Number(split.brutoBaixaManual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong> entraram por baixa manual, ou seja,
                       a cliente pagou direto na loja e o valor não passou pelo Asaas. Como o split só acontece dentro do
                       pagamento, os <strong>{split.percentualAvle}%</strong> desse montante não foram recolhidos e
                       seguem como crédito da AVLE contra as unidades, listado abaixo.
@@ -831,156 +818,24 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                               <span className="text-[10px] text-stone-400 font-mono">{loja.cnpj}</span>
                             </td>
                             <td className="py-4 px-5 text-right font-mono font-bold text-[#0B1E14]">
-                              R$ {bruto.toFixed(2)}
+                              R$ {bruto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </td>
                             <td className="py-4 px-5 text-right font-mono text-emerald-700 font-bold">
-                              R$ {taxaApp.toFixed(2)}
+                              R$ {taxaApp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </td>
                             <td className="py-4 px-5 text-right font-mono text-stone-600 font-bold">
-                              R$ {repasseLoja.toFixed(2)}
+                              R$ {repasseLoja.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </td>
                             <td className={`py-4 px-5 text-right font-mono font-bold ${
                               aReceber > 0 ? 'text-amber-700' : 'text-stone-300'
                             }`}>
-                              R$ {aReceber.toFixed(2)}
+                              R$ {aReceber.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
-                </div>
-              </div>
-            )}
-
-            {abaExibida === 'risco' && (
-              <div className="space-y-6 animate-fadeIn text-left">
-                <div>
-                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Central de Risco, Compliance e Fraude</h2>
-                  <p className="text-xs text-stone-400 font-medium mt-0.5">
-                    Monitoramento em tempo real de contestações, inconsistencias cadastrais e integridade dos grupos.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
-                      Taxa de Chargeback
-                    </span>
-                    <span className="text-2xl font-bold tracking-tight text-emerald-600 block mt-2 font-mono">0,00%</span>
-                    <p className="text-[9px] text-stone-400 mt-1">Limite de segurança: até 1,00%</p>
-                  </div>
-
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
-                      Lojas sob Auditoria
-                    </span>
-                    <span className="text-2xl font-bold tracking-tight text-[#0B1E14] block mt-2 font-mono">
-                      {listaLojas.filter((l) => l.statusHomologacao !== 'APROVADO').length}
-                    </span>
-                    <p className="text-[9px] text-amber-600 font-bold mt-1">Aguardando validação ou contestações</p>
-                  </div>
-
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
-                      Inadimplencia Global
-                    </span>
-                    <span className="text-2xl font-bold tracking-tight text-[#0B1E14] block mt-2 font-mono">0,00%</span>
-                    <p className="text-[9px] text-stone-400 mt-1">Garantia das cotas ativas</p>
-                  </div>
-
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
-                      Alertas de Pagamento
-                    </span>
-                    <span className="text-2xl font-bold tracking-tight text-emerald-600 block mt-2 font-mono">0</span>
-                    <p className="text-[9px] text-stone-400 mt-1">Sem bloqueios ativos no Asaas</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2 bg-white border border-[#DFD9CE] rounded-2xl shadow-xs overflow-hidden">
-                    <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex justify-between items-center">
-                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">
-                        Lojas com Pendencias de Compliance
-                      </h3>
-                      <span className="text-[10px] text-stone-400 font-bold font-mono">Validação KYC/KYB</span>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead>
-                          <tr className="bg-stone-50 text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
-                            <th className="py-3.5 px-5">LOJA</th>
-                            <th className="py-3.5 px-5">DOCUMENTO</th>
-                            <th className="py-3.5 px-5 text-center">CONTA ASAAS</th>
-                            <th className="py-3.5 px-5 text-center">AÇÃO</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
-                          {listaLojas.length === 0 ? (
-                            <tr>
-                              <td colSpan={4} className="py-6 text-center text-stone-400 italic">
-                                Nenhum registro em análise.
-                              </td>
-                            </tr>
-                          ) : (
-                            listaLojas.map((loja, idx) => (
-                              <tr key={loja.id || idx} className="hover:bg-stone-50/60 transition-all">
-                                <td className="py-3.5 px-5 font-bold text-[#0B1E14]">{loja.nomeComercial}</td>
-                                <td className="py-3.5 px-5 font-mono text-stone-500">{loja.cnpj}</td>
-                                <td className="py-3.5 px-5 text-center">
-                                  <span
-                                    className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${
-                                      loja.asaasAccountId
-                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                        : 'bg-amber-50 text-amber-700 border-amber-100'
-                                    }`}
-                                  >
-                                    {loja.asaasAccountId ? 'Subconta Ativa' : 'Pendente Asaas'}
-                                  </span>
-                                </td>
-                                <td className="py-3.5 px-5 text-center">
-                                  <button
-                                    onClick={() => setLojaSelecionada(loja)}
-                                    className="text-[10px] font-bold text-[#BD6B42] hover:underline cursor-pointer"
-                                  >
-                                    Auditar Unidade
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  <div className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs space-y-4 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center space-x-2 text-[#0B1E14] mb-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        <h4 className="font-bold text-xs uppercase tracking-wider">Proteção de Split Ativa</h4>
-                      </div>
-                      <p className="text-[11px] text-stone-500 leading-relaxed">
-                        A retenção de 10% da plataforma e o repasse de 90% para a subconta da loja ocorrem de forma
-                        automatizada e protegida via webhook.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2 pt-3 border-t border-stone-100 text-[10px] text-stone-600">
-                      <div className="flex justify-between items-center">
-                        <span>Trava Anti-Chargeback</span>
-                        <span className="font-bold text-emerald-700">Ativada (1.0%)</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span>Validação Bancaria</span>
-                        <span className="font-bold text-emerald-700">Obrigatória</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span>Verificação CPF/CNPJ</span>
-                        <span className="font-bold text-emerald-700">Ativa no Cadastro</span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
