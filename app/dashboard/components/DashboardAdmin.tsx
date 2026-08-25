@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, encerrarSessao } from '../../lib/api';
+import {
+  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from 'recharts';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -27,6 +30,9 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
   // receber porque a loja deu baixa manual e o dinheiro nao passou pela
   // plataforma.
   const [split, setSplit] = useState<any | null>(null);
+
+  // Fonte unica do painel: totais, crescimento, lojas e movimentacao recente.
+  const [visaoGeral, setVisaoGeral] = useState<any | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [processandoStatus, setProcessandoStatus] = useState(false);
 
@@ -40,6 +46,13 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
         setMetricas(data);
       }
     } catch (erro) {
+    }
+
+    try {
+      const resVisao = await apiFetch(`${API_URL}/api/admin/visao-geral`);
+      if (resVisao.ok) setVisaoGeral(await resVisao.json());
+    } catch (erro) {
+      // A tela segue com o que ja tiver; os blocos tratam ausencia de dado.
     }
 
     try {
@@ -224,7 +237,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
         </div>
       </aside>
 
-      <main className="flex-1 p-6 md:p-8 max-w-7xl overflow-x-hidden space-y-6">
+      <main className="flex-1 p-6 md:p-8 overflow-x-hidden space-y-6 min-w-0">
         {lojaSelecionada ? (
           <div className="space-y-6 animate-fadeIn">
             <button
@@ -429,106 +442,200 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
           </div>
         ) : (
           <>
-            {abaExibida === 'geral' && (
-              <div className="space-y-6 animate-fadeIn">
-                <div className="flex justify-between items-center">
+            {abaExibida === 'geral' && (() => {
+              const v = visaoGeral;
+              const dinheiro = (n: any) =>
+                `R$ ${(Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+              // Quanto da taxa de 10% ja foi efetivamente recolhida. Enquanto o
+              // pagamento nao passa pela plataforma, o split nao acontece e o
+              // valor fica em aberto com a loja.
+              const taxaTotal = Number(v?.taxaAvle) || 0;
+              const aReceber = Number(v?.taxaAReceber) || 0;
+              const recolhido = Math.max(0, taxaTotal - aReceber);
+              const pctRecolhido = taxaTotal > 0 ? (recolhido / taxaTotal) * 100 : 0;
+
+              return (
+              <div className="space-y-5 animate-fadeIn">
+
+                <div className="flex flex-wrap justify-between items-center gap-3">
                   <div>
-                    <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Dashboard Analitico</h2>
-                    <p className="text-xs text-stone-400 font-medium">Métricas de performance e engajamento coletivo.</p>
+                    <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Visão geral</h2>
+                    <p className="text-xs text-stone-400 font-medium">A plataforma inteira, em números.</p>
                   </div>
                   <button
                     onClick={carregarDadosDoBanco}
-                    className="text-xs font-bold text-[#0B1E14] bg-white border border-[#DFD9CE] px-3 py-1.5 rounded-xl hover:bg-stone-50 transition-all cursor-pointer"
+                    disabled={carregando}
+                    className="text-[10px] font-bold uppercase tracking-wider px-4 py-2 rounded-xl bg-white border border-[#E6E2D8] text-stone-600 hover:text-[#0B1E14] hover:border-stone-300 transition-all cursor-pointer disabled:opacity-50"
                   >
-                    Atualizar Dados
+                    {carregando ? 'Atualizando...' : 'Atualizar'}
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-xs relative overflow-hidden">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
-                      Volume Transacionado
-                    </span>
-                    <span className="text-2xl font-bold tracking-tight block mt-2 font-mono">
-                      R$ {totalTransacionado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                    <div className="absolute right-3 top-3 w-2 h-2 rounded-full bg-emerald-500"></div>
+                {/* ── Indicadores ── */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-[#0B1E14] text-white p-5 rounded-2xl shadow-sm">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Volume transacionado</span>
+                    <span className="text-2xl font-bold font-mono leading-none block">{dinheiro(v?.faturamentoBruto)}</span>
+                    <span className="text-[10px] text-stone-500 mt-2 block">somando todas as lojas</span>
                   </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Lojas Ativas</span>
-                    <span className="text-2xl font-bold tracking-tight text-[#0B1E14] block mt-2 font-mono">
-                      {listaLojas.length}
+
+                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-2xl shadow-sm">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">
+                      Receita AVLE · {v?.percentualAvle ?? 10}%
+                    </span>
+                    <span className="text-2xl font-bold font-mono leading-none block text-emerald-700">{dinheiro(taxaTotal)}</span>
+                    <span className="text-[10px] text-stone-400 mt-2 block">taxa sobre o volume</span>
+                  </div>
+
+                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-2xl shadow-sm">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Lojas parceiras</span>
+                    <span className="text-2xl font-bold font-mono leading-none block text-[#0B1E14]">{v?.totalLojas ?? 0}</span>
+                    <span className="text-[10px] text-stone-400 mt-2 block">
+                      {(v?.lojasNoMes ?? 0) > 0 ? `+${v?.lojasNoMes} neste mês` : 'nenhuma nova neste mês'}
                     </span>
                   </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Total Participantes</span>
-                    <span className="text-2xl font-bold tracking-tight text-[#0B1E14] block mt-2 font-mono">
-                      {totalClientes}
+
+                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-2xl shadow-sm">
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Clientes</span>
+                    <span className="text-2xl font-bold font-mono leading-none block text-[#0B1E14]">{v?.totalClientes ?? 0}</span>
+                    <span className="text-[10px] text-stone-400 mt-2 block">
+                      {(v?.clientesNoMes ?? 0) > 0 ? `+${v?.clientesNoMes} neste mês` : 'nenhum novo neste mês'}
                     </span>
-                  </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Retenção Média</span>
-                    <span className="text-2xl font-bold tracking-tight text-emerald-600 block mt-2 font-mono">100,0%</span>
                   </div>
                 </div>
 
-                <div className="bg-white border border-[#DFD9CE] rounded-2xl shadow-xs overflow-hidden">
-                  <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex justify-between items-center">
-                    <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">
-                      Lojas Cadastradas no MySQL ({listaLojas.length})
-                    </h3>
-                    <span className="text-[10px] text-stone-400 font-bold uppercase">Clique na linha para auditar</span>
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+
+                  {/* ── Crescimento ── */}
+                  <div className="xl:col-span-2 bg-white border border-[#E6E2D8] rounded-2xl p-5 shadow-sm">
+                    <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
+                      <div>
+                        <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Quem entrou na AVLE</h3>
+                        <p className="text-[10px] text-stone-400 mt-0.5">cadastros por mês · a linha é o total acumulado</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-bold font-mono text-[#0B1E14] leading-none block">{v?.totalPessoas ?? 0}</span>
+                        <span className="text-[9px] text-stone-400 uppercase tracking-wider">pessoas no total</span>
+                      </div>
+                    </div>
+
+                    {(v?.crescimento ?? []).length === 0 ? (
+                      <div className="h-48 flex items-center justify-center text-xs text-stone-400 italic">
+                        Sem cadastros registrados ainda.
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={230}>
+                        <ComposedChart data={v?.crescimento ?? []} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#F0EEE8" vertical={false} />
+                          <XAxis dataKey="mes" tick={{ fontSize: 10, fill: '#78716C', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                          <YAxis yAxisId="e" tick={{ fontSize: 9, fill: '#78716C' }} axisLine={false} tickLine={false} />
+                          <YAxis yAxisId="a" orientation="right" tick={{ fontSize: 9, fill: '#BD6B42' }} axisLine={false} tickLine={false} />
+                          <Tooltip
+                            contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 10 }}
+                            formatter={(valor, nome) => [valor, nome]}
+                          />
+                          <Legend wrapperStyle={{ fontSize: 10, fontWeight: 700 }} />
+                          <Bar yAxisId="e" dataKey="clientes" name="Clientes" fill="#0B1E14" radius={[4, 4, 0, 0]} barSize={26} />
+                          <Bar yAxisId="e" dataKey="lojas" name="Lojas" fill="#BD6B42" radius={[4, 4, 0, 0]} barSize={26} />
+                          <Line yAxisId="a" type="monotone" dataKey="acumulado" name="Total acumulado"
+                            stroke="#BD6B42" strokeWidth={2} dot={{ r: 3, fill: '#BD6B42' }} />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    )}
                   </div>
+
+                  {/* ── Análise: onde está a receita da plataforma ── */}
+                  <div className="bg-[#0B1E14] text-white rounded-2xl p-5 shadow-sm flex flex-col">
+                    <h3 className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Receita da plataforma</h3>
+                    <p className="text-[10px] text-stone-500 mt-0.5 mb-4">quanto dos {v?.percentualAvle ?? 10}% já entrou de fato</p>
+
+                    <div className="mb-5">
+                      <span className="text-3xl font-bold font-mono leading-none block">{dinheiro(recolhido)}</span>
+                      <span className="text-[10px] text-stone-500 mt-1 block">recolhido automaticamente</span>
+                    </div>
+
+                    {/* A barra separa o que o Asaas reteve no ato do que ficou
+                        para cobrar. Sao os dois lados do mesmo percentual. */}
+                    <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-2">
+                      <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${pctRecolhido}%` }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] mb-5">
+                      <span className="text-emerald-400 font-bold">{pctRecolhido.toFixed(0)}% recolhido</span>
+                      <span className="text-amber-400 font-bold">{(100 - pctRecolhido).toFixed(0)}% a cobrar</span>
+                    </div>
+
+                    <div className="mt-auto space-y-3 pt-4 border-t border-white/10">
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-[10px] text-stone-400 uppercase tracking-wider">A receber das lojas</span>
+                        <span className={`text-sm font-bold font-mono ${aReceber > 0 ? 'text-amber-400' : 'text-stone-500'}`}>
+                          {dinheiro(aReceber)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-[10px] text-stone-400 uppercase tracking-wider">Repassado às lojas</span>
+                        <span className="text-sm font-bold font-mono text-stone-300">{dinheiro(v?.repasseLojas)}</span>
+                      </div>
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-[10px] text-stone-400 uppercase tracking-wider">Grupos · cotas</span>
+                        <span className="text-sm font-bold font-mono text-stone-300">
+                          {v?.totalGrupos ?? 0} · {v?.totalCotas ?? 0}
+                        </span>
+                      </div>
+                    </div>
+
+                    {aReceber > 0 && (
+                      <p className="text-[10px] text-amber-300/90 leading-relaxed mt-4 pt-4 border-t border-white/10">
+                        O valor a cobrar vem de baixa manual: a cliente pagou na loja e o dinheiro não passou
+                        pelo Asaas, então a taxa não foi retida no ato.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Lojas ── */}
+                <div className="bg-white border border-[#E6E2D8] rounded-2xl shadow-sm overflow-hidden">
+                  <div className="px-5 py-4 border-b border-[#E6E2D8] flex flex-wrap justify-between items-center gap-2">
+                    <div>
+                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Lojas parceiras</h3>
+                      <p className="text-[10px] text-stone-400">ordenadas por volume transacionado</p>
+                    </div>
+                    <button
+                      onClick={() => setAbaExibida('lojas')}
+                      className="text-[10px] font-bold uppercase tracking-wider text-[#BD6B42] hover:underline cursor-pointer"
+                    >
+                      Ver todas
+                    </button>
+                  </div>
+
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
+                    <table className="w-full text-left text-xs border-collapse min-w-[720px]">
                       <thead>
-                        <tr className="bg-stone-50 text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
-                          <th className="py-3.5 px-5">LOJA</th>
-                          <th className="py-3.5 px-5">CNPJ</th>
-                          <th className="py-3.5 px-5 text-center">LIMITE ATUAL</th>
-                          <th className="py-3.5 px-5 text-center">STATUS</th>
+                        <tr className="bg-stone-50/60 text-stone-400 uppercase font-bold text-[9px] tracking-widest border-b border-[#E6E2D8]">
+                          <th className="py-3 px-5">Loja</th>
+                          <th className="py-3 px-5 text-right">Clientes</th>
+                          <th className="py-3 px-5 text-right">Grupos</th>
+                          <th className="py-3 px-5 text-right">Volume</th>
+                          <th className="py-3 px-5 text-right">Receita AVLE</th>
+                          <th className="py-3 px-5 text-right">A receber</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#DFD9CE] text-stone-700">
-                        {carregando ? (
-                          <tr>
-                            <td colSpan={4} className="py-6 text-center text-stone-400 italic font-medium">
-                              Carregando lojas cadastradas...
-                            </td>
-                          </tr>
-                        ) : listaLojas.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="py-6 text-center text-stone-400 italic font-medium">
-                              Nenhuma loja cadastrada no sistema.
-                            </td>
-                          </tr>
+                      <tbody className="divide-y divide-[#EFEAE1]">
+                        {(v?.lojas ?? []).length === 0 ? (
+                          <tr><td colSpan={6} className="py-8 text-center text-stone-400 italic">Nenhuma loja cadastrada.</td></tr>
                         ) : (
-                          listaLojas.map((loja, idx) => (
-                            <tr
-                              key={loja.id || idx}
-                              onClick={() => setLojaSelecionada(loja)}
-                              className="hover:bg-stone-50/60 transition-all cursor-pointer group"
-                            >
-                              <td className="py-3.5 px-5 font-bold text-[#0B1E14] group-hover:text-[#BD6B42]">
-                                {loja.nomeComercial}
+                          (v?.lojas ?? []).map((l: any) => (
+                            <tr key={l.id} className="hover:bg-stone-50/50 transition-colors">
+                              <td className="py-3.5 px-5">
+                                <span className="block font-bold text-[#0B1E14]">{l.nome}</span>
+                                <span className="text-[10px] text-stone-400 font-mono">{l.cnpj}</span>
                               </td>
-                              <td className="py-3.5 px-5 font-mono text-stone-600">{loja.cnpj}</td>
-                              <td className="py-3.5 px-5 text-center font-mono font-bold text-[#0B1E14]">
-                                {loja.limiteGruposAtivos || 1}
-                              </td>
-                              <td className="py-3.5 px-5 text-center">
-                                <span
-                                  className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${
-                                    loja.statusHomologacao === 'PENDENTE'
-                                      ? 'bg-amber-50 text-amber-700 border-amber-100'
-                                      : loja.statusHomologacao === 'BLOQUEADO' ||
-                                        loja.statusHomologacao === 'AUDITORIA_CHARGEBACK'
-                                      ? 'bg-rose-50 text-rose-700 border-rose-100'
-                                      : 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                  }`}
-                                >
-                                  {loja.statusHomologacao}
-                                </span>
+                              <td className="py-3.5 px-5 text-right font-mono text-stone-600">{l.clientes}</td>
+                              <td className="py-3.5 px-5 text-right font-mono text-stone-600">{l.grupos}</td>
+                              <td className="py-3.5 px-5 text-right font-mono font-bold text-[#0B1E14]">{dinheiro(l.faturamentoBruto)}</td>
+                              <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">{dinheiro(l.taxaAvle)}</td>
+                              <td className={`py-3.5 px-5 text-right font-mono font-bold ${Number(l.taxaAReceber) > 0 ? 'text-amber-700' : 'text-stone-300'}`}>
+                                {dinheiro(l.taxaAReceber)}
                               </td>
                             </tr>
                           ))
@@ -538,7 +645,8 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   </div>
                 </div>
               </div>
-            )}
+              );
+            })()}
 
             {abaExibida === 'lojas' && (
               <div className="space-y-6 animate-fadeIn">
@@ -879,6 +987,52 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
           </>
         )}
       </main>
+
+      {/* Movimentacao recente. Fica fora do <main> para acompanhar a rolagem em
+          tela grande e cair para baixo do conteudo no celular. */}
+      {abaExibida === 'geral' && !lojaSelecionada && (
+        <aside className="w-full xl:w-80 flex-shrink-0 p-6 md:p-8 xl:pl-0 space-y-5">
+          <div className="bg-white border border-[#E6E2D8] rounded-2xl shadow-sm overflow-hidden xl:sticky xl:top-8">
+            <div className="px-5 py-4 border-b border-[#E6E2D8]">
+              <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Movimentação</h3>
+              <p className="text-[10px] text-stone-400">o que aconteceu por último na plataforma</p>
+            </div>
+
+            <div className="divide-y divide-[#EFEAE1] max-h-[32rem] overflow-y-auto">
+              {(visaoGeral?.atividades ?? []).length === 0 ? (
+                <p className="px-5 py-8 text-center text-xs text-stone-400 italic">Nada registrado ainda.</p>
+              ) : (
+                (visaoGeral?.atividades ?? []).map((a: any, i: number) => {
+                  // A cor separa o tipo de evento sem precisar de rotulo extra.
+                  const cor =
+                    a.tipo === 'LOJA' ? 'bg-[#BD6B42]' :
+                    a.tipo === 'SORTEIO' ? 'bg-amber-500' :
+                    a.tipo === 'GRUPO' ? 'bg-emerald-600' : 'bg-[#0B1E14]';
+
+                  const quando = a.quando ? new Date(a.quando) : null;
+                  const minutos = quando ? Math.floor((Date.now() - quando.getTime()) / 60000) : null;
+                  const relativo =
+                    minutos === null ? '' :
+                    minutos < 60 ? `há ${Math.max(1, minutos)} min` :
+                    minutos < 1440 ? `há ${Math.floor(minutos / 60)} h` :
+                    quando!.toLocaleDateString('pt-BR');
+
+                  return (
+                    <div key={i} className="px-5 py-3.5 flex gap-3 hover:bg-stone-50/60 transition-colors">
+                      <span className={`w-2 h-2 rounded-full ${cor} mt-1.5 flex-shrink-0`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-bold text-[#0B1E14] leading-tight">{a.titulo}</p>
+                        <p className="text-[11px] text-stone-500 truncate">{a.detalhe}</p>
+                        <p className="text-[10px] text-stone-400 mt-0.5">{relativo}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </aside>
+      )}
     </div>
   );
 }
