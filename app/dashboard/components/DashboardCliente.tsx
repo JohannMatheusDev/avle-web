@@ -361,7 +361,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   }
 
                   setLojaEmFoco(lojaDoConvite);
-                  setNivelVisao('grupos');
+                  if (!abriuGrupoDireto.current) setNivelVisao('grupos');
                   setCarregandoGrupos(true);
                   
                   apiFetch(`${API_URL}/api/grupos/loja/${lojaDoConvite.id}`)
@@ -378,7 +378,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 if (lojaDaPessoa) {
                     setLojaBloqueadaId(lojaDaPessoa.id);
                     setLojaEmFoco(lojaDaPessoa);
-                    setNivelVisao('grupos');
+                    if (!abriuGrupoDireto.current) setNivelVisao('grupos');
                     setCarregandoGrupos(true);
                     
                     apiFetch(`${API_URL}/api/grupos/loja/${lojaVinculadaId}`)
@@ -614,6 +614,35 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     setSaldoPoupanca(Number(clube.saldoPoupanca) || 0);
     setNivelVisao('dashboard');
   };
+
+  // Quem ja tem plano nao deveria precisar navegar para pagar. Antes a cliente
+  // caia na lista de lojas ou de grupos e so encontrava o botao de pagar depois
+  // de dois cliques - e quem nao esta acostumada com painel simplesmente nao
+  // achava. Com um plano so, o painel abre dentro dele.
+  //
+  // Roda uma vez por sessao: sem isso, quem clicasse em "voltar para os clubes"
+  // seria arrastada de volta para dentro do grupo e ficaria presa.
+  const aberturaAutomaticaFeita = useRef(false);
+
+  // Separado do de cima de proposito: este marca que a tela realmente entrou no
+  // grupo. A busca das lojas termina depois e manda a cliente para a lista de
+  // grupos; sem saber que ja entramos, ela jogaria a cliente para fora do
+  // painel que acabou de abrir.
+  const abriuGrupoDireto = useRef(false);
+
+  useEffect(() => {
+    if (aberturaAutomaticaFeita.current) return;
+    if (clubesAtivos.length === 0) return;
+
+    aberturaAutomaticaFeita.current = true;
+
+    // Com mais de um plano a escolha e dela: abrir um por conta propria
+    // esconderia os outros. Nesse caso o atalho de pagamento fica na lista.
+    if (clubesAtivos.length > 1) return;
+
+    abriuGrupoDireto.current = true;
+    handleMudarClubeEmExibicao(clubesAtivos[0]);
+  }, [clubesAtivos]);
 
   // Variável que diz se o painel deve ser isolado
   const isClienteAmarrado = !!lojaBloqueadaId;
@@ -859,6 +888,38 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
               </div>
             ))}
+
+            {/* Atalho de pagamento para quem tem mais de um plano e por isso nao
+                cai direto dentro de um deles. Fica antes das listas porque e a
+                unica coisa que a cliente precisa achar sem procurar. */}
+            {nivelVisao !== 'dashboard' && clubesAtivos.length > 0 && (
+              <div className="mb-6 space-y-3">
+                {clubesAtivos.map((clube) => (
+                  <div
+                    key={clube.cotaId}
+                    className="bg-[#0B1E14] text-white rounded-2xl p-5 shadow-lg border-t-2 border-t-[#BD6B42] flex flex-wrap items-center justify-between gap-4"
+                  >
+                    <div className="min-w-0">
+                      <span className="block text-[9px] font-black uppercase tracking-widest text-stone-400 mb-1">
+                        Parcela deste mês
+                      </span>
+                      <span className="block text-3xl font-bold font-mono leading-none">
+                        R$ {(Number(clube.grupo?.valorParcela) || 0).toFixed(2)}
+                      </span>
+                      <span className="block text-[11px] text-stone-400 mt-1.5 truncate">
+                        {clube.grupo?.nome || 'Meu plano'}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleMudarClubeEmExibicao(clube)}
+                      className="bg-[#BD6B42] text-white px-6 py-4 rounded-xl text-sm font-bold uppercase tracking-wider hover:brightness-110 active:brightness-95 transition-all cursor-pointer shadow-md w-full sm:w-auto"
+                    >
+                      Pagar parcela
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {nivelVisao === 'lojas' && !isClienteAmarrado && (
               <div className="space-y-6 text-left">
