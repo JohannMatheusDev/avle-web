@@ -7,6 +7,7 @@
 // O backend passou a enviar dois campos novos em GET /api/grupos/loja/:id:
 //   status        'ABERTO' | 'ENCERRADO'
 //   cotasOcupadas quantas cotas do grupo ja estao preenchidas
+//   permiteEntradaAposEncerrar  excecao da loja, explicada em grupoDisponivel
 //
 // Os dois sao opcionais de proposito. Enquanto a API antiga nao envia nada, o
 // grupo e tratado como aberto e a tela se comporta como antes, sem esconder
@@ -16,6 +17,7 @@ export interface GrupoComVagas {
   quantidadeMaxCotas?: number | null;
   cotasOcupadas?: number | null;
   status?: string | null;
+  permiteEntradaAposEncerrar?: boolean | null;
 }
 
 export function grupoEncerrado(grupo: GrupoComVagas | null | undefined): boolean {
@@ -39,8 +41,14 @@ export function grupoLotado(grupo: GrupoComVagas | null | undefined): boolean {
 }
 
 // Um grupo so aparece para a cliente entrar se nao encerrou e ainda tem vaga.
+//
+// A excecao existe para a loja que fechou o grupo e depois perdeu gente no meio
+// do periodo. A vaga de quem desistiu continua valendo, mas a regra normal
+// sumia com o grupo inteiro e deixava esse lugar preso ate a loja reabrir tudo.
+// Quando a loja tem a excecao ligada, o grupo encerrado volta a aparecer - e
+// ainda assim so enquanto sobrar vaga, que e o ponto todo.
 export function grupoDisponivel(grupo: GrupoComVagas | null | undefined): boolean {
-  if (grupoEncerrado(grupo)) return false;
+  if (grupoEncerrado(grupo) && !grupo?.permiteEntradaAposEncerrar) return false;
 
   const vagas = vagasDoGrupo(grupo);
   return vagas === null ? true : vagas > 0;

@@ -31,6 +31,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [modalCheckoutAberto, setModalCheckoutAberto] = useState(false);
 
   const [nivelVisao, setNivelVisao] = useState<'lojas' | 'grupos' | 'dashboard'>('lojas');
+
+  // No celular o menu vira gaveta. A barra lateral inteira ocupava a primeira
+  // tela inteira antes de qualquer conteudo aparecer, e a cliente abria o painel
+  // vendo menu em vez de ver o proprio plano.
+  const [menuAberto, setMenuAberto] = useState(false);
   const [lojaEmFoco, setLojaEmFoco] = useState<any | null>(null);
   const [gruposDaLoja, setGruposDaLoja] = useState<any[]>([]);
   const [carregandoGrupos, setCarregandoGrupos] = useState(false);
@@ -616,10 +621,46 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   return (
     <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5]">
 
-      <aside className="w-full md:w-64 bg-[#0B1E14] text-[#E3EAE6] flex flex-col justify-between p-6 flex-shrink-0">
+      <header className="md:hidden sticky top-0 z-30 bg-[#0B1E14] text-white flex items-center gap-3 px-4 py-3 shadow-md">
+        <button
+          onClick={() => setMenuAberto(true)}
+          aria-label="Abrir menu"
+          className="p-1.5 -ml-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+        >
+          <span className="block w-6 h-0.5 bg-current rounded-full" />
+          <span className="block w-6 h-0.5 bg-current rounded-full mt-1.5" />
+          <span className="block w-6 h-0.5 bg-current rounded-full mt-1.5" />
+        </button>
+        <span className="flex-1 text-xs font-bold uppercase tracking-wider truncate">
+          {usuario?.nome || 'Painel'}
+        </span>
+        <button
+          onClick={() => { setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }}
+          className="w-9 h-9 rounded-full bg-[#EFEAE2] text-[#0B1E14] flex items-center justify-center overflow-hidden font-bold text-[11px] shrink-0 cursor-pointer"
+        >
+          {fotoPerfil ? (
+            <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
+          ) : (
+            usuario?.nome ? usuario.nome.substring(0, 2).toUpperCase() : 'AV'
+          )}
+        </button>
+      </header>
+
+      {menuAberto && (
+        <div
+          onClick={() => setMenuAberto(false)}
+          className="md:hidden fixed inset-0 bg-black/50 z-40 animate-fadeIn"
+        />
+      )}
+
+      <aside
+        className={`fixed md:static inset-y-0 left-0 z-50 w-72 md:w-64 bg-[#0B1E14] text-[#E3EAE6] flex flex-col justify-between p-6 flex-shrink-0 overflow-y-auto transition-transform duration-200 md:transition-none ${
+          menuAberto ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
         <div>
           <div className="flex flex-col items-center text-center pb-6 border-b border-white/10 mb-6">
-            <div className="w-16 h-16 rounded-full bg-[#EFEAE2] flex items-center justify-center overflow-hidden font-bold text-xl text-[#0B1E14] shadow-md cursor-pointer hover:scale-105 transition-all" onClick={() => { setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }}>
+            <div className="w-16 h-16 rounded-full bg-[#EFEAE2] flex items-center justify-center overflow-hidden font-bold text-xl text-[#0B1E14] shadow-md cursor-pointer hover:scale-105 transition-all" onClick={() => { setMenuAberto(false); setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }}>
               {fotoPerfil ? (
                 <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
               ) : (
@@ -642,6 +683,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 <button
                   key={aba.id}
                   onClick={() => {
+                    setMenuAberto(false);
                     setAbaAtiva(aba.id as any);
                     if (aba.id === 'inicio') {
                       if (isClienteAmarrado || lojaEmFoco) {
@@ -668,7 +710,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
         <div className="pt-4 border-t border-white/10 flex justify-between items-center text-xs">
           <button
-            onClick={() => { setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }}
+            onClick={() => { setMenuAberto(false); setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }}
             className={`text-[11px] font-bold tracking-widest uppercase transition-all cursor-pointer border-l-2 pl-3 py-1 ${
               abaAtiva === 'perfil' ? 'border-[#BD6B42] text-white' : 'border-transparent text-stone-500 hover:text-stone-300'
             }`}
@@ -684,7 +726,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         </div>
       </aside>
 
-      <main className="flex-1 p-6 md:p-8 max-w-7xl overflow-x-hidden space-y-6">
+      <main className="flex-1 p-4 md:p-8 max-w-7xl overflow-x-hidden space-y-6">
 
         {abaAtiva === 'inicio' && (
           <div className="animate-fadeIn">
@@ -1084,6 +1126,67 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </span>
                 </div>
 
+                {/* Pagar e o que a cliente vem fazer aqui, entao e a primeira
+                    coisa da tela. Antes o botao ficava no cabecalho de uma
+                    tabela la embaixo, depois de dois blocos de cartoes e dois
+                    graficos - no celular, quatro telas de rolagem abaixo. */}
+                {etapaAtual !== 4 ? (
+                  <div className="bg-[#0B1E14] text-white rounded-2xl p-5 sm:p-6 shadow-lg border-t-2 border-t-[#BD6B42]">
+                    <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+                      <div>
+                        <span className="block text-[9px] font-black uppercase tracking-widest text-stone-400 mb-1.5">
+                          Parcela deste mês
+                        </span>
+                        <span className="text-4xl font-bold font-mono leading-none block">
+                          R$ {valorMensalidade.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="block text-[9px] font-black uppercase tracking-widest text-stone-400 mb-1.5">
+                          Vence em
+                        </span>
+                        <span className="text-xl font-bold font-mono leading-none block">
+                          {dataVencimentoCota || '--/--'}
+                        </span>
+                        <span
+                          className={`block text-[10px] font-bold mt-1 ${
+                            diasRestantesVencimento < 0
+                              ? 'text-rose-400'
+                              : diasRestantesVencimento <= 3
+                                ? 'text-amber-400'
+                                : 'text-stone-400'
+                          }`}
+                        >
+                          {diasRestantesVencimento < 0
+                            ? `${Math.abs(diasRestantesVencimento)} dia${Math.abs(diasRestantesVencimento) === 1 ? '' : 's'} em atraso`
+                            : diasRestantesVencimento === 0
+                              ? 'vence hoje'
+                              : `faltam ${diasRestantesVencimento} dia${diasRestantesVencimento === 1 ? '' : 's'}`}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setModalCheckoutAberto(true)}
+                      className="w-full bg-[#BD6B42] text-white py-4 rounded-xl text-sm font-bold uppercase tracking-wider hover:brightness-110 active:brightness-95 transition-all cursor-pointer shadow-md"
+                    >
+                      Pagar parcela
+                    </button>
+                    <p className="text-[10px] text-stone-400 text-center mt-2.5">
+                      Pix ou cartão · o comprovante entra no seu histórico
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center">
+                    <span className="block text-[9px] font-black uppercase tracking-widest text-emerald-700 mb-1">
+                      Plano quitado
+                    </span>
+                    <p className="text-xs text-emerald-800">
+                      Não há parcela em aberto nesta cota. Nada a pagar por aqui.
+                    </p>
+                  </div>
+                )}
+
                 {/* ── Datas fixas ── */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className={`flex items-center justify-between px-5 py-3.5 rounded-xl border ${
@@ -1122,16 +1225,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-sm relative overflow-hidden border-t-2 border-t-[#BD6B42]">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Saldo de Poupança</span>
                     <span className="text-3xl font-bold tracking-tight block font-mono leading-none">R$ {saldoPoupanca.toFixed(2)}</span>
                     <span className="text-[10px] text-stone-500 mt-2 block">acumulado na cota</span>
-                  </div>
-                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#BD6B42] p-5 rounded-xl shadow-sm flex flex-col">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Vencimento da Parcela</span>
-                    <span className="text-3xl font-bold text-[#BD6B42] font-mono leading-none">{dataVencimentoCota || '--/--'}</span>
-                    <span className="text-[10px] text-stone-400 mt-2">5º dia útil do mês</span>
                   </div>
                   <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#0B1E14] p-5 rounded-xl shadow-sm flex flex-col">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Vigência do Plano</span>
@@ -1195,11 +1293,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         onClick={() => setModalCheckoutAberto(true)}
                         className="bg-[#0B1E14] text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 cursor-pointer shadow-xs"
                       >
-                        Liquidar Nova Parcela
+                        Pagar parcela
                       </button>
                     )}
                   </div>
-                  <table className="w-full text-left text-xs border-collapse">
+                  <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse min-w-[420px]">
                     <thead>
                       <tr className="bg-stone-50 text-stone-400 font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                         <th className="py-3.5 px-5">CICLO</th>
@@ -1227,6 +1326,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       )}
                     </tbody>
                   </table>
+                  </div>
                 </div>
 
               </div>
@@ -1242,7 +1342,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               <p className="text-xs text-stone-400 mt-1">Extrato detalhado de cada aporte e parcela liquidada em todas as suas unidades ativas.</p>
             </div>
             <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
-              <table className="w-full text-left text-xs border-collapse">
+              <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse min-w-[520px]">
                 <thead>
                   <tr className="bg-stone-50 text-stone-400 font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                     <th className="py-3.5 px-5">LOJA PARCEIRA</th>
@@ -1284,6 +1385,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}
