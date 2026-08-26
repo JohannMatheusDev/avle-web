@@ -83,6 +83,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [listaClientesLoja, setListaClientesLoja] = useState<any[]>([]);
   const [modalNovoGrupoAberto, setModalNovoGrupoAberto] = useState(false);
 
+  // Cadastro da propria loja, editavel na aba de configuracoes.
+  const [dadosLoja, setDadosLoja] = useState<any | null>(null);
+  const [carregandoDadosLoja, setCarregandoDadosLoja] = useState(false);
+  const [salvandoDadosLoja, setSalvandoDadosLoja] = useState(false);
+
   const [modalNovoClienteAberto, setModalNovoClienteAberto] = useState(false);
   const [nomeCliente, setNomeCliente] = useState('');
   const [emailCliente, setEmailCliente] = useState('');
@@ -1222,6 +1227,70 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       mostrarAviso('Erro de Salvamento', err.message, true);
     } finally {
       setEnviandoPdf(false);
+    }
+  };
+
+  const carregarDadosDaLoja = async () => {
+    const lojaId = usuario?.lojaId || usuario?.id;
+    if (!lojaId) return;
+
+    setCarregandoDadosLoja(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/dados`);
+      if (!res.ok) throw new Error(await lerMensagemErro(res));
+      setDadosLoja(await res.json());
+    } catch (err: any) {
+      mostrarAviso('Erro ao carregar', err.message || 'Não foi possível ler os dados da loja.', true);
+    } finally {
+      setCarregandoDadosLoja(false);
+    }
+  };
+
+  // Busca uma vez, ao abrir a aba. Recarregar a cada visita descartaria o que a
+  // pessoa digitou e ainda nao salvou.
+  useEffect(() => {
+    if (abaLoja === 'configuracoes' && dadosLoja === null && !carregandoDadosLoja) {
+      carregarDadosDaLoja();
+    }
+  }, [abaLoja]);
+
+  const alterarCampoDaLoja = (campo: string, valor: string) =>
+    setDadosLoja((atual: any) => ({ ...(atual ?? {}), [campo]: valor }));
+
+  const handleSalvarDadosDaLoja = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const lojaId = usuario?.lojaId || usuario?.id;
+    if (!lojaId || !dadosLoja) return;
+
+    setSalvandoDadosLoja(true);
+    try {
+      // Só os campos editáveis. CNPJ e status de homologação vêm na mesma
+      // resposta para a loja consultar, mas quem os altera é a AVLE.
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nomeComercial: dadosLoja.nomeComercial,
+          telefone: dadosLoja.telefone,
+          cep: dadosLoja.cep,
+          chavePix: dadosLoja.chavePix,
+          faturamento: dadosLoja.faturamento,
+          bancoCodigo: dadosLoja.bancoCodigo,
+          agencia: dadosLoja.agencia,
+          conta: dadosLoja.conta,
+          contaDigito: dadosLoja.contaDigito,
+          tipoConta: dadosLoja.tipoConta,
+          asaasWalletId: dadosLoja.asaasWalletId,
+        }),
+      });
+      if (!res.ok) throw new Error(await lerMensagemErro(res));
+
+      setDadosLoja(await res.json());
+      mostrarAviso('Dados salvos', 'O cadastro da sua loja foi atualizado.', false);
+    } catch (err: any) {
+      mostrarAviso('Não foi possível salvar', err.message || 'Tente novamente.', true);
+    } finally {
+      setSalvandoDadosLoja(false);
     }
   };
 
@@ -2613,7 +2682,145 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             )}
 
             {abaLoja === 'configuracoes' && (
-              <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6 text-left max-w-xl animate-fadeIn">
+              <div className="space-y-6 text-left max-w-xl animate-fadeIn">
+
+              <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6">
+                <div>
+                  <h3 className="font-serif font-bold text-lg text-[#0B1E14] uppercase tracking-wide">Cadastro da Loja</h3>
+                  <p className="text-stone-400 text-xs mt-1 leading-relaxed">
+                    Estes são os dados que aparecem para as suas clientes e que definem para onde vai a sua parte de cada pagamento.
+                  </p>
+                </div>
+
+                {carregandoDadosLoja ? (
+                  <p className="text-xs text-stone-400 italic py-4">Carregando o cadastro da loja...</p>
+                ) : !dadosLoja ? (
+                  <p className="text-xs text-rose-600 py-4">Não foi possível carregar o cadastro desta loja.</p>
+                ) : (
+                  <form onSubmit={handleSalvarDadosDaLoja} className="space-y-5 text-xs">
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Nome da Loja</label>
+                        <input
+                          type="text"
+                          value={dadosLoja.nomeComercial ?? ''}
+                          onChange={(e) => alterarCampoDaLoja('nomeComercial', e.target.value)}
+                          className="w-full border border-[#DFD9CE] rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#BD6B42] transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Telefone</label>
+                        <input
+                          type="text"
+                          value={dadosLoja.telefone ? aplicarMascaraTelefone(dadosLoja.telefone) : ''}
+                          onChange={(e) => alterarCampoDaLoja('telefone', e.target.value)}
+                          placeholder="(00) 00000-0000"
+                          className="w-full border border-[#DFD9CE] rounded-xl px-3.5 py-2.5 font-mono focus:outline-none focus:border-[#BD6B42] transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">CEP</label>
+                        <input
+                          type="text"
+                          value={dadosLoja.cep ?? ''}
+                          onChange={(e) => alterarCampoDaLoja('cep', e.target.value)}
+                          placeholder="00000000"
+                          className="w-full border border-[#DFD9CE] rounded-xl px-3.5 py-2.5 font-mono focus:outline-none focus:border-[#BD6B42] transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="border-t border-[#DFD9CE] pt-5 space-y-4">
+                      <div>
+                        <h4 className="text-[11px] font-bold text-[#0B1E14] uppercase tracking-wider">Recebimento</h4>
+                        <p className="text-[10px] text-stone-400 mt-0.5">Para onde vão os 90% de cada parcela paga pelas suas clientes.</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Wallet ID do Asaas</label>
+                        <input
+                          type="text"
+                          value={dadosLoja.asaasWalletId ?? ''}
+                          onChange={(e) => alterarCampoDaLoja('asaasWalletId', e.target.value)}
+                          placeholder="00000000-0000-0000-0000-000000000000"
+                          className="w-full border border-[#DFD9CE] rounded-xl px-3.5 py-2.5 font-mono focus:outline-none focus:border-[#BD6B42] transition-colors"
+                        />
+                        <p className="text-[10px] text-stone-400 mt-1.5 leading-relaxed">
+                          Está na sua conta do Asaas, em Configurações · Integrações. Sem ele, o sistema não
+                          consegue separar a sua parte do pagamento. <strong className="text-stone-500">Confira antes de salvar:
+                          um número errado manda o dinheiro para outro lugar.</strong>
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Chave Pix</label>
+                        <input
+                          type="text"
+                          value={dadosLoja.chavePix ?? ''}
+                          onChange={(e) => alterarCampoDaLoja('chavePix', e.target.value)}
+                          className="w-full border border-[#DFD9CE] rounded-xl px-3.5 py-2.5 font-mono focus:outline-none focus:border-[#BD6B42] transition-colors"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Banco</label>
+                          <input type="text" value={dadosLoja.bancoCodigo ?? ''}
+                            onChange={(e) => alterarCampoDaLoja('bancoCodigo', e.target.value)}
+                            className="w-full border border-[#DFD9CE] rounded-xl px-3 py-2.5 font-mono focus:outline-none focus:border-[#BD6B42]" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Agência</label>
+                          <input type="text" value={dadosLoja.agencia ?? ''}
+                            onChange={(e) => alterarCampoDaLoja('agencia', e.target.value)}
+                            className="w-full border border-[#DFD9CE] rounded-xl px-3 py-2.5 font-mono focus:outline-none focus:border-[#BD6B42]" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Conta</label>
+                          <input type="text" value={dadosLoja.conta ?? ''}
+                            onChange={(e) => alterarCampoDaLoja('conta', e.target.value)}
+                            className="w-full border border-[#DFD9CE] rounded-xl px-3 py-2.5 font-mono focus:outline-none focus:border-[#BD6B42]" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Dígito</label>
+                          <input type="text" value={dadosLoja.contaDigito ?? ''}
+                            onChange={(e) => alterarCampoDaLoja('contaDigito', e.target.value)}
+                            className="w-full border border-[#DFD9CE] rounded-xl px-3 py-2.5 font-mono focus:outline-none focus:border-[#BD6B42]" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-[#DFD9CE] pt-5">
+                      <h4 className="text-[11px] font-bold text-[#0B1E14] uppercase tracking-wider mb-3">Definido pela AVLE</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">CNPJ</span>
+                          <span className="font-mono text-stone-500">{dadosLoja.cnpj || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Homologação</span>
+                          <span className="font-bold text-stone-600">{dadosLoja.statusHomologacao || '—'}</span>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-stone-400 mt-2.5 leading-relaxed">
+                        O CNPJ é a identidade conferida na Receita e usada na sua conta do Asaas. Para corrigir
+                        qualquer um destes, fale com a AVLE.
+                      </p>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={salvandoDadosLoja}
+                      className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50 hover:bg-opacity-95 transition-all"
+                    >
+                      {salvandoDadosLoja ? 'Salvando...' : 'Salvar Cadastro'}
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6">
                 <div>
                   <h3 className="font-serif font-bold text-lg text-[#0B1E14] uppercase tracking-wide">Regulamento Operacional da Loja</h3>
                   <p className="text-stone-400 text-xs mt-1 leading-relaxed">
@@ -2649,6 +2856,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     {enviandoPdf ? 'Processando e Gravando...' : 'Salvar Regulamento Contratual'}
                   </button>
                 </form>
+              </div>
+
               </div>
             )}
           </>
