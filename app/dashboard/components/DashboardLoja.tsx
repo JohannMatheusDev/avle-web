@@ -376,6 +376,60 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
    * o restante dos dados ainda esta vindo: a lista ja sabe o nome, e mostrar um
    * cartao em branco por meio segundo passa a impressao de que travou.
    */
+  /**
+   * A ficha refeita com o que a tela ja tem em maos.
+   *
+   * A listagem de integrantes ja traz saldo, sorteio e entrega de cada
+   * participante, e o grupo aberto tem o valor da parcela e a duracao. Da para
+   * remontar quase toda a ficha daqui sem pedir nada ao servidor.
+   *
+   * Serve para quando a rota da ficha nao existe no ar - o backend sobe em
+   * outro momento que o painel, entao a tela nova conversa com a API antiga
+   * durante um tempo. Mostrar o que se sabe e melhor do que um erro vermelho
+   * por cima de dados que estao ali.
+   */
+  const fichaMontadaLocalmente = (usuarioId: number) => {
+    const participante = participantesDoGrupo.find((p) => p.usuarioId === usuarioId);
+    if (!participante) return null;
+
+    const valorParcela = Number(grupoSelecionado?.valorParcela) || 0;
+    const duracao = Number(grupoSelecionado?.duracaoMeses) || 0;
+    const saldo = Number(participante.saldoPoupanca) || 0;
+    const total = valorParcela * duracao;
+    const pagas = valorParcela > 0 ? Math.floor(saldo / valorParcela) : 0;
+
+    return {
+      parcial: true,
+      id: usuarioId,
+      nome: participante.nome,
+      email: participante.email,
+      numeroCliente: participante.numeroCliente ?? null,
+      temCota: true,
+      cotaId: participante.numeroCota,
+      grupoNome: grupoSelecionado?.nome,
+      valorParcela,
+      saldoPago: saldo,
+      valorTotalPlano: total,
+      parcelasPagas: pagas,
+      parcelasTotal: duracao,
+      parcelasRestantes: Math.max(0, duracao - pagas),
+      percentualPago: total > 0 ? (saldo * 100) / total : 0,
+      faltaPagar: Math.max(0, total - saldo),
+
+      // Dizer "em dia" ou "em atraso" exige a mesma conta que o servidor faz.
+      // Refazer aqui por cima criaria uma segunda versao da verdade, entao a
+      // tela assume que nao sabe.
+      situacao: 'INDEFINIDA',
+      foiSorteada: participante.foiSorteada,
+      dataContemplacao: participante.dataContemplacao,
+      dataEntrega: participante.dataEntrega,
+      statusEntrega: participante.statusEntrega,
+      outrosGrupos: Math.max(0, (Number(participante.qtdGrupos) || 1) - 1),
+      transacoes: [],
+      planos: [],
+    };
+  };
+
   const abrirFichaDoCliente = async (usuarioId: number | undefined, nome: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!usuarioId) return;
@@ -384,11 +438,20 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
     // A ficha e sempre lida no contexto do grupo aberto: a pergunta da loja e
     // como esta cliente esta neste plano, e nao quem ela e no cadastro.
-    const dados = await buscarJson<any>(
-      'Ficha do cliente',
-      `${API_URL}/api/usuarios/${usuarioId}/ficha/${grupoSelecionado?.id}`,
-      null,
-    );
+    let dados: any = null;
+    try {
+      const res = await apiFetch(`${API_URL}/api/usuarios/${usuarioId}/ficha/${grupoSelecionado?.id}`);
+      if (res.ok) dados = await res.json();
+    } catch {
+      // Sem rede ou sem a rota: o caminho de baixo resolve.
+    }
+
+    if (!dados) dados = fichaMontadaLocalmente(usuarioId);
+
+    // A ficha nao registra falha de secao: ela tem plano B, e o aviso vermelho
+    // no topo da tela diria que os numeros do grupo estao zerados, o que nao e
+    // verdade.
+    limparErro('Ficha do cliente');
     setFichaCliente({ aberta: true, carregando: false, nome, dados });
   };
 
@@ -3546,6 +3609,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <p className="text-xs text-rose-600 py-6 text-center">Não foi possível carregar a ficha desta cliente.</p>
                     ) : (
                       <>
+                        {f.parcial && (
+                          <div className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 leading-relaxed">
+                            <strong>Ficha parcial.</strong> O servidor ainda não tem a consulta completa, então
+                            estes números foram montados a partir da lista de integrantes. Faltam CPF, telefone,
+                            foto, histórico de pagamentos e a conferência de atraso.
+                          </div>
+                        )}
+
                         <div>
                           <Titulo>Contato</Titulo>
                           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
