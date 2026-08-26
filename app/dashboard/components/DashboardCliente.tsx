@@ -492,13 +492,31 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       }
   };
 
-  const atualizarSaldoAposPagamento = () => {
-    setSaldoPoupanca((prev) => prev + valorMensalidade);
-    setClubesAtivos(prev => prev.map(c =>
-      c.cotaId === clubeAtualSelecionado?.cotaId
-        ? { ...c, saldoPoupanca: c.saldoPoupanca + valorMensalidade }
-        : c
-    ));
+  /**
+   * Relê o saldo no servidor depois de uma tentativa de pagamento.
+   *
+   * Antes a tela somava a parcela sozinha assim que a cliente abria o checkout.
+   * Isso mostrava como pago o que ainda estava em aberto - e quem desistia no
+   * meio via um saldo que não existia. Quem credita é a confirmação do banco;
+   * aqui a tela só pergunta como ficou.
+   */
+  const atualizarSaldoAposPagamento = async () => {
+    const userId = usuario?.id;
+    if (!userId) return;
+
+    try {
+      const res = await apiFetch(`${API_URL}/api/usuarios/${userId}/clubes-ativos`);
+      if (!res.ok) return;
+
+      const data = await res.json();
+      if (!Array.isArray(data)) return;
+
+      setClubesAtivos(data);
+      const cotaAberta = data.find((c: any) => c.cotaId === clubeAtualSelecionado?.cotaId);
+      if (cotaAberta) setSaldoPoupanca(Number(cotaAberta.saldoPoupanca) || 0);
+    } catch {
+      // Sem rede: o saldo continua o que era, que e a verdade conhecida.
+    }
   };
 
   const handleUploadFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1961,11 +1979,12 @@ function CheckoutForm({
   valorMensalidade: number; 
   valorTotalRestante: number; 
   cotaId: number; 
-  onSuccess: () => void; 
+  onSuccess: () => Promise<void> | void; 
   fecharModal: () => void 
 }) {
   const [metodo, setMetodo] = useState<'pix' | 'recorrente' | 'credito_total' | 'debito'>('pix');
   const [dadosPix, setDadosPix] = useState<{ paymentUrl: string } | null>(null);
+  const [aguardandoConfirmacao, setAguardandoConfirmacao] = useState(false);
   const [carregandoPix, setCarregandoPix] = useState(false);
 
   const [numeroCartao, setNumeroCartao] = useState('');
@@ -2040,11 +2059,12 @@ function CheckoutForm({
         throw new Error(erroMsg || 'Falha ao processar o cartão.');
       }
 
-      setMensagemCartao({ tipo: 'sucesso', texto: 'Pagamento processado com sucesso!' });
-      setTimeout(() => {
-        onSuccess();
-        fecharModal();
-      }, 2000);
+      setMensagemCartao({
+        tipo: 'sucesso',
+        texto: 'Cobrança enviada ao banco. O saldo atualiza assim que ele confirmar.',
+      });
+      setAguardandoConfirmacao(true);
+      onSuccess();
     } catch (err: any) {
       setMensagemCartao({ tipo: 'erro', texto: err.message });
     } finally {
@@ -2059,6 +2079,46 @@ function CheckoutForm({
     }
     return v;
   };
+
+  // A tela de espera toma o lugar do formulario depois que a cobranca sai. Ela
+  // e o unico lugar honesto para dizer o que aconteceu: a cobranca existe, o
+  // pagamento ainda nao foi confirmado, e o saldo so muda quando for.
+  if (aguardandoConfirmacao) {
+    return (
+      <div className="space-y-5 text-[#0B1E14] text-center py-4">
+        <div>
+          <span className="inline-block text-[9px] font-black text-[#BD6B42] bg-[#F5F2EB] px-3 py-1 rounded-full uppercase tracking-widest border border-[#DFD9CE]">
+            Aguardando confirmação
+          </span>
+          <h4 className="text-sm font-bold mt-3">A sua cobrança foi gerada</h4>
+          <p className="text-xs text-stone-500 leading-relaxed mt-2 max-w-xs mx-auto">
+            Assim que o banco confirmar o pagamento, o valor entra no seu saldo automaticamente.
+            No Pix isso costuma levar poucos minutos.
+          </p>
+        </div>
+
+        <div className="space-y-2 pt-2">
+          <button
+            type="button"
+            onClick={async () => {
+              await onSuccess();
+              fecharModal();
+            }}
+            className="w-full py-3.5 bg-[#0B1E14] text-white font-bold text-[10px] rounded-xl uppercase tracking-wider cursor-pointer"
+          >
+            Já paguei · Conferir meu saldo
+          </button>
+          <button
+            type="button"
+            onClick={fecharModal}
+            className="w-full py-3 border border-[#DFD9CE] text-stone-500 font-bold text-[10px] rounded-xl uppercase tracking-wider cursor-pointer hover:bg-stone-50"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 text-[#0B1E14]">
@@ -2097,8 +2157,9 @@ function CheckoutForm({
             onClick={() => {
               if (dadosPix?.paymentUrl) {
                 window.open(dadosPix.paymentUrl, '_blank');
-                onSuccess();
-                fecharModal();
+                // Abrir a tela do banco nao e pagar. A cliente volta para ca e
+                // confere quando quiser; quem confirma e o banco.
+                setAguardandoConfirmacao(true);
               }
             }}
             className="w-full py-3.5 bg-[#0B1E14] text-white font-bold text-xs rounded-xl tracking-wide cursor-pointer uppercase text-[10px] disabled:opacity-40 transition-opacity"
