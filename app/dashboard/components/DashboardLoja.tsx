@@ -188,8 +188,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   // dizer "ainda nao publicada" em vez de "ninguem na fila", que seria mentira.
   const [filaPublicadaNaApi, setFilaPublicadaNaApi] = useState(true);
 
-  const [solicitacoesAcesso, setSolicitacoesAcesso] = useState<any[]>([]);
-  const [processandoAcessoId, setProcessandoAcessoId] = useState<number | null>(null);
+  // Contempladas aguardando a loja liberar o credito. Era a fila de pedidos de
+  // acesso, que chegava antes de existir compra nenhuma para avaliar.
+  const [aguardandoCredito, setAguardandoCredito] = useState<any[]>([]);
+  const [processandoCreditoId, setProcessandoCreditoId] = useState<number | null>(null);
+  const [motivoReprovacao, setMotivoReprovacao] = useState<{ cotaId: number; texto: string } | null>(null);
   const [caixaMensagemAberta, setCaixaMensagemAberta] = useState(false);
 
   const mostrarAviso = (titulo: string, mensagem: string, isError: boolean = false) => {
@@ -525,8 +528,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   const carregarSolicitacoesAcesso = async () => {
     const lojaId = usuario?.lojaId || usuario?.id;
-    const data = await buscarJson<unknown[]>('Solicitações de acesso', `${API_URL}/api/lojas/${lojaId}/solicitacoes-acesso`, []);
-    if (Array.isArray(data)) setSolicitacoesAcesso(data);
+    const data = await buscarJson<unknown[]>(
+      'Aguardando análise de crédito',
+      `${API_URL}/api/contemplacoes/loja/${lojaId}/aguardando-credito`,
+      [],
+    );
+    if (Array.isArray(data)) setAguardandoCredito(data);
   };
 
   // Convoca alguem da fila para um grupo especifico. O vinculo em si e feito
@@ -807,27 +814,46 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     });
   };
 
-  const handleAnalisarAcesso = async (acessoId: number, aprovado: boolean) => {
-     setProcessandoAcessoId(acessoId);
+  /**
+   * Decide o credito de uma contemplada.
+   *
+   * Reprovar nao tira a contemplacao dela: a cota vai para "aguardando
+   * encerramento" e a cliente retira no fim do plano. Por isso o motivo e
+   * exigido - e ele que a cliente le no painel dela para entender o que
+   * aconteceu.
+   */
+  const handleAnalisarCredito = async (cotaId: number, aprovado: boolean, motivo?: string) => {
+     if (!aprovado && !motivo?.trim()) {
+        setMotivoReprovacao({ cotaId, texto: '' });
+        return;
+     }
+
+     setProcessandoCreditoId(cotaId);
      try {
-        const res = await apiFetch(`${API_URL}/api/lojas/acessos/${acessoId}/analise?aprovado=${aprovado}`, { method: 'PUT' });
-        if(res.ok) {
+        const res = await apiFetch(`${API_URL}/api/contemplacoes/${cotaId}/credito`, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ aprovado, motivo: motivo?.trim() || null }),
+        });
+
+        if (res.ok) {
            mostrarAviso(
-              aprovado ? 'Acesso Liberado' : 'Acesso Rejeitado',
-              aprovado ? 'O cliente foi aprovado e agora tem acesso ao catálogo e planos da sua loja.' : 'A solicitação do cliente foi bloqueada com sucesso.',
-              !aprovado
+              aprovado ? 'Crédito liberado' : 'Crédito não liberado',
+              aprovado
+                 ? 'A cliente já pode escolher o produto no painel dela.'
+                 : 'A contemplação continua registrada: ela retira no encerramento do grupo.',
+              !aprovado,
            );
-           carregarSolicitacoesAcesso(); 
-           carregarContagemClientes(usuario?.lojaId || usuario?.id); 
-           carregarDadosFinanceiros(); 
-           carregarListaClientesDaLoja();
+           setMotivoReprovacao(null);
+           carregarSolicitacoesAcesso();
+           carregarDadosFinanceiros();
         } else {
-           mostrarAviso('Erro de Sistema', 'Falha ao processar análise. Tente novamente.', true);
+           mostrarAviso('Erro de Sistema', await lerMensagemErro(res), true);
         }
-     } catch(e) {
+     } catch (e) {
         mostrarAviso('Sem Conexão', 'Não foi possível conectar ao servidor.', true);
      } finally {
-        setProcessandoAcessoId(null);
+        setProcessandoCreditoId(null);
      }
   };
 
@@ -1415,9 +1441,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   }`}
                 >
                   <span>{tab.label}</span>
-                  {tab.id === 'aprovacoes' && solicitacoesAcesso.length > 0 && (
+                  {tab.id === 'aprovacoes' && aguardandoCredito.length > 0 && (
                     <span className="bg-rose-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md animate-pulse">
-                      {solicitacoesAcesso.length}
+                      {aguardandoCredito.length}
                     </span>
                   )}
                   {tab.id === 'fila' && filaEspera.length > 0 && (
@@ -2242,34 +2268,77 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             {abaLoja === 'aprovacoes' && (
               <div className="space-y-6 animate-fadeIn text-left">
                   <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
-                      <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                          <div>
-                              <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Fila de Análise de Crédito</h3>
-                              <p className="text-[10px] text-stone-400 font-medium">Clientes que solicitaram acesso para visualizar e participar dos seus planos.</p>
-                          </div>
+                      <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50">
+                          <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Análise de Crédito das Sorteadas</h3>
+                          <p className="text-[10px] text-stone-400 font-medium">
+                            Clientes que foram contempladas e aguardam você liberar o crédito para escolherem o produto.
+                          </p>
                       </div>
                       <div className="p-6">
-                         {solicitacoesAcesso.length === 0 ? (
+                         {aguardandoCredito.length === 0 ? (
                             <div className="text-center text-stone-400 text-xs italic py-12 bg-stone-50 rounded-xl border border-dashed">
-                               Nenhuma solicitação pendente no momento.
+                               Nenhuma sorteada aguardando análise no momento.
                             </div>
                          ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                               {solicitacoesAcesso.map(sol => (
-                                  <div key={sol.id} className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm text-left hover:shadow-md transition-shadow">
+                               {aguardandoCredito.map((item) => (
+                                  <div key={item.cotaId} className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm text-left hover:shadow-md transition-shadow">
                                      <div className="flex justify-between items-start mb-3">
-                                        <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Pendente SPC/Serasa</span>
-                                        <span className="text-[9px] text-stone-400">{new Date(sol.dataSolicitacao).toLocaleDateString('pt-BR')}</span>
+                                        <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                                          Sorteada · aguardando crédito
+                                        </span>
+                                        <span className="text-[9px] text-stone-400">
+                                          {item.dataContemplacao ? new Date(item.dataContemplacao).toLocaleDateString('pt-BR') : '—'}
+                                        </span>
                                      </div>
-                                     <h4 className="text-sm font-bold text-[#0B1E14] truncate">{sol.clienteNome}</h4>
-                                     <p className="text-xs text-stone-500 font-mono mt-1 bg-stone-50 p-2 rounded-lg border border-stone-100">CPF: {sol.clienteCpf ? aplicarMascaraCpf(sol.clienteCpf) : 'Não informado'}</p>
 
-                                     <div className="mt-5 flex gap-3 pt-4 border-t border-stone-100">
-                                        <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, false)} className="flex-1 bg-white text-rose-600 border border-rose-200 text-[10px] font-bold py-2.5 rounded-lg hover:bg-rose-50 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer">
-                                           Rejeitar
+                                     <h4 className="text-sm font-bold text-[#0B1E14] truncate">{item.clienteNome}</h4>
+                                     <p className="text-[10px] text-stone-400 mt-0.5">{item.grupoNome}</p>
+
+                                     <p className="text-xs text-stone-500 font-mono mt-2 bg-stone-50 p-2 rounded-lg border border-stone-100">
+                                       CPF: {item.clienteCpf ? aplicarMascaraCpf(item.clienteCpf) : 'Não informado'}
+                                     </p>
+
+                                     <div className="mt-3 grid grid-cols-2 gap-3 text-[11px]">
+                                       <div>
+                                         <span className="block text-[9px] font-bold text-stone-400 uppercase tracking-wider">Já pagou</span>
+                                         <span className="font-mono font-bold text-emerald-700">
+                                           R$ {(Number(item.saldoPago) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                         </span>
+                                       </div>
+                                       <div>
+                                         <span className="block text-[9px] font-bold text-stone-400 uppercase tracking-wider">Falta pagar</span>
+                                         <span className="font-mono font-bold text-[#BD6B42]">
+                                           R$ {(Number(item.valorEmRisco) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                         </span>
+                                       </div>
+                                     </div>
+
+                                     {item.clienteTelefone && (
+                                       <a
+                                         href={`https://wa.me/55${String(item.clienteTelefone).replace(/\D/g, '')}`}
+                                         target="_blank"
+                                         rel="noreferrer"
+                                         className="block mt-3 text-[10px] font-bold text-[#BD6B42] hover:underline uppercase tracking-wider"
+                                       >
+                                         Falar no WhatsApp
+                                       </a>
+                                     )}
+
+                                     <div className="mt-4 flex gap-3 pt-4 border-t border-stone-100">
+                                        <button
+                                          disabled={processandoCreditoId === item.cotaId}
+                                          onClick={() => setMotivoReprovacao({ cotaId: item.cotaId, texto: '' })}
+                                          className="flex-1 bg-white text-rose-600 border border-rose-200 text-[10px] font-bold py-2.5 rounded-lg hover:bg-rose-50 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer"
+                                        >
+                                           Não liberar
                                         </button>
-                                        <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, true)} className="flex-1 bg-[#0B1E14] text-white text-[10px] font-bold py-2.5 rounded-lg hover:bg-opacity-90 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer shadow-sm">
-                                           Aprovar Acesso
+                                        <button
+                                          disabled={processandoCreditoId === item.cotaId}
+                                          onClick={() => handleAnalisarCredito(item.cotaId, true)}
+                                          className="flex-1 bg-[#0B1E14] text-white text-[10px] font-bold py-2.5 rounded-lg hover:bg-opacity-90 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer shadow-sm"
+                                        >
+                                           Liberar crédito
                                         </button>
                                      </div>
                                   </div>
@@ -2933,33 +3002,46 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <div className="bg-[#0B1E14] text-white p-4 flex justify-between items-center">
                    <div className="flex items-center gap-2">
                       <span className="text-lg">INBOX</span>
-                      <h3 className="text-xs font-bold uppercase tracking-wider">Solicitações de Acesso</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-wider">Sorteadas aguardando crédito</h3>
                    </div>
                    <button onClick={() => setCaixaMensagemAberta(false)} className="text-stone-400 hover:text-white font-bold px-2 cursor-pointer">X</button>
                 </div>
 
                 <div className="p-4 max-h-[400px] overflow-y-auto bg-stone-50/50">
-                   {solicitacoesAcesso.length === 0 ? (
+                   {aguardandoCredito.length === 0 ? (
                       <div className="text-center text-stone-400 text-xs italic py-8">
-                         Nenhuma solicitação pendente no momento.
+                         Nenhuma sorteada aguardando análise no momento.
                       </div>
                    ) : (
                       <div className="space-y-3">
-                         {solicitacoesAcesso.map(sol => (
-                            <div key={sol.id} className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm text-left">
+                         {aguardandoCredito.map((item) => (
+                            <div key={item.cotaId} className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm text-left">
                                <div className="flex justify-between items-start mb-2">
-                                  <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Análise de Crédito</span>
-                                  <span className="text-[9px] text-stone-400">{new Date(sol.dataSolicitacao).toLocaleDateString('pt-BR')}</span>
+                                  <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Sorteada</span>
+                                  <span className="text-[9px] text-stone-400">
+                                    {item.dataContemplacao ? new Date(item.dataContemplacao).toLocaleDateString('pt-BR') : '—'}
+                                  </span>
                                </div>
-                               <p className="text-sm font-bold text-[#0B1E14] truncate">{sol.clienteNome}</p>
-                               <p className="text-xs text-stone-500 font-mono mt-0.5">CPF: {sol.clienteCpf ? aplicarMascaraCpf(sol.clienteCpf) : 'Não informado'}</p>
+                               <p className="text-sm font-bold text-[#0B1E14] truncate">{item.clienteNome}</p>
+                               <p className="text-[10px] text-stone-400">{item.grupoNome}</p>
+                               <p className="text-xs text-stone-500 font-mono mt-1">
+                                 Falta pagar R$ {(Number(item.valorEmRisco) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                               </p>
 
                                <div className="mt-4 flex gap-2 pt-3 border-t border-stone-100">
-                                  <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, true)} className="flex-1 bg-[#0B1E14] text-white text-[10px] font-bold py-2 rounded-lg hover:bg-opacity-90 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer">
-                                     Aprovar
+                                  <button
+                                    disabled={processandoCreditoId === item.cotaId}
+                                    onClick={() => handleAnalisarCredito(item.cotaId, true)}
+                                    className="flex-1 bg-[#0B1E14] text-white text-[10px] font-bold py-2 rounded-lg hover:bg-opacity-90 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer"
+                                  >
+                                     Liberar
                                   </button>
-                                  <button disabled={processandoAcessoId === sol.id} onClick={() => handleAnalisarAcesso(sol.id, false)} className="flex-1 bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold py-2 rounded-lg hover:bg-rose-100 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer">
-                                     Rejeitar
+                                  <button
+                                    disabled={processandoCreditoId === item.cotaId}
+                                    onClick={() => { setCaixaMensagemAberta(false); setMotivoReprovacao({ cotaId: item.cotaId, texto: '' }); }}
+                                    className="flex-1 bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold py-2 rounded-lg hover:bg-rose-100 transition-all uppercase tracking-wider disabled:opacity-50 cursor-pointer"
+                                  >
+                                     Não liberar
                                   </button>
                                </div>
                             </div>
@@ -2976,9 +3058,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           >
              <img src="/arvore-clara.png" alt="AVLE" className="w-9 opacity-90 group-hover:opacity-100 transition-opacity" />
              
-             {solicitacoesAcesso.length > 0 && (
+             {aguardandoCredito.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[11px] font-bold w-6 h-6 flex items-center justify-center rounded-full shadow-md animate-pulse">
-                   {solicitacoesAcesso.length}
+                   {aguardandoCredito.length}
                 </span>
              )}
           </button>
@@ -4033,6 +4115,49 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             <div className="text-xs text-stone-600 leading-relaxed whitespace-pre-wrap font-medium">{notificacao.mensagem}</div>
             <div className="pt-3 border-t flex justify-end">
               <button onClick={() => setNotificacao({ ...notificacao, aberto: false })} className={`px-5 py-2 text-white font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer shadow-sm transition-all ${notificacao.isError ? 'bg-rose-700 hover:bg-rose-800' : 'bg-[#0B1E14] hover:bg-opacity-90'}`}>Entendido</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reprovar credito exige motivo: a cliente le esse texto no painel dela,
+          e "credito nao liberado" sem explicacao vira ligacao para a loja. */}
+      {motivoReprovacao && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+            <div className="border-b pb-3">
+              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Crédito não liberado</h3>
+              <p className="text-[10px] text-stone-400 mt-1 leading-relaxed">
+                A contemplação dela continua registrada — ela retira o produto no encerramento do grupo.
+                O motivo abaixo aparece no painel da cliente.
+              </p>
+            </div>
+
+            <textarea
+              value={motivoReprovacao.texto}
+              onChange={(e) => setMotivoReprovacao({ ...motivoReprovacao, texto: e.target.value })}
+              rows={3}
+              autoFocus
+              placeholder="Ex.: restrição encontrada na consulta de crédito."
+              className="w-full border border-[#DFD9CE] rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-[#BD6B42] transition-colors resize-none"
+            />
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setMotivoReprovacao(null)}
+                className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-[10px] uppercase tracking-wider hover:bg-stone-50 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={!motivoReprovacao.texto.trim() || processandoCreditoId === motivoReprovacao.cotaId}
+                onClick={() => handleAnalisarCredito(motivoReprovacao.cotaId, false, motivoReprovacao.texto)}
+                className="flex-1 py-2.5 bg-rose-700 text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-rose-800 disabled:opacity-50 cursor-pointer shadow-sm"
+              >
+                Confirmar
+              </button>
             </div>
           </div>
         </div>
