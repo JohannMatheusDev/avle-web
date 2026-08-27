@@ -399,30 +399,60 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       });
   }, [usuario?.id]);
 
-  const handleAbrirLoja = (loja: any) => {
+  const entrarNaLoja = (loja: any) => {
+    setLojaEmFoco(loja);
+    setNivelVisao('grupos');
+    setCarregandoGrupos(true);
+    setGruposDaLoja([]);
+
+    apiFetch(`${API_URL}/api/grupos/loja/${loja.id}`)
+      .then((res) => res.json())
+      .then((data) => setGruposDaLoja(Array.isArray(data) ? data : []))
+      .catch(() => setGruposDaLoja([]))
+      .finally(() => setCarregandoGrupos(false));
+  };
+
+  /**
+   * Abre a loja. Ver os planos nao depende mais de aprovacao.
+   *
+   * A analise que a loja faz e de credito, e ela so tem sentido depois do
+   * sorteio, quando ha uma compra concreta para avaliar. Esperar um "sim" para
+   * apenas olhar a vitrine travava a cliente sem nada a decidir do outro lado.
+   *
+   * A loja continua podendo bloquear quem ja entrou, e esse caso segue barrado
+   * aqui.
+   */
+  const handleAbrirLoja = async (loja: any) => {
     const acesso = acessosLoja.find(a => a.lojaId === loja.id);
     const statusAcesso = acesso ? acesso.status : 'NAO_SOLICITADO';
 
-    if (statusAcesso === 'APROVADO') {
-      setLojaEmFoco(loja);
-      setNivelVisao('grupos');
-      setCarregandoGrupos(true);
-      setGruposDaLoja([]);
-
-      apiFetch(`${API_URL}/api/grupos/loja/${loja.id}`)
-        .then((res) => res.json())
-        .then((data) => setGruposDaLoja(Array.isArray(data) ? data : []))
-        .catch(() => setGruposDaLoja([]))
-        .finally(() => setCarregandoGrupos(false));
-        
-    } else if (statusAcesso === 'PENDENTE') {
-      mostrarAviso('Aviso', 'Sua solicitação de acesso está em análise de crédito pela loja. Aguarde a aprovação para ver os planos.', false);
-    } else if (statusAcesso === 'REJEITADO') {
-      mostrarAviso('Aviso', 'Infelizmente, o estabelecimento não liberou o acesso aos grupos de compras neste momento devido a restrições.', true);
-    } else {
-      setLojaParaAcesso(loja);
-      setModalAcessoAberto(true);
+    if (statusAcesso === 'REJEITADO' || statusAcesso === 'BLOQUEADO') {
+      mostrarAviso(
+        'Acesso bloqueado',
+        'Este estabelecimento não liberou o seu acesso aos grupos de compras. Fale com a loja para entender o motivo.',
+        true,
+      );
+      return;
     }
+
+    // Primeira vez nesta loja: o vinculo e criado e ela entra na mesma acao.
+    // Registros antigos que ficaram como PENDENTE tambem passam direto - a
+    // espera que eles representavam nao existe mais.
+    if (statusAcesso === 'NAO_SOLICITADO') {
+      try {
+        await apiFetch(`${API_URL}/api/lojas/${loja.id}/solicitar-acesso`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuarioId: usuario?.id }),
+        });
+        buscarAcessosLoja(usuario?.id);
+      } catch {
+        // Sem o vinculo ela ainda ve os planos; o vinculo se resolve na
+        // proxima visita, e travar a navegacao aqui seria pior.
+      }
+    }
+
+    entrarNaLoja(loja);
   };
 
   const handleSolicitarAcesso = async () => {
@@ -966,14 +996,10 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         let labelStatus = 'Ver Estabelecimento';
                         let labelColor = 'text-stone-400';
 
-                        if (statusAcesso === 'APROVADO') {
+                        if (statusAcesso === 'APROVADO' || statusAcesso === 'PENDENTE') {
                             corBorda = 'border-emerald-600 bg-emerald-50/20 shadow-sm';
                             labelStatus = quantidadeCotantes > 0 ? `${quantidadeCotantes} Clube(s) Ativo(s)` : 'Acesso Liberado';
                             labelColor = 'text-emerald-700 font-bold';
-                        } else if (statusAcesso === 'PENDENTE') {
-                            corBorda = 'border-amber-400 bg-amber-50/50 shadow-sm';
-                            labelStatus = 'Em Análise';
-                            labelColor = 'text-amber-700';
                         } else if (statusAcesso === 'REJEITADO' || statusAcesso === 'BLOQUEADO') {
                             corBorda = 'border-rose-300 bg-rose-50/20 shadow-sm opacity-80';
                             labelStatus = 'Bloqueado';
