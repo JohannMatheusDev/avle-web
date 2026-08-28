@@ -2701,16 +2701,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                 </button>
                               </>
                             )}
-                            {c.etapaAtual === 'SEPARACAO' && (
-                              <button
-                                type="button"
-                                onClick={() => avancarEtapaContemplacao(c.cotaId, 'separacao')}
-                                disabled={processandoSorteio}
-                                className="px-3 py-1.5 bg-[#BD6B42] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50"
-                              >
-                                Iniciar separação
-                              </button>
-                            )}
                             {c.etapaAtual === 'RETIRADA' && !c.concluido && (
                               <button
                                 type="button"

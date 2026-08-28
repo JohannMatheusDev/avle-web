@@ -32,6 +32,10 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   const [nivelVisao, setNivelVisao] = useState<'lojas' | 'grupos' | 'dashboard'>('lojas');
 
+  // Qual lista de grupos esta aberta. Nulo enquanto a cliente nao escolheu, e
+  // ai a tela decide sozinha: quem ja tem plano abre nos planos dela.
+  const [abaGrupos, setAbaGrupos] = useState<'meus' | 'disponiveis' | null>(null);
+
   // No celular o menu vira gaveta. A barra lateral inteira ocupava a primeira
   // tela inteira antes de qualquer conteudo aparecer, e a cliente abria o painel
   // vendo menu em vez de ver o proprio plano.
@@ -65,7 +69,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [salvandoEtapa, setSalvandoEtapa] = useState(false);
   const [modalProduto, setModalProduto] = useState<{ aberto: boolean; cotaId: number | null }>({ aberto: false, cotaId: null });
   const [produtoEscolhido, setProdutoEscolhido] = useState('');
-  const [modalTermo, setModalTermo] = useState<{ aberto: boolean; cotaId: number | null }>({ aberto: false, cotaId: null });
 
   const [salvandoPerfil, setSalvandoPerfil] = useState(false);
   const [carregandoDados, setCarregandoDados] = useState(true);
@@ -181,12 +184,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       setModalProduto({ aberto: false, cotaId: null });
       setProdutoEscolhido('');
     }
-  };
-
-  const confirmarTermo = async () => {
-    if (!modalTermo.cotaId) return;
-    const ok = await avancarEtapa(modalTermo.cotaId, 'termo');
-    if (ok) setModalTermo({ aberto: false, cotaId: null });
   };
 
   const buscarCarteiraDeClubes = async (forcedId?: number, fallbackUserId?: number) => {
@@ -903,16 +900,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     </button>
                   )}
 
-                  {card.acaoDoCliente === 'ASSINAR_TERMO' && (
-                    <button
-                      type="button"
-                      onClick={() => setModalTermo({ aberto: true, cotaId: card.cotaId })}
-                      className="w-full py-3 bg-[#0B1E14] text-white font-bold rounded-xl text-[11px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer shadow-sm"
-                    >
-                      Ler e aceitar o termo
-                    </button>
-                  )}
-
                   {/* O código de auditoria e o que permite conferir o sorteio por
                       fora do sistema, sem depender da palavra da loja. */}
                   {card.sorteio && (
@@ -1103,9 +1090,17 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                    // Um grupo encerrado ou lotado sai da vitrine, mas continua visivel
                    // se a cliente ja tem cota nele: caso contrario ela perderia o acesso
                    // ao painel do próprio clube.
-                   const gruposVisiveis = gruposDaLoja.filter(
-                      (grupo) => grupoDisponivel(grupo) || clubesAtivos.some((c) => c.grupo?.id === grupo.id)
-                   );
+                   const temCota = (grupo: any) => clubesAtivos.some((c) => c.grupo?.id === grupo.id);
+
+                   // Duas listas separadas: o que ela ja tem e o que ela pode
+                   // entrar. Misturadas, o plano dela ficava perdido no meio de
+                   // uma vitrine que so interessa a quem esta procurando grupo.
+                   const meusGrupos = gruposDaLoja.filter(temCota);
+                   const gruposParaEntrar = gruposDaLoja.filter((g) => !temCota(g) && grupoDisponivel(g));
+                   const gruposVisiveis = [...meusGrupos, ...gruposParaEntrar];
+
+                   const abaAtual = abaGrupos ?? (meusGrupos.length > 0 ? 'meus' : 'disponiveis');
+                   const listaDaAba = abaAtual === 'meus' ? meusGrupos : gruposParaEntrar;
                    const minhaFila = filasEspera.find((f) => f.lojaId === lojaEmFoco?.id);
 
                    if (gruposDaLoja.length === 0) {
@@ -1163,8 +1158,37 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                    }
 
                    return (
-                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-2">
-                      {gruposVisiveis.slice().sort((a, b) => a.id - b.id).map(grupo => {
+                   <div className="pt-2">
+                   <div className="flex gap-1 bg-stone-100 p-1 rounded-xl mb-5 w-fit">
+                      <button
+                        type="button"
+                        onClick={() => setAbaGrupos('meus')}
+                        className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                          abaAtual === 'meus' ? 'bg-[#0B1E14] text-white shadow' : 'text-stone-500 hover:text-[#0B1E14]'
+                        }`}
+                      >
+                        Meus planos{meusGrupos.length > 0 ? ` · ${meusGrupos.length}` : ''}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAbaGrupos('disponiveis')}
+                        className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                          abaAtual === 'disponiveis' ? 'bg-[#0B1E14] text-white shadow' : 'text-stone-500 hover:text-[#0B1E14]'
+                        }`}
+                      >
+                        Grupos disponíveis{gruposParaEntrar.length > 0 ? ` · ${gruposParaEntrar.length}` : ''}
+                      </button>
+                   </div>
+
+                   {listaDaAba.length === 0 ? (
+                      <div className="bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
+                        {abaAtual === 'meus'
+                          ? 'Você ainda não participa de nenhum grupo desta loja. Veja os grupos disponíveis ao lado.'
+                          : 'Nenhum grupo com vaga aberta nesta loja no momento.'}
+                      </div>
+                   ) : (
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {listaDaAba.slice().sort((a, b) => a.id - b.id).map(grupo => {
                          const cotaExistente = clubesAtivos.find(c => c.grupo?.id === grupo.id);
                          const isAtivo = !!cotaExistente;
                          
@@ -1206,6 +1230,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                             </div>
                          )
                       })}
+                   </div>
+                   )}
                    </div>
                    );
                 })()}
@@ -1909,54 +1935,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         </div>
       )}
 
-      {modalTermo.aberto && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Termo de retirada</h3>
-              <button
-                type="button"
-                onClick={() => setModalTermo({ aberto: false, cotaId: null })}
-                className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer"
-              >
-                X
-              </button>
-            </div>
-
-            <div className="text-[11px] text-stone-600 leading-relaxed space-y-2 max-h-56 overflow-y-auto bg-stone-50 p-4 rounded-xl border">
-              <p>
-                Ao aceitar, você confirma a retirada antecipada do produto do seu clube de compras e assume o
-                compromisso de seguir com as parcelas restantes do plano até o encerramento do grupo.
-              </p>
-              <p>
-                A loja adianta o valor que ainda falta para completar o seu plano, e por isso a entrega so e
-                liberada após este aceite.
-              </p>
-              <p>
-                O regulamento completo da sua loja esta disponível na aba Regras do painel.
-              </p>
-            </div>
-
-            <div className="flex space-x-2 pt-2 border-t w-full">
-              <button
-                type="button"
-                onClick={() => setModalTermo({ aberto: false, cotaId: null })}
-                className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
-              >
-                Agora não
-              </button>
-              <button
-                type="button"
-                onClick={confirmarTermo}
-                disabled={salvandoEtapa}
-                className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
-              >
-                {salvandoEtapa ? 'Registrando...' : 'Li e aceito'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {notificacao.aberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-[90] text-left animate-fadeIn">
