@@ -43,7 +43,7 @@ export interface CardContemplacao {
   valorPago: number;
   saldoDevedor: number | null;
   quitada: boolean;
-  acaoDoCliente: 'ESCOLHER_PRODUTO' | 'ASSINAR_TERMO' | null;
+  acaoDoCliente: 'ESCOLHER_PRODUTO' | null;
   trilha: EtapaTrilha[];
   sorteio?: ResumoSorteio;
 }
