@@ -78,9 +78,18 @@ export const requisitosSenha = (senha: string): RequisitosSenha => ({
 export const senhaForte = (senha: string) =>
   Object.values(requisitosSenha(senha)).every(Boolean);
 
-/** Aceita e-mail ou telefone real como identificador de login. */
+/**
+ * Aceita e-mail, telefone ou CPF como identificador de login.
+ *
+ * O CPF entrou porque nem toda cliente lembra qual e-mail usou no cadastro, e
+ * varias nem tem e-mail. CPF ela sabe de cabeca.
+ *
+ * Telefone e CPF tem os mesmos onze digitos, entao nao da para dizer qual e
+ * qual sem consultar a base - por isso aqui basta ser um dos dois, e quem
+ * decide e o servidor, procurando nos dois campos.
+ */
 export const identificadorLoginValido = (valor: string) => {
   const texto = (valor || '').trim();
   if (texto.includes('@')) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(texto);
-  return telefoneValido(texto);
+  return telefoneValido(texto) || cpfValido(texto);
 };
