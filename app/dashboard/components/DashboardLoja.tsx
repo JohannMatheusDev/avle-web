@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CardContemplacao, CotaElegivel, SorteioResumo, mensagemDeErro } from '../../lib/contemplacao';
+import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
 import { grupoDisponivel, grupoEncerrado, vagasDoGrupo } from '../../lib/grupos';
 import { apiFetch, encerrarSessao } from '../../lib/api';
@@ -3114,7 +3115,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
 
               <div className="bg-stone-50 p-3 rounded-xl border border-dashed text-[10px] text-stone-500 leading-relaxed">
-                A cliente receberá a senha padrão inicial <strong>Avle123</strong> para realizar o primeiro acesso ao Dashboard do Cliente e podera altera-la posteriormente nas suas configurações.
+                A cliente receberá a senha padrão inicial <strong>{SENHA_PADRAO_INICIAL}</strong> para realizar o primeiro acesso ao Dashboard do Cliente, e poderá alterá-la depois nas configurações dela.
               </div>
 
               <div className="flex space-x-2 pt-2 border-t w-full">
