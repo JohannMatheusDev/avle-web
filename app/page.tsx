@@ -147,13 +147,12 @@ function Autenticacao() {
     }).format(parseFloat(valorNumerico));
   };
 
+  // Sem mascara de propósito. Telefone e CPF comecam os dois com digito e tem
+  // os mesmos onze, entao mascarar como telefone tornava impossivel digitar um
+  // CPF: (09) 20302-0926 nao e nada. O servidor limpa a pontuacao e procura nos
+  // dois campos, entao a pessoa pode digitar do jeito que lembrar.
   const handleIdentificadorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const valor = e.target.value;
-    if (/^\d/.test(valor) || valor.startsWith('(')) {
-      setIdentificadorLogin(aplicarMascaraTelefone(valor));
-    } else {
-      setIdentificadorLogin(valor);
-    }
+    setIdentificadorLogin(e.target.value);
   };
 
   const handleBuscarCnpj = async () => {
@@ -192,7 +191,6 @@ function Autenticacao() {
 
   const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   
-  const isLoginEmailValido = regexEmail.test(identificadorLogin.trim());
   const loginValido = identificadorLoginValido(identificadorLogin);
 
   const emailCadastroValido = regexEmail.test(emailCadastro.trim());
@@ -278,11 +276,7 @@ function Autenticacao() {
         let bodyPayload: any = {};
 
         if (isLogin) {
-            if (identificadorLogin.includes('@')) {
-               bodyPayload = { email: identificadorLogin.trim(), senha };
-            } else {
-               bodyPayload = { telefone: somenteDigitos(identificadorLogin), senha };
-            }
+            bodyPayload = { identificador: identificadorLogin.trim(), senha };
         } else {
             const conviteLojaId = sessionStorage.getItem('@avle:convite_loja_id');
             
@@ -404,10 +398,7 @@ function Autenticacao() {
     if (emailVerificacao) {
       return { ...base, email: emailVerificacao };
     }
-    if (identificadorLogin.includes('@')) {
-      return { ...base, email: identificadorLogin.trim() };
-    }
-    return { ...base, telefone: somenteDigitos(identificadorLogin) };
+    return { ...base, identificador: identificadorLogin.trim() };
   };
 
   const handleReenviarCodigo = async () => {
@@ -531,17 +522,13 @@ function Autenticacao() {
     setMensagem({ tipo: '', texto: '' });
     setCarregando(true);
 
-    const isTelefone = !identificadorLogin.includes('@');
-
-    if (!isLoginEmailValido && !isTelefone) {
-      setMensagem({ tipo: 'erro', texto: 'Por favor, insira um e-mail ou telefone válido.' });
+    if (!loginValido) {
+      setMensagem({ tipo: 'erro', texto: 'Informe um e-mail, telefone ou CPF válido.' });
       setCarregando(false);
       return;
     }
 
-    const payload = isTelefone 
-        ? { telefone: identificadorLogin.replace(/\D/g, '') } 
-        : { email: identificadorLogin.trim() };
+    const payload = { identificador: identificadorLogin.trim() };
 
     try {
       const resposta = await apiFetch(`${API_URL}/api/auth/esqueceu-senha`, {
@@ -578,10 +565,8 @@ function Autenticacao() {
       return;
     }
 
-    const isTelefone = !identificadorLogin.includes('@');
-    const payload = isTelefone 
-        ? { telefone: identificadorLogin.replace(/\D/g, ''), codigo: codigoOtp, novaSenha } 
-        : { email: identificadorLogin.trim(), codigo: codigoOtp, novaSenha };
+
+    const payload = { identificador: identificadorLogin.trim(), codigo: codigoOtp, novaSenha };
 
     try {
       const resposta = await apiFetch(`${API_URL}/api/auth/redefinir-senha`, {
@@ -710,7 +695,7 @@ function Autenticacao() {
                   {!codigoEnviado ? (
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail ou Telefone</label>
-                      <input type="text" placeholder="seu@email.com ou (45) 99999-9999" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                      <input type="text" placeholder="E-mail, telefone ou CPF" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                     </div>
                   ) : (
                     <div>
@@ -744,7 +729,7 @@ function Autenticacao() {
                   )}
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail ou Telefone</label>
-                    <input type="text" placeholder="seu@email.com ou (45) 99999-9999" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                    <input type="text" placeholder="E-mail, telefone ou CPF" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                   </div>
                   <div className="space-y-2 mt-4">
                   <button type="submit" disabled={carregando} className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55">
@@ -893,7 +878,7 @@ function Autenticacao() {
                         <div className="flex justify-between items-center mb-1">
                           <label className="block text-[10px] font-bold uppercase text-stone-500">E-mail ou Telefone com DDD *</label>
                         </div>
-                        <input type="text" placeholder="seu@email.com ou (45) 99999-9999" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                        <input type="text" placeholder="E-mail, telefone ou CPF" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                       </div>
                   )}
 
