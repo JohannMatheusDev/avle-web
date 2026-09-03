@@ -1988,7 +1988,7 @@ function CheckoutForm({
   onSuccess: () => Promise<void> | void; 
   fecharModal: () => void 
 }) {
-  const [metodo, setMetodo] = useState<'pix' | 'recorrente' | 'credito_total' | 'debito'>('pix');
+  const [metodo, setMetodo] = useState<'pix' | 'credito_total' | 'debito'>('pix');
   // O QR e o copia e cola vem junto da cobranca. Mostrar aqui dentro evita
   // mandar a cliente para uma pagina de fora so para ler um codigo que ja
   // temos - e e o que faz este checkout ser nosso, e nao um redirecionamento.
@@ -2044,18 +2044,14 @@ function CheckoutForm({
       return;
     }
 
-    const endpoint = metodo === 'recorrente' ? '/api/pagamentos/assinatura-cartao' : '/api/pagamentos/cartao-unico';
+    // Sempre cobranca avulsa. A assinatura do Asaas saiu daqui porque ela
+    // cobra em dia fixo do mes - o dia em que a cliente assinou - e o contrato
+    // promete o quinto dia util. Quem cuida da recorrencia agora e o lote
+    // mensal, sem a cliente precisar assinar nada.
+    const endpoint = '/api/pagamentos/cartao-unico';
     const tipoCobranca = metodo === 'credito_total' ? 'CREDIT_CARD' : 'DEBIT_CARD';
 
-    const payload = metodo === 'recorrente' ? {
-      cotaId,
-      valor: valorCobrado,
-      numeroCartao: numeroCartao.replace(/\D/g, ''),
-      nomeImpressoCartao: nomeImpresso.toUpperCase(),
-      mesValidade: mesAno[0],
-      anoValidade: '20' + mesAno[1],
-      ccv: ccv.replace(/\D/g, '')
-    } : {
+    const payload = {
       cotaId,
       valor: valorCobrado,
       tipoCobranca,
@@ -2144,10 +2140,9 @@ function CheckoutForm({
 
   return (
     <div className="space-y-5 text-[#0B1E14]">
-      <div className="grid grid-cols-4 gap-1 bg-stone-100 p-1 rounded-xl text-[9px] font-bold uppercase tracking-wider">
+      <div className="grid grid-cols-3 gap-1 bg-stone-100 p-1 rounded-xl text-[9px] font-bold uppercase tracking-wider">
         <button type="button" onClick={() => setMetodo('pix')} className={`py-2 rounded-lg transition-colors cursor-pointer ${metodo === 'pix' ? 'bg-[#0B1E14] text-white shadow' : 'text-stone-500'}`}>Pix</button>
-        <button type="button" onClick={() => setMetodo('recorrente')} className={`py-2 rounded-lg transition-colors cursor-pointer ${metodo === 'recorrente' ? 'bg-[#0B1E14] text-white shadow' : 'text-stone-500'}`}>Mensal</button>
-        <button type="button" onClick={() => setMetodo('credito_total')} className={`py-2 rounded-lg transition-colors cursor-pointer ${metodo === 'credito_total' ? 'bg-[#0B1E14] text-white shadow' : 'text-stone-500'}`}>Crédito</button>
+        <button type="button" onClick={() => setMetodo('credito_total')} className={`py-2 rounded-lg transition-colors cursor-pointer ${metodo === 'credito_total' ? 'bg-[#0B1E14] text-white shadow' : 'text-stone-500'}`}>Quitar</button>
         <button type="button" onClick={() => setMetodo('debito')} className={`py-2 rounded-lg transition-colors cursor-pointer ${metodo === 'debito' ? 'bg-[#0B1E14] text-white shadow' : 'text-stone-500'}`}>Débito</button>
       </div>
 
@@ -2221,10 +2216,8 @@ function CheckoutForm({
       {metodo !== 'pix' && (
         <form onSubmit={handlePagamentoCartao} className="space-y-3 pt-2 text-left text-xs">
           <div className="bg-[#F5F2EB] p-3 rounded-xl text-center text-[10px] text-[#BD6B42] font-medium leading-relaxed border border-[#DFD9CE]">
-            {metodo === 'recorrente' ? (
-              <span>Seu limite <strong>não será bloqueado no valor total</strong>. O sistema cobrará R$ {valorCobrado.toFixed(2)} mensalmente.</span>
-            ) : metodo === 'credito_total' ? (
-              <span>Transação à vista consumindo <strong>R$ {valorCobrado.toFixed(2)}</strong> do seu limite com repasse imediato à loja.</span>
+            {metodo === 'credito_total' ? (
+              <span>Quitação do plano: <strong>R$ {valorCobrado.toFixed(2)}</strong> à vista no seu limite, com repasse imediato à loja.</span>
             ) : (
               <span>Transação de cartão de débito com liquidação instantânea.</span>
             )}
@@ -2335,7 +2328,7 @@ function CheckoutForm({
             disabled={processando}
             className="w-full h-12 mt-4 bg-[#BD6B42] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-[#A95A33] transition-all disabled:opacity-50 cursor-pointer shadow-md"
           >
-            {processando ? 'Processando...' : metodo === 'recorrente' ? 'Ativar Assinatura Mensal' : 'Confirmar Pagamento'}
+            {processando ? 'Processando...' : 'Confirmar Pagamento'}
           </button>
         </form>
       )}
