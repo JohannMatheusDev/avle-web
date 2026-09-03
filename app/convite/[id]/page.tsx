@@ -157,13 +157,11 @@ export default function CadastroConvite() {
       .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
   };
 
+  // Sem mascara, pelo mesmo motivo da tela principal: telefone e CPF comecam os
+  // dois com digito e tem os mesmos onze, entao mascarar como telefone tornava
+  // impossivel digitar um CPF.
   const handleIdentificadorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const valor = e.target.value;
-    if (/^\d/.test(valor) || valor.startsWith('(')) {
-      setIdentificadorLogin(aplicarMascaraTelefone(valor));
-    } else {
-      setIdentificadorLogin(valor);
-    }
+    setIdentificadorLogin(e.target.value);
   };
 
   const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -227,11 +225,7 @@ export default function CadastroConvite() {
         let bodyPayload: any = {};
 
         if (isLogin) {
-            if (identificadorLogin.includes('@')) {
-               bodyPayload = { email: identificadorLogin.trim(), senha };
-            } else {
-               bodyPayload = { telefone: identificadorLogin.replace(/\D/g, ''), senha };
-            }
+            bodyPayload = { identificador: identificadorLogin.trim(), senha };
         } else {
             const telefoneCadastroLimpo = telefoneCadastro.replace(/\D/g, '');
             bodyPayload = {
@@ -668,7 +662,7 @@ export default function CadastroConvite() {
                   <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail ou Telefone com DDD</label>
                   <input
                     type="text"
-                    placeholder="seu@email.com ou (45) 99999-9999"
+                    placeholder="E-mail, telefone ou CPF"
                     value={identificadorLogin}
                     onChange={handleIdentificadorChange}
                     className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]"
@@ -806,7 +800,7 @@ export default function CadastroConvite() {
                       </div>
                       <input
                         type="text"
-                        placeholder="seu@email.com ou (45) 99999-9999"
+                        placeholder="E-mail, telefone ou CPF"
                         value={identificadorLogin}
                         onChange={handleIdentificadorChange}
                         className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
@@ -926,7 +920,7 @@ export default function CadastroConvite() {
                     />
                     <button
                       type="button"
-                      onClick={() => setMostrarNovaSenha(!mostrarSenha)}
+                      onClick={() => setMostrarSenha(!mostrarSenha)}
                       className="absolute right-3 top-2.5 text-stone-400 font-bold hover:text-stone-700 cursor-pointer"
                       disabled={carregando}
                     >

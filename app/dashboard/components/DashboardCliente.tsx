@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { CardContemplacao, EtapaTrilha, mensagemDeErro } from '../../lib/contemplacao';
+import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
 import { grupoDisponivel } from '../../lib/grupos';
 import { useRouter } from 'next/navigation';
@@ -1686,7 +1687,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Senha Atual (ou Senha Padrão Inicial)</label>
                   <input
                     type="password"
-                    placeholder="Digite sua senha atual ou Avle123"
+                    placeholder={`Digite sua senha atual ou ${SENHA_PADRAO_INICIAL}`}
                     value={senhaAtualInput}
                     onChange={(e) => setSenhaAtualInput(e.target.value)}
                     className="w-full max-w-md px-3 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm font-medium focus:outline-none focus:border-[#BD6B42] transition-colors"

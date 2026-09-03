@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import DashboardAdmin from './components/DashboardAdmin';
 import DashboardLoja from './components/DashboardLoja';
 import DashboardCliente from './components/DashboardCliente';
+import BoasVindasTermos from './components/BoasVindasTermos';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -43,15 +44,25 @@ export default function DashboardPage() {
 
   const tipo = usuario?.tipoUsuario?.toUpperCase();
 
+  // As boas-vindas ficam por cima do painel que a pessoa ja veria, e nao no
+  // lugar dele. Assim o aceite nao depende de acertar uma tela intermediaria
+  // para cada tipo de usuario, e quem ja aceitou nao ve nada.
+  const comBoasVindas = (painel: React.ReactNode) => (
+    <>
+      {painel}
+      <BoasVindasTermos nome={usuario?.nome} />
+    </>
+  );
+
   switch (tipo) {
     case 'ADMIN':
       return <DashboardAdmin usuario={usuario} />;
     
     case 'LOJA':
-      return <DashboardLoja usuario={usuario} />;
+      return comBoasVindas(<DashboardLoja usuario={usuario} />);
     
     case 'CLIENTE':
-      return <DashboardCliente usuario={usuario} />;
+      return comBoasVindas(<DashboardCliente usuario={usuario} />);
     
     default:
       console.error("Tipo de usuário inválido:", tipo);
