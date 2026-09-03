@@ -1989,7 +1989,15 @@ function CheckoutForm({
   fecharModal: () => void 
 }) {
   const [metodo, setMetodo] = useState<'pix' | 'recorrente' | 'credito_total' | 'debito'>('pix');
-  const [dadosPix, setDadosPix] = useState<{ paymentUrl: string } | null>(null);
+  // O QR e o copia e cola vem junto da cobranca. Mostrar aqui dentro evita
+  // mandar a cliente para uma pagina de fora so para ler um codigo que ja
+  // temos - e e o que faz este checkout ser nosso, e nao um redirecionamento.
+  const [dadosPix, setDadosPix] = useState<{
+    paymentUrl?: string;
+    payload?: string;
+    encodedImage?: string;
+  } | null>(null);
+  const [copiado, setCopiado] = useState(false);
   const [aguardandoConfirmacao, setAguardandoConfirmacao] = useState(false);
   const [carregandoPix, setCarregandoPix] = useState(false);
 
@@ -2151,35 +2159,62 @@ function CheckoutForm({
       </div>
 
       {metodo === 'pix' && (
-        <div className="text-center space-y-4 pt-2">
-          <div className="p-5 bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl text-center text-xs min-h-[100px] flex items-center justify-center">
-            {carregandoPix ? (
-              <span className="animate-pulse block font-bold text-stone-400">Gerando link de checkout seguro...</span>
-            ) : dadosPix?.paymentUrl ? (
-              <div className="space-y-1.5">
-                <p className="text-[11px] text-emerald-700 font-bold">Cobrança gerada no Asaas!</p>
-                <p className="text-[10px] text-stone-400 font-medium">Clique no botão abaixo para concluir o Pix.</p>
-              </div>
-            ) : (
-              <span className="block font-semibold text-rose-500 leading-relaxed">Não foi possível gerar a fatura. Tente novamente.</span>
-            )}
-          </div>
+        <div className="space-y-4 pt-2">
+          {carregandoPix ? (
+            <div className="p-5 bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl min-h-[120px] flex items-center justify-center">
+              <span className="animate-pulse font-bold text-stone-400 text-xs">Preparando o seu Pix...</span>
+            </div>
+          ) : dadosPix?.payload ? (
+            <>
+              {dadosPix.encodedImage && (
+                <div className="flex justify-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`data:image/png;base64,${dadosPix.encodedImage}`}
+                    alt="QR Code do Pix para pagar a parcela"
+                    className="w-44 h-44 rounded-xl border border-stone-200 bg-white p-2"
+                  />
+                </div>
+              )}
 
-          <button
-            type="button"
-            disabled={!dadosPix?.paymentUrl}
-            onClick={() => {
-              if (dadosPix?.paymentUrl) {
-                window.open(dadosPix.paymentUrl, '_blank');
-                // Abrir a tela do banco nao e pagar. A cliente volta para ca e
-                // confere quando quiser; quem confirma e o banco.
-                setAguardandoConfirmacao(true);
-              }
-            }}
-            className="w-full py-3.5 bg-[#0B1E14] text-white font-bold text-xs rounded-xl tracking-wide cursor-pointer uppercase text-[10px] disabled:opacity-40 transition-opacity"
-          >
-            {carregandoPix ? 'Processando...' : 'Pagar via Pix Seguro'}
-          </button>
+              <div>
+                <p className="text-[9px] font-bold uppercase text-stone-500 mb-1 tracking-wider">Pix copia e cola</p>
+                <p className="font-mono text-[10px] leading-relaxed text-stone-600 bg-stone-50 border border-stone-200 rounded-xl p-3 break-all max-h-24 overflow-y-auto">
+                  {dadosPix.payload}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(dadosPix.payload || '');
+                    setCopiado(true);
+                    // Abrir o banco nao e pagar. Quem confirma e o webhook,
+                    // quando o dinheiro entra de verdade.
+                    setAguardandoConfirmacao(true);
+                    setTimeout(() => setCopiado(false), 2500);
+                  } catch {
+                    setCopiado(false);
+                  }
+                }}
+                className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl tracking-wide cursor-pointer uppercase text-[10px] transition-opacity"
+              >
+                {copiado ? 'Código copiado!' : 'Copiar código Pix'}
+              </button>
+
+              <p className="text-[10px] text-stone-400 text-center leading-relaxed">
+                Abra o aplicativo do seu banco, escolha Pix e cole o código. Confira que o
+                recebedor é a AVLE antes de confirmar.
+              </p>
+            </>
+          ) : (
+            <div className="p-5 bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl text-center">
+              <span className="block font-semibold text-rose-500 text-xs leading-relaxed">
+                Não foi possível preparar o Pix agora. Feche e tente de novo em instantes.
+              </span>
+            </div>
+          )}
         </div>
       )}
 
