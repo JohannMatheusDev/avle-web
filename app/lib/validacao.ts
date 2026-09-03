@@ -93,3 +93,10 @@ export const identificadorLoginValido = (valor: string) => {
   if (texto.includes('@')) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(texto);
   return telefoneValido(texto) || cpfValido(texto);
 };
+
+/** CEP com o hifen, do jeito que se escreve: 85015-300. */
+export const aplicarMascaraCep = (valor: string) => {
+  const digitos = (valor || '').replace(/\D/g, '');
+  if (digitos.length <= 5) return digitos;
+  return `${digitos.slice(0, 5)}-${digitos.slice(5, 8)}`;
+};

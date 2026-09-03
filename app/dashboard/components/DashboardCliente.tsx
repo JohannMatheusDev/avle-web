@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { CardContemplacao, EtapaTrilha, mensagemDeErro } from '../../lib/contemplacao';
+import { aplicarMascaraCep } from '../../lib/validacao';
 import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
 import { grupoDisponivel } from '../../lib/grupos';
@@ -1996,6 +1997,11 @@ function CheckoutForm({
   const [nomeImpresso, setNomeImpresso] = useState('');
   const [validade, setValidade] = useState('');
   const [ccv, setCcv] = useState('');
+  // O Asaas confere o endereco do titular com a operadora. Antes o backend
+  // mandava um CEP fixo para todo mundo, e a transacao era recusada.
+  const [cep, setCep] = useState('');
+  const [numeroEndereco, setNumeroEndereco] = useState('');
+  const [complemento, setComplemento] = useState('');
   const [processando, setProcessando] = useState(false);
   const [mensagemCartao, setMensagemCartao] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
 
@@ -2045,7 +2051,10 @@ function CheckoutForm({
       nomeImpressoCartao: nomeImpresso.toUpperCase(),
       mesValidade: mesAno[0],
       anoValidade: '20' + mesAno[1],
-      ccv: ccv.replace(/\D/g, '')
+      ccv: ccv.replace(/\D/g, ''),
+      cep: cep.replace(/\D/g, ''),
+      numeroEndereco,
+      complemento
     };
 
     try {
@@ -2232,6 +2241,51 @@ function CheckoutForm({
                 required
               />
             </div>
+          </div>
+
+          <p className="text-[9px] text-stone-400 leading-relaxed pt-1">
+            O endereço abaixo é o da fatura do cartão. O banco confere estes dados na hora de
+            aprovar a compra.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">CEP</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="85015-300"
+                maxLength={9}
+                value={cep}
+                onChange={(e) => setCep(aplicarMascaraCep(e.target.value))}
+                className="w-full h-11 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Número</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="742"
+                maxLength={10}
+                value={numeroEndereco}
+                onChange={(e) => setNumeroEndereco(e.target.value)}
+                className="w-full h-11 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Complemento (opcional)</label>
+            <input
+              type="text"
+              placeholder="Apto 31, bloco B"
+              value={complemento}
+              onChange={(e) => setComplemento(e.target.value)}
+              className="w-full h-11 px-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
+            />
           </div>
 
           <button 
