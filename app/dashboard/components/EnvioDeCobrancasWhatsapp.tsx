@@ -15,6 +15,7 @@ type Envio = {
   mensagemCobranca: string;
   mensagemDuvida: string;
   outrosGrupos?: number;
+  loja?: string;
 };
 
 type Lista = {
@@ -128,6 +129,22 @@ export default function EnvioDeCobrancasWhatsapp({ grupoId }: { grupoId?: number
     ? todosOsEnvios.filter((e) => e.nome.toLowerCase().includes(busca.trim().toLowerCase()))
     : todosOsEnvios;
 
+  // Agrupado por loja: quem administra atende várias, e mandar uma unidade
+  // inteira de uma vez evita pular de uma cliente da Caza Liz para outra de
+  // outra loja no meio da sequência.
+  const porLoja = envios.reduce<Record<string, Envio[]>>((mapa, envio) => {
+    const loja = envio.loja || 'Sem loja';
+    (mapa[loja] = mapa[loja] || []).push(envio);
+    return mapa;
+  }, {});
+  const lojas = Object.keys(porLoja).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+  // A próxima que ainda não foi enviada. É o que transforma "procurar na lista
+  // e clicar" em só clicar - o WhatsApp abre uma conversa por vez, então o
+  // ganho possível é tirar a busca do caminho, e não mandar todas de uma vez.
+  const proximaDaLoja = (loja: string) =>
+    porLoja[loja].find((e) => !enviados.includes(e.clienteId));
+
   return (
     <div className="bg-white border border-[#DFD9CE] rounded-2xl mb-6 overflow-hidden">
       <div className="px-5 py-4 border-b border-[#DFD9CE] flex flex-wrap items-center justify-between gap-3">
@@ -167,47 +184,69 @@ export default function EnvioDeCobrancasWhatsapp({ grupoId }: { grupoId?: number
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-[#DFD9CE]">
-          {envios.map((envio) => {
-            const jaEnviado = enviados.includes(envio.clienteId);
-            return (
-              <li key={envio.clienteId} className="px-5 py-3.5 flex flex-wrap items-center gap-3 justify-between">
-                <div className="min-w-0">
-                  <p className={`text-xs font-bold ${jaEnviado ? 'text-stone-400 line-through' : 'text-stone-700'}`}>
-                    {envio.nome}
-                  </p>
-                  <p className="text-[10px] text-stone-400 font-mono mt-0.5">
-                    {envio.total}
-                    {envio.parcelas > 1 && ` · ${envio.parcelas} planos`}
-                    {(envio.outrosGrupos ?? 0) > 0 &&
-                      ` · a mensagem já cobre ${envio.outrosGrupos} plano(s) de outra turma`}
-                  </p>
-                </div>
+        lojas.map((loja) => {
+          const daLoja = porLoja[loja];
+          const faltam = daLoja.filter((e) => !enviados.includes(e.clienteId)).length;
+          const proxima = proximaDaLoja(loja);
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => abrirWhatsapp(envio, envio.mensagemDuvida, false)}
-                    className="px-3 py-2 border border-[#DFD9CE] text-stone-600 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-stone-50 transition-colors cursor-pointer"
-                  >
-                    Dúvidas
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => abrirWhatsapp(envio, envio.mensagemCobranca, true)}
-                    className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer ${
-                      jaEnviado
-                        ? 'bg-stone-100 text-stone-400'
-                        : 'bg-[#0B1E14] text-white hover:bg-opacity-90'
-                    }`}
-                  >
-                    {jaEnviado ? 'Enviar de novo' : 'Cobrança'}
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+          return (
+            <div key={loja}>
+              <div className="px-5 py-2.5 bg-stone-50 border-y border-[#DFD9CE] flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500">
+                  {loja} · {daLoja.length} cliente{daLoja.length > 1 ? 's' : ''}
+                </span>
+                <button
+                  type="button"
+                  disabled={!proxima}
+                  onClick={() => proxima && abrirWhatsapp(proxima, proxima.mensagemCobranca, true)}
+                  className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-default bg-[#BD6B42] text-white"
+                >
+                  {proxima ? `Enviar próxima (${faltam})` : 'Todas enviadas'}
+                </button>
+              </div>
+
+              <ul className="divide-y divide-[#DFD9CE]">
+                {daLoja.map((envio) => {
+                  const jaEnviado = enviados.includes(envio.clienteId);
+                  return (
+                    <li key={envio.clienteId} className="px-5 py-3.5 flex flex-wrap items-center gap-3 justify-between">
+                      <div className="min-w-0">
+                        <p className={`text-xs font-bold ${jaEnviado ? 'text-stone-400 line-through' : 'text-stone-700'}`}>
+                          {envio.nome}
+                        </p>
+                        <p className="text-[10px] text-stone-400 font-mono mt-0.5">
+                          {envio.total}
+                          {envio.parcelas > 1 && ` · ${envio.parcelas} planos`}
+                          {(envio.outrosGrupos ?? 0) > 0 &&
+                            ` · a mensagem já cobre ${envio.outrosGrupos} plano(s) de outra turma`}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => abrirWhatsapp(envio, envio.mensagemDuvida, false)}
+                          className="px-3 py-2 border border-[#DFD9CE] text-stone-600 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-stone-50 transition-colors cursor-pointer"
+                        >
+                          Dúvidas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => abrirWhatsapp(envio, envio.mensagemCobranca, true)}
+                          className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                            jaEnviado ? 'bg-stone-100 text-stone-400' : 'bg-[#0B1E14] text-white hover:bg-opacity-90'
+                          }`}
+                        >
+                          {jaEnviado ? 'Enviar de novo' : 'Cobrança'}
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })
       )}
 
       <div className="px-5 py-3 bg-stone-50 border-t border-[#DFD9CE]">
