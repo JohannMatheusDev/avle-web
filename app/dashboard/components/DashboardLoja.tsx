@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CardContemplacao, CotaElegivel, SorteioResumo, mensagemDeErro } from '../../lib/contemplacao';
-import EnvioDeCobrancasWhatsapp from './EnvioDeCobrancasWhatsapp';
 import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
 import { grupoDisponivel, grupoEncerrado, vagasDoGrupo } from '../../lib/grupos';
@@ -1635,8 +1634,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   </div>
                 )}
               </div>
-              {grupoSelecionado && <EnvioDeCobrancasWhatsapp grupoId={grupoSelecionado.id} />}
-
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
