@@ -338,7 +338,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const carregarGruposDoBanco = async () => {
     const lojaId = usuario?.lojaId || usuario?.id;
     const data = await buscarJson<Grupo[]>('Grupos', `${API_URL}/api/grupos/loja/${lojaId}`, []);
-    setListaGrupos(Array.isArray(data) ? data : []);
+    // Ordem alfabetica, e nao a de cadastro. A loja procura o clube pelo nome:
+    // com vinte turmas listadas pela ordem em que foram criadas, achar "Jasmin"
+    // vira uma varredura visual.
+    //
+    // localeCompare com pt-BR para os acentos ficarem no lugar certo -
+    // "Gérberas" antes de "Hortencias", e nao depois de todas as sem acento.
+    setListaGrupos(
+      Array.isArray(data)
+        ? [...data].sort((a, b) => (a?.nome ?? '').localeCompare(b?.nome ?? '', 'pt-BR'))
+        : []
+    );
   };
 
   const carregarDadosFinanceiros = async () => {
