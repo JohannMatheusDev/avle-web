@@ -39,18 +39,24 @@ type Lista = {
  * submetido como modelo à Meta: quando o envio automático entrar, a cliente
  * recebe exatamente o que já recebia.
  */
-export default function EnvioDeCobrancasWhatsapp({ grupoId }: { grupoId: number }) {
+export default function EnvioDeCobrancasWhatsapp({ grupoId }: { grupoId?: number }) {
   const [lista, setLista] = useState<Lista | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [enviados, setEnviados] = useState<number[]>([]);
+  const [busca, setBusca] = useState('');
 
   // A busca não toca em estado: quem guarda o resultado é quem chama. A regra
   // do React proíbe setState no corpo síncrono do efeito, porque dispara uma
   // segunda renderização em cascata - então aqui ele só acontece dentro das
   // continuações da promessa.
   const buscarDados = useCallback(async (): Promise<Lista> => {
-    const resposta = await apiFetch(`${API_URL}/api/cobranca/envios-do-mes?grupoId=${grupoId}`);
+    // Sem grupo, vem a base inteira - e como o painel do admin usa, porque
+    // quem cobra e a AVLE e nao cada loja.
+    const rota = grupoId
+      ? `${API_URL}/api/cobranca/envios-do-mes?grupoId=${grupoId}`
+      : `${API_URL}/api/cobranca/envios-do-mes`;
+    const resposta = await apiFetch(rota);
     if (!resposta.ok) throw new Error('lista indisponivel');
     return resposta.json();
   }, [grupoId]);
@@ -117,7 +123,10 @@ export default function EnvioDeCobrancasWhatsapp({ grupoId }: { grupoId: number 
     );
   }
 
-  const envios = lista?.envios ?? [];
+  const todosOsEnvios = lista?.envios ?? [];
+  const envios = busca.trim()
+    ? todosOsEnvios.filter((e) => e.nome.toLowerCase().includes(busca.trim().toLowerCase()))
+    : todosOsEnvios;
 
   return (
     <div className="bg-white border border-[#DFD9CE] rounded-2xl mb-6 overflow-hidden">
@@ -130,6 +139,15 @@ export default function EnvioDeCobrancasWhatsapp({ grupoId }: { grupoId: number 
             Envio pelo WhatsApp · vence {lista?.vencimento}
           </h4>
         </div>
+        {todosOsEnvios.length > 8 && (
+          <input
+            type="search"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar cliente"
+            className="px-3 h-9 rounded-xl border border-[#DFD9CE] bg-white text-xs w-48 focus:outline-none focus:border-[#BD6B42]"
+          />
+        )}
         <div className="flex items-center gap-4 text-[10px] font-mono text-stone-500">
           <span><strong className="text-[#0B1E14]">{lista?.clientesParaAvisar ?? 0}</strong> a avisar</span>
           {(lista?.jaPagas ?? 0) > 0 && <span>{lista?.jaPagas} já pagas</span>}
@@ -142,7 +160,7 @@ export default function EnvioDeCobrancasWhatsapp({ grupoId }: { grupoId: number 
       {envios.length === 0 ? (
         <div className="px-5 py-8 text-center">
           <p className="text-xs text-stone-400 italic">
-            Nenhuma cobrança em aberto neste grupo para {lista?.competencia}.
+            Nenhuma cobrança em aberto {grupoId ? 'neste grupo' : ''} para {lista?.competencia}.
           </p>
           <p className="text-[10px] text-stone-400 mt-1">
             A lista aparece depois que as parcelas do mês forem emitidas.
