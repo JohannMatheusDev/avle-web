@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import gsap from 'gsap';
 import { apiFetch } from '../../lib/api';
+import TelaCarregamento from '../../dashboard/components/TelaCarregamento';
 import {
   cpfValido,
   identificadorLoginValido,
@@ -30,6 +31,21 @@ export default function CadastroConvite() {
   const [lojaIdNum, setLojaIdNum] = useState<number | null>(null);
   const [lojaValida, setLojaValida] = useState<boolean>(true);
 
+  // A abertura da marca, a mesma da entrada pelo site. O convite e por onde a
+  // maioria das clientes conhece a AVLE, entao era justamente a porta que
+  // estava entrando sem ela.
+  //
+  // Comeca em null, e nao em false, porque a resposta mora no sessionStorage e
+  // ele so existe no navegador: chutar false renderizaria o formulario no
+  // servidor e trocaria pelo video depois, com um piscar feio.
+  const [mostrandoIntro, setMostrandoIntro] = useState<boolean | null>(null);
+
+  // Enquanto a loja do link nao chegou. Vale a pena existir separado de
+  // lojaValida: sem isso a pagina abria o formulario inteiro com "Carregando..."
+  // no lugar do nome da loja, e dava para comecar a preencher antes de o id da
+  // loja existir - cadastro enviado ali ficava sem loja.
+  const [carregandoLoja, setCarregandoLoja] = useState(true);
+
   const [isLogin, setIsLogin] = useState(false);
   const [isVerificando, setIsVerificando] = useState(false);
   const [carregando, setCarregando] = useState(false);
@@ -54,6 +70,17 @@ export default function CadastroConvite() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [telefoneVerificacao, setTelefoneVerificacao] = useState('');
   const [reenviandoCodigo, setReenviandoCodigo] = useState(false);
+
+  useEffect(() => {
+    // Mesma chave da home: quem ja viu a abertura nesta visita nao ve de novo
+    // ao trocar de tela.
+    setMostrandoIntro(sessionStorage.getItem('@avle:splash-visualizado') !== 'true');
+  }, []);
+
+  const encerrarIntro = () => {
+    sessionStorage.setItem('@avle:splash-visualizado', 'true');
+    setMostrandoIntro(false);
+  };
 
   // NOVIDADE: A busca agora compara o NOME do link com a lista de lojas!
   useEffect(() => {
@@ -83,6 +110,11 @@ export default function CadastroConvite() {
       })
       .catch(() => {
         setLojaValida(false);
+      })
+      // Roda em paralelo com o video de abertura, e nao depois dele: assim os
+      // segundos da marca cobrem a espera da API em vez de somar com ela.
+      .finally(() => {
+        setCarregandoLoja(false);
       });
   }, [slugDaLoja]);
 
@@ -96,6 +128,9 @@ export default function CadastroConvite() {
 
   useEffect(() => {
     if (!lojaValida) return;
+    // Animar por tras do video gastaria a entrada do cartao onde ninguem ve.
+    if (mostrandoIntro !== false) return;
+    if (carregandoLoja) return;
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
@@ -138,7 +173,7 @@ export default function CadastroConvite() {
     }, containerRef);
 
     return () => ctx.revert();
-  }, [lojaValida]);
+  }, [lojaValida, mostrandoIntro, carregandoLoja]);
 
   const aplicarMascaraTelefone = (valor: string) => {
     const v = valor.replace(/\D/g, '');
@@ -484,6 +519,36 @@ export default function CadastroConvite() {
       setCarregando(false);
     }
   };
+
+  // Antes de o navegador dizer se a abertura ja foi vista, so o fundo. E um
+  // quadro, e nao uma espera: sem ele o formulario apareceria por um instante
+  // para ser coberto pelo video logo em seguida.
+  if (mostrandoIntro === null) {
+    return <div className="min-h-screen bg-[#F5F2EB]" />;
+  }
+
+  if (mostrandoIntro) {
+    // Com o pular ligado, ao contrario da home. Aqui a pessoa veio de um link
+    // para se cadastrar, e prender dez segundos de video na frente de quem tem
+    // pressa custa cadastro.
+    return <TelaCarregamento onFinalizado={encerrarIntro} permitirPular />;
+  }
+
+  // A loja do link ainda nao chegou. Aparece quando a API acorda devagar, que e
+  // exatamente quando a pessoa precisa saber que a pagina esta viva.
+  if (carregandoLoja) {
+    return (
+      <div className="min-h-screen bg-[#F5F2EB] flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-[#0B1E14] rounded-full flex items-center justify-center mx-auto mb-5 animate-pulse">
+            <span className="text-[#F5F2EB] font-black text-2xl">AV</span>
+          </div>
+          <p className="text-sm font-bold text-[#0B1E14]">Preparando seu convite</p>
+          <p className="text-xs text-stone-500 mt-1">Isso leva alguns segundos no primeiro acesso.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!lojaValida) {
     return (
