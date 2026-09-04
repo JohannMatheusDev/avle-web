@@ -30,15 +30,16 @@ export default function ParcelasDoPlano({
 
   const pagas = Math.min(Math.floor((saldoPoupanca || 0) / valorParcela), duracaoMeses);
 
-  // Quantas já venceram, contando o mês corrente: a parcela deste mês é devida,
-  // mesmo que o vencimento ainda não tenha chegado.
+  // Quantas já venceram. A primeira parcela vence no mês SEGUINTE ao início do
+  // grupo, e não no mês de abertura — contar o mês de início dava um mês a mais
+  // de dívida para todo mundo.
   const vencidas = (() => {
     if (!inicio) return 0;
     const comeco = new Date(inicio);
     if (Number.isNaN(comeco.getTime())) return 0;
     const hoje = new Date();
     const meses =
-      (hoje.getFullYear() - comeco.getFullYear()) * 12 + (hoje.getMonth() - comeco.getMonth()) + 1;
+      (hoje.getFullYear() - comeco.getFullYear()) * 12 + (hoje.getMonth() - comeco.getMonth());
     return Math.max(0, Math.min(meses, duracaoMeses));
   })();
 
