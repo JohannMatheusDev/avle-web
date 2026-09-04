@@ -1395,36 +1395,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     }
   };
 
-  /**
-   * O faturamento total aberto por clube, com a diferenca explicita.
-   *
-   * Um numero sozinho nao da para conferir: ver "R$ 34 mil" nao diz de onde
-   * veio. Aqui cada clube aparece com o quanto trouxe, e a soma fica visivel ao
-   * lado do total - se as duas nao baterem, a diferenca e mostrada em vez de
-   * escondida, porque ela costuma ser entrada lancada fora de um clube.
-   */
-  const composicaoDoFaturamento = (() => {
-    const porGrupo = (analytics?.faturamentoPorGrupo ?? [])
-      .map((g) => ({ nome: g.nome, total: Number(g.faturado ?? g.total ?? 0) }))
-      .filter((g) => g.total > 0)
-      .sort((a, b) => b.total - a.total);
-
-    const somaDosClubes = porGrupo.reduce((acc, g) => acc + g.total, 0);
-    const total = Number(analytics?.totalFaturado ?? 0);
-    const maior = porGrupo[0]?.total ?? 0;
-
-    return {
-      linhas: porGrupo.map((g) => ({
-        ...g,
-        // A barra compara com o maior clube, e nao com o total: com dez clubes
-        // parecidos, todas as barras ficariam num tracinho invisivel.
-        fatia: maior > 0 ? (g.total / maior) * 100 : 0,
-      })),
-      somaDosClubes,
-      diferenca: total - somaDosClubes,
-    };
-  })();
-
   // Faturamento de um grupo especifico. O analytics ja traz o consolidado por
   // grupo, entao a ficha e o card leem daqui em vez de refazer a conta - duas
   // contas separadas para o mesmo numero acabam divergindo.
@@ -1947,68 +1917,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">{totalGruposValidos}</span>
                     <span className="text-[10px] text-stone-400 mt-2">grupos de compras</span>
                   </div>
-                </div>
-
-                {/* ── De onde vem o faturamento ── */}
-                <div className="bg-white border border-[#E6E2D8] rounded-xl shadow-sm overflow-hidden">
-                  <div className="px-5 py-4 border-b border-[#E6E2D8]">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block">
-                      De onde vem o faturamento
-                    </span>
-                    <p className="text-[10px] text-stone-400 mt-1">
-                      O total acumulado, aberto por clube. Serve para conferir se a soma bate.
-                    </p>
-                  </div>
-
-                  {composicaoDoFaturamento.linhas.length === 0 ? (
-                    <p className="px-5 py-6 text-xs text-stone-400 italic">
-                      Ainda não há faturamento registrado nos clubes.
-                    </p>
-                  ) : (
-                    <>
-                      <ul className="divide-y divide-[#E6E2D8]">
-                        {composicaoDoFaturamento.linhas.map((linha) => (
-                          <li key={linha.nome} className="px-5 py-3 flex items-center gap-3">
-                            <span className="text-xs font-bold text-stone-700 w-40 shrink-0 truncate">{linha.nome}</span>
-                            <span className="flex-1 h-1.5 rounded-full bg-[#F0EDE6] overflow-hidden min-w-[40px]">
-                              <span
-                                className="block h-full bg-[#0B1E14]"
-                                style={{ width: `${linha.fatia}%` }}
-                              />
-                            </span>
-                            <span className="text-[10px] font-mono text-stone-400 w-10 text-right shrink-0">
-                              {linha.fatia.toFixed(0)}%
-                            </span>
-                            <span className="text-xs font-mono font-bold text-stone-700 w-28 text-right shrink-0">
-                              R$ {linha.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-
-                      <div className="px-5 py-3 bg-stone-50 border-t border-[#E6E2D8] flex items-center justify-between">
-                        <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest">
-                          Soma dos clubes
-                        </span>
-                        <span className="text-xs font-mono font-bold text-[#0B1E14]">
-                          R$ {composicaoDoFaturamento.somaDosClubes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-
-                      {Math.abs(composicaoDoFaturamento.diferenca) >= 0.01 && (
-                        <div className="px-5 py-3 bg-[#FDF6F2] border-t border-[#E8D5C8]">
-                          <p className="text-[10px] text-[#8A4B2A] leading-relaxed">
-                            <strong>
-                              Diferença de R$ {Math.abs(composicaoDoFaturamento.diferenca).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </strong>{' '}
-                            entre o faturamento total e a soma dos clubes. Costuma ser entrada
-                            registrada fora de um clube — baixa manual, ajuste, ou cota de grupo já
-                            encerrado.
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  )}
                 </div>
 
                 {/* ── Operação: onde estão as clientes e as cotas ── */}
