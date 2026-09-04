@@ -1406,9 +1406,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
     const inicio = grupoSelecionado?.dataInicio ? new Date(grupoSelecionado.dataInicio) : null;
     const hoje = new Date();
+    // A primeira parcela vence no mes seguinte ao inicio do grupo.
     const vencidas = inicio && !Number.isNaN(inicio.getTime())
       ? Math.max(0, Math.min(
-          (hoje.getFullYear() - inicio.getFullYear()) * 12 + (hoje.getMonth() - inicio.getMonth()) + 1,
+          (hoje.getFullYear() - inicio.getFullYear()) * 12 + (hoje.getMonth() - inicio.getMonth()),
           duracao))
       : 0;
 
