@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CardContemplacao, CotaElegivel, SorteioResumo, mensagemDeErro } from '../../lib/contemplacao';
+import ParcelasDoPlano from './ParcelasDoPlano';
 import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
 import { grupoDisponivel, grupoEncerrado, vagasDoGrupo } from '../../lib/grupos';
@@ -1393,6 +1394,37 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const recebidoEsteMes = Number(dadosFinanceiros?.recebidoEsteMes) || 0;
   const aReceberContemplados = Number(dadosFinanceiros?.aReceberContemplados) || 0;
   const totalParticipantesValidos = Array.isArray(participantesDoGrupo) ? participantesDoGrupo.length : 0;
+
+  // Quantas cotas do grupo estao em dia, atrasadas e quitadas. E a mesma conta
+  // das bolinhas de cada linha, so que somada - a loja quer o retrato da turma
+  // antes de olhar pessoa por pessoa.
+  const resumoDeParcelas = (() => {
+    const valorParcela = Number(grupoSelecionado?.valorParcela) || 0;
+    const duracao = Number(grupoSelecionado?.duracaoMeses) || 0;
+    if (!valorParcela || !duracao || totalParticipantesValidos === 0) return null;
+
+    const inicio = grupoSelecionado?.dataInicio ? new Date(grupoSelecionado.dataInicio) : null;
+    const hoje = new Date();
+    // A primeira parcela vence no mes seguinte ao inicio do grupo.
+    const vencidas = inicio && !Number.isNaN(inicio.getTime())
+      ? Math.max(0, Math.min(
+          (hoje.getFullYear() - inicio.getFullYear()) * 12 + (hoje.getMonth() - inicio.getMonth()),
+          duracao))
+      : 0;
+
+    let emDia = 0;
+    let emAtraso = 0;
+    let quitadas = 0;
+
+    participantesDoGrupo.forEach((part) => {
+      const pagas = Math.min(Math.floor((Number(part.saldoPoupanca) || 0) / valorParcela), duracao);
+      if (pagas >= duracao) quitadas += 1;
+      else if (pagas < vencidas) emAtraso += 1;
+      else emDia += 1;
+    });
+
+    return { emDia, emAtraso, quitadas };
+  })();
   const totalGruposValidos = Array.isArray(listaGrupos) ? listaGrupos.length : 0;
 
   const termoBuscaCliente = buscaClienteGrupo.trim().toLowerCase();
@@ -1618,6 +1650,22 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <div>
                   <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Mapeamento de Integrantes</h3>
                   <p className="text-[10px] text-stone-400 font-medium">Selecione uma linha para registrar baixas manuais ou liberar entregas.</p>
+                  {resumoDeParcelas && (
+                    <div className="flex flex-wrap items-center gap-4 mt-2 text-[10px] font-mono">
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#0B1E14]" />
+                        <span className="text-stone-500">{resumoDeParcelas.emDia} em dia</span>
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#BD6B42]" />
+                        <span className="text-stone-500">{resumoDeParcelas.emAtraso} em atraso</span>
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#DFD9CE]" />
+                        <span className="text-stone-500">{resumoDeParcelas.quitadas} quitadas</span>
+                      </span>
+                    </div>
+                  )}
                 </div>
                 
                 {idOperacao !== 'Nenhuma' && (
@@ -1644,13 +1692,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <th className="py-3.5 px-5 text-center">ENTREGA</th>
                       <th className="py-3.5 px-5 text-right">SALDO QUITADO</th>
                       <th className="py-3.5 px-5 text-right">VALOR COBERTO (RISCO)</th>
+                      <th className="py-3.5 px-5">PARCELAS</th>
                       <th className="py-3.5 px-5 text-center">AÇÕES</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
                     {totalParticipantesValidos === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-8 text-center">
+                        <td colSpan={8} className="py-8 text-center">
                           <p className="text-stone-400 italic mb-3">Nenhum participante vinculado a este grupo ainda.</p>
                           <button
                             type="button"
@@ -1763,6 +1812,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
                             <td className="py-3.5 px-5 text-right font-mono text-emerald-700">R$ {Number(part.saldoPoupanca).toFixed(2)}</td>
                             <td className="py-3.5 px-5 text-right font-mono text-rose-700">R$ {Number(part.custoFinanciadoLoja).toFixed(2)}</td>
+                            <td className="py-3.5 px-5">
+                              <ParcelasDoPlano
+                                saldoPoupanca={Number(part.saldoPoupanca)}
+                                valorParcela={Number(grupoSelecionado?.valorParcela)}
+                                duracaoMeses={Number(grupoSelecionado?.duracaoMeses)}
+                                inicio={grupoSelecionado?.dataInicio}
+                              />
+                            </td>
                             <td className="py-3.5 px-5 text-center">
                               <button
                                 type="button"
