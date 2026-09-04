@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import EnvioDeCobrancasWhatsapp from './EnvioDeCobrancasWhatsapp';
 import { useRouter } from 'next/navigation';
 import { apiFetch, encerrarSessao } from '../../lib/api';
 import {
@@ -11,7 +12,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function DashboardAdmin({ usuario }: { usuario: any }) {
   const router = useRouter();
-  const [abaExibida, setAbaExibida] = useState<'geral' | 'lojas' | 'financeiro'>('geral');
+  const [abaExibida, setAbaExibida] = useState<'geral' | 'lojas' | 'financeiro' | 'cobranca'>('geral');
 
   const [lojaSelecionada, setLojaSelecionada] = useState<any | null>(null);
   const [limiteInput, setLimiteInput] = useState<number>(1);
@@ -198,6 +199,19 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               }`}
             >
               <span>Financeiro</span>
+            </button>
+            <button
+              onClick={() => {
+                setLojaSelecionada(null);
+                setAbaExibida('cobranca');
+              }}
+              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                abaExibida === 'cobranca' && !lojaSelecionada
+                  ? 'bg-white/10 text-white font-bold'
+                  : 'hover:bg-white/5 opacity-75'
+              }`}
+            >
+              <span>Cobrança do mês</span>
             </button>
           </nav>
         </div>
@@ -717,6 +731,20 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                     ))
                   )}
                 </div>
+              </div>
+            )}
+
+            {abaExibida === 'cobranca' && !lojaSelecionada && (
+              <div>
+                <div className="mb-5">
+                  <h2 className="text-xl font-bold text-[#0B1E14]">Cobrança do mês</h2>
+                  <p className="text-xs text-stone-400 mt-1 max-w-2xl leading-relaxed">
+                    Quem cobra é a AVLE, e não as lojas. Cada botão abre o WhatsApp com a mensagem
+                    escrita — confira e envie. As mensagens saem do número conectado nesta máquina,
+                    então use o WhatsApp da AVLE.
+                  </p>
+                </div>
+                <EnvioDeCobrancasWhatsapp />
               </div>
             )}
 
