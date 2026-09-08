@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CardContemplacao, CotaElegivel, SorteioResumo, mensagemDeErro } from '../../lib/contemplacao';
 import ParcelasDoPlano from './ParcelasDoPlano';
+import ExtratoDePagamentos from './ExtratoDePagamentos';
 import { parcelasPagas } from '../../lib/parcelas';
 import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
@@ -3847,6 +3848,16 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <p className="text-xs text-rose-600 py-6 text-center">Não foi possível carregar a ficha desta cliente.</p>
                     ) : (
                       <>
+                        {/* De onde veio o dinheiro desta cota. Fica no topo da
+                            ficha porque e a pergunta que traz a loja aqui:
+                            "ela pagou, e por onde?" */}
+                        {f.temCota && grupoSelecionado?.id && (
+                          <ExtratoDePagamentos
+                            usuarioId={Number(f.id)}
+                            grupoId={Number(grupoSelecionado.id)}
+                          />
+                        )}
+
                         {f.parcial && (
                           <div className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 leading-relaxed">
                             <strong>Ficha parcial.</strong> O servidor ainda não tem a consulta completa, então
