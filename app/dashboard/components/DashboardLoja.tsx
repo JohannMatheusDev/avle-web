@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CardContemplacao, CotaElegivel, SorteioResumo, mensagemDeErro } from '../../lib/contemplacao';
 import ParcelasDoPlano from './ParcelasDoPlano';
+import { parcelasPagas } from '../../lib/parcelas';
 import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
 import { grupoDisponivel, grupoEncerrado, vagasDoGrupo } from '../../lib/grupos';
@@ -411,7 +412,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     const duracao = Number(grupoSelecionado?.duracaoMeses) || 0;
     const saldo = Number(participante.saldoPoupanca) || 0;
     const total = valorParcela * duracao;
-    const pagas = valorParcela > 0 ? Math.floor(saldo / valorParcela) : 0;
+    const pagas = parcelasPagas(saldo, valorParcela);
 
     return {
       parcial: true,
@@ -909,7 +910,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       tipo: 'participante',
       idTarget: cotaId,
       titulo: 'Remover Participante',
-      mensagem: 'Tem certeza que deseja remover este participante do grupo? A cota será zerada e o histórico de participação neste clube será cancelado permanentemente.'
+      mensagem: 'Tem certeza que deseja remover esta participante do grupo? Ela deixa de ocupar vaga, de ser cobrada e de concorrer aos sorteios. Se já houver parcelas lançadas, o histórico de pagamentos dela é mantido.'
     });
   };
 
@@ -936,7 +937,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           throw new Error(textoErro || 'Falha ao remover participante.');
         }
 
-        mostrarAviso('Participante Removido', 'O cliente foi desligado deste grupo de compras com sucesso.', false);
+        const corpo = await res.json().catch(() => null);
+        mostrarAviso(
+          'Participante removida',
+          corpo?.mensagem || 'A cliente foi desligada deste grupo de compras.',
+          false,
+        );
         
         if (idOperacao === idTarget.toString()) {
           setIdOperacao('Nenhuma');
@@ -1427,7 +1433,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     let quitadas = 0;
 
     participantesDoGrupo.forEach((part) => {
-      const pagas = Math.min(Math.floor((Number(part.saldoPoupanca) || 0) / valorParcela), duracao);
+      const pagas = parcelasPagas(part.saldoPoupanca, valorParcela, duracao);
       if (pagas >= duracao) quitadas += 1;
       else if (pagas < vencidas) emAtraso += 1;
       else emDia += 1;
