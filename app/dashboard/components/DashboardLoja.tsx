@@ -910,7 +910,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       tipo: 'participante',
       idTarget: cotaId,
       titulo: 'Remover Participante',
-      mensagem: 'Tem certeza que deseja remover este participante do grupo? A cota será zerada e o histórico de participação neste clube será cancelado permanentemente.'
+      mensagem: 'Tem certeza que deseja remover esta participante do grupo? Ela deixa de ocupar vaga, de ser cobrada e de concorrer aos sorteios. Se já houver parcelas lançadas, o histórico de pagamentos dela é mantido.'
     });
   };
 
@@ -937,7 +937,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           throw new Error(textoErro || 'Falha ao remover participante.');
         }
 
-        mostrarAviso('Participante Removido', 'O cliente foi desligado deste grupo de compras com sucesso.', false);
+        const corpo = await res.json().catch(() => null);
+        mostrarAviso(
+          'Participante removida',
+          corpo?.mensagem || 'A cliente foi desligada deste grupo de compras.',
+          false,
+        );
         
         if (idOperacao === idTarget.toString()) {
           setIdOperacao('Nenhuma');
