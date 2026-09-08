@@ -1865,6 +1865,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                 valorParcela={Number(grupoSelecionado?.valorParcela)}
                                 duracaoMeses={Number(grupoSelecionado?.duracaoMeses)}
                                 inicio={grupoSelecionado?.dataInicio}
+                                recebidoEmPagamentos={
+                                  part.recebidoEmPagamentos != null
+                                    ? Number(part.recebidoEmPagamentos)
+                                    : null
+                                }
                               />
                             </td>
                             <td className="py-3.5 px-5 text-center">
