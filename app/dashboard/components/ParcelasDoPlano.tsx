@@ -22,15 +22,30 @@ export default function ParcelasDoPlano({
   valorParcela,
   duracaoMeses,
   inicio,
+  recebidoEmPagamentos,
 }: {
   saldoPoupanca: number;
   valorParcela: number;
   duracaoMeses: number;
   inicio?: string | null;
+  /**
+   * Quanto a cota recebeu de verdade, somando Asaas e baixas da loja.
+   *
+   * Quando vem, manda no lugar do saldo. O saldo e escrito por caminhos que
+   * nem sempre deixam lancamento - aporte de quitacao, carga antiga, correcao
+   * feita direto no banco - entao ele conta a conta e nao os pagamentos. Uma
+   * cota chegou a mostrar cinco parcelas pagas tendo um unico lancamento de
+   * tres.
+   */
+  recebidoEmPagamentos?: number | null;
 }) {
   if (!valorParcela || !duracaoMeses) return null;
 
-  const pagas = parcelasPagas(saldoPoupanca, valorParcela, duracaoMeses);
+  // Sem o numero dos lancamentos, cai no saldo: e o caso da cliente que so tem
+  // saldo herdado de antes da plataforma, e zerar as bolinhas dela seria pior
+  // do que mostrar o numero antigo.
+  const base = recebidoEmPagamentos != null ? recebidoEmPagamentos : saldoPoupanca;
+  const pagas = parcelasPagas(base, valorParcela, duracaoMeses);
 
   // Quantas já venceram. A primeira parcela vence no mês SEGUINTE ao início do
   // grupo, e não no mês de abertura — contar o mês de início dava um mês a mais
