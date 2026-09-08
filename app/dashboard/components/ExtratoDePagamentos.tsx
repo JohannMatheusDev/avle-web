@@ -76,6 +76,9 @@ export default function ExtratoDePagamentos({
       <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-2">
         De onde veio o dinheiro
       </p>
+      {/* "Pela loja" cobre os dois caminhos manuais: a baixa do balcao e o
+          registro avulso. O que separa as colunas nao e o nome do status, e
+          sim ter ou nao cobranca no Asaas por tras. */}
 
       <div className="grid grid-cols-3 gap-2 mb-3">
         <div className="bg-stone-50 border border-[#DFD9CE] rounded-lg px-3 py-2">
@@ -85,7 +88,7 @@ export default function ExtratoDePagamentos({
           </p>
         </div>
         <div className="bg-stone-50 border border-[#DFD9CE] rounded-lg px-3 py-2">
-          <p className="text-[9px] uppercase tracking-wider text-stone-400 font-bold">Baixa da loja</p>
+          <p className="text-[9px] uppercase tracking-wider text-stone-400 font-bold">Pela loja</p>
           <p className="font-mono text-xs font-bold text-[#0B1E14] mt-0.5">
             {dinheiro(extrato.baixaManualDaLoja)}
           </p>
