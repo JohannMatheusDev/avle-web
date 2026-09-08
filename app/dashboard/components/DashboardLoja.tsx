@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CardContemplacao, CotaElegivel, SorteioResumo, mensagemDeErro } from '../../lib/contemplacao';
 import ParcelasDoPlano from './ParcelasDoPlano';
+import { parcelasPagas } from '../../lib/parcelas';
 import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
 import { grupoDisponivel, grupoEncerrado, vagasDoGrupo } from '../../lib/grupos';
@@ -411,7 +412,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     const duracao = Number(grupoSelecionado?.duracaoMeses) || 0;
     const saldo = Number(participante.saldoPoupanca) || 0;
     const total = valorParcela * duracao;
-    const pagas = valorParcela > 0 ? Math.floor(saldo / valorParcela) : 0;
+    const pagas = parcelasPagas(saldo, valorParcela);
 
     return {
       parcial: true,
@@ -1457,7 +1458,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     let quitadas = 0;
 
     participantesDoGrupo.forEach((part) => {
-      const pagas = Math.min(Math.floor((Number(part.saldoPoupanca) || 0) / valorParcela), duracao);
+      const pagas = parcelasPagas(part.saldoPoupanca, valorParcela, duracao);
       if (pagas >= duracao) quitadas += 1;
       else if (pagas < vencidas) emAtraso += 1;
       else emDia += 1;

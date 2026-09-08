@@ -1,5 +1,7 @@
 'use client';
 
+import { parcelasPagas } from '../../lib/parcelas';
+
 /**
  * As parcelas do plano de uma cota, uma bolinha por mês.
  *
@@ -28,7 +30,7 @@ export default function ParcelasDoPlano({
 }) {
   if (!valorParcela || !duracaoMeses) return null;
 
-  const pagas = Math.min(Math.floor((saldoPoupanca || 0) / valorParcela), duracaoMeses);
+  const pagas = parcelasPagas(saldoPoupanca, valorParcela, duracaoMeses);
 
   // Quantas já venceram. A primeira parcela vence no mês SEGUINTE ao início do
   // grupo, e não no mês de abertura — contar o mês de início dava um mês a mais
