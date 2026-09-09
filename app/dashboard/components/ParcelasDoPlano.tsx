@@ -3,19 +3,22 @@
 import { parcelasPagas } from '../../lib/parcelas';
 
 /**
- * As parcelas do plano de uma cota, uma bolinha por mês.
+ * Quanto do plano de uma cota já foi pago.
  *
  * A loja precisa ver de relance quem está em dia e quem não está, sem abrir a
  * ficha de cada uma. Um número de saldo não responde isso — R$ 100 é muito ou
  * pouco depende do valor da parcela e de quantos meses o grupo já rodou.
  *
- * Verde é parcela paga. Terracota é mês que já venceu e não foi pago.
- * Bege é mês que ainda não chegou.
+ * Era uma bolinha por mês, e a bolinha mentia. Ela parecia dizer QUAL mês
+ * estava pago, mas o sistema só sabe QUANTAS parcelas foram pagas — os
+ * pagamentos antigos foram lançados sem competência. A terceira bolinha verde
+ * nunca significou "março pago", e era assim que todo mundo lia.
  *
- * As parcelas pagas vêm do saldo dividido pelo valor da parcela, e não de um
- * registro por mês: os pagamentos antigos foram lançados sem a competência,
- * então não há como dizer QUAL mês cada um quitou. O saldo diz quantos, e para
- * a leitura da loja isso basta.
+ * A barra diz a mesma coisa sem sugerir mês nenhum, e o número escrito ao lado
+ * tira a dúvida sem ninguém precisar contar bolinha.
+ *
+ * Verde é pago. Terracota é o que já venceu e não foi pago. Bege é o que ainda
+ * não chegou.
  */
 export default function ParcelasDoPlano({
   saldoPoupanca,
@@ -62,32 +65,34 @@ export default function ParcelasDoPlano({
 
   const atrasadas = Math.max(0, vencidas - pagas);
 
-  const cor = (mes: number) => {
-    if (mes <= pagas) return 'bg-[#0B1E14]';
-    if (mes <= vencidas) return 'bg-[#BD6B42]';
-    return 'bg-[#DFD9CE]';
-  };
-
-  const legenda = (mes: number) => {
-    if (mes <= pagas) return `Parcela ${mes}: paga`;
-    if (mes <= vencidas) return `Parcela ${mes}: em atraso`;
-    return `Parcela ${mes}: ainda não venceu`;
-  };
+  const largura = (quantas: number) => `${(Math.max(0, quantas) / duracaoMeses) * 100}%`;
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-1" aria-label={`${pagas} de ${duracaoMeses} parcelas pagas`}>
-        {Array.from({ length: duracaoMeses }, (_, i) => i + 1).map((mes) => (
-          <span
-            key={mes}
-            title={legenda(mes)}
-            className={`h-2.5 w-2.5 rounded-full ${cor(mes)} ${mes <= vencidas ? '' : 'opacity-70'}`}
-          />
-        ))}
+    <div className="flex items-center gap-2.5">
+      <div
+        className="flex h-2 w-28 shrink-0 overflow-hidden rounded-full bg-[#DFD9CE]"
+        role="img"
+        aria-label={`${pagas} de ${duracaoMeses} parcelas pagas${atrasadas > 0 ? `, ${atrasadas} em atraso` : ''}`}
+        title={`${pagas} de ${duracaoMeses} pagas${atrasadas > 0 ? ` · ${atrasadas} em atraso` : ''}`}
+      >
+        <span className="h-full bg-[#0B1E14]" style={{ width: largura(pagas) }} />
+        {/* O atraso ocupa a faixa entre o que foi pago e o que já venceu. Sem
+            ele a barra pareceria só "faltar", sem distinguir mês que ainda nem
+            chegou de mês vencido e não pago. */}
+        <span className="h-full bg-[#BD6B42]" style={{ width: largura(atrasadas) }} />
       </div>
-      <span className="text-[10px] font-mono text-stone-400 whitespace-nowrap">
-        {pagas}/{duracaoMeses}
-        {atrasadas > 0 && <span className="text-[#BD6B42] font-bold"> · {atrasadas} em atraso</span>}
+
+      <span className="whitespace-nowrap font-mono text-[10px] text-stone-500">
+        <strong className="text-[#0B1E14]">
+          {pagas}/{duracaoMeses}
+        </strong>
+        {atrasadas > 0 ? (
+          <span className="font-bold text-[#BD6B42]"> · {atrasadas} em atraso</span>
+        ) : pagas >= duracaoMeses ? (
+          <span className="text-[#0B1E14]"> · quitada</span>
+        ) : (
+          <span className="text-stone-400"> · em dia</span>
+        )}
       </span>
     </div>
   );
