@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation';
 import { CardContemplacao, CotaElegivel, SorteioResumo, mensagemDeErro } from '../../lib/contemplacao';
 import ParcelasDoPlano from './ParcelasDoPlano';
 import ExtratoDePagamentos from './ExtratoDePagamentos';
-import CentralDeAvisos from './CentralDeAvisos';
+import ListaDeAvisos from './ListaDeAvisos';
 import { parcelasPagas } from '../../lib/parcelas';
 import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
 import { grupoDisponivel, grupoEncerrado, vagasDoGrupo } from '../../lib/grupos';
 import { apiFetch, encerrarSessao } from '../../lib/api';
+import { useAvisos } from '../../lib/avisos';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Cell, Legend,
@@ -83,6 +84,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   const [grupoSelecionado, setGrupoSelecionado] = useState<Grupo | null>(null);
   const [participantesDoGrupo, setParticipantesDoGrupo] = useState<any[]>([]);
+
+  // Entradas de dinheiro. Moram no mesmo INBOX das sorteadas aguardando
+  // credito: dois icones piscando em cantos diferentes da tela era o que
+  // incomodava, entao tudo se concentra na arvore.
+  const { avisos, naoLidas, marcarTodas } = useAvisos();
 
   const [listaGrupos, setListaGrupos] = useState<Grupo[]>([]);
   const [listaClientesLoja, setListaClientesLoja] = useState<any[]>([]);
@@ -1516,15 +1522,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           >
             Configurações
           </button>
-          <div className="flex items-center gap-3">
-            <CentralDeAvisos tema="escuro" />
-            <button
-              onClick={async () => { await encerrarSessao(); window.location.href = '/'; }}
-              className="text-stone-500 hover:text-red-400 text-[10px] font-bold transition-all cursor-pointer tracking-wider uppercase"
-            >
-              Sair
-            </button>
-          </div>
+          <button
+            onClick={async () => { await encerrarSessao(); window.location.href = '/'; }}
+            className="text-stone-500 hover:text-red-400 text-[10px] font-bold transition-all cursor-pointer tracking-wider uppercase"
+          >
+            Sair
+          </button>
         </div>
       </aside>
 
@@ -3075,12 +3078,18 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <div className="bg-[#0B1E14] text-white p-4 flex justify-between items-center">
                    <div className="flex items-center gap-2">
                       <span className="text-lg">INBOX</span>
-                      <h3 className="text-xs font-bold uppercase tracking-wider">Sorteadas aguardando crédito</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-wider">Avisos da loja</h3>
                    </div>
                    <button onClick={() => setCaixaMensagemAberta(false)} className="text-stone-400 hover:text-white font-bold px-2 cursor-pointer">X</button>
                 </div>
 
-                <div className="p-4 max-h-[400px] overflow-y-auto bg-stone-50/50">
+                <div className="p-4 max-h-[400px] overflow-y-auto bg-stone-50/50 space-y-5">
+                   <ListaDeAvisos avisos={avisos} naoLidas={naoLidas} onMarcarTodas={marcarTodas} />
+
+                   <div>
+                   <p className="px-1 pb-2 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                      Sorteadas aguardando crédito
+                   </p>
                    {aguardandoCredito.length === 0 ? (
                       <div className="text-center text-stone-400 text-xs italic py-8">
                          Nenhuma sorteada aguardando análise no momento.
@@ -3121,6 +3130,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                          ))}
                       </div>
                    )}
+                   </div>
                 </div>
              </div>
           )}
@@ -3131,9 +3141,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           >
              <img src="/arvore-clara.png" alt="AVLE" className="w-9 opacity-90 group-hover:opacity-100 transition-opacity" />
              
-             {aguardandoCredito.length > 0 && (
+             {/* Uma bolinha so para as duas coisas: entrada de dinheiro nao
+                 lida e sorteada esperando analise. Contadores separados
+                 obrigariam a decidir qual olhar primeiro. */}
+             {aguardandoCredito.length + naoLidas > 0 && (
                 <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[11px] font-bold w-6 h-6 flex items-center justify-center rounded-full shadow-md animate-pulse">
-                   {aguardandoCredito.length}
+                   {aguardandoCredito.length + naoLidas}
                 </span>
              )}
           </button>
