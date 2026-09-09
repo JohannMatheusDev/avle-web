@@ -69,7 +69,7 @@ export default function CadastroConvite() {
   const [aceitouTermos, setAceitouTermos] = useState(false);
   const [modalTermosAberto, setModalTermosAberto] = useState(false);
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [telefoneVerificacao, setTelefoneVerificacao] = useState('');
+  const [emailVerificacao, setEmailVerificacao] = useState('');
   const [reenviandoCodigo, setReenviandoCodigo] = useState(false);
 
   useEffect(() => {
@@ -287,11 +287,11 @@ export default function CadastroConvite() {
 
         if (resposta.status === 403) {
           const detalhe = await resposta.json().catch(() => null);
-          if (detalhe?.telefone) setTelefoneVerificacao(detalhe.telefone);
+          if (detalhe?.email) setEmailVerificacao(detalhe.email);
           setMensagem({
             tipo: 'erro',
-            texto: detalhe?.telefoneMascarado
-              ? `Confirme o código enviado para ${detalhe.telefoneMascarado}.`
+            texto: detalhe?.emailMascarado
+              ? `Confirme o código enviado para ${detalhe.emailMascarado}.`
               : 'Sua conta ainda não foi verificada.',
           });
           setIsVerificando(true);
@@ -315,15 +315,15 @@ export default function CadastroConvite() {
           return;
         } else {
           const retorno = await resposta.json().catch(() => null);
-          const telefoneLimpo = somenteDigitos(telefoneCadastro);
 
           if (retorno?.verificacaoPendente) {
-            // O código vai para o telefone; guardamos o número porque os campos
-            // do formulário são limpos logo abaixo.
-            setTelefoneVerificacao(retorno.telefone || telefoneLimpo);
+            // O código sai por e-mail, e nao por mensagem: e o unico canal que
+            // entrega de verdade. Guardamos o endereco porque os campos do
+            // formulario sao limpos logo abaixo.
+            setEmailVerificacao(retorno.email || emailCadastro.trim());
             setMensagem({
               tipo: 'sucesso',
-              texto: `Cadastro realizado! Enviamos um código para ${retorno.telefoneMascarado || 'o seu telefone'}.`,
+              texto: `Cadastro realizado! Enviamos um código para ${retorno.emailMascarado || 'o seu e-mail'}.`,
             });
             setIsVerificando(true);
           } else {
@@ -368,8 +368,8 @@ export default function CadastroConvite() {
     const base: Record<string, string> = {};
     if (codigo !== undefined) base.codigo = codigo;
 
-    if (telefoneVerificacao) {
-      return { ...base, telefone: somenteDigitos(telefoneVerificacao) };
+    if (emailVerificacao) {
+      return { ...base, email: emailVerificacao.trim() };
     }
     if (identificadorLogin.includes('@')) {
       return { ...base, email: identificadorLogin.trim() };
@@ -394,7 +394,7 @@ export default function CadastroConvite() {
 
       setMensagem({
         tipo: 'sucesso',
-        texto: `Novo código enviado para ${retorno?.telefoneMascarado || 'o seu telefone'}.`,
+        texto: `Novo código enviado para ${retorno?.emailMascarado || 'o seu e-mail'}.`,
       });
     } catch (erro) {
       setMensagem({
@@ -650,9 +650,9 @@ export default function CadastroConvite() {
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificação de Conta</h3>
                   <p className="text-xs text-stone-400 mt-1">
-                    Insira o codigo verificador enviado por mensagem para: <br />
+                    Insira o código verificador enviado por e-mail para: <br />
                     <strong className="text-[#BD6B42] font-semibold">
-                      {telefoneVerificacao ? aplicarMascaraTelefone(telefoneVerificacao) : identificadorLogin}
+                      {emailVerificacao || identificadorLogin}
                     </strong>
                   </p>
                 </div>
