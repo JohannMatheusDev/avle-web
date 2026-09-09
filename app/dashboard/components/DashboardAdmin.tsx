@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import EnvioDeCobrancasWhatsapp from './EnvioDeCobrancasWhatsapp';
+import CentralDeAvisos from './CentralDeAvisos';
 import { useRouter } from 'next/navigation';
 import { apiFetch, encerrarSessao } from '../../lib/api';
 import {
@@ -226,15 +227,18 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               acesso master
             </div>
           </div>
-          <button
-            onClick={async () => {
-              await encerrarSessao();
-              router.push('/');
-            }}
-            className="text-stone-500 hover:text-red-600 text-xs font-bold transition-all cursor-pointer border border-white/10 px-2.5 py-1 rounded-xl bg-white"
-          >
-            Sair
-          </button>
+          <div className="flex items-center gap-3">
+            <CentralDeAvisos tema="escuro" />
+            <button
+              onClick={async () => {
+                await encerrarSessao();
+                router.push('/');
+              }}
+              className="text-stone-500 hover:text-red-600 text-xs font-bold transition-all cursor-pointer border border-white/10 px-2.5 py-1 rounded-xl bg-white"
+            >
+              Sair
+            </button>
+          </div>
         </div>
       </aside>
 

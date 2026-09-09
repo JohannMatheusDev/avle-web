@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CardContemplacao, CotaElegivel, SorteioResumo, mensagemDeErro } from '../../lib/contemplacao';
 import ParcelasDoPlano from './ParcelasDoPlano';
 import ExtratoDePagamentos from './ExtratoDePagamentos';
+import CentralDeAvisos from './CentralDeAvisos';
 import { parcelasPagas } from '../../lib/parcelas';
 import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
@@ -1515,16 +1516,19 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           >
             Configurações
           </button>
-          <button
-            onClick={async () => { await encerrarSessao(); window.location.href = '/'; }}
-            className="text-stone-500 hover:text-red-400 text-[10px] font-bold transition-all cursor-pointer tracking-wider uppercase"
-          >
-            Sair
-          </button>
+          <div className="flex items-center gap-3">
+            <CentralDeAvisos tema="escuro" />
+            <button
+              onClick={async () => { await encerrarSessao(); window.location.href = '/'; }}
+              className="text-stone-500 hover:text-red-400 text-[10px] font-bold transition-all cursor-pointer tracking-wider uppercase"
+            >
+              Sair
+            </button>
+          </div>
         </div>
       </aside>
 
-      <main className="flex-1 p-6 md:p-8 max-w-7xl overflow-x-hidden space-y-6">
+      <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl min-w-0 space-y-6">
         {Object.keys(errosApi).length > 0 && (
           <div className="border border-red-200 bg-red-50 rounded-xl p-4 space-y-1.5">
             <p className="text-[10px] font-bold text-red-700 uppercase tracking-widest">
@@ -1700,7 +1704,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 )}
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full min-w-[560px] text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-stone-50 text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                       <th className="py-3.5 px-5 text-center">N DA COTA</th>
@@ -1834,7 +1838,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                 saldoPoupanca={Number(part.saldoPoupanca)}
                                 valorParcela={Number(grupoSelecionado?.valorParcela)}
                                 duracaoMeses={Number(grupoSelecionado?.duracaoMeses)}
-                                inicio={grupoSelecionado?.dataInicio}
                                 recebidoEmPagamentos={
                                   part.recebidoEmPagamentos != null
                                     ? Number(part.recebidoEmPagamentos)
@@ -2211,7 +2214,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           </div>
                       </div>
                       <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs border-collapse">
+                        <table className="w-full min-w-[560px] text-left text-xs border-collapse">
                           <thead className="sticky top-0 bg-stone-50 z-10 shadow-sm">
                             <tr className="text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                               <th className="py-3 px-5 w-16">Nº</th>
@@ -2310,7 +2313,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                             </div>
                         </div>
                         <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs border-collapse">
+                          <table className="w-full min-w-[560px] text-left text-xs border-collapse">
                             <thead className="sticky top-0 bg-stone-50 z-10 shadow-sm">
                               <tr className="text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                                 <th className="py-3 px-5">CLIENTE BANIDO</th>
@@ -2841,7 +2844,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <span className="text-[9px] bg-[#0B1E14] text-white px-2 py-1 rounded font-mono">Atualizado em tempo real</span>
                   </div>
                   <div className="overflow-x-auto max-h-[400px]">
-                    <table className="w-full text-left text-xs border-collapse">
+                    <table className="w-full min-w-[560px] text-left text-xs border-collapse">
                       <thead className="sticky top-0 bg-stone-50 z-10 shadow-sm">
                         <tr className="text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                           <th className="py-3 px-5">DATA</th>
