@@ -96,6 +96,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   // Cadastro da propria loja, editavel na aba de configuracoes.
   const [dadosLoja, setDadosLoja] = useState<any | null>(null);
+  const [salvandoLogo, setSalvandoLogo] = useState(false);
   const [carregandoDadosLoja, setCarregandoDadosLoja] = useState(false);
   const [salvandoDadosLoja, setSalvandoDadosLoja] = useState(false);
 
@@ -1414,6 +1415,52 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   // contas separadas para o mesmo numero acabam divergindo.
   const faturamentoDoGrupo = (grupoId?: number) =>
     (analytics?.faturamentoPorGrupo ?? []).find((g) => g.grupoId === grupoId);
+
+
+  /**
+   * Guarda o logotipo da loja, que passa a aparecer no convite dela.
+   *
+   * O arquivo vira base64 no próprio navegador e sobe como texto, igual à foto
+   * de perfil da cliente. É o caminho que já existe aqui, e evita manter dois
+   * jeitos diferentes de enviar imagem.
+   */
+  const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const arquivo = e.target.files?.[0];
+    if (!arquivo) return;
+
+    if (!arquivo.type.startsWith('image/')) {
+      mostrarAviso('Formato inválido', 'Envie um arquivo de imagem (PNG ou JPG).', true);
+      return;
+    }
+    // O servidor recusa acima de 1 MB. Barrar aqui evita a viagem inteira só
+    // para receber a recusa do outro lado.
+    if (arquivo.size > 1024 * 1024) {
+      mostrarAviso('Imagem muito grande', 'O logotipo deve ter no máximo 1 MB.', true);
+      return;
+    }
+
+    const leitor = new FileReader();
+    leitor.onloadend = async () => {
+      const base64 = leitor.result as string;
+      setSalvandoLogo(true);
+      try {
+        const lojaId = usuario?.lojaId || usuario?.id;
+        const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/logo`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ logo: base64 }),
+        });
+        if (!res.ok) throw new Error(await lerMensagemErro(res) || 'Falha ao salvar o logotipo.');
+        setDadosLoja((atual: any) => ({ ...(atual || {}), logo: base64 }));
+        mostrarAviso('Logotipo salvo', 'Ele já aparece no convite que você compartilha.', false);
+      } catch (err: any) {
+        mostrarAviso('Erro', mensagemDeErro(err, 'Falha ao salvar o logotipo.'), true);
+      } finally {
+        setSalvandoLogo(false);
+      }
+    };
+    leitor.readAsDataURL(arquivo);
+  };
 
   const recebidoEsteMes = Number(dadosFinanceiros?.recebidoEsteMes) || 0;
   const totalParticipantesValidos = Array.isArray(participantesDoGrupo) ? participantesDoGrupo.length : 0;
@@ -2811,6 +2858,30 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
               <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6">
                 <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-2">
+                    Logotipo da loja
+                  </p>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#DFD9CE] bg-stone-50">
+                      {dadosLoja?.logo ? (
+                        <img src={dadosLoja.logo} alt="Logotipo" className="h-full w-full object-contain p-1.5" />
+                      ) : (
+                        <span className="text-[10px] text-stone-400">sem logo</span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <label className="inline-block cursor-pointer rounded-xl bg-[#0B1E14] px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-opacity-90">
+                        {salvandoLogo ? 'Salvando...' : dadosLoja?.logo ? 'Trocar logotipo' : 'Enviar logotipo'}
+                        <input type="file" accept="image/*" onChange={handleUploadLogo} className="hidden" disabled={salvandoLogo} />
+                      </label>
+                      <p className="mt-2 text-[10px] leading-relaxed text-stone-400">
+                        PNG ou JPG, até 1 MB. Ele aparece no convite que você compartilha com as clientes.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-[#DFD9CE] pt-6">
                   <h3 className="font-serif font-bold text-lg text-[#0B1E14] uppercase tracking-wide">Cadastro da Loja</h3>
                   <p className="text-stone-400 text-xs mt-1 leading-relaxed">
                     Estes são os dados que aparecem para as suas clientes e que definem para onde vai a sua parte de cada pagamento.
