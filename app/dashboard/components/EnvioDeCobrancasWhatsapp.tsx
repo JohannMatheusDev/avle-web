@@ -19,14 +19,27 @@ type Envio = {
   avisadaPor?: string | null;
 };
 
+type SemCelular = {
+  clienteId: number;
+  nome: string;
+  loja: string | null;
+  grupo: string | null;
+  parcelas: number;
+  total: string;
+  telefoneNoCadastro: string | null;
+  email: string | null;
+};
+
 type Lista = {
   competencia: string;
   vencimento: string;
   clientesParaAvisar: number;
   parcelasNessasMensagens: number;
   semCelular: number;
+  clientesSemCelular: number;
   jaPagas: number;
   envios: Envio[];
+  semCelularDetalhe: SemCelular[];
 };
 
 /**
@@ -238,8 +251,10 @@ export default function EnvioDeCobrancasWhatsapp({ grupoId }: { grupoId?: number
             avisadas
           </span>
           {(lista?.jaPagas ?? 0) > 0 && <span>{lista?.jaPagas} já pagas</span>}
-          {(lista?.semCelular ?? 0) > 0 && (
-            <span className="text-amber-700">{lista?.semCelular} sem celular</span>
+          {(lista?.clientesSemCelular ?? 0) > 0 && (
+            <span className="text-[#BD6B42] font-bold">
+              {lista?.clientesSemCelular} sem celular
+            </span>
           )}
         </div>
       </div>
@@ -400,6 +415,36 @@ export default function EnvioDeCobrancasWhatsapp({ grupoId }: { grupoId?: number
             </div>
           );
         })
+      )}
+
+      {(lista?.semCelularDetalhe?.length ?? 0) > 0 && (
+        <div className="border-t-2 border-[#BD6B42]/40">
+          <div className="px-5 py-3 bg-[#BD6B42]/5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#BD6B42]">
+              Sem celular válido · {lista?.semCelularDetalhe.length} cliente(s)
+            </p>
+            <p className="text-[10px] text-stone-500 mt-0.5 leading-relaxed">
+              Estas têm cobrança em aberto mas não dá para abrir a conversa. Corrija o número no
+              cadastro e elas passam a aparecer na lista de cima.
+            </p>
+          </div>
+          <ul className="divide-y divide-[#DFD9CE]">
+            {lista?.semCelularDetalhe.map((c) => (
+              <li key={c.clienteId} className="px-5 py-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-stone-700">{c.nome}</p>
+                  <p className="text-[10px] text-stone-400 font-mono mt-0.5">
+                    {c.loja} · {c.grupo} · {c.total}
+                    {c.parcelas > 1 && ` · ${c.parcelas} planos`}
+                  </p>
+                </div>
+                <span className="font-mono text-[10px] text-[#BD6B42] shrink-0">
+                  {c.telefoneNoCadastro ? `tel. ${c.telefoneNoCadastro}` : 'sem telefone'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="px-5 py-3 bg-stone-50 border-t border-[#DFD9CE]">
