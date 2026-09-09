@@ -29,6 +29,7 @@ export default function CadastroConvite() {
 
   const [lojaNome, setLojaNome] = useState<string>('Carregando...');
   const [lojaIdNum, setLojaIdNum] = useState<number | null>(null);
+  const [logoDaLoja, setLogoDaLoja] = useState<string | null>(null);
   const [lojaValida, setLojaValida] = useState<boolean>(true);
 
   // A abertura da marca, a mesma da entrada pelo site. O convite e por onde a
@@ -103,6 +104,7 @@ export default function CadastroConvite() {
       .then(data => {
         setLojaNome(data.nomeComercial || data.nome || 'Loja Parceira');
         setLojaIdNum(data.id);
+        setLogoDaLoja(data.logo || null);
         
         // Salva com segurança o ID correto
         sessionStorage.setItem('@avle:convite_loja_id', data.id.toString());
@@ -595,8 +597,17 @@ export default function CadastroConvite() {
           <h1 className="text-white text-2xl font-bold tracking-wide">AVLE</h1>
           <p className="text-stone-300 text-sm mt-1">Seu clube de compras planejado</p>
           
-          <div className="mt-8 pt-6 border-t border-stone-700/50">
-             <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider block mb-1">Convite Exclusivo</span>
+          <div className="mt-8 pt-6 border-t border-stone-700/50 flex flex-col items-center">
+             <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider block mb-2">Convite Exclusivo</span>
+             {/* A marca de quem convidou vem antes do nome: quem recebe o link
+                 reconhece a loja pela imagem antes de ler qualquer coisa. */}
+             {logoDaLoja && (
+               <img
+                 src={logoDaLoja}
+                 alt={lojaNome}
+                 className="mb-2 h-14 max-w-[9rem] object-contain"
+               />
+             )}
              <h3 className="text-[#BD6B42] text-sm font-bold tracking-wide">{lojaNome}</h3>
           </div>
         </div>
