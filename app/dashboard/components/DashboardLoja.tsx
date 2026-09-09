@@ -77,7 +77,7 @@ interface ResumoFinanceiro {
 export default function DashboardLoja({ usuario }: { usuario: any }) {
   const router = useRouter();
   
-  const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'fila' | 'grupos' | 'sorteios' | 'financeiro' | 'relatorios' | 'configuracoes'>('geral');
+  const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'fila' | 'grupos' | 'sorteios' | 'configuracoes'>('geral');
   const [obrigacoesFuturas, setObrigacoesFuturas] = useState<number>(0);
   const [idOperacao, setIdOperacao] = useState('Nenhuma');
   const [grupoSorteioId, setGrupoSorteioId] = useState('');
@@ -1416,7 +1416,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     (analytics?.faturamentoPorGrupo ?? []).find((g) => g.grupoId === grupoId);
 
   const recebidoEsteMes = Number(dadosFinanceiros?.recebidoEsteMes) || 0;
-  const aReceberContemplados = Number(dadosFinanceiros?.aReceberContemplados) || 0;
   const totalParticipantesValidos = Array.isArray(participantesDoGrupo) ? participantesDoGrupo.length : 0;
 
   // Quantas cotas do grupo estao em dia, atrasadas e quitadas. E a mesma conta
@@ -1482,9 +1481,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               { id: 'aprovacoes', label: 'Aprovações' },
               { id: 'fila',       label: 'Fila de Espera' },
               { id: 'grupos',     label: 'Grupos' },
-              { id: 'sorteios',   label: 'Sorteios / Entrega' },
-              { id: 'financeiro', label: 'Financeiro' },
-              { id: 'relatorios', label: 'Relatórios' }
+              { id: 'sorteios',   label: 'Sorteios / Entrega' }
             ].map((tab) => {
               const isActive = abaLoja === tab.id && !grupoSelecionado;
               return (
@@ -1561,8 +1558,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 : abaLoja === 'configuracoes'? 'Configurações da Loja'
                 : abaLoja === 'aprovacoes'   ? 'Central de Aprovações'
                 : abaLoja === 'sorteios'     ? 'Sorteios e Entregas'
-                : abaLoja === 'financeiro'   ? 'Financeiro / Extrato'
-                : abaLoja === 'relatorios'   ? 'Relatórios de Performance'
                 : abaLoja === 'fila'         ? 'Fila de Espera'
                 : abaLoja === 'grupos'       ? 'Grupos de Compras'
                 : abaLoja}
@@ -2808,84 +2803,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     </div>
                   </div>
                 )}
-              </div>
-            )}
-
-            {abaLoja === 'financeiro' && (
-              <div className="space-y-6 animate-fadeIn">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-white border border-[#DFD9CE] p-5 rounded-2xl shadow-xs flex flex-col justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-stone-400 block mb-1">REPASSE DIRETO VIA SPLIT (90%)</span>
-                      <span className="text-xl font-bold text-emerald-600">R$ {recebidoEsteMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <p className="text-[10px] text-stone-400 mt-3 border-t pt-2 border-dashed leading-relaxed">
-                      Split Automatico Asaas: Os 90% sao creditados e liquidados diretamente na subconta bancaria homologada da sua empresa.
-                    </p>
-                  </div>
-
-                  <div className="bg-white border border-[#DFD9CE] p-5 rounded-2xl shadow-xs flex flex-col justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-[#BD6B42] block mb-1">CAPITAL AVANÇADO (RISCO DA LOJA)</span>
-                      <span className="text-xl font-bold text-[#BD6B42]">R$ {aReceberContemplados.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <p className="text-[10px] text-stone-400 mt-2 leading-relaxed border-t pt-2 border-dashed">Aporte em Haver: Valor referente a produtos entregues a clientes contemplados. A loja assume o custo contratual imediato e detém o direito de recebimento das parcelas futuras.</p>
-                  </div>
-
-                  <div className="bg-white border border-[#DFD9CE] p-5 rounded-2xl shadow-xs flex flex-col justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-stone-400 block mb-1">CUMPRIMENTO DE ACORDOS</span>
-                      <span className="text-xl font-bold text-stone-600">Ativos</span>
-                    </div>
-                    <p className="text-[10px] text-stone-400 mt-2 leading-relaxed border-t pt-2 border-dashed">Garantia jurídica de alienação fiduciaria ou contrato assinado para resguardo do capital avançado.</p>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden mt-6">
-                  <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex justify-between items-center">
-                    <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Histórico de Transações (Livro Razão)</h3>
-                    <span className="text-[9px] bg-[#0B1E14] text-white px-2 py-1 rounded font-mono">Atualizado em tempo real</span>
-                  </div>
-                  <div className="overflow-x-auto max-h-[400px]">
-                    <table className="w-full min-w-[560px] text-left text-xs border-collapse">
-                      <thead className="sticky top-0 bg-stone-50 z-10 shadow-sm">
-                        <tr className="text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
-                          <th className="py-3 px-5">DATA</th>
-                          <th className="py-3 px-5">CLIENTE / REFERÊNCIA</th>
-                          <th className="py-3 px-5">TIPO</th>
-                          <th className="py-3 px-5 text-right">VALOR BRUTO</th>
-                          <th className="py-3 px-5 text-right">TAXA (10%)</th>
-                          <th className="py-3 px-5 text-right">LÍQUIDO (LOJA)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
-                         {historicoTransacoes.length === 0 ? (
-                            <tr><td colSpan={6} className="py-6 text-center text-stone-400 italic">Nenhuma transação registrada no sistema ainda.</td></tr>
-                         ) : (
-                            historicoTransacoes.map((t, idx) => (
-                              <tr key={idx} className="hover:bg-stone-50/60 transition-all">
-                                <td className="py-3 px-5 text-stone-500 font-mono">{new Date(t.dataTransacao).toLocaleDateString('pt-BR')}</td>
-                                <td className="py-3 px-5">
-                                  <span className="block font-bold text-[#0B1E14]">{t.nomeCliente || 'Transação Sistema'}</span>
-                                  <span className="text-[10px] text-stone-400">Cota #{t.cotaId}</span>
-                                </td>
-                                <td className="py-3 px-5">
-                                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${t.tipo === 'ENTRADA' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
-                                     {t.tipo}
-                                   </span>
-                                </td>
-                                <td className="py-3 px-5 text-right font-mono text-[#0B1E14]">R$ {Number(t.valorBruto).toFixed(2)}</td>
-                                <td className="py-3 px-5 text-right font-mono text-rose-600">- R$ {Number(t.taxaPlataforma).toFixed(2)}</td>
-                                <td className={`py-3 px-5 text-right font-mono font-bold ${t.tipo === 'ENTRADA' ? 'text-emerald-700' : 'text-[#0B1E14]'}`}>
-                                   {t.tipo === 'ENTRADA' ? '+' : ''} R$ {Number(t.valorLiquido).toFixed(2)}
-                                </td>
-                              </tr>
-                            ))
-                         )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
               </div>
             )}
 
