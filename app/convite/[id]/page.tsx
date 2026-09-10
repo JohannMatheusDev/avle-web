@@ -72,6 +72,13 @@ export default function CadastroConvite() {
   const [emailVerificacao, setEmailVerificacao] = useState('');
   const [reenviandoCodigo, setReenviandoCodigo] = useState(false);
 
+  // Correção do próprio e-mail, para quem digitou errado no cadastro e ficou
+  // preso esperando um código que chegou numa caixa que não existe.
+  const [corrigindoEmail, setCorrigindoEmail] = useState(false);
+  const [emailCorrigido, setEmailCorrigido] = useState('');
+  const [senhaParaCorrigir, setSenhaParaCorrigir] = useState('');
+  const [salvandoCorrecao, setSalvandoCorrecao] = useState(false);
+
   useEffect(() => {
     // Mesma chave da home: quem ja viu a abertura nesta visita nao ve de novo
     // ao trocar de tela.
@@ -375,6 +382,50 @@ export default function CadastroConvite() {
       return { ...base, email: identificadorLogin.trim() };
     }
     return { ...base, telefone: somenteDigitos(identificadorLogin) };
+  };
+
+  /**
+   * Troca o e-mail da conta que está presa e pede o código de novo.
+   *
+   * A senha vai junto porque é ela que prova que quem pede é dona da conta —
+   * sem isso, seria um jeito de apontar a conta de outra pessoa para um
+   * endereço qualquer e receber o código lá.
+   */
+  const handleCorrigirEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSalvandoCorrecao(true);
+    setMensagem({ tipo: '', texto: '' });
+    try {
+      const resposta = await apiFetch(`${API_URL}/api/auth/verificacao/corrigir-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailAtual: emailVerificacao || identificadorLogin,
+          senha: senhaParaCorrigir,
+          emailNovo: emailCorrigido,
+        }),
+      });
+
+      const retorno = await resposta.json().catch(() => null);
+      if (!resposta.ok) {
+        throw new Error(retorno?.erro || 'Não foi possível corrigir o e-mail agora.');
+      }
+
+      setEmailVerificacao(emailCorrigido.trim());
+      setCorrigindoEmail(false);
+      setSenhaParaCorrigir('');
+      setMensagem({
+        tipo: 'sucesso',
+        texto: `E-mail corrigido. Enviamos um novo código para ${retorno?.emailMascarado || emailCorrigido}.`,
+      });
+    } catch (erro) {
+      setMensagem({
+        tipo: 'erro',
+        texto: erro instanceof Error ? erro.message : 'Falha ao corrigir o e-mail.',
+      });
+    } finally {
+      setSalvandoCorrecao(false);
+    }
   };
 
   const handleReenviarCodigo = async () => {
@@ -703,6 +754,59 @@ export default function CadastroConvite() {
                 >
                   {reenviandoCodigo ? 'Reenviando...' : 'Não recebi o código. Reenviar'}
                 </button>
+
+                {/* A saída para o e-mail digitado errado. Fica escondida atrás
+                    de um link porque é o caso menos comum — quem só não viu o
+                    e-mail resolve no reenviar acima. */}
+                {!corrigindoEmail ? (
+                  <button
+                    type="button"
+                    onClick={() => { setCorrigindoEmail(true); setEmailCorrigido(emailVerificacao); }}
+                    className="w-full text-stone-500 hover:text-stone-700 text-center text-[11px] py-1 cursor-pointer underline"
+                  >
+                    Digitei meu e-mail errado
+                  </button>
+                ) : (
+                  <div className="rounded-xl border border-[#DFD9CE] bg-stone-50 p-3 space-y-2 text-left">
+                    <p className="text-[10px] text-stone-500 leading-relaxed">
+                      Corrija o seu e-mail. Para confirmar que a conta é sua, informe a senha que
+                      você escolheu no cadastro.
+                    </p>
+                    <input
+                      type="email"
+                      value={emailCorrigido}
+                      onChange={(ev) => setEmailCorrigido(ev.target.value)}
+                      placeholder="seu e-mail correto"
+                      className="w-full px-3 h-9 rounded-lg border border-[#DFD9CE] bg-white text-xs focus:outline-none focus:border-[#BD6B42]"
+                      required
+                    />
+                    <input
+                      type="password"
+                      value={senhaParaCorrigir}
+                      onChange={(ev) => setSenhaParaCorrigir(ev.target.value)}
+                      placeholder="sua senha"
+                      className="w-full px-3 h-9 rounded-lg border border-[#DFD9CE] bg-white text-xs focus:outline-none focus:border-[#BD6B42]"
+                      required
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCorrigirEmail}
+                        disabled={salvandoCorrecao || !emailCorrigido || !senhaParaCorrigir}
+                        className="flex-1 rounded-lg bg-[#0B1E14] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {salvandoCorrecao ? 'Salvando...' : 'Corrigir e reenviar'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setCorrigindoEmail(false); setSenhaParaCorrigir(''); }}
+                        className="rounded-lg border border-[#DFD9CE] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-stone-500 cursor-pointer"
+                      >
+                        Voltar
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsVerificando(false)}
