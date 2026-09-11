@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CardContemplacao, CotaElegivel, SorteioResumo, mensagemDeErro } from '../../lib/contemplacao';
+import { CardContemplacao, CotaElegivel, SorteioResumo, ehSorteioAuditavel, mensagemDeErro } from '../../lib/contemplacao';
 import ParcelasDoPlano from './ParcelasDoPlano';
 import ExtratoDePagamentos from './ExtratoDePagamentos';
 import ListaDeAvisos from './ListaDeAvisos';
@@ -2723,20 +2723,44 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <p className="text-[10px] text-stone-400">Cada linha pode ser conferida por terceiros pelo código de auditoria.</p>
                     </div>
                     <div className="divide-y divide-[#EFEAE1]">
-                      {sorteiosDoGrupo.map((s) => (
+                      {sorteiosDoGrupo.map((s) => {
+                        // Sorteio de verdade e lançamento da loja apareciam
+                        // idênticos, os dois como "APURADO". A loja lia a lista
+                        // e achava que tudo tinha sido sorteado — e "concurso a
+                        // definir" num registro já apurado não quer dizer nada.
+                        const auditavel = ehSorteioAuditavel(s);
+                        return (
                         <div key={s.codigoAuditoria} className="px-5 py-4 flex flex-wrap gap-3 justify-between items-center">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${
-                                s.status === 'APURADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : s.status === 'CANCELADO' ? 'bg-stone-100 text-stone-500 border-stone-200'
-                                  : 'bg-amber-50 text-amber-700 border-amber-200'
-                              }`}>{s.status}</span>
+                              {auditavel ? (
+                                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${
+                                  s.status === 'APURADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : s.status === 'CANCELADO' ? 'bg-stone-100 text-stone-500 border-stone-200'
+                                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                                }`}>Sorteio · {s.status}</span>
+                              ) : (
+                                <span
+                                  className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border bg-stone-100 text-stone-600 border-stone-300"
+                                  title="Contemplação que aconteceu fora da plataforma e foi cadastrada pela loja. Não passou por sorteio auditável."
+                                >
+                                  Lançamento da loja
+                                </span>
+                              )}
                               <span className="font-mono text-[11px] font-bold text-[#0B1E14]">{s.codigoAuditoria}</span>
                             </div>
                             <p className="text-[10px] text-stone-400 mt-1">
-                              {s.quantidadeParticipantes} participantes · concurso {s.concursoLoteria ?? 'a definir'} ·
-                              {' '}previsto para {s.dataPrevistaConcurso}
+                              {auditavel ? (
+                                <>
+                                  {s.quantidadeParticipantes} participantes · concurso {s.concursoLoteria ?? 'a definir'} ·
+                                  {' '}{s.status === 'APURADO' ? 'apurado com o concurso de' : 'previsto para'} {s.dataPrevistaConcurso}
+                                </>
+                              ) : (
+                                /* Sem concurso e sem lista, "0 participantes" e
+                                   "concurso a definir" só enganam. O que existe
+                                   de verdade aqui é a data. */
+                                <>Registrado pela loja · {s.dataPrevistaConcurso}</>
+                              )}
                               {s.contempladaNome && <> · <strong className="text-[#BD6B42]">{s.contempladaNome}</strong> (cota #{s.cotaContempladaId})</>}
                             </p>
                           </div>
@@ -2751,7 +2775,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                             </button>
                           )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}

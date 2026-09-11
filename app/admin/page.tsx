@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { SorteioResumo, mensagemDeErro } from '../lib/contemplacao';
+import { SorteioResumo, mensagemDeErro, ehSorteioAuditavel } from '../lib/contemplacao';
 import { apiFetch } from '../lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
@@ -316,20 +316,37 @@ export default function PainelAdminSaaS() {
               {sorteiosDoGrupo.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="text-[10px] font-bold uppercase text-stone-500 tracking-wider">Sorteios do grupo</h4>
-                  {sorteiosDoGrupo.map((s) => (
+                  {sorteiosDoGrupo.map((s) => {
+                    const auditavel = ehSorteioAuditavel(s);
+                    return (
                     <div key={s.codigoAuditoria} className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-2">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${
-                          s.status === 'APURADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : s.status === 'CANCELADO' ? 'bg-stone-100 text-stone-500 border-stone-200'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
-                        }`}>{s.status}</span>
+                        {auditavel ? (
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border ${
+                            s.status === 'APURADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : s.status === 'CANCELADO' ? 'bg-stone-100 text-stone-500 border-stone-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}>Sorteio · {s.status}</span>
+                        ) : (
+                          <span
+                            className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border bg-stone-100 text-stone-600 border-stone-300"
+                            title="Contemplação que aconteceu fora da plataforma e foi cadastrada pela loja. Não passou por sorteio auditável."
+                          >
+                            Lançamento da loja
+                          </span>
+                        )}
                         <span className="text-[11px] font-mono font-bold text-avle-terracotta tracking-wider">{s.codigoAuditoria}</span>
                       </div>
 
                       <div className="text-xs text-stone-600 space-y-0.5">
-                        <p><strong>Participantes:</strong> {s.quantidadeParticipantes}</p>
-                        <p><strong>Concurso:</strong> {s.concursoLoteria ?? 'a definir'} · previsto para {s.dataPrevistaConcurso}</p>
+                        {auditavel ? (
+                          <>
+                            <p><strong>Participantes:</strong> {s.quantidadeParticipantes}</p>
+                            <p><strong>Concurso:</strong> {s.concursoLoteria ?? 'a definir'} · previsto para {s.dataPrevistaConcurso}</p>
+                          </>
+                        ) : (
+                          <p><strong>Registrado pela loja em</strong> {s.dataPrevistaConcurso} · sem concurso e sem lista congelada</p>
+                        )}
                         {s.contempladaNome && (
                           <p className="text-emerald-700 font-bold">Contemplada: {s.contempladaNome} (cota #{s.cotaContempladaId})</p>
                         )}
@@ -346,7 +363,8 @@ export default function PainelAdminSaaS() {
                         </button>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
