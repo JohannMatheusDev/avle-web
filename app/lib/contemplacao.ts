@@ -53,12 +53,24 @@ export interface SorteioResumo {
   id: number;
   codigoAuditoria: string;
   status: 'AGENDADO' | 'APURADO' | 'CANCELADO';
+  /**
+   * De onde veio o resultado.
+   *
+   * LOTERIA_FEDERAL é sorteio de verdade, com lista congelada e número de
+   * concurso. Qualquer outra coisa é lançamento manual da loja: uma
+   * contemplação que aconteceu no balcão e foi cadastrada depois.
+   */
+  fonteAleatoriedade?: string | null;
   quantidadeParticipantes: number;
   concursoLoteria: number | null;
   dataPrevistaConcurso: string;
   contempladaNome?: string | null;
   cotaContempladaId?: number | null;
 }
+
+/** Sorteio de verdade tem número da Loteria por trás; o resto é lançamento. */
+export const ehSorteioAuditavel = (s: { fonteAleatoriedade?: string | null }) =>
+  s.fonteAleatoriedade === 'LOTERIA_FEDERAL';
 
 export interface CotaElegivel {
   cotaId: number;
