@@ -234,6 +234,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       previsto?: number;
       cotasOcupadas?: number;
       quantidadeMaxCotas?: number;
+      cotasPagasNoMes?: number;
+      cotasVencidasNoMes?: number;
+      cotasAguardandoNoMes?: number;
     }[];
     totalFaturado: number;
     churnAtual: number;
@@ -253,6 +256,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     retiradasSemValorInformado?: number;
     faturamentoMensal?: { mes: string; competencia: string; total: number }[];
     faturamentoMesAtual?: number;
+    // Parcela do mes corrente, contada por cota a partir dos lancamentos.
+    parcelaDoMes?: { competencia: string; pagas: number; vencidas: number; aguardandoVencimento: number };
   };
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [periodoClientes, setPeriodoClientes] = useState<1 | 6 | 12>(12);
@@ -682,6 +687,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       setModalQuitacao({ aberto: false, cotaId: null, nome: '', sorteada: false });
       await recarregarParticipantesDoGrupo();
       carregarDadosFinanceiros();
+      carregarAnalytics();
 
       if (sorteada) {
         const card: CardContemplacao = await res.json();
@@ -1175,7 +1181,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       setModalPagamentoManualAberto(false);
       setQtdParcelasManual('1');
       recarregarParticipantesDoGrupo();
-      carregarDadosFinanceiros(); 
+      carregarDadosFinanceiros();
+      carregarAnalytics(); 
     } catch (err: any) {
       mostrarAviso('Erro de Lancamento', err.message, true);
     } finally {
@@ -1465,36 +1472,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const recebidoEsteMes = Number(dadosFinanceiros?.recebidoEsteMes) || 0;
   const totalParticipantesValidos = Array.isArray(participantesDoGrupo) ? participantesDoGrupo.length : 0;
 
-  // Quantas cotas do grupo estao em dia, atrasadas e quitadas. E a mesma conta
-  // das bolinhas de cada linha, so que somada - a loja quer o retrato da turma
-  // antes de olhar pessoa por pessoa.
-  const resumoDeParcelas = (() => {
-    const valorParcela = Number(grupoSelecionado?.valorParcela) || 0;
-    const duracao = Number(grupoSelecionado?.duracaoMeses) || 0;
-    if (!valorParcela || !duracao || totalParticipantesValidos === 0) return null;
-
-    const inicio = grupoSelecionado?.dataInicio ? new Date(grupoSelecionado.dataInicio) : null;
-    const hoje = new Date();
-    // A primeira parcela vence no mes seguinte ao inicio do grupo.
-    const vencidas = inicio && !Number.isNaN(inicio.getTime())
-      ? Math.max(0, Math.min(
-          (hoje.getFullYear() - inicio.getFullYear()) * 12 + (hoje.getMonth() - inicio.getMonth()),
-          duracao))
-      : 0;
-
-    let emDia = 0;
-    let emAtraso = 0;
-    let quitadas = 0;
-
-    participantesDoGrupo.forEach((part) => {
-      const pagas = parcelasPagas(part.saldoPoupanca, valorParcela, duracao);
-      if (pagas >= duracao) quitadas += 1;
-      else if (pagas < vencidas) emAtraso += 1;
-      else emDia += 1;
-    });
-
-    return { emDia, emAtraso, quitadas };
-  })();
   const totalGruposValidos = Array.isArray(listaGrupos) ? listaGrupos.length : 0;
 
   const termoBuscaCliente = buscaClienteGrupo.trim().toLowerCase();
@@ -1656,7 +1633,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
             </div>
 
-            <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
+            <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-center">
               <div>
                 <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">ID do Grupo</span>
                 <span className="text-base font-bold text-[#0B1E14] font-mono block mt-1">#{grupoSelecionado.id}</span>
@@ -1684,6 +1661,23 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <div>
                 <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Cotas Preenchidas</span>
                 <span className="text-base font-bold text-[#BD6B42] font-mono block mt-1">{totalParticipantesValidos} / {grupoSelecionado.quantidadeMaxCotas}</span>
+              </div>
+              {/* Parcela do mes do grupo. Sai do mesmo consolidado do painel
+                  geral, para o numero da turma e o da loja nunca discordarem. */}
+              <div>
+                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Pagas no mês</span>
+                <span className="text-base font-bold text-emerald-700 font-mono block mt-1">
+                  {faturamentoDoGrupo(grupoSelecionado.id)?.cotasPagasNoMes ?? 0}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Vencidas no mês</span>
+                <span className="text-base font-bold text-[#BD6B42] font-mono block mt-1">
+                  {faturamentoDoGrupo(grupoSelecionado.id)?.cotasVencidasNoMes ?? 0}
+                </span>
+                <span className="text-[9px] text-stone-400 block mt-0.5">
+                  {faturamentoDoGrupo(grupoSelecionado.id)?.cotasAguardandoNoMes ?? 0} ainda no prazo
+                </span>
               </div>
               <div>
                 <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Início</span>
@@ -1716,22 +1710,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <div>
                   <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Mapeamento de Integrantes</h3>
                   <p className="text-[10px] text-stone-400 font-medium">Selecione uma linha para registrar baixas manuais ou liberar entregas.</p>
-                  {resumoDeParcelas && (
-                    <div className="flex flex-wrap items-center gap-4 mt-2 text-[10px] font-mono">
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2.5 w-2.5 rounded-full bg-[#0B1E14]" />
-                        <span className="text-stone-500">{resumoDeParcelas.emDia} em dia</span>
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2.5 w-2.5 rounded-full bg-[#BD6B42]" />
-                        <span className="text-stone-500">{resumoDeParcelas.emAtraso} em atraso</span>
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2.5 w-2.5 rounded-full bg-[#DFD9CE]" />
-                        <span className="text-stone-500">{resumoDeParcelas.quitadas} quitadas</span>
-                      </span>
-                    </div>
-                  )}
                 </div>
                 
                 {idOperacao !== 'Nenhuma' && (
@@ -1978,6 +1956,31 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <span className="text-[10px] text-stone-400 mt-2">grupos de compras</span>
                   </div>
                 </div>
+
+                {/* ── Parcela do mês: total de todos os grupos ── */}
+                {analytics?.parcelaDoMes && (() => {
+                  const pm = analytics.parcelaDoMes;
+                  const nomeMes = new Date(`${pm.competencia}-01T12:00:00`).toLocaleDateString('pt-BR', { month: 'long' });
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
+                        <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Pagas em {nomeMes}</span>
+                        <span className="text-3xl font-bold tracking-tight text-emerald-700 font-mono leading-none">{pm.pagas}</span>
+                        <span className="text-[10px] text-stone-400 mt-2">cotas com a parcela do mês paga · todos os grupos</span>
+                      </div>
+                      <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
+                        <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Vencidas em {nomeMes}</span>
+                        <span className="text-3xl font-bold tracking-tight text-[#BD6B42] font-mono leading-none">{pm.vencidas}</span>
+                        <span className="text-[10px] text-stone-400 mt-2">parcela do mês vencida e não paga</span>
+                      </div>
+                      <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
+                        <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Ainda no prazo</span>
+                        <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">{pm.aguardandoVencimento}</span>
+                        <span className="text-[10px] text-stone-400 mt-2">parcela emitida, vencimento não chegou</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* ── Operação: onde estão as clientes e as cotas ── */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
