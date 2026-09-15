@@ -280,10 +280,15 @@ function Autenticacao() {
         setCarregando(false);
         return;
       }
-      if (!walletIdInput.trim().startsWith('wal_')) {
+      // O Wallet ID do Asaas é um UUID (7bafd95a-e783-4a62-9be1-23999af742c6).
+      // A regra antiga exigia o prefixo "wal_", que o Asaas não usa, e barrava
+      // toda loja que colava o Wallet ID certo. O formato continua conferido
+      // porque o engano comum é colar o número da conta ou a chave de API, e
+      // repasse para carteira errada só apareceria no primeiro pagamento.
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(walletIdInput.trim())) {
         setMensagem({ 
           tipo: 'erro', 
-          texto: 'O Wallet ID do Asaas começa com "wal_". Confira em Perfil, dentro da conta Asaas da loja.' 
+          texto: 'O Wallet ID do Asaas tem letras, números e hífens, neste formato: 7bafd95a-e783-4a62-9be1-23999af742c6. Não é o número da conta nem a chave de API.' 
         });
         setCarregando(false);
         return;
@@ -899,7 +904,7 @@ function Autenticacao() {
                           </div>
                           <div className="pt-1">
                             <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between"><span>Wallet ID Asaas *</span></label>
-                            <input type="text" value={walletIdInput} onChange={(e) => setWalletIdInput(e.target.value)} placeholder="wal_000000000000" className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono" required disabled={carregando} />
+                            <input type="text" value={walletIdInput} onChange={(e) => setWalletIdInput(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono" required disabled={carregando} />
                             <p className="text-[10px] text-stone-500 mt-1.5 leading-relaxed">
                               É para esta carteira que vão os 90% de cada pagamento. Crie a conta em{' '}
                               <a href="https://www.asaas.com" target="_blank" rel="noreferrer" className="text-[#BD6B42] font-bold hover:underline">asaas.com</a>
