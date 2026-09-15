@@ -75,6 +75,15 @@ function Autenticacao() {
   const [senha, setSenha] = useState('');
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
+  // Razão social vinda da Receita, guardada à parte do nome da loja. Antes a
+  // razão social ocupava o campo de nome e o campo ficava travado: a loja
+  // entrava no sistema como "FULANO COMERCIO DE ROUPAS LTDA" e não tinha como
+  // escrever o nome pelo qual as clientes a conhecem.
+  const [razaoSocial, setRazaoSocial] = useState('');
+  // O último nome sugerido pela consulta. Serve para saber se o campo ainda
+  // está com a sugestão ou se a loja já escreveu o dela, e não apagar o que
+  // ela digitou quando o CNPJ perde o foco de novo.
+  const [nomeSugerido, setNomeSugerido] = useState('');
   const [codigoOtp, setCodigoOtp] = useState('');
   // Para onde o codigo de verificacao foi. Antes era o telefone; agora e o
   // e-mail, que e o canal por onde o codigo sai de fato.
@@ -165,8 +174,20 @@ function Autenticacao() {
     setMensagem({ tipo: '', texto: '' });
 
     try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
-      
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`).catch(() => null);
+
+      // Consulta fora do ar não diz nada sobre o CNPJ. Antes qualquer falha
+      // apagava o documento, e a loja não conseguia se cadastrar enquanto a
+      // BrasilAPI estivesse instável. O servidor confere o CNPJ de novo ao
+      // concluir o cadastro, então seguir aqui não deixa passar CNPJ inválido.
+      if (!res || res.status >= 500 || res.status === 429) {
+        setMensagem({
+          tipo: 'erro',
+          texto: 'Não foi possível consultar a Receita agora. Preencha o nome da loja e siga: o CNPJ é conferido de novo ao concluir o cadastro.',
+        });
+        return;
+      }
+
       if (!res.ok) throw new Error('CNPJ inválido ou não encontrado na base de dados.');
       
       const data = await res.json();
@@ -175,15 +196,23 @@ function Autenticacao() {
         throw new Error(`CNPJ Inválido: A situação da empresa consta como ${data.descricao_situacao_cadastral}.`);
       }
 
-      setNome(data.razao_social || data.nome_fantasia || '');
+      // O nome sugerido é o fantasia, que é como a loja aparece para as
+      // clientes; a razão social só entra quando a empresa não tem fantasia.
+      // É sugestão: se a loja já escreveu o nome dela, fica o dela.
+      const sugestao = String(data.nome_fantasia || data.razao_social || '').trim();
+      setRazaoSocial(String(data.razao_social || '').trim());
+      setNome((atual) => (!atual.trim() || atual === nomeSugerido ? sugestao : atual));
+      setNomeSugerido(sugestao);
       if (data.cep) setCep(aplicarMascaraCep(data.cep.toString()));
       if (data.ddd_telefone_1) setTelefoneCadastro(aplicarMascaraTelefone(data.ddd_telefone_1.toString()));
       
       setMensagem({ tipo: 'sucesso', texto: 'Empresa validada e ativa na Receita Federal!' });
     } catch (err: any) {
       setMensagem({ tipo: 'erro', texto: err.message });
-      setCpf(''); 
-      setNome('');
+      setCpf('');
+      setRazaoSocial('');
+      setNome((atual) => (atual === nomeSugerido ? '' : atual));
+      setNomeSugerido('');
     } finally {
       setCarregando(false);
     }
@@ -281,7 +310,11 @@ function Autenticacao() {
             const conviteLojaId = sessionStorage.getItem('@avle:convite_loja_id');
             
             bodyPayload = {
-              nome,
+              // Na loja, a conta fica no nome da razão social, como já era, e o
+              // nome escolhido vai para a loja, que é o que aparece no convite,
+              // no painel e nas mensagens às clientes.
+              nome: tipoUsuario === 'LOJA' && razaoSocial ? razaoSocial : nome,
+              nomeLoja: tipoUsuario === 'LOJA' ? nome.trim() : null,
               email: emailCadastro.trim() !== '' ? emailCadastro : null,
               cpf,
               senha,
@@ -359,7 +392,7 @@ function Autenticacao() {
             }, 1500);
           }
 
-          setNome(''); setCpf(''); setEmailCadastro(''); setTelefoneCadastro(''); setCep('');
+          setNome(''); setCpf(''); setRazaoSocial(''); setNomeSugerido(''); setEmailCadastro(''); setTelefoneCadastro(''); setCep('');
           setFaturamento(''); setWalletIdInput(''); setSenha(''); setAceitouTermos(false);
           setCarregando(false);
           return;
@@ -827,9 +860,14 @@ function Autenticacao() {
 
                       <div>
                         <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                          {tipoUsuario === 'LOJA' ? 'Nome / Razão Social da Loja *' : 'Nome Completo *'}
+                          {tipoUsuario === 'LOJA' ? 'Nome da Loja *' : 'Nome Completo *'}
                         </label>
-                        <input type="text" placeholder={tipoUsuario === 'LOJA' ? 'Será preenchido pela Receita' : 'Ex: João Silva'} value={nome} onChange={(e) => setNome(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando || (tipoUsuario === 'LOJA')} />
+                        <input type="text" placeholder={tipoUsuario === 'LOJA' ? 'Como suas clientes conhecem a loja' : 'Ex: João Silva'} value={nome} onChange={(e) => setNome(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                        {tipoUsuario === 'LOJA' && razaoSocial && (
+                          <p className="text-[10px] text-stone-400 mt-1 leading-relaxed">
+                            Razão social na Receita: <span className="font-bold text-stone-500">{razaoSocial}</span>. O nome da loja pode ser diferente e é o que aparece para as clientes.
+                          </p>
+                        )}
                       </div>
 
                       <div>
