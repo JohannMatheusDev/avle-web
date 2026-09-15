@@ -47,6 +47,10 @@ export default function DashboardPage() {
   // As boas-vindas ficam por cima do painel que a pessoa ja veria, e nao no
   // lugar dele. Assim o aceite nao depende de acertar uma tela intermediaria
   // para cada tipo de usuario, e quem ja aceitou nao ve nada.
+  //
+  // So a cliente recebe. Os termos falam de pagar parcela e concorrer a
+  // contemplacao; na loja, a tela travava o painel pedindo aceite de
+  // compromissos que nao sao dela.
   const comBoasVindas = (painel: React.ReactNode) => (
     <>
       {painel}
@@ -59,7 +63,7 @@ export default function DashboardPage() {
       return <DashboardAdmin usuario={usuario} />;
     
     case 'LOJA':
-      return comBoasVindas(<DashboardLoja usuario={usuario} />);
+      return <DashboardLoja usuario={usuario} />;
     
     case 'CLIENTE':
       return comBoasVindas(<DashboardCliente usuario={usuario} />);
