@@ -8,6 +8,7 @@ import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../
 import { grupoDisponivel } from '../../lib/grupos';
 import { useRouter } from 'next/navigation';
 import { apiFetch, encerrarSessao } from '../../lib/api';
+import { useHistoricoDoPainel } from '../../lib/historico';
 import {
   CabecalhoDoPainel, Identidade, ItemDeNavegacao, PilulasDeSecao, TrilhoDeNavegacao,
 } from './Casca';
@@ -715,6 +716,44 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     setStatusSalvar(null);
     setStatusSalvarSenha(null);
   };
+
+  // O voltar do navegador desfaz um passo da navegação, e não a visita inteira.
+  // Quem entrava na loja, abria o plano e apertava voltar era jogada para fora
+  // do painel - no celular, onde voltar é um gesto de borda usado o tempo todo,
+  // isso acontecia sem querer várias vezes por visita.
+  useHistoricoDoPainel(
+    {
+      aba: abaAtiva,
+      nivel: nivelVisao,
+      loja: lojaEmFoco?.id ?? null,
+      cota: clubeAtualSelecionado?.cotaId ?? null,
+    },
+    (alvo) => {
+      setAbaAtiva(alvo.aba as typeof abaAtiva);
+      if (alvo.aba !== 'inicio') return;
+
+      if (alvo.nivel === 'dashboard' && alvo.cota) {
+        const clube = clubesAtivos.find((c: any) => c.cotaId === alvo.cota);
+        if (clube) {
+          handleMudarClubeEmExibicao(clube);
+          return;
+        }
+      }
+
+      if (alvo.nivel === 'grupos' && alvo.loja) {
+        // A loja vem da lista já carregada; se ela ainda não chegou, a que
+        // está em foco serve, porque é dela que a cliente acabou de sair.
+        const loja = lojas.find((l: any) => l.id === alvo.loja)
+          ?? (lojaEmFoco?.id === alvo.loja ? lojaEmFoco : null);
+        if (loja) {
+          entrarNaLoja(loja);
+          return;
+        }
+      }
+
+      setNivelVisao(isClienteAmarrado ? 'grupos' : 'lojas');
+    },
+  );
 
   const primeiroNome = (usuario?.nome || '').trim().split(' ')[0];
 
