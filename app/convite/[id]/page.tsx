@@ -526,7 +526,7 @@ export default function CadastroConvite() {
   // quadro, e nao uma espera: sem ele o formulario apareceria por um instante
   // para ser coberto pelo video logo em seguida.
   if (mostrandoIntro === null) {
-    return <div className="min-h-screen bg-[#F5F2EB]" />;
+    return <div className="min-h-screen fundo-painel" />;
   }
 
   if (mostrandoIntro) {
@@ -540,7 +540,7 @@ export default function CadastroConvite() {
   // exatamente quando a pessoa precisa saber que a pagina esta viva.
   if (carregandoLoja) {
     return (
-      <div className="min-h-screen bg-[#F5F2EB] flex items-center justify-center p-4">
+      <div className="min-h-screen fundo-painel flex items-center justify-center p-4">
         <div className="text-center">
           <div className="w-16 h-16 bg-[#0B1E14] rounded-full flex items-center justify-center mx-auto mb-5 animate-pulse">
             <span className="text-[#F5F2EB] font-black text-2xl">AV</span>
@@ -554,14 +554,14 @@ export default function CadastroConvite() {
 
   if (!lojaValida) {
     return (
-      <div className="min-h-screen bg-[#F5F2EB] flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center border border-rose-100">
+      <div className="min-h-screen fundo-painel flex items-center justify-center p-4">
+        <div className="cartao-avle p-8 max-w-md w-full text-center">
            <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-200">
               <span className="text-rose-600 font-bold text-2xl">!</span>
            </div>
            <h2 className="text-xl font-bold text-rose-700 mb-2">Convite Inválido</h2>
            <p className="text-sm text-stone-500">A loja que você está tentando acessar não existe, ou o link expirou.</p>
-           <button onClick={() => router.push('/')} className="mt-6 px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:bg-opacity-90">Ir para o início</button>
+           <button onClick={() => router.push('/')} className="mt-6 px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-full text-xs uppercase tracking-wider cursor-pointer hover:bg-opacity-90">Ir para o início</button>
         </div>
       </div>
     );
@@ -570,7 +570,7 @@ export default function CadastroConvite() {
   return (
     <div
       ref={containerRef}
-      className="min-h-screen bg-[#F5F2EB] flex flex-col justify-center items-center p-4 text-[#0B1E14] relative select-none overflow-hidden transition-all duration-500"
+      className="min-h-screen fundo-painel flex flex-col justify-center items-center p-4 text-[#0B1E14] relative select-none overflow-hidden transition-all duration-500"
     >
       <div ref={glowRef} className="absolute w-[550px] h-[550px] bg-[#BD6B42] rounded-full blur-[140px] pointer-events-none -z-10" />
 
@@ -588,7 +588,7 @@ export default function CadastroConvite() {
 
       <div
         ref={cardRef}
-        className="w-full max-w-md min-h-[660px] flex-col md:max-w-4xl md:min-h-[640px] md:flex-row bg-white rounded-3xl shadow-xl border border-stone-200/60 overflow-hidden flex transition-all duration-500 ease-in-out hover:shadow-2xl"
+        className="w-full max-w-md min-h-[660px] flex-col md:max-w-4xl md:min-h-[640px] md:flex-row cartao-avle overflow-hidden flex transition-all duration-500 ease-in-out hover:shadow-2xl"
       >
         <div className="w-full md:w-1/2 md:rounded-r-3xl bg-[#0B1E14] p-8 text-center flex flex-col items-center justify-center group transition-all duration-500">
           <div className="w-16 h-16 bg-[#F5F2EB] rounded-full flex items-center justify-center mb-3 shadow-md transition-transform duration-500 ease-out group-hover:rotate-12 group-hover:scale-105">
@@ -614,7 +614,7 @@ export default function CadastroConvite() {
 
         <div className="w-full p-2 md:w-1/2 md:p-4 flex flex-col justify-between transition-all duration-500 overflow-y-auto max-h-[85vh]">
           {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
-            <div className="flex border-b border-stone-100 bg-stone-50/50">
+            <div className="flex gap-1 p-1 m-3 rounded-full bg-[#F3F3F0]">
               <button
                 type="button"
                 onClick={() => {
@@ -622,8 +622,8 @@ export default function CadastroConvite() {
                   setMensagem({ tipo: '', texto: '' });
                   setAceitouTermos(false);
                 }}
-                className={`flex-1 py-4 font-bold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                  isLogin ? 'text-[#BD6B42] border-b-2 border-[#BD6B42] bg-white' : 'text-stone-400 hover:text-stone-600'
+                className={`flex-1 py-3 font-bold text-[11px] uppercase tracking-wider rounded-full transition-all duration-200 cursor-pointer ${
+                  isLogin ? 'text-white bg-[#0B1E14] shadow-sm' : 'text-stone-500 hover:text-[#0B1E14]'
                 }`}
               >
                 Acessar Conta
@@ -635,8 +635,8 @@ export default function CadastroConvite() {
                   setMensagem({ tipo: '', texto: '' });
                   setAceitouTermos(false);
                 }}
-                className={`flex-1 py-4 font-bold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                  !isLogin ? 'text-[#BD6B42] border-b-2 border-[#BD6B42] bg-white' : 'text-stone-400 hover:text-stone-600'
+                className={`flex-1 py-3 font-bold text-[11px] uppercase tracking-wider rounded-full transition-all duration-200 cursor-pointer ${
+                  !isLogin ? 'text-white bg-[#0B1E14] shadow-sm' : 'text-stone-500 hover:text-[#0B1E14]'
                 }`}
               >
                 Nova Conta
@@ -677,7 +677,7 @@ export default function CadastroConvite() {
                     placeholder="000000"
                     value={codigoOtp}
                     onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))}
-                    className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm focus:outline-none focus:border-[#0B1E14]"
+                    className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-2xl bg-stone-50 h-[42px] text-sm focus:outline-none focus:border-[#0B1E14]"
                     required
                     disabled={carregando}
                   />
@@ -741,7 +741,7 @@ export default function CadastroConvite() {
                     placeholder="E-mail, telefone ou CPF"
                     value={identificadorLogin}
                     onChange={handleIdentificadorChange}
-                    className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]"
+                    className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]"
                     required
                     disabled={carregando}
                   />
@@ -751,7 +751,7 @@ export default function CadastroConvite() {
                 <button
                   type="submit"
                   disabled={carregando}
-                  className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55"
+                  className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-full text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55"
                 >
                   {carregando ? 'ENVIANDO...' : 'Enviar Código Verificador'}
                 </button>
@@ -794,7 +794,7 @@ export default function CadastroConvite() {
                     placeholder="000000"
                     value={codigoOtp}
                     onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))}
-                    className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[42px] text-sm focus:outline-none focus:border-[#0B1E14]"
+                    className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-2xl bg-stone-50 h-[42px] text-sm focus:outline-none focus:border-[#0B1E14]"
                     required
                     disabled={carregando}
                   />
@@ -814,7 +814,7 @@ export default function CadastroConvite() {
                       placeholder="••••••••"
                       value={novaSenha}
                       onChange={(e) => setNovaSenha(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 text-sm h-[42px] focus:outline-none focus:border-[#0B1E14]"
+                      className="w-full px-3 py-2 border rounded-2xl bg-stone-50 text-sm h-[42px] focus:outline-none focus:border-[#0B1E14]"
                       required
                       disabled={carregando}
                     />
@@ -832,7 +832,7 @@ export default function CadastroConvite() {
                 <button
                   type="submit"
                   disabled={codigoOtp.length !== 6 || !novaSenhaForte || carregando}
-                  className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 hover:scale-[1.01] transition-all"
+                  className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-full text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 hover:scale-[1.01] transition-all"
                 >
                   {carregando ? 'PROCESSANDO...' : 'Redefinir e Gravar Senha'}
                 </button>
@@ -879,7 +879,7 @@ export default function CadastroConvite() {
                         placeholder="E-mail, telefone ou CPF"
                         value={identificadorLogin}
                         onChange={handleIdentificadorChange}
-                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
+                        className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
                         required
                         disabled={carregando}
                       />
@@ -898,7 +898,7 @@ export default function CadastroConvite() {
                         placeholder="Ex: Joao Silva"
                         value={nome}
                         onChange={(e) => setNome(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
+                        className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
                         required
                         disabled={carregando}
                       />
@@ -917,7 +917,7 @@ export default function CadastroConvite() {
                            placeholder="000.000.000-00"
                            value={cpf}
                            onChange={(e) => setCpf(aplicarMascaraCpf(e.target.value))}
-                           className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
+                           className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
                            required
                            disabled={carregando}
                          />
@@ -934,7 +934,7 @@ export default function CadastroConvite() {
                            placeholder="seu@email.com"
                            value={emailCadastro}
                            onChange={(e) => setEmailCadastro(e.target.value)}
-                           className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
+                           className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
                            required
                            disabled={carregando}
                          />
@@ -950,9 +950,7 @@ export default function CadastroConvite() {
                         placeholder="(42) 98765-4321"
                         value={telefoneCadastro}
                         onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))}
-                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px] ${
-                          telefoneCadastro.length > 0 && !telefoneCadastroValido
-                            ? 'border-rose-300 focus:border-rose-400'
+                        className={`w-full px-4 py-3 rounded-2xl border focus:outline-none focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px] ${ telefoneCadastro.length > 0 && !telefoneCadastroValido ?'border-rose-300 focus:border-rose-400'
                             : 'border-stone-200 focus:border-[#0B1E14]'
                         }`}
                         required
@@ -990,7 +988,7 @@ export default function CadastroConvite() {
                       placeholder="••••••••"
                       value={senha}
                       onChange={(e) => setSenha(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl bg-stone-50 focus:outline-none focus:border-[#0B1E14] text-sm h-[42px]"
+                      className="w-full px-3 py-2 border rounded-2xl bg-stone-50 focus:outline-none focus:border-[#0B1E14] text-sm h-[42px]"
                       required
                       disabled={carregando}
                     />
@@ -1072,7 +1070,7 @@ export default function CadastroConvite() {
               <button
                 type="submit"
                 disabled={!formularioValido || carregando}
-                className="w-full mt-6 py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl tracking-wide uppercase transition-all disabled:opacity-50 cursor-pointer text-xs shadow-md hover:bg-[#08170f]"
+                className="w-full mt-6 py-3.5 bg-[#0B1E14] text-white font-bold rounded-full tracking-wide uppercase transition-all disabled:opacity-50 cursor-pointer text-xs shadow-md hover:bg-[#08170f]"
               >
                 {carregando ? statusConexao : isLogin ? 'Entrar no Sistema' : 'Finalizar Cadastro'}
               </button>
@@ -1122,7 +1120,7 @@ export default function CadastroConvite() {
                   setModalTermosAberto(false); 
                   setAceitouTermos(true); 
                 }} 
-                className="px-6 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all shadow-sm"
+                className="px-6 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all shadow-sm"
               >
                 Li e Aceito as Condições
               </button>

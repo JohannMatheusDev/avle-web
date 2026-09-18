@@ -633,7 +633,7 @@ function Autenticacao() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F2EB] flex flex-col lg:flex-row font-sans overflow-hidden">
+    <div className="min-h-screen fundo-painel flex flex-col lg:flex-row font-sans overflow-hidden">
       
       <div className="hidden lg:flex w-1/2 bg-[#0B1E14] relative items-center justify-center overflow-hidden flex-col p-12">
         <div className="absolute w-[600px] h-[600px] bg-[#BD6B42] rounded-full blur-[140px] opacity-10 pointer-events-none" />
@@ -654,22 +654,24 @@ function Autenticacao() {
         </div>
       </div>
 
-      <div className="w-full lg:w-1/2 flex items-center justify-center bg-[#F5F2EB] p-4 sm:p-8 lg:p-12 relative min-h-screen overflow-y-auto">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 lg:p-12 relative min-h-screen overflow-y-auto">
         
         <div className="lg:hidden absolute top-6 left-0 right-0 flex flex-col items-center justify-center z-0 opacity-[0.13] pointer-events-none">
            <img src="/arvore-escura.png" alt="" className="w-64 max-w-[70%]" />
         </div>
 
-        <div className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl border border-stone-200/60 flex flex-col z-10 relative">
+        {/* Mesmo cartao dos paineis: entrar na AVLE e estar dentro dela
+            passaram a ter a mesma cara, em vez de duas linguagens visuais. */}
+        <div className="w-full max-w-md cartao-avle flex flex-col z-10 relative">
           
           <div className="flex flex-col p-6 sm:p-8">
             {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && !isLoginPorCodigo && (
-              <div className="flex border-b border-stone-100 bg-stone-50/50 mb-6 rounded-xl overflow-hidden shadow-inner">
+              <div className="flex gap-1 p-1 mb-6 rounded-full bg-[#F3F3F0]">
                 <button
                   type="button"
                   onClick={() => { setIsLogin(true); setMensagem({ tipo: '', texto: '' }); setAceitouTermos(false); }}
-                  className={`flex-1 py-3.5 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
-                    isLogin ? 'text-white bg-[#BD6B42]' : 'text-stone-400 hover:text-stone-600 bg-transparent'
+                  className={`flex-1 py-3 font-bold text-[11px] uppercase tracking-wider rounded-full transition-all cursor-pointer ${
+                    isLogin ? 'text-white bg-[#0B1E14] shadow-sm' : 'text-stone-500 hover:text-[#0B1E14]'
                   }`}
                 >
                   Acessar Conta
@@ -677,8 +679,8 @@ function Autenticacao() {
                 <button
                   type="button"
                   onClick={() => { setIsLogin(false); setMensagem({ tipo: '', texto: '' }); setTipoUsuario('CLIENTE'); setAceitouTermos(false); }}
-                  className={`flex-1 py-3.5 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
-                    !isLogin ? 'text-white bg-[#BD6B42]' : 'text-stone-400 hover:text-stone-600 bg-transparent'
+                  className={`flex-1 py-3 font-bold text-[11px] uppercase tracking-wider rounded-full transition-all cursor-pointer ${
+                    !isLogin ? 'text-white bg-[#0B1E14] shadow-sm' : 'text-stone-500 hover:text-[#0B1E14]'
                   }`}
                 >
                   Nova Conta
@@ -699,7 +701,7 @@ function Autenticacao() {
                   )}
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Código de Confirmação</label>
-                    <input type="text" maxLength={6} placeholder="000000" value={codigoOtp} onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))} className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} />
+                    <input type="text" maxLength={6} placeholder="000000" value={codigoOtp} onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))} className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-2xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} />
                   </div>
                   <div className="space-y-2 mt-4">
                   <button type="submit" disabled={codigoOtp.length !== 6 || carregando} className={`w-full py-3.5 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all shadow-md ${codigoOtp.length === 6 && !carregando ? 'bg-[#BD6B42] cursor-pointer' : 'bg-stone-300 cursor-not-allowed opacity-50'}`}>
@@ -733,12 +735,12 @@ function Autenticacao() {
                   {!codigoEnviado ? (
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail ou Telefone</label>
-                      <input type="text" placeholder="E-mail, telefone ou CPF" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                      <input type="text" placeholder="E-mail, telefone ou CPF" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                     </div>
                   ) : (
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Código de Acesso</label>
-                      <input type="text" inputMode="numeric" maxLength={6} placeholder="000000" value={codigoAcesso} onChange={(e) => setCodigoAcesso(e.target.value.replace(/\D/g, ''))} className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} autoFocus />
+                      <input type="text" inputMode="numeric" maxLength={6} placeholder="000000" value={codigoAcesso} onChange={(e) => setCodigoAcesso(e.target.value.replace(/\D/g, ''))} className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-2xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} autoFocus />
                       <button type="button" onClick={handlePedirCodigoAcesso} disabled={carregando} className="text-[10px] text-[#BD6B42] hover:underline font-bold cursor-pointer mt-2 disabled:opacity-50">
                         Não recebi o código. Enviar outro
                       </button>
@@ -746,7 +748,7 @@ function Autenticacao() {
                   )}
 
                   <div className="space-y-2 mt-4">
-                    <button type="submit" disabled={carregando} className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55">
+                    <button type="submit" disabled={carregando} className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-full text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55">
                       {carregando ? 'AGUARDE...' : codigoEnviado ? 'Entrar' : 'Enviar Código'}
                     </button>
                     <button type="button" onClick={voltarAoLogin} className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-2 cursor-pointer">Voltar ao Login</button>
@@ -767,10 +769,10 @@ function Autenticacao() {
                   )}
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail ou Telefone</label>
-                    <input type="text" placeholder="E-mail, telefone ou CPF" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                    <input type="text" placeholder="E-mail, telefone ou CPF" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                   </div>
                   <div className="space-y-2 mt-4">
-                  <button type="submit" disabled={carregando} className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55">
+                  <button type="submit" disabled={carregando} className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-full text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55">
                     {carregando ? 'ENVIANDO...' : 'Enviar Código'}
                   </button>
                   <button type="button" onClick={() => setIsEsqueceuSenha(false)} className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-2 cursor-pointer">Voltar ao Login</button>
@@ -791,19 +793,19 @@ function Autenticacao() {
                   )}
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Token (6 dígitos)</label>
-                    <input type="text" maxLength={6} placeholder="000000" value={codigoOtp} onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))} className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} />
+                    <input type="text" maxLength={6} placeholder="000000" value={codigoOtp} onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))} className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-2xl bg-stone-50 h-[46px] text-sm focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} />
                   </div>
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <label className="block text-[10px] font-bold uppercase text-stone-500">Nova Senha</label>
                     </div>
                     <div className="relative">
-                      <input type={mostrarNovaSenha ? 'text' : 'password'} placeholder="••••••••" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} className="w-full px-4 py-3 border rounded-xl bg-stone-50 text-sm h-[46px] focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} />
+                      <input type={mostrarNovaSenha ? 'text' : 'password'} placeholder="••••••••" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} className="w-full px-4 py-3 border rounded-2xl bg-stone-50 text-sm h-[46px] focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} />
                       <button type="button" onClick={() => setMostrarNovaSenha(!mostrarNovaSenha)} className="absolute right-4 top-3 text-stone-400 font-bold hover:text-stone-700 cursor-pointer">Ver</button>
                     </div>
                   </div>
                   <div className="space-y-2 mt-4">
-                  <button type="submit" disabled={codigoOtp.length !== 6 || !novaSenhaForte || carregando} className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-xl text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 transition-all">
+                  <button type="submit" disabled={codigoOtp.length !== 6 || !novaSenhaForte || carregando} className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-full text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 transition-all">
                     {carregando ? 'PROCESSANDO...' : 'Redefinir Senha'}
                   </button>
                   <button type="button" onClick={() => setIsResetandoSenha(false)} className="w-full text-stone-400 text-center font-bold text-xs py-2 cursor-pointer">Desistir</button>
@@ -860,14 +862,14 @@ function Autenticacao() {
                             </span>
                           )}
                         </div>
-                        <input type="text" maxLength={tipoUsuario === 'LOJA' ? 14 : 11} placeholder={tipoUsuario === 'LOJA' ? '00000000000000' : '00000000000'} value={cpf} onChange={(e) => setCpf(e.target.value.replace(/\D/g, ''))} onBlur={handleBuscarCnpj} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                        <input type="text" maxLength={tipoUsuario === 'LOJA' ? 14 : 11} placeholder={tipoUsuario === 'LOJA' ? '00000000000000' : '00000000000'} value={cpf} onChange={(e) => setCpf(e.target.value.replace(/\D/g, ''))} onBlur={handleBuscarCnpj} className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                       </div>
 
                       <div>
                         <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
                           {tipoUsuario === 'LOJA' ? 'Nome da Loja *' : 'Nome Completo *'}
                         </label>
-                        <input type="text" placeholder={tipoUsuario === 'LOJA' ? 'Como suas clientes conhecem a loja' : 'Ex: João Silva'} value={nome} onChange={(e) => setNome(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                        <input type="text" placeholder={tipoUsuario === 'LOJA' ? 'Como suas clientes conhecem a loja' : 'Ex: João Silva'} value={nome} onChange={(e) => setNome(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                         {tipoUsuario === 'LOJA' && razaoSocial && (
                           <p className="text-[10px] text-stone-400 mt-1 leading-relaxed">
                             Razão social na Receita: <span className="font-bold text-stone-500">{razaoSocial}</span>. O nome da loja pode ser diferente e é o que aparece para as clientes.
@@ -886,7 +888,7 @@ function Autenticacao() {
                             </span>
                           )}
                         </div>
-                        <input type="text" placeholder="(42) 99999-9999" value={telefoneCadastro} onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                        <input type="text" placeholder="(42) 99999-9999" value={telefoneCadastro} onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))} className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                       </div>
                       
                       <div className={`transition-all duration-500 ease-in-out overflow-hidden ${tipoUsuario === 'LOJA' ? 'max-h-[600px] opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'}`}>
@@ -895,16 +897,16 @@ function Autenticacao() {
                           <div className="grid grid-cols-2 gap-3">
                             <div>
                               <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">CEP Base *</label>
-                              <input type="text" maxLength={9} placeholder="85010-250" value={cep} onChange={(e) => setCep(aplicarMascaraCep(e.target.value))} className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
+                              <input type="text" maxLength={9} placeholder="85010-250" value={cep} onChange={(e) => setCep(aplicarMascaraCep(e.target.value))} className="w-full px-3 py-2 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
                             </div>
                             <div>
                               <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Faturamento *</label>
-                              <input type="text" placeholder="R$ 10.000,00" value={faturamento} onChange={(e) => setFaturamento(aplicarMascaraMoeda(e.target.value))} className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
+                              <input type="text" placeholder="R$ 10.000,00" value={faturamento} onChange={(e) => setFaturamento(aplicarMascaraMoeda(e.target.value))} className="w-full px-3 py-2 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
                             </div>
                           </div>
                           <div className="pt-1">
                             <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between"><span>Wallet ID Asaas *</span></label>
-                            <input type="text" value={walletIdInput} onChange={(e) => setWalletIdInput(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" className="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono" required disabled={carregando} />
+                            <input type="text" value={walletIdInput} onChange={(e) => setWalletIdInput(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" className="w-full px-3 py-2 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono" required disabled={carregando} />
                             <p className="text-[10px] text-stone-500 mt-1.5 leading-relaxed">
                               É para esta carteira que vão os 90% de cada pagamento. Crie a conta em{' '}
                               <a href="https://www.asaas.com" target="_blank" rel="noreferrer" className="text-[#BD6B42] font-bold hover:underline">asaas.com</a>
@@ -921,7 +923,7 @@ function Autenticacao() {
                         <div className="flex justify-between items-center mb-1">
                           <label className="block text-[10px] font-bold uppercase text-stone-500">E-mail ou Telefone com DDD *</label>
                         </div>
-                        <input type="text" placeholder="E-mail, telefone ou CPF" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                        <input type="text" placeholder="E-mail, telefone ou CPF" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                       </div>
                   )}
 
@@ -930,7 +932,7 @@ function Autenticacao() {
                         <div className="flex justify-between items-center mb-1">
                           <label className="block text-[10px] font-bold uppercase text-stone-500">E-mail *</label>
                         </div>
-                        <input type="email" placeholder="seu@email.com" value={emailCadastro} onChange={(e) => setEmailCadastro(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
+                        <input type="email" placeholder="seu@email.com" value={emailCadastro} onChange={(e) => setEmailCadastro(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                       </div>
                   )}
 
@@ -947,7 +949,7 @@ function Autenticacao() {
                     </div>
                     <div className="relative">
                       {/* CORREÇÃO: Utilizando o estado 'mostrarSenha' que agora alterna corretamente */}
-                      <input type={mostrarSenha ? 'text' : 'password'} placeholder="••••••••" value={senha} onChange={(e) => setSenha(e.target.value)} className="w-full px-4 py-3 border rounded-xl bg-stone-50 focus:outline-none focus:border-[#0B1E14] text-sm h-[46px]" required disabled={carregando} />
+                      <input type={mostrarSenha ? 'text' : 'password'} placeholder="••••••••" value={senha} onChange={(e) => setSenha(e.target.value)} className="w-full px-4 py-3 border rounded-2xl bg-stone-50 focus:outline-none focus:border-[#0B1E14] text-sm h-[46px]" required disabled={carregando} />
                       <button type="button" onClick={() => setMostrarSenha(!mostrarSenha)} className="absolute right-4 top-3 text-stone-400 font-bold hover:text-stone-700 cursor-pointer text-xs" disabled={carregando}>VER</button>
                     </div>
 
@@ -1000,7 +1002,7 @@ function Autenticacao() {
                     </div>
                   )}
 
-                <button type="submit" disabled={!formularioValido || carregando} className="w-full mt-6 py-4 bg-[#0B1E14] text-white font-bold rounded-xl tracking-wide uppercase transition-all disabled:opacity-50 cursor-pointer text-xs shadow-md hover:bg-[#08170f]">
+                <button type="submit" disabled={!formularioValido || carregando} className="w-full mt-6 py-4 bg-[#0B1E14] text-white font-bold rounded-full tracking-wide uppercase transition-all disabled:opacity-50 cursor-pointer text-xs shadow-md hover:bg-[#08170f]">
                   {carregando ? statusConexao : isLogin ? 'Entrar no Sistema' : 'Finalizar Cadastro'}
                 </button>
               </form>
@@ -1024,7 +1026,7 @@ function Autenticacao() {
             </div>
             <div className="p-4 border-t flex justify-end gap-3 bg-stone-50 rounded-b-2xl">
               <button type="button" onClick={() => setModalTermosAberto(false)} className="px-6 py-2.5 border text-stone-600 font-bold rounded-xl text-[10px] uppercase cursor-pointer">Fechar</button>
-              <button type="button" onClick={() => { setModalTermosAberto(false); setAceitouTermos(true); }} className="px-6 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase cursor-pointer">Aceitar</button>
+              <button type="button" onClick={() => { setModalTermosAberto(false); setAceitouTermos(true); }} className="px-6 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase cursor-pointer">Aceitar</button>
             </div>
           </div>
         </div>
