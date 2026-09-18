@@ -36,6 +36,13 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [saldoPoupanca, setSaldoPoupanca] = useState<number>(0);
   const [modalCheckoutAberto, setModalCheckoutAberto] = useState(false);
 
+  // Cota recem-criada cuja primeira parcela ainda nao foi paga. Enquanto ela
+  // existe, o checkout fica por cima do painel e nao aceita ser fechado: a
+  // entrada no grupo passou a ser "entrar e pagar", e nao "entrar e a loja
+  // corre atras depois". Fica guardada no navegador porque fechar a aba no
+  // meio do Pix nao pode virar uma cota sem pagamento nenhum.
+  const [cotaAguardandoPrimeiraParcela, setCotaAguardandoPrimeiraParcela] = useState<number | null>(null);
+
   const [nivelVisao, setNivelVisao] = useState<'lojas' | 'grupos' | 'dashboard'>('lojas');
 
   // Qual lista de grupos esta aberta. Nulo enquanto a cliente nao escolheu, e
@@ -517,12 +524,90 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             setGrupoSelecionado(novaCota.grupo);
             setLojaSelecionada(novaCota.loja);
             setSaldoPoupanca(Number(novaCota.saldoPoupanca) || 0);
-            setNivelVisao('dashboard'); 
+            setNivelVisao('dashboard');
+
+            // Entrar no grupo passou a incluir pagar a primeira parcela. O
+            // servidor ja emite essa cobranca junto com a entrada; o que
+            // faltava era a tela levar a cliente ate ela. Antes a cota nascia
+            // sem ninguem pagar nada e sobrava para a loja cobrar no dedo, uma
+            // a uma, pelo WhatsApp.
+            marcarPrimeiraParcelaPendente(novaCota.cotaId);
+            setModalCheckoutAberto(true);
          }
       } catch {
          mostrarAviso('Erro de Adesão', 'Falha ao registrar vínculo no clube. Tente novamente.', true);
       }
   };
+
+  const chaveDaPrimeiraParcela = (userId?: number) => `@avle:primeira_parcela_${userId ?? usuario?.id}`;
+
+  const marcarPrimeiraParcelaPendente = (cotaId: number) => {
+    setCotaAguardandoPrimeiraParcela(cotaId);
+    try {
+      localStorage.setItem(chaveDaPrimeiraParcela(), String(cotaId));
+    } catch {
+      // Navegador sem armazenamento: o pagamento continua obrigatório nesta
+      // visita, só não sobrevive a fechar a aba.
+    }
+  };
+
+  const encerrarPrimeiraParcelaPendente = () => {
+    setCotaAguardandoPrimeiraParcela(null);
+    setModalCheckoutAberto(false);
+    try {
+      localStorage.removeItem(chaveDaPrimeiraParcela());
+    } catch {
+      // Sem armazenamento não há o que limpar.
+    }
+  };
+
+  /**
+   * Devolve a cliente ao pagamento que ela deixou pela metade.
+   *
+   * Fechar a aba no meio do Pix não pode virar uma cota dentro do grupo sem
+   * pagamento nenhum: é exatamente o caso que fazia a loja cobrar manualmente
+   * depois. Quem manda é o saldo vindo do servidor - assim que a primeira
+   * parcela cai, a trava sai sozinha, sem depender de a cliente avisar.
+   */
+  useEffect(() => {
+    const userId = usuario?.id;
+    if (!userId || clubesAtivos.length === 0) return;
+
+    let pendente: string | null = null;
+    try {
+      pendente = localStorage.getItem(chaveDaPrimeiraParcela(userId));
+    } catch {
+      return;
+    }
+    if (!pendente) return;
+
+    const cotaId = Number(pendente);
+    const cota = clubesAtivos.find((c: any) => c.cotaId === cotaId);
+
+    // Cota que sumiu (a loja desfez a participação) ou que já tem saldo: não
+    // há mais primeira parcela em aberto para cobrar.
+    if (!cota || Number(cota.saldoPoupanca) > 0) {
+      encerrarPrimeiraParcelaPendente();
+      return;
+    }
+
+    setCotaAguardandoPrimeiraParcela(cotaId);
+    setClubeAtualSelecionado(cota);
+    setGrupoSelecionado(cota.grupo);
+    setLojaSelecionada(cota.loja);
+    setSaldoPoupanca(Number(cota.saldoPoupanca) || 0);
+    setNivelVisao('dashboard');
+    setModalCheckoutAberto(true);
+  }, [clubesAtivos, usuario?.id]);
+
+  // Quem confirma o Pix é o banco, e ele avisa o servidor, não a tela. Sem
+  // esta consulta de tempos em tempos a cliente pagaria e continuaria olhando
+  // o QR Code, sem entender que já podia seguir.
+  useEffect(() => {
+    if (cotaAguardandoPrimeiraParcela == null) return;
+    const relogio = setInterval(() => { buscarCarteiraDeClubes(); }, 12_000);
+    return () => clearInterval(relogio);
+  }, [cotaAguardandoPrimeiraParcela]);
 
   /**
    * Relê o saldo no servidor depois de uma tentativa de pagamento.
@@ -1824,7 +1909,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
                 <div className="p-5 border-t border-stone-100 bg-stone-50 flex gap-3">
                     <button onClick={() => setModalAdesao({ aberto: false, grupo: null })} className="flex-1 py-3 border border-stone-200 text-stone-500 font-bold rounded-full text-[10px] uppercase hover:bg-stone-100 transition-colors cursor-pointer">Cancelar</button>
-                    <button onClick={confirmarAdesaoNoGrupo} className="flex-1 py-3 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase hover:bg-opacity-90 transition-all cursor-pointer">Aceitar e Participar</button>
+                    <button onClick={confirmarAdesaoNoGrupo} className="flex-1 py-3 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase hover:bg-opacity-90 transition-all cursor-pointer">Entrar e pagar a 1ª parcela</button>
                 </div>
             </div>
         </div>
@@ -1942,12 +2027,29 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         </div>
       )}
 
-      {modalCheckoutAberto && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn text-left">
-          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Ambiente de Checkout Secure</h3>
-              <button onClick={() => setModalCheckoutAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
+      {modalCheckoutAberto && (() => {
+        // Entrada no grupo: o checkout não tem X nem fecha por fora. A vaga já
+        // é dela, mas a primeira parcela sai agora - é o que tira da loja a
+        // cobrança manual de quem acabou de entrar.
+        const obrigatorio = cotaAguardandoPrimeiraParcela != null;
+        return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn text-left overflow-y-auto">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl my-auto">
+            <div className="flex justify-between items-start border-b pb-3 gap-3">
+              <div>
+                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">
+                  {obrigatorio ? 'Primeira parcela do seu plano' : 'Ambiente de Checkout Secure'}
+                </h3>
+                {obrigatorio && (
+                  <p className="text-[11px] text-stone-500 leading-relaxed mt-1">
+                    A sua vaga em <strong>{grupoSelecionado?.nome || 'seu clube'}</strong> está
+                    registrada. Conclua o pagamento para começar a valer.
+                  </p>
+                )}
+              </div>
+              {!obrigatorio && (
+                <button onClick={() => setModalCheckoutAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
+              )}
             </div>
             <CheckoutForm
               valorMensalidade={valorMensalidade}
@@ -1955,10 +2057,32 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               cotaId={clubeAtualSelecionado?.cotaId || clubeAtualSelecionado?.id || clubeAtualSelecionado?.numeroCota}
               onSuccess={atualizarSaldoAposPagamento}
               fecharModal={() => setModalCheckoutAberto(false)}
+              obrigatorio={obrigatorio}
             />
+            {obrigatorio && (
+              <div className="pt-3 border-t border-stone-100 text-center space-y-2">
+                <button
+                  type="button"
+                  onClick={() => buscarCarteiraDeClubes()}
+                  className="text-[10px] font-bold text-[#0B1E14] uppercase tracking-wider hover:underline cursor-pointer"
+                >
+                  Já paguei · conferir agora
+                </button>
+                {/* Saída honesta: sem ela, quem não vai pagar hoje ficaria
+                    presa na tela sem nem conseguir sair da conta. */}
+                <button
+                  type="button"
+                  onClick={async () => { await encerrarSessao(); router.push('/'); }}
+                  className="block w-full text-[10px] font-bold text-stone-400 uppercase tracking-wider hover:text-stone-600 cursor-pointer"
+                >
+                  Sair da conta e pagar depois
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      )}
+        );
+      })()}
 
     </div>
   );
@@ -1969,13 +2093,20 @@ function CheckoutForm({
   valorTotalRestante, 
   cotaId, 
   onSuccess, 
-  fecharModal 
+  fecharModal,
+  obrigatorio = false,
 }: { 
   valorMensalidade: number; 
   valorTotalRestante: number; 
   cotaId: number; 
   onSuccess: () => Promise<void> | void; 
-  fecharModal: () => void 
+  fecharModal: () => void;
+  /**
+   * Pagamento da entrada no grupo, que não pode ser adiado fechando a tela.
+   * Sem isto o checkout oferece "Fechar" em todo lugar, e fechar aqui
+   * significaria ficar no grupo sem ter pago nada.
+   */
+  obrigatorio?: boolean;
 }) {
   const [metodo, setMetodo] = useState<'pix' | 'credito_total' | 'debito'>('pix');
   // O QR e o copia e cola vem junto da cobranca. Mostrar aqui dentro evita
@@ -1989,6 +2120,10 @@ function CheckoutForm({
   const [copiado, setCopiado] = useState(false);
   const [aguardandoConfirmacao, setAguardandoConfirmacao] = useState(false);
   const [carregandoPix, setCarregandoPix] = useState(false);
+  // Contador de tentativas de gerar o Pix. Quando o pagamento e obrigatorio
+  // nao da para mandar a pessoa fechar e voltar depois: a saida dela dali e
+  // pedir a cobranca de novo.
+  const [tentativaDePix, setTentativaDePix] = useState(0);
 
   const [numeroCartao, setNumeroCartao] = useState('');
   const [nomeImpresso, setNomeImpresso] = useState('');
@@ -2019,7 +2154,7 @@ function CheckoutForm({
       .then((data) => setDadosPix(data))
       .catch(() => {})
       .finally(() => setCarregandoPix(false));
-  }, [valorCobrado, cotaId, metodo]);
+  }, [valorCobrado, cotaId, metodo, tentativaDePix]);
 
   const handlePagamentoCartao = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2109,19 +2244,24 @@ function CheckoutForm({
             type="button"
             onClick={async () => {
               await onSuccess();
-              fecharModal();
+              // Na entrada do grupo quem fecha e a confirmacao do pagamento,
+              // nao este botao: fechar aqui deixaria a cota sem a primeira
+              // parcela, que e o caso que esta tela existe para impedir.
+              if (!obrigatorio) fecharModal();
             }}
             className="w-full py-3.5 bg-[#0B1E14] text-white font-bold text-[10px] rounded-full uppercase tracking-wider cursor-pointer"
           >
             Já paguei · Conferir meu saldo
           </button>
-          <button
-            type="button"
-            onClick={fecharModal}
-            className="w-full py-3 border border-[#DFD9CE] text-stone-500 font-bold text-[10px] rounded-full uppercase tracking-wider cursor-pointer hover:bg-stone-50"
-          >
-            Fechar
-          </button>
+          {!obrigatorio && (
+            <button
+              type="button"
+              onClick={fecharModal}
+              className="w-full py-3 border border-[#DFD9CE] text-stone-500 font-bold text-[10px] rounded-full uppercase tracking-wider cursor-pointer hover:bg-stone-50"
+            >
+              Fechar
+            </button>
+          )}
         </div>
       </div>
     );
@@ -2193,10 +2333,19 @@ function CheckoutForm({
               </p>
             </>
           ) : (
-            <div className="p-5 bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl text-center">
+            <div className="p-5 bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl text-center space-y-3">
               <span className="block font-semibold text-rose-500 text-xs leading-relaxed">
-                Não foi possível preparar o Pix agora. Feche e tente de novo em instantes.
+                {obrigatorio
+                  ? 'Não foi possível preparar o Pix agora. Tente de novo em instantes.'
+                  : 'Não foi possível preparar o Pix agora. Feche e tente de novo em instantes.'}
               </span>
+              <button
+                type="button"
+                onClick={() => setTentativaDePix((n) => n + 1)}
+                className="px-5 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase tracking-wider cursor-pointer"
+              >
+                Gerar o Pix de novo
+              </button>
             </div>
           )}
         </div>
