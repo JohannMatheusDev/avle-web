@@ -9,6 +9,7 @@ import {
 } from './Casca';
 import { useRouter } from 'next/navigation';
 import { apiFetch, encerrarSessao } from '../../lib/api';
+import { useHistoricoDoPainel } from '../../lib/historico';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
@@ -169,6 +170,21 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
     setLojaSelecionada(null);
     setAbaExibida(id as any);
   };
+
+  // Voltar do navegador desce um nível: da ficha da loja para a lista, da
+  // lista para a seção anterior. Antes saía do painel administrativo inteiro.
+  useHistoricoDoPainel(
+    { aba: abaExibida, loja: lojaSelecionada?.id ?? null },
+    (alvo) => {
+      setAbaExibida((alvo.aba as typeof abaExibida) || 'geral');
+      if (!alvo.loja) {
+        setLojaSelecionada(null);
+        return;
+      }
+      const loja = listaLojas.find((l) => l.id === alvo.loja);
+      setLojaSelecionada(loja ?? null);
+    },
+  );
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen fundo-painel text-[#0B1E14]">

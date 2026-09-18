@@ -15,6 +15,7 @@ import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
 import { grupoDisponivel, grupoEncerrado, vagasDoGrupo } from '../../lib/grupos';
 import { apiFetch, encerrarSessao } from '../../lib/api';
+import { useHistoricoDoPainel } from '../../lib/historico';
 import { useAvisos } from '../../lib/avisos';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -1509,6 +1510,24 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     setGrupoSelecionado(null);
     setAbaLoja(id as any);
   };
+
+  // O voltar do navegador refaz o caminho pelas seções e pela ficha do grupo.
+  // A ficha guarda só o id: o objeto do grupo é remontado da lista que a tela
+  // já tem, porque guardar o objeto inteiro no histórico gravaria números que
+  // envelhecem (faturado, cotas ocupadas) e a ficha voltaria desatualizada.
+  useHistoricoDoPainel(
+    { aba: abaLoja, grupo: grupoSelecionado?.id ?? null },
+    (alvo) => {
+      setAbaLoja((alvo.aba as typeof abaLoja) || 'geral');
+      if (!alvo.grupo) {
+        setGrupoSelecionado(null);
+        return;
+      }
+      const grupo = listaGrupos.find((g) => g.id === alvo.grupo);
+      if (grupo) setGrupoSelecionado(grupo);
+      else setGrupoSelecionado(null);
+    },
+  );
 
   const tituloDaSecao = grupoSelecionado
     ? `Ficha: ${grupoSelecionado.nome}`
