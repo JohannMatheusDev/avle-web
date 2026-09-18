@@ -17,7 +17,7 @@ export default function PainelDeAvisosFlutuante() {
   const { avisos, naoLidas, marcarTodas } = useAvisos();
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-50 flex flex-col items-end">
       {aberto && (
         <div className="mb-4 w-[min(24rem,calc(100vw-3rem))] overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl">
           <div className="flex items-center justify-between bg-[#0B1E14] p-4 text-white">
