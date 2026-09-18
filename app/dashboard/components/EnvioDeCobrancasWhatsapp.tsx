@@ -150,7 +150,7 @@ export default function EnvioDeCobrancasWhatsapp({ grupoId }: { grupoId?: number
 
   if (carregando) {
     return (
-      <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 mb-6">
+      <div className="cartao-avle p-6 mb-6">
         <p className="text-xs text-stone-400 animate-pulse font-bold uppercase tracking-wider">
           Carregando cobranças do mês...
         </p>
@@ -160,7 +160,7 @@ export default function EnvioDeCobrancasWhatsapp({ grupoId }: { grupoId?: number
 
   if (erro) {
     return (
-      <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 mb-6">
+      <div className="cartao-avle p-6 mb-6">
         <p className="text-xs text-rose-600 font-medium">{erro}</p>
         <button
           type="button"
@@ -211,7 +211,7 @@ export default function EnvioDeCobrancasWhatsapp({ grupoId }: { grupoId?: number
     );
 
   return (
-    <div className="bg-white border border-[#DFD9CE] rounded-2xl mb-6 overflow-hidden">
+    <div className="cartao-avle mb-6 overflow-hidden">
       <div className="px-5 py-4 border-b border-[#DFD9CE] flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">

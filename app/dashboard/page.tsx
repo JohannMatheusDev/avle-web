@@ -34,7 +34,7 @@ export default function DashboardPage() {
 
   if (carregando) {
     return (
-      <div className="min-h-screen bg-[#F9F6F0] flex items-center justify-center">
+      <div className="min-h-screen fundo-painel flex items-center justify-center">
         <p className="text-xs font-bold uppercase tracking-widest text-stone-400 animate-pulse">
           Carregando ambiente seguro...
         </p>

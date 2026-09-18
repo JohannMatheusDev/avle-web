@@ -8,6 +8,9 @@ import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../
 import { grupoDisponivel } from '../../lib/grupos';
 import { useRouter } from 'next/navigation';
 import { apiFetch, encerrarSessao } from '../../lib/api';
+import {
+  CabecalhoDoPainel, Identidade, ItemDeNavegacao, PilulasDeSecao, TrilhoDeNavegacao,
+} from './Casca';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -38,10 +41,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   // ai a tela decide sozinha: quem ja tem plano abre nos planos dela.
   const [abaGrupos, setAbaGrupos] = useState<'meus' | 'disponiveis' | null>(null);
 
-  // No celular o menu vira gaveta. A barra lateral inteira ocupava a primeira
-  // tela inteira antes de qualquer conteudo aparecer, e a cliente abria o painel
-  // vendo menu em vez de ver o proprio plano.
-  const [menuAberto, setMenuAberto] = useState(false);
+  // A gaveta de menu do celular deixou de existir junto com a barra lateral
+  // verde: a navegacao agora e a barra fixa no rodape, sempre visivel, sem
+  // estado para abrir e fechar e sem cobrir o plano da cliente ao abrir.
   const [lojaEmFoco, setLojaEmFoco] = useState<any | null>(null);
   const [gruposDaLoja, setGruposDaLoja] = useState<any[]>([]);
   const [carregandoGrupos, setCarregandoGrupos] = useState(false);
@@ -694,115 +696,63 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   // Variável que diz se o painel deve ser isolado
   const isClienteAmarrado = !!lojaBloqueadaId;
 
+  const secoesDaCliente: ItemDeNavegacao[] = [
+    { id: 'inicio',  rotulo: isClienteAmarrado ? 'Meus Planos' : 'Rede de Lojas', icone: isClienteAmarrado ? 'planos' : 'lojas' },
+    { id: 'extrato', rotulo: 'Histórico',   icone: 'historico' },
+    { id: 'regras',  rotulo: 'Regulamento', icone: 'regras' },
+    { id: 'ajuda',   rotulo: 'Suporte',     icone: 'ajuda' },
+  ];
+  const perfilDaCliente: ItemDeNavegacao = { id: 'perfil', rotulo: 'Meu perfil', icone: 'perfil' };
+
+  // Voltar para "início" tem que devolver a cliente ao nível certo: quem está
+  // presa a uma loja não tem rede de lojas para ver, e cair na lista vazia
+  // parecia que o plano dela tinha sumido.
+  const irParaSecao = (id: string) => {
+    setAbaAtiva(id as any);
+    if (id === 'inicio') {
+      setNivelVisao(isClienteAmarrado || lojaEmFoco ? 'grupos' : 'lojas');
+    }
+    setStatusSalvar(null);
+    setStatusSalvarSenha(null);
+  };
+
+  const primeiroNome = (usuario?.nome || '').trim().split(' ')[0];
+
   return (
-    <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5]">
+    <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] fundo-painel">
 
-      <header className="md:hidden sticky top-0 z-30 bg-[#0B1E14] text-white flex items-center gap-3 px-4 py-3 shadow-md">
-        <button
-          onClick={() => setMenuAberto(true)}
-          aria-label="Abrir menu"
-          className="p-1.5 -ml-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-        >
-          <span className="block w-6 h-0.5 bg-current rounded-full" />
-          <span className="block w-6 h-0.5 bg-current rounded-full mt-1.5" />
-          <span className="block w-6 h-0.5 bg-current rounded-full mt-1.5" />
-        </button>
-        <span className="flex-1 text-xs font-bold uppercase tracking-wider truncate">
-          {usuario?.nome || 'Painel'}
-        </span>
-        <button
-          onClick={() => { setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }}
-          className="w-9 h-9 rounded-full bg-[#EFEAE2] text-[#0B1E14] flex items-center justify-center overflow-hidden font-bold text-[11px] shrink-0 cursor-pointer"
-        >
-          {fotoPerfil ? (
-            <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
-          ) : (
-            usuario?.nome ? usuario.nome.substring(0, 2).toUpperCase() : 'AV'
-          )}
-        </button>
-      </header>
+      <TrilhoDeNavegacao
+        itens={secoesDaCliente}
+        ativo={abaAtiva}
+        aoEscolher={irParaSecao}
+        aoSair={async () => { await encerrarSessao(); router.push('/'); }}
+        itemDeConfiguracao={perfilDaCliente}
+      />
 
-      {menuAberto && (
-        <div
-          onClick={() => setMenuAberto(false)}
-          className="md:hidden fixed inset-0 bg-black/50 z-40 animate-fadeIn"
+      {/* `pb-28` no celular reserva a altura da barra de navegação fixa: sem
+          isso ela cobria o botão de pagar, que é o fim de quase toda visita. */}
+      <main className="flex-1 p-4 md:py-8 md:pr-8 md:pl-2 max-w-7xl overflow-x-hidden space-y-6 pb-28 md:pb-8">
+
+        <CabecalhoDoPainel
+          etiqueta={`AVLE · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`}
+          titulo={primeiroNome ? `Olá, ${primeiroNome}` : 'Meu painel'}
+          identidade={
+            <Identidade
+              nome={usuario?.nome || 'Painel Cliente'}
+              detalhe={usuario?.email}
+              foto={fotoPerfil}
+              aoClicar={() => irParaSecao('perfil')}
+            />
+          }
+          pilulas={
+            <PilulasDeSecao
+              itens={secoesDaCliente}
+              ativo={abaAtiva}
+              aoEscolher={irParaSecao}
+            />
+          }
         />
-      )}
 
-      <aside
-        className={`fixed md:static inset-y-0 left-0 z-50 w-72 md:w-64 bg-[#0B1E14] text-[#E3EAE6] flex flex-col justify-between p-6 flex-shrink-0 overflow-y-auto transition-transform duration-200 md:transition-none ${
-          menuAberto ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        }`}
-      >
-        <div>
-          <div className="flex flex-col items-center text-center pb-6 border-b border-white/10 mb-6">
-            <div className="w-16 h-16 rounded-full bg-[#EFEAE2] flex items-center justify-center overflow-hidden font-bold text-xl text-[#0B1E14] shadow-md cursor-pointer hover:scale-105 transition-all" onClick={() => { setMenuAberto(false); setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }}>
-              {fotoPerfil ? (
-                <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
-              ) : (
-                usuario?.nome ? usuario.nome.substring(0,2).toUpperCase() : 'AV'
-              )}
-            </div>
-            <h3 className="text-white font-bold text-sm tracking-wide mt-3 uppercase">{usuario?.nome || 'Painel Cliente'}</h3>
-            <p className="text-[11px] text-stone-400 truncate max-w-[180px] mt-0.5">{usuario?.email}</p>
-          </div>
-
-          <nav className="space-y-0.5 mt-2">
-            {[
-              { id: 'inicio', label: isClienteAmarrado ? 'Meus Planos' : 'Rede de Lojas' },
-              { id: 'extrato', label: 'Histórico' },
-              { id: 'regras', label: 'Regulamento' },
-              { id: 'ajuda', label: 'Suporte' }
-            ].map((aba) => {
-              const isActive = abaAtiva === aba.id;
-              return (
-                <button
-                  key={aba.id}
-                  onClick={() => {
-                    setMenuAberto(false);
-                    setAbaAtiva(aba.id as any);
-                    if (aba.id === 'inicio') {
-                      if (isClienteAmarrado || lojaEmFoco) {
-                        setNivelVisao('grupos');
-                      } else {
-                        setNivelVisao('lojas');
-                      }
-                    }
-                    setStatusSalvar(null);
-                    setStatusSalvarSenha(null);
-                  }}
-                  className={`w-full text-left py-2.5 text-[11px] font-bold tracking-widest uppercase transition-all duration-200 cursor-pointer flex items-center gap-3 border-l-2 ${
-                    isActive
-                      ? 'border-[#BD6B42] text-white bg-white/5 pl-5 pr-4'
-                      : 'border-transparent text-stone-500 hover:text-stone-300 hover:border-white/20 pl-4 pr-4 hover:pl-5'
-                  }`}
-                >
-                  {aba.label}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-
-        <div className="pt-4 border-t border-white/10 flex justify-between items-center text-xs">
-          <button
-            onClick={() => { setMenuAberto(false); setAbaAtiva('perfil'); setStatusSalvar(null); setStatusSalvarSenha(null); }}
-            className={`text-[11px] font-bold tracking-widest uppercase transition-all cursor-pointer border-l-2 pl-3 py-1 ${
-              abaAtiva === 'perfil' ? 'border-[#BD6B42] text-white' : 'border-transparent text-stone-500 hover:text-stone-300'
-            }`}
-          >
-            Configurações
-          </button>
-          <button
-            onClick={async () => { await encerrarSessao(); router.push('/'); }}
-            className="text-stone-500 hover:text-red-400 text-[10px] font-bold cursor-pointer transition-all tracking-wider uppercase"
-          >
-            Sair
-          </button>
-        </div>
-      </aside>
-
-      <main className="flex-1 p-4 md:p-8 max-w-7xl overflow-x-hidden space-y-6">
 
         {abaAtiva === 'inicio' && (
           <div className="animate-fadeIn">
@@ -896,7 +846,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     <button
                       type="button"
                       onClick={() => { setModalProduto({ aberto: true, cotaId: card.cotaId }); setProdutoEscolhido(''); }}
-                      className="w-full py-3 bg-[#BD6B42] text-white font-bold rounded-xl text-[11px] uppercase tracking-wider hover:bg-[#A95A33] transition-all cursor-pointer shadow-sm"
+                      className="w-full py-3 bg-[#BD6B42] text-white font-bold rounded-full text-[11px] uppercase tracking-wider hover:bg-[#A95A33] transition-all cursor-pointer shadow-sm"
                     >
                       Escolher meu produto
                     </button>
@@ -934,7 +884,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 {clubesAtivos.map((clube) => (
                   <div
                     key={clube.cotaId}
-                    className="bg-[#0B1E14] text-white rounded-2xl p-5 shadow-lg border-t-2 border-t-[#BD6B42] flex flex-wrap items-center justify-between gap-4"
+                    className="cartao-avle-destaque p-5 flex flex-wrap items-center justify-between gap-4"
                   >
                     <div className="min-w-0">
                       <span className="block text-[9px] font-black uppercase tracking-widest text-stone-400 mb-1">
@@ -949,7 +899,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     </div>
                     <button
                       onClick={() => handleMudarClubeEmExibicao(clube)}
-                      className="bg-[#BD6B42] text-white px-6 py-4 rounded-xl text-sm font-bold uppercase tracking-wider hover:brightness-110 active:brightness-95 transition-all cursor-pointer shadow-md w-full sm:w-auto"
+                      className="bg-[#BD6B42] text-white px-6 py-4 rounded-full text-sm font-bold uppercase tracking-wider hover:brightness-110 active:brightness-95 transition-all cursor-pointer shadow-md w-full sm:w-auto"
                     >
                       Pagar parcela
                     </button>
@@ -969,7 +919,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
 
                 {lojas.length === 0 && !erroConexao ? (
-                  <div className="bg-white border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
+                  <div className="cartao-avle border-dashed p-8 text-center text-xs text-stone-400 font-medium">
                     Nenhuma loja parceira cadastrada na plataforma ainda.
                   </div>
                 ) : (
@@ -1031,13 +981,13 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 {!isClienteAmarrado && (
                   <button
                     onClick={() => setNivelVisao('lojas')}
-                    className="text-[10px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-2 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
+                    className="text-[10px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-2 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-full cursor-pointer shadow-xs w-fit"
                   >
                     ← Voltar para Rede de Lojas
                   </button>
                 )}
 
-                <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center gap-6 relative overflow-hidden">
+                <div className="cartao-avle p-6 flex flex-col md:flex-row items-start md:items-center gap-6 relative overflow-hidden">
                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#0B1E14] flex items-center justify-center font-serif font-bold text-white text-3xl shrink-0 shadow-lg">
                     {obterNomeLoja(lojaEmFoco).substring(0, 2).toUpperCase()}
                   </div>
@@ -1071,14 +1021,14 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   <div className="flex flex-col gap-2 w-full md:w-auto shrink-0 border-t md:border-t-0 md:border-l border-stone-100 pt-4 md:pt-0 md:pl-6 mt-4 md:mt-0">
                     <button 
                       onClick={() => window.open(`${API_URL}/api/lojas/${lojaEmFoco.id}/regras`, '_blank')}
-                      className="w-full bg-[#0B1E14] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 transition-all shadow-sm cursor-pointer text-center"
+                      className="w-full bg-[#0B1E14] text-white px-5 py-3 rounded-full text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 transition-all shadow-sm cursor-pointer text-center"
                     >
                       Ler Regulamento
                     </button>
                     {lojaEmFoco?.telefone && (
                       <button 
                         onClick={() => window.open(`https://wa.me/55${lojaEmFoco.telefone.replace(/\D/g, '')}`, '_blank')}
-                        className="w-full bg-stone-100 text-[#0B1E14] border border-stone-200 px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-stone-200 transition-all shadow-sm cursor-pointer text-center"
+                        className="w-full bg-stone-100 text-[#0B1E14] border border-stone-200 px-5 py-3 rounded-full text-[10px] font-bold uppercase tracking-wider hover:bg-stone-200 transition-all shadow-sm cursor-pointer text-center"
                       >
                         Suporte no WhatsApp
                       </button>
@@ -1115,7 +1065,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
                    if (gruposVisiveis.length === 0) {
                       return (
-                         <div className="bg-white border border-[#DFD9CE] rounded-2xl p-8 text-center space-y-4 shadow-sm">
+                         <div className="cartao-avle p-8 text-center space-y-4">
                             <span className="inline-block text-[9px] font-black text-[#BD6B42] bg-[#F5F2EB] px-3 py-1 rounded-full uppercase tracking-widest border border-[#DFD9CE]">
                                Grupos preenchidos
                             </span>
@@ -1149,7 +1099,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                                   <button
                                      onClick={handleEntrarNaFila}
                                      disabled={processandoFila}
-                                     className="bg-[#0B1E14] text-white px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                                     className="bg-[#0B1E14] text-white px-6 py-3 rounded-full text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 transition-all shadow-sm cursor-pointer disabled:opacity-50"
                                   >
                                      {processandoFila ? 'Entrando...' : 'Entrar na fila de espera'}
                                   </button>
@@ -1244,7 +1194,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               <div className="space-y-6 animate-fadeIn text-left">
                 <button
                   onClick={() => setNivelVisao('grupos')}
-                  className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs w-fit"
+                  className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-full cursor-pointer shadow-xs w-fit"
                 >
                   ← Voltar para os Clubes
                 </button>
@@ -1264,7 +1214,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     tabela la embaixo, depois de dois blocos de cartoes e dois
                     graficos - no celular, quatro telas de rolagem abaixo. */}
                 {etapaAtual !== 4 ? (
-                  <div className="bg-[#0B1E14] text-white rounded-2xl p-5 sm:p-6 shadow-lg border-t-2 border-t-[#BD6B42]">
+                  <div className="cartao-avle-destaque p-5 sm:p-6">
                     <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
                       <div>
                         <span className="block text-[9px] font-black uppercase tracking-widest text-stone-400 mb-1.5">
@@ -1301,7 +1251,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
                     <button
                       onClick={() => setModalCheckoutAberto(true)}
-                      className="w-full bg-[#BD6B42] text-white py-4 rounded-xl text-sm font-bold uppercase tracking-wider hover:brightness-110 active:brightness-95 transition-all cursor-pointer shadow-md"
+                      className="w-full bg-[#BD6B42] text-white py-4 rounded-full text-sm font-bold uppercase tracking-wider hover:brightness-110 active:brightness-95 transition-all cursor-pointer shadow-md"
                     >
                       Pagar parcela
                     </button>
@@ -1359,12 +1309,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-sm relative overflow-hidden border-t-2 border-t-[#BD6B42]">
+                  <div className="cartao-avle-destaque p-5 relative overflow-hidden">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Saldo de Poupança</span>
                     <span className="text-3xl font-bold tracking-tight block font-mono leading-none">R$ {saldoPoupanca.toFixed(2)}</span>
                     <span className="text-[10px] text-stone-500 mt-2 block">acumulado na cota</span>
                   </div>
-                  <div className="bg-white border border-[#E6E2D8] border-t-2 border-t-[#0B1E14] p-5 rounded-xl shadow-sm flex flex-col">
+                  <div className="cartao-avle border-t-2 border-t-[#0B1E14] p-5 flex flex-col">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Vigência do Plano</span>
                     <span className="text-3xl font-bold text-[#0B1E14] font-mono leading-none">{grupoSelecionado?.duracaoMeses || 0}</span>
                     <span className="text-[10px] text-stone-400 mt-2">meses de sorteios</span>
@@ -1381,7 +1331,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2 bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between min-h-[260px]">
+                  <div className="cartao-avle lg:col-span-2 p-5 flex flex-col justify-between min-h-[260px]">
                     <div className="flex justify-between items-center mb-4">
                       <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Histórico de Quitação da Cota</span>
                       <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded font-bold font-mono">Evolução</span>
@@ -1400,7 +1350,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     </div>
                   </div>
 
-                  <div className="bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-xs flex flex-col items-center justify-between min-h-[260px]">
+                  <div className="cartao-avle p-5 flex flex-col items-center justify-between min-h-[260px]">
                     <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block w-full text-left">Progresso do Objetivo</span>
                     <div className="relative w-32 h-32 flex items-center justify-center my-auto">
                       <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
@@ -1418,13 +1368,13 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </div>
                 </div>
 
-                <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
+                <div className="cartao-avle overflow-hidden">
                   <div className="px-5 py-4 border-b bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Regua de Vencimentos e Aportes Efetuados</h3>
                     {etapaAtual !== 4 && (
                       <button
                         onClick={() => setModalCheckoutAberto(true)}
-                        className="bg-[#0B1E14] text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 cursor-pointer shadow-xs"
+                        className="bg-[#0B1E14] text-white px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 cursor-pointer shadow-xs"
                       >
                         Pagar parcela
                       </button>
@@ -1474,7 +1424,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               <h2 className="text-xl font-bold text-[#0B1E14]">Histórico Financeiro Consolidado</h2>
               <p className="text-xs text-stone-400 mt-1">Extrato detalhado de cada aporte e parcela liquidada em todas as suas unidades ativas.</p>
             </div>
-            <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
+            <div className="cartao-avle overflow-hidden">
               <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse min-w-[520px]">
                 <thead>
@@ -1524,7 +1474,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         )}
 
         {abaAtiva === 'regras' && (
-          <div className="bg-white border border-[#DFD9CE] rounded-xl p-6 space-y-4 text-xs text-stone-600 leading-relaxed animate-fadeIn text-left max-w-2xl shadow-xs">
+          <div className="cartao-avle p-6 space-y-4 text-xs text-stone-600 leading-relaxed animate-fadeIn text-left max-w-2xl">
             <div>
               <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Regulamento AVLE</h3>
               <p className="text-stone-400 mt-1">Confira as diretrizes da comunidade estruturada de compras programadas de móveis e decorações.</p>
@@ -1543,7 +1493,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 <button
                   type="button"
                   onClick={() => window.open(`${API_URL}/api/lojas/${lojaSelecionada.id}/regras`, '_blank')}
-                  className="px-4 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-opacity-90 cursor-pointer transition-all"
+                  className="px-4 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase tracking-wider hover:bg-opacity-90 cursor-pointer transition-all"
                 >
                   Visualizar Contrato PDF
                 </button>
@@ -1558,7 +1508,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
         {abaAtiva === 'perfil' && (
           <div className="space-y-6 max-w-2xl text-left animate-fadeIn">
-            <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6 shadow-xs">
+            <div className="cartao-avle p-6 md:p-8 space-y-6">
               <div>
                 <h2 className="text-xl font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Meus Dados Cadastrais</h2>
                 <p className="text-xs text-stone-400 mt-1">Gerencie suas informações de conta salvas na plataforma e sincronizadas com o gateway do Asaas.</p>
@@ -1656,7 +1606,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   <button
                     type="submit"
                     disabled={carregandoDados || salvandoPerfil}
-                    className="px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 disabled:opacity-50 transition-all"
+                    className="px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 disabled:opacity-50 transition-all"
                   >
                     {salvandoPerfil ? 'Salvando...' : 'Salvar Novas Informações'}
                   </button>
@@ -1664,7 +1614,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               </form>
             </div>
 
-            <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-5 shadow-xs">
+            <div className="cartao-avle p-6 md:p-8 space-y-5">
               <div>
                 <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Segurança da Conta e Alteração de Senha</h3>
                 <p className="text-xs text-stone-400 mt-0.5">
@@ -1729,7 +1679,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   <button
                     type="submit"
                     disabled={salvandoSenha}
-                    className="px-6 py-3 bg-[#BD6B42] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-[#A95A33] disabled:opacity-50 transition-all"
+                    className="px-6 py-3 bg-[#BD6B42] text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-[#A95A33] disabled:opacity-50 transition-all"
                   >
                     {salvandoSenha ? 'Processando...' : 'Atualizar Minha Senha'}
                   </button>
@@ -1740,7 +1690,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         )}
 
         {abaAtiva === 'ajuda' && (
-          <div className="bg-white border border-[#DFD9CE] rounded-xl p-6 space-y-6 animate-fadeIn text-left max-w-2xl shadow-xs">
+          <div className="cartao-avle p-6 space-y-6 animate-fadeIn text-left max-w-2xl">
             <div>
               <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Central de Atendimento e Suporte</h3>
               <p className="text-stone-400 mt-1">Escolha o canal de atendimento ideal para resolver a sua dúvida ou problema rapidamente.</p>
@@ -1804,7 +1754,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
       {modalAdesao.aberto && modalAdesao.grupo && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80] animate-fadeIn text-left">
-            <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="cartao-avle w-full max-w-md shadow-2xl overflow-hidden">
                 <div className="bg-[#0B1E14] p-5 text-white">
                     <h3 className="font-serif font-bold text-lg uppercase tracking-wide">Confirmar Participação</h3>
                     <p className="text-[10px] text-stone-300 mt-1">Revise os detalhes contratuais da cota antes de prosseguir.</p>
@@ -1834,8 +1784,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     </div>
                 </div>
                 <div className="p-5 border-t border-stone-100 bg-stone-50 flex gap-3">
-                    <button onClick={() => setModalAdesao({ aberto: false, grupo: null })} className="flex-1 py-3 border border-stone-200 text-stone-500 font-bold rounded-xl text-[10px] uppercase hover:bg-stone-100 transition-colors cursor-pointer">Cancelar</button>
-                    <button onClick={confirmarAdesaoNoGrupo} className="flex-1 py-3 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase hover:bg-opacity-90 transition-all cursor-pointer">Aceitar e Participar</button>
+                    <button onClick={() => setModalAdesao({ aberto: false, grupo: null })} className="flex-1 py-3 border border-stone-200 text-stone-500 font-bold rounded-full text-[10px] uppercase hover:bg-stone-100 transition-colors cursor-pointer">Cancelar</button>
+                    <button onClick={confirmarAdesaoNoGrupo} className="flex-1 py-3 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase hover:bg-opacity-90 transition-all cursor-pointer">Aceitar e Participar</button>
                 </div>
             </div>
         </div>
@@ -1843,7 +1793,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
       {modalAcessoAberto && lojaParaAcesso && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-[60] animate-fadeIn text-left">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-5 shadow-xl">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-5 shadow-xl">
             <div className="flex justify-between items-center border-b border-stone-100 pb-3">
               <div>
                 <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Autorização de Acesso</h3>
@@ -1870,7 +1820,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               <button 
                 type="button" 
                 onClick={() => setModalAcessoAberto(false)} 
-                className="flex-1 py-3 border border-[#DFD9CE] rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer text-xs uppercase tracking-wider"
+                className="flex-1 py-3 border border-[#DFD9CE] rounded-full text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer text-xs uppercase tracking-wider"
               >
                 Cancelar
               </button>
@@ -1878,7 +1828,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 type="button"
                 onClick={handleSolicitarAcesso}
                 disabled={solicitandoAcesso}
-                className="flex-1 py-3 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-xs uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
+                className="flex-1 py-3 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-xs uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
               >
                 {solicitandoAcesso ? 'Enviando...' : 'Solicitar'}
               </button>
@@ -1889,7 +1839,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
       {modalProduto.aberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Escolha do produto</h3>
               <button
@@ -1920,7 +1870,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               <button
                 type="button"
                 onClick={() => setModalProduto({ aberto: false, cotaId: null })}
-                className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
+                className="flex-1 py-2.5 border rounded-full text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
               >
                 Cancelar
               </button>
@@ -1928,7 +1878,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 type="button"
                 onClick={confirmarProduto}
                 disabled={salvandoEtapa || produtoEscolhido.trim() === ''}
-                className="flex-1 py-2.5 bg-[#BD6B42] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-[#A95A33] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 bg-[#BD6B42] text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-[#A95A33] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {salvandoEtapa ? 'Salvando...' : 'Confirmar escolha'}
               </button>
@@ -1940,7 +1890,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
       {notificacao.aberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-[90] text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl border-t-4" style={{ borderTopColor: notificacao.isError ? '#be123c' : '#047857' }}>
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-2xl border-t-4" style={{ borderTopColor: notificacao.isError ? '#be123c' : '#047857' }}>
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className={`text-xs font-serif font-bold uppercase tracking-wider ${notificacao.isError ? 'text-rose-700' : 'text-emerald-800'}`}>{notificacao.titulo}</h3>
               <button onClick={() => setNotificacao({ ...notificacao, aberto: false })} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
@@ -1955,7 +1905,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
       {modalCheckoutAberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn text-left">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Ambiente de Checkout Secure</h3>
               <button onClick={() => setModalCheckoutAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
@@ -2122,14 +2072,14 @@ function CheckoutForm({
               await onSuccess();
               fecharModal();
             }}
-            className="w-full py-3.5 bg-[#0B1E14] text-white font-bold text-[10px] rounded-xl uppercase tracking-wider cursor-pointer"
+            className="w-full py-3.5 bg-[#0B1E14] text-white font-bold text-[10px] rounded-full uppercase tracking-wider cursor-pointer"
           >
             Já paguei · Conferir meu saldo
           </button>
           <button
             type="button"
             onClick={fecharModal}
-            className="w-full py-3 border border-[#DFD9CE] text-stone-500 font-bold text-[10px] rounded-xl uppercase tracking-wider cursor-pointer hover:bg-stone-50"
+            className="w-full py-3 border border-[#DFD9CE] text-stone-500 font-bold text-[10px] rounded-full uppercase tracking-wider cursor-pointer hover:bg-stone-50"
           >
             Fechar
           </button>
@@ -2167,7 +2117,7 @@ function CheckoutForm({
                   <img
                     src={`data:image/png;base64,${dadosPix.encodedImage}`}
                     alt="QR Code do Pix para pagar a parcela"
-                    className="w-44 h-44 rounded-xl border border-stone-200 bg-white p-2"
+                    className="cartao-avle w-44 h-44 p-2"
                   />
                 </div>
               )}
@@ -2193,7 +2143,7 @@ function CheckoutForm({
                     setCopiado(false);
                   }
                 }}
-                className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl tracking-wide cursor-pointer uppercase text-[10px] transition-opacity"
+                className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-full tracking-wide cursor-pointer uppercase text-[10px] transition-opacity"
               >
                 {copiado ? 'Código copiado!' : 'Copiar código Pix'}
               </button>
@@ -2326,7 +2276,7 @@ function CheckoutForm({
           <button 
             type="submit" 
             disabled={processando}
-            className="w-full h-12 mt-4 bg-[#BD6B42] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-[#A95A33] transition-all disabled:opacity-50 cursor-pointer shadow-md"
+            className="w-full h-12 mt-4 bg-[#BD6B42] text-white font-bold rounded-full text-[10px] uppercase tracking-wider hover:bg-[#A95A33] transition-all disabled:opacity-50 cursor-pointer shadow-md"
           >
             {processando ? 'Processando...' : 'Confirmar Pagamento'}
           </button>

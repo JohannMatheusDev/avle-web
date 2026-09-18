@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react';
 import EnvioDeCobrancasWhatsapp from './EnvioDeCobrancasWhatsapp';
 import PainelDeAvisosFlutuante from './PainelDeAvisosFlutuante';
+import {
+  CabecalhoDoPainel, CartaoDeNumero, Identidade, ItemDeNavegacao,
+  PilulasDeSecao, TrilhoDeNavegacao,
+} from './Casca';
 import { useRouter } from 'next/navigation';
 import { apiFetch, encerrarSessao } from '../../lib/api';
 import {
@@ -152,104 +156,58 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
   const totalTransacionado = Number(metricas?.totalTransacionado) || 0;
   const totalClientes = Number(metricas?.totalClientes) || 0;
 
+  // A contagem de lojas mora no próprio item da navegação: era a única
+  // informação que a barra lateral antiga carregava além do nome da seção.
+  const secoesDoAdmin: ItemDeNavegacao[] = [
+    { id: 'geral',      rotulo: 'Início',          icone: 'inicio' },
+    { id: 'lojas',      rotulo: 'Lojas',           icone: 'lojas', contador: listaLojas.length },
+    { id: 'financeiro', rotulo: 'Financeiro',      icone: 'financeiro' },
+    { id: 'cobranca',   rotulo: 'Cobrança do mês', icone: 'cobranca' },
+  ];
+
+  const irParaSecao = (id: string) => {
+    setLojaSelecionada(null);
+    setAbaExibida(id as any);
+  };
+
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-[#F0F2F5] text-[#0B1E14]">
-      <aside className="w-full md:w-64 bg-[#0B1E14] text-[#E3EAE6] flex flex-col justify-between p-6 flex-shrink-0">
-        <div>
-          <div className="mb-8 border-b border-white/10 pb-6">
-            <h1 className="text-xl font-serif font-bold text-white tracking-wide">AVLE</h1>
-            <p className="text-xs text-stone-400 font-medium mt-0.5">Painel administrativo</p>
-          </div>
+    <div className="flex flex-col md:flex-row min-h-screen fundo-painel text-[#0B1E14]">
+      <TrilhoDeNavegacao
+        itens={secoesDoAdmin}
+        ativo={lojaSelecionada ? '' : abaExibida}
+        aoEscolher={irParaSecao}
+        aoSair={async () => {
+          await encerrarSessao();
+          router.push('/');
+        }}
+      />
 
-          <nav className="space-y-1">
-            <button
-              onClick={() => {
-                setLojaSelecionada(null);
-                setAbaExibida('geral');
-              }}
-              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
-                abaExibida === 'geral' && !lojaSelecionada
-                  ? 'bg-white/10 text-white font-bold'
-                  : 'hover:bg-white/5 opacity-75'
-              }`}
-            >
-              <span>Visão geral</span>
-            </button>
-            <button
-              onClick={() => {
-                setLojaSelecionada(null);
-                setAbaExibida('lojas');
-              }}
-              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
-                abaExibida === 'lojas' && !lojaSelecionada
-                  ? 'bg-white/10 text-white font-bold'
-                  : 'hover:bg-white/5 opacity-75'
-              }`}
-            >
-              <span>Lojas ({listaLojas.length})</span>
-            </button>
-            <button
-              onClick={() => {
-                setLojaSelecionada(null);
-                setAbaExibida('financeiro');
-              }}
-              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
-                abaExibida === 'financeiro' && !lojaSelecionada
-                  ? 'bg-white/10 text-white font-bold'
-                  : 'hover:bg-white/5 opacity-75'
-              }`}
-            >
-              <span>Financeiro</span>
-            </button>
-            <button
-              onClick={() => {
-                setLojaSelecionada(null);
-                setAbaExibida('cobranca');
-              }}
-              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
-                abaExibida === 'cobranca' && !lojaSelecionada
-                  ? 'bg-white/10 text-white font-bold'
-                  : 'hover:bg-white/5 opacity-75'
-              }`}
-            >
-              <span>Cobrança do mês</span>
-            </button>
-          </nav>
-        </div>
+      <main className="flex-1 p-4 sm:p-6 md:py-8 md:pr-8 md:pl-2 overflow-x-hidden space-y-6 min-w-0 pb-28 md:pb-8">
+        <CabecalhoDoPainel
+          etiqueta={`AVLE · Painel administrativo · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`}
+          titulo={lojaSelecionada
+            ? lojaSelecionada.nomeComercial
+            : secoesDoAdmin.find((s) => s.id === abaExibida)?.rotulo ?? abaExibida}
+          identidade={<Identidade nome="Equipe AVLE" detalhe="acesso master" />}
+          pilulas={
+            <PilulasDeSecao
+              itens={secoesDoAdmin}
+              ativo={lojaSelecionada ? '' : abaExibida}
+              aoEscolher={irParaSecao}
+            />
+          }
+        />
 
-        <div className="pt-6 border-t border-white/10 mt-6 flex justify-between items-center">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-full bg-[#BD6B42] flex items-center justify-center font-bold text-white text-xs shadow-sm">
-              A
-            </div>
-            <div className="text-[10px] leading-tight text-stone-400">
-              <span className="block text-white font-medium">Equipe AVLE</span>
-              acesso master
-            </div>
-          </div>
-          <button
-            onClick={async () => {
-              await encerrarSessao();
-              router.push('/');
-            }}
-            className="text-stone-500 hover:text-red-600 text-xs font-bold transition-all cursor-pointer border border-white/10 px-2.5 py-1 rounded-xl bg-white"
-          >
-            Sair
-          </button>
-        </div>
-      </aside>
-
-      <main className="flex-1 p-6 md:p-8 overflow-x-hidden space-y-6 min-w-0">
         {lojaSelecionada ? (
           <div className="space-y-6 animate-fadeIn">
             <button
               onClick={() => setLojaSelecionada(null)}
-              className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] transition-all bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer"
+              className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] transition-all bg-white border border-[#E6E2D8] px-4 py-2 rounded-full cursor-pointer"
             >
               Voltar para o Painel Geral
             </button>
 
-            <div className="bg-white border border-[#E6E2D8] p-6 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-xs">
+            <div className="cartao-avle p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <span className="text-[9px] font-bold bg-[#0B1E14] text-white px-2 py-0.5 rounded font-mono uppercase tracking-widest">
                   Auditoria Unidade
@@ -301,7 +259,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               const aReceber = Number(dados.taxaAReceber) || 0;
 
               return (
-                <div className="bg-white border border-[#E6E2D8] rounded-2xl shadow-xs overflow-hidden">
+                <div className="cartao-avle overflow-hidden">
                   <div className="px-6 py-4 border-b border-[#E6E2D8] bg-stone-50/50">
                     <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Posição do split</h3>
                     <p className="text-[10px] text-stone-400 font-medium">
@@ -350,7 +308,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               );
             })()}
 
-            <div className="bg-white border border-[#E6E2D8] p-6 rounded-2xl shadow-xs">
+            <div className="cartao-avle p-6">
               <h3 className="text-sm font-bold text-[#0B1E14] uppercase tracking-wider mb-4">Controle de Expansao de Negocio</h3>
               <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
                 <div className="w-full sm:w-1/3">
@@ -366,7 +324,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 <button
                   disabled={processandoStatus}
                   onClick={() => alterarLimiteGrupos(lojaSelecionada.id, limiteInput)}
-                  className="px-6 h-[42px] bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-opacity-90 disabled:opacity-50 transition-all cursor-pointer"
+                  className="px-6 h-[42px] bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase tracking-wider hover:bg-opacity-90 disabled:opacity-50 transition-all cursor-pointer"
                 >
                   Aplicar Limite
                 </button>
@@ -377,7 +335,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-xs">
+              <div className="cartao-avle-destaque p-5">
                 <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
                   Clientes Vinculados
                 </span>
@@ -386,7 +344,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 </span>
                 <p className="text-[9px] text-stone-400 mt-1">Consumidores cadastrados</p>
               </div>
-              <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
+              <div className="cartao-avle p-5">
                 <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
                   Clubes Criados
                 </span>
@@ -395,7 +353,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 </span>
                 <p className="text-[9px] text-stone-400 mt-1">Modalidades em andamento</p>
               </div>
-              <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
+              <div className="cartao-avle p-5">
                 <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
                   Volume Transacionado Pix
                 </span>
@@ -404,7 +362,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 </span>
                 <p className="text-[9px] text-stone-400 mt-1">Receita real processada via split</p>
               </div>
-              <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs">
+              <div className="cartao-avle p-5">
                 <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
                   Risco de Inadimplencia
                 </span>
@@ -416,7 +374,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between min-h-[250px]">
+              <div className="cartao-avle lg:col-span-2 p-5 flex flex-col justify-between min-h-[250px]">
                 <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block mb-4">
                   Curva de Captação Mensal da Unidade
                 </span>
@@ -428,7 +386,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 </div>
               </div>
 
-              <div className="bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between min-h-[250px]">
+              <div className="cartao-avle p-5 flex flex-col justify-between min-h-[250px]">
                 <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block mb-2">
                   Composição de Carteira
                 </span>
@@ -461,14 +419,11 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               <div className="space-y-5 animate-fadeIn">
 
                 <div className="flex flex-wrap justify-between items-center gap-3">
-                  <div>
-                    <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Visão geral</h2>
-                    <p className="text-xs text-stone-400 font-medium">A plataforma inteira, em números.</p>
-                  </div>
+                  <p className="text-xs text-stone-400 font-medium">A plataforma inteira, em números.</p>
                   <button
                     onClick={carregarDadosDoBanco}
                     disabled={carregando}
-                    className="text-[10px] font-bold uppercase tracking-wider px-4 py-2 rounded-xl bg-white border border-[#E6E2D8] text-stone-600 hover:text-[#0B1E14] hover:border-stone-300 transition-all cursor-pointer disabled:opacity-50"
+                    className="text-[10px] font-bold uppercase tracking-wider px-4 py-2 rounded-full bg-white text-stone-600 hover:text-[#0B1E14] shadow-[0_1px_2px_rgba(11,30,20,0.06)] hover:shadow-md transition-all cursor-pointer disabled:opacity-50"
                   >
                     {carregando ? 'Atualizando...' : 'Atualizar'}
                   </button>
@@ -476,41 +431,39 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
 
                 {/* ── Indicadores ── */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-[#0B1E14] text-white p-5 rounded-2xl shadow-sm">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Volume transacionado</span>
-                    <span className="text-2xl font-bold font-mono leading-none block">{dinheiro(v?.faturamentoBruto)}</span>
-                    <span className="text-[10px] text-stone-500 mt-2 block">somando todas as lojas</span>
-                  </div>
+                  <CartaoDeNumero
+                    destaque
+                    icone="financeiro"
+                    rotulo="Volume transacionado"
+                    valor={dinheiro(v?.faturamentoBruto)}
+                    nota="somando todas as lojas"
+                  />
 
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-2xl shadow-sm">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">
-                      Receita AVLE · {v?.percentualAvle ?? 10}%
-                    </span>
-                    <span className="text-2xl font-bold font-mono leading-none block text-emerald-700">{dinheiro(taxaTotal)}</span>
-                    <span className="text-[10px] text-stone-400 mt-2 block">taxa sobre o volume</span>
-                  </div>
+                  <CartaoDeNumero
+                    rotulo={`Receita AVLE · ${v?.percentualAvle ?? 10}%`}
+                    valor={<span className="text-emerald-700">{dinheiro(taxaTotal)}</span>}
+                    nota="taxa sobre o volume"
+                  />
 
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-2xl shadow-sm">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Lojas parceiras</span>
-                    <span className="text-2xl font-bold font-mono leading-none block text-[#0B1E14]">{v?.totalLojas ?? 0}</span>
-                    <span className="text-[10px] text-stone-400 mt-2 block">
-                      {(v?.lojasNoMes ?? 0) > 0 ? `+${v?.lojasNoMes} neste mês` : 'nenhuma nova neste mês'}
-                    </span>
-                  </div>
+                  <CartaoDeNumero
+                    icone="lojas"
+                    rotulo="Lojas parceiras"
+                    valor={v?.totalLojas ?? 0}
+                    nota={(v?.lojasNoMes ?? 0) > 0 ? `+${v?.lojasNoMes} neste mês` : 'nenhuma nova neste mês'}
+                  />
 
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-2xl shadow-sm">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Clientes</span>
-                    <span className="text-2xl font-bold font-mono leading-none block text-[#0B1E14]">{v?.totalClientes ?? 0}</span>
-                    <span className="text-[10px] text-stone-400 mt-2 block">
-                      {(v?.clientesNoMes ?? 0) > 0 ? `+${v?.clientesNoMes} neste mês` : 'nenhum novo neste mês'}
-                    </span>
-                  </div>
+                  <CartaoDeNumero
+                    icone="clientes"
+                    rotulo="Clientes"
+                    valor={v?.totalClientes ?? 0}
+                    nota={(v?.clientesNoMes ?? 0) > 0 ? `+${v?.clientesNoMes} neste mês` : 'nenhum novo neste mês'}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
 
                   {/* ── Crescimento ── */}
-                  <div className="xl:col-span-2 bg-white border border-[#E6E2D8] rounded-2xl p-5 shadow-sm">
+                  <div className="cartao-avle xl:col-span-2 p-5">
                     <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
                       <div>
                         <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Quem entrou na AVLE</h3>
@@ -548,7 +501,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   </div>
 
                   {/* ── Análise: onde está a receita da plataforma ── */}
-                  <div className="bg-[#0B1E14] text-white rounded-2xl p-5 shadow-sm flex flex-col">
+                  <div className="cartao-avle-destaque p-5 flex flex-col">
                     <h3 className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Receita da plataforma</h3>
                     <p className="text-[10px] text-stone-500 mt-0.5 mb-4">quanto dos {v?.percentualAvle ?? 10}% já entrou de fato</p>
 
@@ -596,7 +549,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 </div>
 
                 {/* ── Lojas ── */}
-                <div className="bg-white border border-[#E6E2D8] rounded-2xl shadow-sm overflow-hidden">
+                <div className="cartao-avle overflow-hidden">
                   <div className="px-5 py-4 border-b border-[#E6E2D8] flex flex-wrap justify-between items-center gap-2">
                     <div>
                       <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Lojas parceiras</h3>
@@ -673,7 +626,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                       <div
                         key={loja.id || i}
                         onClick={() => setLojaSelecionada(loja)}
-                        className="bg-white border border-[#E6E2D8] rounded-2xl p-6 shadow-xs space-y-4 hover:border-[#BD6B42] transition-all duration-300 cursor-pointer group"
+                        className="cartao-avle p-6 space-y-4 hover:border-[#BD6B42] transition-all duration-300 cursor-pointer group"
                       >
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-stone-100 pb-3">
                           <div>
@@ -760,7 +713,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
 
                 {split && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs">
+                    <div className="cartao-avle p-5">
                       <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Faturamento bruto</span>
                       <span className="text-2xl font-bold font-mono text-[#0B1E14] block mt-1">
                         R$ {Number(split.faturamentoBruto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -768,7 +721,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                       <span className="text-[10px] text-stone-400">base de cálculo do split</span>
                     </div>
 
-                    <div className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs">
+                    <div className="cartao-avle p-5">
                       <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
                         AVLE · {split.percentualAvle}%
                       </span>
@@ -778,7 +731,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                       <span className="text-[10px] text-stone-400">taxa de administração total</span>
                     </div>
 
-                    <div className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs">
+                    <div className="cartao-avle p-5">
                       <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
                         Lojas · {split.percentualLoja}%
                       </span>
@@ -818,7 +771,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                     </p>
                   </div>
                 )}
-                <div className="bg-white border border-[#DFD9CE] rounded-2xl shadow-xs overflow-hidden">
+                <div className="cartao-avle overflow-hidden">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-stone-50 text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
@@ -876,7 +829,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
           tela grande e cair para baixo do conteudo no celular. */}
       {abaExibida === 'geral' && !lojaSelecionada && (
         <aside className="w-full xl:w-80 flex-shrink-0 p-6 md:p-8 xl:pl-0 space-y-5">
-          <div className="bg-white border border-[#E6E2D8] rounded-2xl shadow-sm overflow-hidden xl:sticky xl:top-8">
+          <div className="cartao-avle overflow-hidden xl:sticky xl:top-8">
             <div className="px-5 py-4 border-b border-[#E6E2D8]">
               <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Movimentação</h3>
               <p className="text-[10px] text-stone-400">o que aconteceu por último na plataforma</p>

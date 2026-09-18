@@ -6,6 +6,10 @@ import { CardContemplacao, CotaElegivel, SorteioResumo, ehSorteioAuditavel, mens
 import ParcelasDoPlano from './ParcelasDoPlano';
 import ExtratoDePagamentos from './ExtratoDePagamentos';
 import ListaDeAvisos from './ListaDeAvisos';
+import {
+  CabecalhoDoPainel, CartaoDeNumero, Identidade, ItemDeNavegacao,
+  PilulasDeSecao, TrilhoDeNavegacao,
+} from './Casca';
 import { parcelasPagas } from '../../lib/parcelas';
 import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
@@ -1486,73 +1490,45 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const clientesAtivos = listaClientesLoja.filter(c => c.statusAcesso !== 'BLOQUEADO' && c.statusAcesso !== 'REJEITADO');
   const clientesBloqueados = listaClientesLoja.filter(c => c.statusAcesso === 'BLOQUEADO' || c.statusAcesso === 'REJEITADO');
 
-  return (
-    <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] bg-[#F0F2F5] relative">
-      
-      <aside className="w-full md:w-64 bg-[#0B1E14] text-[#E3EAE6] flex flex-col justify-between p-6 flex-shrink-0">
-        <div>
-          <div className="mb-8 border-b border-white/10 pb-6">
-            <h1 className="text-xl font-serif font-bold text-white tracking-wide">AVLE</h1>
-            <p className="text-xs text-stone-400 font-medium mt-0.5">
-              {nomeLojaReal || usuario?.lojaNome || 'Unidade Administrativa'}
-            </p>
-          </div>
-          
-          <nav className="space-y-0.5 mt-2">
-            {[
-              { id: 'geral',      label: 'Visão Geral' },
-              { id: 'clientes',   label: 'Clientes' },
-              { id: 'aprovacoes', label: 'Aprovações' },
-              { id: 'fila',       label: 'Fila de Espera' },
-              { id: 'grupos',     label: 'Grupos' },
-              { id: 'sorteios',   label: 'Sorteios / Entrega' }
-            ].map((tab) => {
-              const isActive = abaLoja === tab.id && !grupoSelecionado;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => { setGrupoSelecionado(null); setAbaLoja(tab.id as any); }}
-                  className={`w-full text-left py-2.5 text-[11px] font-bold tracking-widest uppercase transition-all duration-200 cursor-pointer flex justify-between items-center border-l-2 ${
-                    isActive
-                      ? 'border-[#BD6B42] text-white bg-white/5 pl-5 pr-4'
-                      : 'border-transparent text-stone-500 hover:text-stone-300 hover:border-white/20 pl-4 pr-4 hover:pl-5'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  {tab.id === 'aprovacoes' && aguardandoCredito.length > 0 && (
-                    <span className="bg-rose-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md animate-pulse">
-                      {aguardandoCredito.length}
-                    </span>
-                  )}
-                  {tab.id === 'fila' && filaEspera.length > 0 && (
-                    <span className="bg-[#BD6B42] text-white text-[9px] font-black px-1.5 py-0.5 rounded-md">
-                      {filaEspera.length}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-        <div className="pt-4 border-t border-white/10 flex justify-between items-center">
-          <button
-            onClick={() => { setGrupoSelecionado(null); setAbaLoja('configuracoes'); }}
-            className={`text-[11px] font-bold tracking-widest uppercase transition-all cursor-pointer border-l-2 pl-3 py-1 ${
-              abaLoja === 'configuracoes' ? 'border-[#BD6B42] text-white' : 'border-transparent text-stone-500 hover:text-stone-300'
-            }`}
-          >
-            Configurações
-          </button>
-          <button
-            onClick={async () => { await encerrarSessao(); window.location.href = '/'; }}
-            className="text-stone-500 hover:text-red-400 text-[10px] font-bold transition-all cursor-pointer tracking-wider uppercase"
-          >
-            Sair
-          </button>
-        </div>
-      </aside>
+  // As seções do painel são declaradas uma vez e servem ao trilho de ícones e
+  // às pílulas do topo ao mesmo tempo. Quando eram duas listas escritas à mão,
+  // a lateral e o título já discordaram sobre o nome da mesma tela.
+  const secoesDaLoja: ItemDeNavegacao[] = [
+    { id: 'geral',      rotulo: 'Início',             icone: 'inicio' },
+    { id: 'clientes',   rotulo: 'Clientes',           icone: 'clientes' },
+    { id: 'aprovacoes', rotulo: 'Aprovações',         icone: 'aprovacoes', contador: aguardandoCredito.length, urgente: true },
+    { id: 'fila',       rotulo: 'Fila de Espera',     icone: 'fila',       contador: filaEspera.length },
+    { id: 'grupos',     rotulo: 'Grupos',             icone: 'grupos' },
+    { id: 'sorteios',   rotulo: 'Sorteios / Entrega', icone: 'sorteios' },
+  ];
+  const configuracoesDaLoja: ItemDeNavegacao = { id: 'configuracoes', rotulo: 'Configurações', icone: 'configuracoes' };
 
-      <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl min-w-0 space-y-6">
+  // Sair da ficha de um grupo faz parte de trocar de seção: sem isso a pessoa
+  // clicava em "Clientes" e continuava vendo a ficha do grupo aberta por cima.
+  const irParaSecao = (id: string) => {
+    setGrupoSelecionado(null);
+    setAbaLoja(id as any);
+  };
+
+  const tituloDaSecao = grupoSelecionado
+    ? `Ficha: ${grupoSelecionado.nome}`
+    : secoesDaLoja.find((s) => s.id === abaLoja)?.rotulo
+      ?? (abaLoja === 'configuracoes' ? 'Configurações da Loja' : abaLoja);
+
+  return (
+    <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] fundo-painel relative">
+
+      <TrilhoDeNavegacao
+        itens={secoesDaLoja}
+        ativo={grupoSelecionado ? '' : abaLoja}
+        aoEscolher={irParaSecao}
+        aoSair={async () => { await encerrarSessao(); window.location.href = '/'; }}
+        itemDeConfiguracao={configuracoesDaLoja}
+      />
+
+      {/* `pb-28` no celular: a barra de navegação é fixa no rodapé e comia o
+          último botão de cada tela. */}
+      <main className="flex-1 p-4 sm:p-6 md:py-8 md:pr-8 md:pl-2 max-w-[1500px] min-w-0 space-y-6 pb-28 md:pb-8">
         {Object.keys(errosApi).length > 0 && (
           <div className="border border-red-200 bg-red-50 rounded-xl p-4 space-y-1.5">
             <p className="text-[10px] font-bold text-red-700 uppercase tracking-widest">
@@ -1569,58 +1545,56 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-[#DFD9CE] pb-5">
-          <div>
-            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">
-              AVLE · {nomeLojaReal || 'Unidade'} · {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
-            </p>
-            <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">
-              {grupoSelecionado
-                ? `Ficha: ${grupoSelecionado.nome}`
-                : abaLoja === 'geral'        ? 'Visão Geral Comercial'
-                : abaLoja === 'clientes'     ? 'Registro de Clientes'
-                : abaLoja === 'configuracoes'? 'Configurações da Loja'
-                : abaLoja === 'aprovacoes'   ? 'Central de Aprovações'
-                : abaLoja === 'sorteios'     ? 'Sorteios e Entregas'
-                : abaLoja === 'fila'         ? 'Fila de Espera'
-                : abaLoja === 'grupos'       ? 'Grupos de Compras'
-                : abaLoja}
-            </h2>
-          </div>
-          
-          {!grupoSelecionado && (abaLoja === 'geral' || abaLoja === 'grupos' || abaLoja === 'aprovacoes' || abaLoja === 'clientes') && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <button 
-                onClick={handleCopiarLinkConvite} 
-                className="bg-white border border-stone-200 text-[#0B1E14] px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm hover:bg-stone-50 transition-all cursor-pointer"
+        <CabecalhoDoPainel
+          etiqueta={`AVLE · ${nomeLojaReal || 'Unidade'} · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`}
+          titulo={tituloDaSecao}
+          acoes={!grupoSelecionado && (abaLoja === 'geral' || abaLoja === 'grupos' || abaLoja === 'aprovacoes' || abaLoja === 'clientes') && (
+            <>
+              <button
+                onClick={handleCopiarLinkConvite}
+                className="bg-white text-[#0B1E14] px-4 py-2.5 rounded-full text-xs font-bold tracking-wide shadow-[0_1px_2px_rgba(11,30,20,0.06)] hover:shadow-md transition-all cursor-pointer"
               >
                 Copiar Link da Loja
               </button>
-              <button 
-                onClick={() => setModalNovoClienteAberto(true)} 
-                className="bg-[#0B1E14] text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm hover:bg-opacity-90 transition-all cursor-pointer"
+              <button
+                onClick={() => setModalNovoClienteAberto(true)}
+                className="bg-[#0B1E14] text-white px-4 py-2.5 rounded-full text-xs font-bold tracking-wide shadow-sm hover:brightness-125 transition-all cursor-pointer"
               >
                 + Nova Cliente
               </button>
-              <button 
-                onClick={() => setModalNovoGrupoAberto(true)} 
-                className="bg-[#BD6B42] text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm hover:bg-[#A95A33] transition-all cursor-pointer"
+              <button
+                onClick={() => setModalNovoGrupoAberto(true)}
+                className="bg-[#BD6B42] text-white px-4 py-2.5 rounded-full text-xs font-bold tracking-wide shadow-sm hover:bg-[#A95A33] transition-all cursor-pointer"
               >
                 + Novo grupo
               </button>
-            </div>
+            </>
           )}
-        </div>
+          identidade={
+            <Identidade
+              nome={nomeLojaReal || usuario?.lojaNome || 'Unidade Administrativa'}
+              detalhe="Painel da loja"
+              aoClicar={() => irParaSecao('configuracoes')}
+            />
+          }
+          pilulas={
+            <PilulasDeSecao
+              itens={secoesDaLoja}
+              ativo={grupoSelecionado ? '' : abaLoja}
+              aoEscolher={irParaSecao}
+            />
+          }
+        />
 
         {grupoSelecionado ? (
           <div className="space-y-6 animate-fadeIn">
             <div className="flex justify-between items-center">
-              <button onClick={() => setGrupoSelecionado(null)} className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] transition-all bg-white border border-[#E6E2D8] px-4 py-2 rounded-xl cursor-pointer shadow-xs"> Voltar para a Listagem</button>
+              <button onClick={() => setGrupoSelecionado(null)} className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] transition-all bg-white border border-[#E6E2D8] px-4 py-2 rounded-full cursor-pointer shadow-xs"> Voltar para a Listagem</button>
               <div className="flex items-center gap-2">
                 <button
                    type="button"
                    onClick={handleAbrirAdicaoParticipantes}
-                   className="text-xs font-bold text-white bg-[#BD6B42] hover:bg-[#A95A33] transition-all border border-[#BD6B42] px-4 py-2 rounded-xl cursor-pointer shadow-xs"
+                   className="text-xs font-bold text-white bg-[#BD6B42] hover:bg-[#A95A33] transition-all border border-[#BD6B42] px-4 py-2 rounded-full cursor-pointer shadow-xs"
                 >
                   + Adicionar Cliente
                 </button>
@@ -1633,7 +1607,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
             </div>
 
-            <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-xs grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-center">
+            <div className="cartao-avle p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-center">
               <div>
                 <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">ID do Grupo</span>
                 <span className="text-base font-bold text-[#0B1E14] font-mono block mt-1">#{grupoSelecionado.id}</span>
@@ -1705,7 +1679,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
             </div>
 
-            <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
+            <div className="cartao-avle overflow-hidden">
               <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
                   <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Mapeamento de Integrantes</h3>
@@ -1748,7 +1722,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           <button
                             type="button"
                             onClick={handleAbrirAdicaoParticipantes}
-                            className="px-4 py-2 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer shadow-xs"
+                            className="px-4 py-2 bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer shadow-xs"
                           >
                             + Adicionar Cliente
                           </button>
@@ -1897,11 +1871,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <div className="space-y-6 animate-fadeIn">
 
                 {/* ── Banner de datas fixas ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className={`flex items-center justify-between px-5 py-3.5 rounded-xl border ${
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className={`flex items-center justify-between px-5 py-4 ${
                     diasVenc <= 3
-                      ? 'bg-amber-50 border-amber-200'
-                      : 'bg-white border-[#E6E2D8]'
+                      ? 'bg-amber-50 border border-amber-200 rounded-[24px]'
+                      : 'cartao-avle'
                   }`}>
                     <div>
                       <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Próximo Vencimento</p>
@@ -1918,7 +1892,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between px-5 py-3.5 rounded-xl border bg-white border-[#E6E2D8]">
+                  <div className="flex items-center justify-between px-5 py-4 cartao-avle">
                     <div>
                       <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Próximo Sorteio</p>
                       <p className="text-base font-black font-mono mt-0.5 text-[#0B1E14]">
@@ -1934,27 +1908,36 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </div>
 
                 {/* ── KPI cards ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-[#0B1E14] text-white p-5 rounded-xl shadow-sm relative overflow-hidden">
-                    <div className="flex items-start justify-between mb-3">
-                      <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Faturamento Total</span>
-                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mt-0.5 flex-shrink-0"></div>
-                    </div>
-                    <span className="text-3xl font-bold tracking-tight block font-mono leading-none">
-                      R$ {(analytics?.totalFaturado ?? recebidoEsteMes).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                    <span className="text-[10px] text-stone-500 mt-2 block">receita líquida acumulada</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* O faturamento ocupa duas colunas e é o único cartão escuro
+                      da tela: é o número pelo qual a loja abre o painel. */}
+                  <div className="sm:col-span-2">
+                    <CartaoDeNumero
+                      destaque
+                      icone="financeiro"
+                      rotulo="Faturamento Total"
+                      valor={`R$ ${(analytics?.totalFaturado ?? recebidoEsteMes).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                      selo={
+                        <span className="inline-flex items-center gap-1.5 bg-white/10 text-white/80 text-[10px] font-bold px-2.5 py-1 rounded-full">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          ao vivo
+                        </span>
+                      }
+                      nota="receita líquida acumulada"
+                    />
                   </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Clientes Ativos</span>
-                    <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">{totalClientes}</span>
-                    <span className="text-[10px] text-stone-400 mt-2">cadastrados na unidade</span>
-                  </div>
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Grupos Ativos</span>
-                    <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">{totalGruposValidos}</span>
-                    <span className="text-[10px] text-stone-400 mt-2">grupos de compras</span>
-                  </div>
+                  <CartaoDeNumero
+                    icone="clientes"
+                    rotulo="Clientes Ativos"
+                    valor={totalClientes}
+                    nota="cadastrados na unidade"
+                  />
+                  <CartaoDeNumero
+                    icone="grupos"
+                    rotulo="Grupos Ativos"
+                    valor={totalGruposValidos}
+                    nota="grupos de compras"
+                  />
                 </div>
 
                 {/* ── Parcela do mês: total de todos os grupos ── */}
@@ -1963,105 +1946,87 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   const nomeMes = new Date(`${pm.competencia}-01T12:00:00`).toLocaleDateString('pt-BR', { month: 'long' });
                   return (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
-                        <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Pagas em {nomeMes}</span>
-                        <span className="text-3xl font-bold tracking-tight text-emerald-700 font-mono leading-none">{pm.pagas}</span>
-                        <span className="text-[10px] text-stone-400 mt-2">cotas com a parcela do mês paga · todos os grupos</span>
-                      </div>
-                      <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
-                        <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Vencidas em {nomeMes}</span>
-                        <span className="text-3xl font-bold tracking-tight text-[#BD6B42] font-mono leading-none">{pm.vencidas}</span>
-                        <span className="text-[10px] text-stone-400 mt-2">parcela do mês vencida e não paga</span>
-                      </div>
-                      <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
-                        <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Ainda no prazo</span>
-                        <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">{pm.aguardandoVencimento}</span>
-                        <span className="text-[10px] text-stone-400 mt-2">parcela emitida, vencimento não chegou</span>
-                      </div>
+                      <CartaoDeNumero
+                        rotulo={`Pagas em ${nomeMes}`}
+                        valor={<span className="text-emerald-700">{pm.pagas}</span>}
+                        nota="cotas com a parcela do mês paga · todos os grupos"
+                      />
+                      <CartaoDeNumero
+                        rotulo={`Vencidas em ${nomeMes}`}
+                        valor={<span className="text-[#BD6B42]">{pm.vencidas}</span>}
+                        nota="parcela do mês vencida e não paga"
+                      />
+                      <CartaoDeNumero
+                        rotulo="Ainda no prazo"
+                        valor={pm.aguardandoVencimento}
+                        nota="parcela emitida, vencimento não chegou"
+                      />
                     </div>
                   );
                 })()}
 
                 {/* ── Operação: onde estão as clientes e as cotas ── */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Clientes em Grupo</span>
-                    <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">
-                      {analytics?.clientesAtivosEmGrupo ?? 0}
-                    </span>
-                    <span className="text-[10px] text-stone-400 mt-2">participando de algum clube</span>
-                  </div>
-
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Clientes sem Grupo</span>
-                    <span className="text-3xl font-bold tracking-tight text-[#BD6B42] font-mono leading-none">
-                      {analytics?.clientesAtivosSemGrupo ?? 0}
-                    </span>
-                    <span className="text-[10px] text-stone-400 mt-2">na carteira, fora de clube</span>
-                  </div>
-
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Sorteadas</span>
-                    <span className="text-3xl font-bold tracking-tight text-amber-600 font-mono leading-none">
-                      {analytics?.sorteadasEmGruposAtivos ?? 0}
-                    </span>
-                    <span className="text-[10px] text-stone-400 mt-2">contempladas em grupos abertos</span>
-                  </div>
-
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Cotas Preenchidas</span>
-                    <span className="text-3xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">
-                      {analytics?.cotasPreenchidas ?? 0}
-                      <span className="text-base text-stone-400">/{analytics?.cotasTotais ?? 0}</span>
-                    </span>
-                    <span className="text-[10px] text-stone-400 mt-2">
-                      {(analytics?.cotasTotais ?? 0) > 0
-                        ? `${Math.round(((analytics?.cotasPreenchidas ?? 0) / (analytics?.cotasTotais ?? 1)) * 100)}% de ocupação`
-                        : 'sem cotas cadastradas'}
-                    </span>
-                  </div>
+                  <CartaoDeNumero
+                    rotulo="Clientes em Grupo"
+                    valor={analytics?.clientesAtivosEmGrupo ?? 0}
+                    nota="participando de algum clube"
+                  />
+                  <CartaoDeNumero
+                    rotulo="Clientes sem Grupo"
+                    valor={<span className="text-[#BD6B42]">{analytics?.clientesAtivosSemGrupo ?? 0}</span>}
+                    nota="na carteira, fora de clube"
+                  />
+                  <CartaoDeNumero
+                    rotulo="Sorteadas"
+                    valor={<span className="text-amber-600">{analytics?.sorteadasEmGruposAtivos ?? 0}</span>}
+                    nota="contempladas em grupos abertos"
+                  />
+                  <CartaoDeNumero
+                    rotulo="Cotas Preenchidas"
+                    valor={
+                      <>
+                        {analytics?.cotasPreenchidas ?? 0}
+                        <span className="text-base text-stone-400">/{analytics?.cotasTotais ?? 0}</span>
+                      </>
+                    }
+                    nota={(analytics?.cotasTotais ?? 0) > 0
+                      ? `${Math.round(((analytics?.cotasPreenchidas ?? 0) / (analytics?.cotasTotais ?? 1)) * 100)}% de ocupação`
+                      : 'sem cotas cadastradas'}
+                  />
                 </div>
 
                 {/* ── Saída de produto ── */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Produtos Retirados</span>
-                    <span className="text-2xl font-bold tracking-tight text-[#0B1E14] font-mono leading-none">
-                      R$ {(analytics?.valorProdutosRetirados ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                    {/* O aviso e a diferenca entre um numero conferido e um
-                        estimado pelo plano. Sem ele, a loja tomaria decisao
-                        achando que o valor foi somado produto a produto. */}
-                    {(analytics?.retiradasSemValorInformado ?? 0) > 0 ? (
-                      <span className="text-[10px] text-amber-700 mt-2 leading-snug">
+                  <CartaoDeNumero
+                    rotulo="Produtos Retirados"
+                    valor={`R$ ${(analytics?.valorProdutosRetirados ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                    /* O aviso e a diferenca entre um numero conferido e um
+                       estimado pelo plano. Sem ele, a loja tomaria decisao
+                       achando que o valor foi somado produto a produto. */
+                    nota={(analytics?.retiradasSemValorInformado ?? 0) > 0 ? (
+                      <span className="text-amber-700 leading-snug">
                         {analytics?.retiradasSemValorInformado} retirada
                         {(analytics?.retiradasSemValorInformado ?? 0) !== 1 ? 's' : ''} ainda sem preço informado ·
                         valor estimado pelo plano
                       </span>
-                    ) : (
-                      <span className="text-[10px] text-stone-400 mt-2">valor conferido produto a produto</span>
-                    )}
-                  </div>
+                    ) : 'valor conferido produto a produto'}
+                  />
 
-                  <div className="bg-white border border-[#E6E2D8] p-5 rounded-xl shadow-sm flex flex-col">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">UpSell</span>
-                    <span className="text-2xl font-bold tracking-tight text-[#BD6B42] font-mono leading-none">
-                      R$ {(analytics?.valorUpsell ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                    <span className="text-[10px] text-stone-400 mt-2">
-                      {(analytics?.valorUpsell ?? 0) > 0
-                        ? 'levado acima do plano contratado'
-                        : 'depende do preço informado na retirada'}
-                    </span>
-                  </div>
-
+                  <CartaoDeNumero
+                    rotulo="UpSell"
+                    valor={<span className="text-[#BD6B42]">R$ {(analytics?.valorUpsell ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>}
+                    nota={(analytics?.valorUpsell ?? 0) > 0
+                      ? 'levado acima do plano contratado'
+                      : 'depende do preço informado na retirada'}
+                  />
                 </div>
 
                 {/* ── Linha 2: gráfico de clientes + churn histórico ── */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
                   {/* Novos clientes por mês */}
-                  <div className="lg:col-span-2 bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-sm">
+                  <div className="cartao-avle lg:col-span-2 p-5">
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Novos Clientes</h3>
@@ -2109,7 +2074,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   </div>
 
                   {/* Churn histórico */}
-                  <div className="bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-sm flex flex-col">
+                  <div className="cartao-avle p-5 flex flex-col">
                     <div className="mb-4">
                       <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Evolução do Churn</h3>
                       <p className="text-[10px] text-stone-400 mt-0.5">clientes que saíram da carteira</p>
@@ -2150,7 +2115,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </div>
 
                 {/* ── Faturamento mês a mês ── */}
-                <div className="bg-white border border-[#E6E2D8] rounded-xl p-5 shadow-sm">
+                <div className="cartao-avle p-5">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Faturamento Mensal</h3>
@@ -2215,7 +2180,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               );
               return (
               <div className="space-y-6 animate-fadeIn text-left">
-                  <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
+                  <div className="cartao-avle overflow-hidden">
                       <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                           <div>
                               <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Clientes da Unidade</h3>
@@ -2353,7 +2318,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   </div>
 
                   {clientesBloqueados.length > 0 && (
-                     <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden mt-6">
+                     <div className="cartao-avle overflow-hidden mt-6">
                         <div className="px-5 py-4 border-b border-[#DFD9CE] bg-rose-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                             <div>
                                 <h3 className="text-xs font-bold text-rose-800 uppercase tracking-wider">Histórico de Exclusões e Bloqueios</h3>
@@ -2398,7 +2363,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
             {abaLoja === 'aprovacoes' && (
               <div className="space-y-6 animate-fadeIn text-left">
-                  <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
+                  <div className="cartao-avle overflow-hidden">
                       <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50">
                           <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Análise de Crédito das Sorteadas</h3>
                           <p className="text-[10px] text-stone-400 font-medium">
@@ -2413,7 +2378,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                          ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                                {aguardandoCredito.map((item) => (
-                                  <div key={item.cotaId} className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm text-left hover:shadow-md transition-shadow">
+                                  <div key={item.cotaId} className="cartao-avle p-5 text-left hover:shadow-md transition-shadow">
                                      <div className="flex justify-between items-start mb-3">
                                         <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                                           Sorteada · aguardando crédito
@@ -2486,7 +2451,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
               return (
                 <div className="space-y-6 animate-fadeIn text-left">
-                  <div className="bg-white border border-[#DFD9CE] rounded-xl shadow-xs overflow-hidden">
+                  <div className="cartao-avle overflow-hidden">
                     <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                       <div>
                         <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Fila de Espera</h3>
@@ -2592,7 +2557,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <div className="space-y-4 animate-fadeIn text-left">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {listaGrupos.map((grupo) => (
-                    <div key={grupo.id} onClick={() => setGrupoSelecionado(grupo)} className="bg-white border border-[#DFD9CE] rounded-2xl p-5 shadow-xs hover:border-[#BD6B42] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group relative">
+                    <div key={grupo.id} onClick={() => setGrupoSelecionado(grupo)} className="cartao-avle p-5 hover:border-[#BD6B42] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group relative">
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="font-serif font-bold text-base text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">{grupo.nome}</h3>
@@ -2669,7 +2634,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             {abaLoja === 'sorteios' && (
               <div className="space-y-6 animate-fadeIn text-left">
 
-                <div className="bg-white border border-[#DFD9CE] p-6 rounded-2xl space-y-4 shadow-xs">
+                <div className="cartao-avle p-6 space-y-4">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">Agendar Sorteio Auditável</h3>
 
                   <form onSubmit={agendarSorteio} className="flex flex-wrap gap-2 items-end">
@@ -2705,7 +2670,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <button
                       type="submit"
                       disabled={processandoSorteio || !grupoSorteioId}
-                      className="h-[38px] bg-[#0B1E14] text-white text-[10px] font-bold px-5 rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider hover:bg-opacity-90 transition-all shadow-sm"
+                      className="h-[38px] bg-[#0B1E14] text-white text-[10px] font-bold px-5 rounded-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider hover:bg-opacity-90 transition-all shadow-sm"
                     >
                       {processandoSorteio ? 'Processando...' : 'Congelar lista e agendar'}
                     </button>
@@ -2720,7 +2685,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </div>
 
                 {sorteiosDoGrupo.length > 0 && (
-                  <div className="bg-white border border-[#DFD9CE] rounded-2xl shadow-xs overflow-hidden">
+                  <div className="cartao-avle overflow-hidden">
                     <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50">
                       <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Histórico de Sorteios</h3>
                       <p className="text-[10px] text-stone-400">Cada linha pode ser conferida por terceiros pelo código de auditoria.</p>
@@ -2772,7 +2737,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                               type="button"
                               onClick={() => apurarSorteio(s.id)}
                               disabled={processandoSorteio}
-                              className="px-4 py-2 bg-[#BD6B42] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-[#A95A33] transition-all cursor-pointer disabled:opacity-50"
+                              className="px-4 py-2 bg-[#BD6B42] text-white font-bold rounded-full text-[10px] uppercase tracking-wider hover:bg-[#A95A33] transition-all cursor-pointer disabled:opacity-50"
                             >
                               Apurar agora
                             </button>
@@ -2785,7 +2750,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 )}
 
                 {contemplacoesEmCurso.length > 0 && (
-                  <div className="bg-white border border-[#DFD9CE] rounded-2xl shadow-xs overflow-hidden">
+                  <div className="cartao-avle overflow-hidden">
                     <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50">
                       <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Clientes Sorteadas</h3>
                       <p className="text-[10px] text-stone-400">A cliente age na escolha do produto e na assinatura; as demais etapas são suas.</p>
@@ -2884,7 +2849,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             {abaLoja === 'configuracoes' && (
               <div className="space-y-6 text-left max-w-xl animate-fadeIn">
 
-              <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6">
+              <div className="cartao-avle p-6 md:p-8 space-y-6">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-2">
                     Logotipo da loja
@@ -2898,7 +2863,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       )}
                     </div>
                     <div className="min-w-0">
-                      <label className="inline-block cursor-pointer rounded-xl bg-[#0B1E14] px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-opacity-90">
+                      <label className="inline-block cursor-pointer rounded-full bg-[#0B1E14] px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-opacity-90">
                         {salvandoLogo ? 'Salvando...' : dadosLoja?.logo ? 'Trocar logotipo' : 'Enviar logotipo'}
                         <input type="file" accept="image/*" onChange={handleUploadLogo} className="hidden" disabled={salvandoLogo} />
                       </label>
@@ -3036,7 +3001,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <button
                       type="submit"
                       disabled={salvandoDadosLoja}
-                      className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50 hover:bg-opacity-95 transition-all"
+                      className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50 hover:bg-opacity-95 transition-all"
                     >
                       {salvandoDadosLoja ? 'Salvando...' : 'Salvar Cadastro'}
                     </button>
@@ -3044,7 +3009,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 )}
               </div>
 
-              <div className="bg-white border border-[#DFD9CE] rounded-2xl p-6 md:p-8 space-y-6">
+              <div className="cartao-avle p-6 md:p-8 space-y-6">
                 <div>
                   <h3 className="font-serif font-bold text-lg text-[#0B1E14] uppercase tracking-wide">Regulamento Operacional da Loja</h3>
                   <p className="text-stone-400 text-xs mt-1 leading-relaxed">
@@ -3075,7 +3040,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   <button 
                     type="submit" 
                     disabled={!arquivoPdf || enviandoPdf}
-                    className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50 hover:bg-opacity-95 transition-all"
+                    className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase tracking-wider cursor-pointer disabled:opacity-50 hover:bg-opacity-95 transition-all"
                   >
                     {enviandoPdf ? 'Processando e Gravando...' : 'Salvar Regulamento Contratual'}
                   </button>
@@ -3088,9 +3053,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         )}
       </main>
 
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+      <div className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-50 flex flex-col items-end">
           {caixaMensagemAberta && (
-             <div className="mb-4 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col animate-fadeIn transition-all transform origin-bottom-right">
+             <div className="cartao-avle mb-4 w-80 sm:w-96 shadow-2xl overflow-hidden flex flex-col animate-fadeIn transition-all transform origin-bottom-right">
                 <div className="bg-[#0B1E14] text-white p-4 flex justify-between items-center">
                    <div className="flex items-center gap-2">
                       <span className="text-lg">INBOX</span>
@@ -3113,7 +3078,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                    ) : (
                       <div className="space-y-3">
                          {aguardandoCredito.map((item) => (
-                            <div key={item.cotaId} className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm text-left">
+                            <div key={item.cotaId} className="cartao-avle p-4 text-left">
                                <div className="flex justify-between items-start mb-2">
                                   <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Sorteada</span>
                                   <span className="text-[9px] text-stone-400">
@@ -3170,7 +3135,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       {modalNovoClienteAberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
               <div>
                 <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Cadastrar Nova Cliente</h3>
@@ -3230,11 +3195,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
 
               <div className="flex space-x-2 pt-2 border-t w-full">
-                <button type="button" onClick={() => setModalNovoClienteAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer">Cancelar</button>
+                <button type="button" onClick={() => setModalNovoClienteAberto(false)} className="flex-1 py-2.5 border rounded-full text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer">Cancelar</button>
                 <button 
                   type="submit"
                   disabled={processandoCliente}
-                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold disabled:opacity-50"
+                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold disabled:opacity-50"
                 >
                   {processandoCliente ? 'Cadastrando...' : 'Confirmar Cadastro'}
                 </button>
@@ -3246,7 +3211,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       {modalNovoGrupoAberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Lançar Novo Grupo de Compras</h3>
               <button onClick={() => setModalNovoGrupoAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
@@ -3306,10 +3271,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </div>
               )}
               <div className="flex space-x-2 pt-2 border-t w-full">
-                <button type="button" onClick={() => setModalNovoGrupoAberto(false)} className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer">Cancelar</button>
+                <button type="button" onClick={() => setModalNovoGrupoAberto(false)} className="flex-1 py-2.5 border rounded-full text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer">Cancelar</button>
                 <button 
                   type="submit"
-                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold"
+                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all font-bold"
                 >
                   Registrar Grupo
                 </button>
@@ -3321,7 +3286,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       {modalQuitacao.aberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">
                 Baixa Manual da Contemplada
@@ -3381,7 +3346,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <button
                 type="button"
                 onClick={() => setModalQuitacao({ aberto: false, cotaId: null, nome: '', sorteada: false })}
-                className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
+                className="flex-1 py-2.5 border rounded-full text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
               >
                 Cancelar
               </button>
@@ -3389,7 +3354,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 type="button"
                 onClick={confirmarQuitacaoManual}
                 disabled={processandoQuitacao}
-                className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
+                className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
               >
                 {processandoQuitacao ? 'Gravando...' : 'Confirmar Baixa'}
               </button>
@@ -3400,7 +3365,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       {modalManual.aberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">
                 {modalManual.tipo === 'sorteio' ? 'Registrar Contemplação'
@@ -3459,7 +3424,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <button
                 type="button"
                 onClick={() => setModalManual({ aberto: false, tipo: 'sorteio', cotaId: null, nome: '' })}
-                className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
+                className="flex-1 py-2.5 border rounded-full text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
               >
                 Cancelar
               </button>
@@ -3467,7 +3432,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 type="button"
                 onClick={confirmarLancamentoManual}
                 disabled={processandoManual}
-                className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
+                className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
               >
                 {processandoManual
                   ? (modalManual.tipo === 'correcao' || modalManual.tipo === 'correcao-sorteio' ? 'Corrigindo...' : 'Registrando...')
@@ -3480,7 +3445,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       {modalConvocar.aberto && modalConvocar.item && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Convocar da Fila</h3>
               <button
@@ -3523,7 +3488,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <button
                 type="button"
                 onClick={() => setModalConvocar({ aberto: false, item: null })}
-                className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
+                className="flex-1 py-2.5 border rounded-full text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
               >
                 Cancelar
               </button>
@@ -3531,7 +3496,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 type="button"
                 onClick={handleConvocarDaFila}
                 disabled={processandoFilaId !== null || grupoDestinoConvocacao === ''}
-                className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {processandoFilaId !== null ? 'Convocando...' : 'Confirmar convocação'}
               </button>
@@ -3542,7 +3507,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       {modalReprovaCredito.aberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Reprovar Crédito</h3>
               <button
@@ -3574,7 +3539,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <button
                 type="button"
                 onClick={() => setModalReprovaCredito({ aberto: false, cotaId: null })}
-                className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
+                className="flex-1 py-2.5 border rounded-full text-stone-500 font-bold text-xs transition-colors hover:bg-stone-50 cursor-pointer"
               >
                 Cancelar
               </button>
@@ -3582,7 +3547,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 type="button"
                 onClick={confirmarReprovaCredito}
                 disabled={processandoSorteio || motivoReprovaCredito.trim() === ''}
-                className="flex-1 py-2.5 bg-rose-700 text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-rose-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 bg-rose-700 text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-rose-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {processandoSorteio ? 'Registrando...' : 'Confirmar reprovação'}
               </button>
@@ -3593,7 +3558,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       {modalAddParticipantesAberto && grupoSelecionado && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-xl">
+          <div className="cartao-avle w-full max-w-lg p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-start border-b pb-3">
               <div>
                 <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Adicionar Clientes ao Grupo</h3>
@@ -3694,14 +3659,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <button
                   type="button"
                   onClick={() => setModalAddParticipantesAberto(false)}
-                  className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer"
+                  className="flex-1 py-2.5 border rounded-full text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={salvandoParticipantes || clientesSelecionados.length === 0}
-                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {salvandoParticipantes ? 'Salvando...' : 'Salvar no Grupo'}
                 </button>
@@ -3713,7 +3678,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       {fichaCliente.aberta && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="cartao-avle w-full max-w-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
 
             {(() => {
               const f: any = fichaCliente.dados ?? {};
@@ -4001,7 +3966,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <button
                       type="button"
                       onClick={() => setFichaCliente({ aberta: false, carregando: false, nome: '', dados: null })}
-                      className="w-full py-2.5 border border-[#DFD9CE] rounded-xl text-stone-500 font-bold hover:bg-white transition-colors cursor-pointer text-xs"
+                      className="w-full py-2.5 border border-[#DFD9CE] rounded-full text-stone-500 font-bold hover:bg-white transition-colors cursor-pointer text-xs"
                     >
                       Fechar
                     </button>
@@ -4015,7 +3980,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       {modalDataInicio.aberto && grupoSelecionado && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
               <div>
                 <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Início do Grupo</h3>
@@ -4066,14 +4031,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <button
                   type="button"
                   onClick={() => setModalDataInicio({ aberto: false, valor: '', salvando: false })}
-                  className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer"
+                  className="flex-1 py-2.5 border rounded-full text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={modalDataInicio.salvando}
-                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
+                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
                 >
                   {modalDataInicio.salvando ? 'Gravando...' : 'Salvar Data'}
                 </button>
@@ -4085,7 +4050,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       {modalPagamentoManualAberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b pb-3">
               <div>
                 <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Lançar Pagamento Manual</h3>
@@ -4123,14 +4088,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <button 
                   type="button" 
                   onClick={() => setModalPagamentoManualAberto(false)} 
-                  className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer"
+                  className="flex-1 py-2.5 border rounded-full text-stone-500 font-bold hover:bg-stone-50 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit"
                   disabled={processandoPagamentoManual}
-                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-xl shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
+                  className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50"
                 >
                   {processandoPagamentoManual ? 'Gravando...' : 'Confirmar Baixa'}
                 </button>
@@ -4154,13 +4119,13 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <div className="flex gap-3">
                     <button 
                         onClick={() => setModalExclusao({ ...modalExclusao, aberto: false })} 
-                        className="flex-1 py-3 bg-stone-50 border border-stone-200 text-stone-600 font-bold rounded-xl text-xs hover:bg-stone-100 transition-colors cursor-pointer"
+                        className="flex-1 py-3 bg-stone-50 border border-stone-200 text-stone-600 font-bold rounded-full text-xs hover:bg-stone-100 transition-colors cursor-pointer"
                     >
                         Cancelar
                     </button>
                     <button 
                         onClick={confirmarExclusao} 
-                        className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-xl text-xs hover:bg-rose-700 shadow-md transition-colors cursor-pointer"
+                        className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-full text-xs hover:bg-rose-700 shadow-md transition-colors cursor-pointer"
                     >
                         Sim, Excluir
                     </button>
@@ -4200,14 +4165,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         <button 
                             type="button"
                             onClick={() => setModalBloqueioAberto(false)} 
-                            className="flex-1 py-2.5 bg-white border border-stone-200 text-stone-500 font-bold rounded-xl text-[10px] uppercase hover:bg-stone-50 transition-colors cursor-pointer"
+                            className="flex-1 py-2.5 bg-white border border-stone-200 text-stone-500 font-bold rounded-full text-[10px] uppercase hover:bg-stone-50 transition-colors cursor-pointer"
                         >
                             Cancelar
                         </button>
                         <button 
                             type="submit"
                             disabled={processandoBloqueio}
-                            className="flex-1 py-2.5 bg-rose-600 text-white font-bold rounded-xl text-[10px] uppercase hover:bg-rose-700 shadow-md transition-colors cursor-pointer disabled:opacity-50"
+                            className="flex-1 py-2.5 bg-rose-600 text-white font-bold rounded-full text-[10px] uppercase hover:bg-rose-700 shadow-md transition-colors cursor-pointer disabled:opacity-50"
                         >
                             {processandoBloqueio ? 'Registrando...' : 'Confirmar Bloqueio'}
                         </button>
@@ -4219,7 +4184,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       {notificacao.aberto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-[90] text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl border-t-4" style={{ borderTopColor: notificacao.isError ? '#be123c' : '#047857' }}>
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-2xl border-t-4" style={{ borderTopColor: notificacao.isError ? '#be123c' : '#047857' }}>
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className={`text-xs font-serif font-bold uppercase tracking-wider ${notificacao.isError ? 'text-rose-700' : 'text-emerald-800'}`}>{notificacao.titulo}</h3>
               <button onClick={() => setNotificacao({ ...notificacao, aberto: false })} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer">X</button>
@@ -4236,7 +4201,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           e "credito nao liberado" sem explicacao vira ligacao para a loja. */}
       {motivoReprovacao && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="border-b pb-3">
               <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Crédito não liberado</h3>
               <p className="text-[10px] text-stone-400 mt-1 leading-relaxed">
@@ -4258,7 +4223,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <button
                 type="button"
                 onClick={() => setMotivoReprovacao(null)}
-                className="flex-1 py-2.5 border rounded-xl text-stone-500 font-bold text-[10px] uppercase tracking-wider hover:bg-stone-50 cursor-pointer"
+                className="flex-1 py-2.5 border rounded-full text-stone-500 font-bold text-[10px] uppercase tracking-wider hover:bg-stone-50 cursor-pointer"
               >
                 Cancelar
               </button>
@@ -4266,7 +4231,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 type="button"
                 disabled={!motivoReprovacao.texto.trim() || processandoCreditoId === motivoReprovacao.cotaId}
                 onClick={() => handleAnalisarCredito(motivoReprovacao.cotaId, false, motivoReprovacao.texto)}
-                className="flex-1 py-2.5 bg-rose-700 text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-rose-800 disabled:opacity-50 cursor-pointer shadow-sm"
+                className="flex-1 py-2.5 bg-rose-700 text-white font-bold rounded-full text-[10px] uppercase tracking-wider hover:bg-rose-800 disabled:opacity-50 cursor-pointer shadow-sm"
               >
                 Confirmar
               </button>

@@ -6,7 +6,16 @@
   --color-avle-terracotta: #C05A3E;
   --color-avle-verde: #1C3F24;
   --color-avle-texto: #2C2A29;
+
+  /* Tons usados pelos paineis. Estavam escritos como hexadecimal solto em mais
+     de quatrocentos lugares nos tres dashboards, o que tornava impossivel
+     mudar a aparencia sem varrer arquivo por arquivo. */
+  --color-painel-tinta: #0B1E14;
+  --color-painel-acento: #BD6B42;
+  --color-painel-borda: #E8E4DA;
+  --color-painel-papel: #F5F2EB;
 }
+
 /* Entrada do aviso de privacidade. Nome proprio em vez de reaproveitar
    "fadeIn": aquela classe e usada em varias telas sem nunca ter sido
    definida, e defini-la agora mudaria a aparencia de tudo de uma vez. */
@@ -17,4 +26,70 @@
 
 .animate-avle-subir {
   animation: avle-subir 0.28s ease-out;
+}
+
+/* O "fadeIn" citado acima aparece em 20 lugares dos paineis e nunca existiu:
+   a troca de aba era um corte seco. Agora que os paineis foram repaginados de
+   uma vez, defini-lo deixou de ser um efeito colateral e virou parte do
+   desenho. O movimento e curto de proposito — tabela grande entrando devagar
+   da a impressao de que a tela travou. */
+@keyframes avle-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: avle-fade-in 0.22s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-avle-subir,
+  .animate-fadeIn {
+    animation: none;
+  }
+}
+
+@layer components {
+  /* Fundo dos paineis. Antes era um cinza chapado (#F0F2F5) que achatava tudo
+     e fazia o cartao branco sumir dentro dele. Os dois brilhos sao da paleta
+     da propria AVLE, bem diluidos: dao profundidade sem virar cor de fundo. */
+  .fundo-painel {
+    background-color: #F3F3F0;
+    background-image:
+      radial-gradient(900px 520px at 100% -10%, rgba(189, 107, 66, 0.13), transparent 62%),
+      radial-gradient(760px 480px at -10% 105%, rgba(11, 30, 20, 0.10), transparent 58%);
+    background-attachment: fixed;
+  }
+
+  /* Cartao padrao de todos os paineis. A borda quase invisivel e a sombra
+     longa e rasa fazem o trabalho que a borda bege forte fazia antes — o
+     cartao se separa do fundo sem desenhar uma caixa em volta do conteudo. */
+  .cartao-avle {
+    background-color: #FFFFFF;
+    border: 1px solid rgba(11, 30, 20, 0.05);
+    border-radius: 24px;
+    box-shadow:
+      0 1px 2px rgba(11, 30, 20, 0.04),
+      0 22px 44px -34px rgba(11, 30, 20, 0.55);
+  }
+
+  /* Cartao de numero principal da tela: um por painel, no lugar onde a
+     referencia visual usa o bloco colorido. Aqui ele e o verde da marca, e nao
+     um verde-limao qualquer, porque a loja reconhece a cor. */
+  .cartao-avle-destaque {
+    background-color: #0B1E14;
+    background-image: radial-gradient(560px 340px at 92% -10%, rgba(189, 107, 66, 0.30), transparent 72%);
+    border: 1px solid rgba(11, 30, 20, 0.08);
+    border-radius: 24px;
+    color: #FFFFFF;
+    box-shadow: 0 24px 48px -32px rgba(11, 30, 20, 0.75);
+  }
+
+  /* Variacao sem preenchimento, para blocos que ficam dentro de um cartao e
+     nao podem repetir a sombra (sombra dentro de sombra vira sujeira). */
+  .cartao-avle-liso {
+    background-color: #FFFFFF;
+    border: 1px solid rgba(11, 30, 20, 0.06);
+    border-radius: 18px;
+  }
 }
