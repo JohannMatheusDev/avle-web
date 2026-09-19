@@ -1584,7 +1584,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         itens={secoesDaLoja}
         ativo={grupoSelecionado ? '' : abaLoja}
         aoEscolher={irParaSecao}
-        aoSair={async () => { await encerrarSessao(); window.location.href = '/'; }}
+        aoSair={async () => { await encerrarSessao(); window.location.href = '/entrar'; }}
         itemDeConfiguracao={configuracoesDaLoja}
       />
 

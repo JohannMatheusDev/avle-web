@@ -17,7 +17,7 @@ export default function DashboardPage() {
     const usuarioSalvo = localStorage.getItem('@avle:usuario');
 
     if (!usuarioSalvo) {
-      router.push('/');
+      router.push('/entrar');
       return;
     }
 
@@ -25,7 +25,7 @@ export default function DashboardPage() {
       setUsuario(JSON.parse(usuarioSalvo));
     } catch (error) {
       localStorage.removeItem('@avle:usuario');
-      router.push('/');
+      router.push('/entrar');
       return;
     }
     
@@ -67,7 +67,7 @@ export default function DashboardPage() {
     default:
       console.error("Tipo de usuário inválido:", tipo);
       localStorage.removeItem('@avle:usuario');
-      router.push('/');
+      router.push('/entrar');
       return null;
   }
 }

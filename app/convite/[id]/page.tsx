@@ -561,7 +561,7 @@ export default function CadastroConvite() {
            </div>
            <h2 className="text-xl font-bold text-rose-700 mb-2">Convite Inválido</h2>
            <p className="text-sm text-stone-500">A loja que você está tentando acessar não existe, ou o link expirou.</p>
-           <button onClick={() => router.push('/')} className="mt-6 px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-full text-xs uppercase tracking-wider cursor-pointer hover:bg-opacity-90">Ir para o início</button>
+           <button onClick={() => router.push('/entrar')} className="mt-6 px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-full text-xs uppercase tracking-wider cursor-pointer hover:bg-opacity-90">Ir para o início</button>
         </div>
       </div>
     );

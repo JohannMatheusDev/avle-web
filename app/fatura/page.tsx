@@ -56,7 +56,7 @@ export default function Faturas() {
 
   const carregarExtrato = async () => {
     const raw = localStorage.getItem('@avle:usuario');
-    if (!raw) { router.push('/'); return; }
+    if (!raw) { router.push('/entrar'); return; }
     const user = JSON.parse(raw);
     try {
       const res = await apiFetch(`${API_URL}/api/financeiro/extrato/${user.id}`);
@@ -70,7 +70,7 @@ export default function Faturas() {
 
   useEffect(() => {
     const raw = localStorage.getItem('@avle:usuario');
-    if (!raw) { router.push('/'); return; }
+    if (!raw) { router.push('/entrar'); return; }
     carregarExtrato();
   }, [router]);
 

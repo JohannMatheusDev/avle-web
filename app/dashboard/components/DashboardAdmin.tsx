@@ -194,7 +194,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
         aoEscolher={irParaSecao}
         aoSair={async () => {
           await encerrarSessao();
-          router.push('/');
+          router.push('/entrar');
         }}
       />
 

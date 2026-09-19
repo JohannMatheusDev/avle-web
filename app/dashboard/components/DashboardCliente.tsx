@@ -849,7 +849,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         itens={secoesDaCliente}
         ativo={abaAtiva}
         aoEscolher={irParaSecao}
-        aoSair={async () => { await encerrarSessao(); router.push('/'); }}
+        aoSair={async () => { await encerrarSessao(); router.push('/entrar'); }}
         itemDeConfiguracao={perfilDaCliente}
       />
 
@@ -2072,7 +2072,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     presa na tela sem nem conseguir sair da conta. */}
                 <button
                   type="button"
-                  onClick={async () => { await encerrarSessao(); router.push('/'); }}
+                  onClick={async () => { await encerrarSessao(); router.push('/entrar'); }}
                   className="block w-full text-[10px] font-bold text-stone-400 uppercase tracking-wider hover:text-stone-600 cursor-pointer"
                 >
                   Sair da conta e pagar depois

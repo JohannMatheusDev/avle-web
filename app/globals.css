@@ -93,3 +93,30 @@
     border-radius: 18px;
   }
 }
+
+@layer components {
+  /* Tipografia grande da pagina comercial. A referencia que guiou o desenho
+     usa o titulo como elemento grafico, e nao como rotulo - por isso a serif
+     entra so aqui, em tamanho que ocupa a tela. */
+  .fonte-display {
+    font-family: var(--fonte-display), Georgia, serif;
+    font-optical-sizing: auto;
+    letter-spacing: -0.02em;
+  }
+
+  /* Faixa que atravessa a pagina repetindo o que a AVLE faz. E decoracao com
+     funcao: quebra a pilha de secoes iguais que toda landing de sistema tem. */
+  @keyframes avle-esteira {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+
+  .esteira {
+    animation: avle-esteira 38s linear infinite;
+    will-change: transform;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .esteira { animation: none; }
+}
