@@ -101,6 +101,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
   // Cadastro da propria loja, editavel na aba de configuracoes.
   const [dadosLoja, setDadosLoja] = useState<any | null>(null);
+  const [buscandoCep, setBuscandoCep] = useState(false);
   const [salvandoLogo, setSalvandoLogo] = useState(false);
   const [carregandoDadosLoja, setCarregandoDadosLoja] = useState(false);
   const [salvandoDadosLoja, setSalvandoDadosLoja] = useState(false);
@@ -1385,6 +1386,44 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const alterarCampoDaLoja = (campo: string, valor: string) =>
     setDadosLoja((atual: any) => ({ ...(atual ?? {}), [campo]: valor }));
 
+  /**
+   * Preenche rua e bairro a partir do CEP.
+   *
+   * O Asaas exige rua, número e bairro para abrir a conta da loja, e digitar
+   * isso à mão é onde formulário costuma ficar pela metade. O ViaCEP resolve
+   * dois dos três campos; o número ninguém descobre pelo CEP.
+   *
+   * Vai por `fetch` direto, e não pelo apiFetch: o apiFetch manda o cookie de
+   * sessão junto, e sessão da AVLE não tem o que fazer num serviço de fora.
+   * Falha em silêncio de propósito — quem não tem internet ou digitou um CEP
+   * que o ViaCEP não conhece continua podendo escrever o endereço na mão.
+   */
+  const buscarEnderecoPeloCep = async (cepDigitado: string) => {
+    const cep = (cepDigitado || '').replace(/\D/g, '');
+    if (cep.length !== 8) return;
+
+    setBuscandoCep(true);
+    try {
+      const resposta = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      if (!resposta.ok) return;
+
+      const endereco = await resposta.json();
+      if (endereco?.erro) return;
+
+      // Só preenche o que está vazio: a loja pode ter corrigido o endereço à
+      // mão, e o CEP do ViaCEP costuma ser o da rua inteira.
+      setDadosLoja((atual: any) => ({
+        ...(atual ?? {}),
+        endereco: atual?.endereco?.trim() ? atual.endereco : (endereco.logradouro ?? ''),
+        bairro: atual?.bairro?.trim() ? atual.bairro : (endereco.bairro ?? ''),
+      }));
+    } catch {
+      // Sem rede: o endereço continua digitável na mão.
+    } finally {
+      setBuscandoCep(false);
+    }
+  };
+
   const handleSalvarDadosDaLoja = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     const lojaId = usuario?.lojaId || usuario?.id;
@@ -1401,6 +1440,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           nomeComercial: dadosLoja.nomeComercial,
           telefone: dadosLoja.telefone,
           cep: dadosLoja.cep,
+          endereco: dadosLoja.endereco,
+          numeroEndereco: dadosLoja.numeroEndereco,
+          bairro: dadosLoja.bairro,
+          complemento: dadosLoja.complemento,
           chavePix: dadosLoja.chavePix,
           faturamento: dadosLoja.faturamento,
           bancoCodigo: dadosLoja.bancoCodigo,
@@ -2928,13 +2971,66 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">CEP</label>
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">
+                          CEP {buscandoCep && <span className="text-[#BD6B42] normal-case">· buscando...</span>}
+                        </label>
                         <input
                           type="text"
                           value={dadosLoja.cep ?? ''}
-                          onChange={(e) => alterarCampoDaLoja('cep', e.target.value)}
+                          onChange={(e) => {
+                            alterarCampoDaLoja('cep', e.target.value);
+                            buscarEnderecoPeloCep(e.target.value);
+                          }}
+                          onBlur={(e) => buscarEnderecoPeloCep(e.target.value)}
                           placeholder="00000000"
                           className="w-full border border-[#DFD9CE] rounded-xl px-3.5 py-2.5 font-mono focus:outline-none focus:border-[#BD6B42] transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    {/* O endereço completo é o que o Asaas pede para abrir a
+                        conta da loja. Fica junto do CEP, e não escondido numa
+                        etapa separada, porque é a mesma informação. */}
+                    <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
+                      <div className="sm:col-span-4">
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Rua</label>
+                        <input
+                          type="text"
+                          value={dadosLoja.endereco ?? ''}
+                          onChange={(e) => alterarCampoDaLoja('endereco', e.target.value)}
+                          placeholder="Av. Manoel Ribas"
+                          className="w-full border border-[#DFD9CE] rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#BD6B42] transition-colors"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Número</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={dadosLoja.numeroEndereco ?? ''}
+                          onChange={(e) => alterarCampoDaLoja('numeroEndereco', e.target.value)}
+                          placeholder="742"
+                          className="w-full border border-[#DFD9CE] rounded-xl px-3.5 py-2.5 font-mono focus:outline-none focus:border-[#BD6B42] transition-colors"
+                        />
+                      </div>
+                      <div className="sm:col-span-3">
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Bairro</label>
+                        <input
+                          type="text"
+                          value={dadosLoja.bairro ?? ''}
+                          onChange={(e) => alterarCampoDaLoja('bairro', e.target.value)}
+                          placeholder="Centro"
+                          className="w-full border border-[#DFD9CE] rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#BD6B42] transition-colors"
+                        />
+                      </div>
+                      <div className="sm:col-span-3">
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Complemento (opcional)</label>
+                        <input
+                          type="text"
+                          value={dadosLoja.complemento ?? ''}
+                          onChange={(e) => alterarCampoDaLoja('complemento', e.target.value)}
+                          placeholder="Sala 2"
+                          className="w-full border border-[#DFD9CE] rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#BD6B42] transition-colors"
                         />
                       </div>
                     </div>
