@@ -95,13 +95,22 @@
 }
 
 @layer components {
-  /* Tipografia grande da pagina comercial. A referencia que guiou o desenho
-     usa o titulo como elemento grafico, e nao como rotulo - por isso a serif
-     entra so aqui, em tamanho que ocupa a tela. */
-  .fonte-display {
-    font-family: var(--fonte-display), Georgia, serif;
-    font-optical-sizing: auto;
-    letter-spacing: -0.02em;
+  /* O titulo da pagina comercial e elemento grafico, nao rotulo: peso maximo,
+     caixa alta e as letras quase se tocando. A referencia que guiou o desenho
+     usa a palavra ocupando a largura inteira da tela. */
+  .titulo-cartaz {
+    font-weight: 900;
+    letter-spacing: -0.045em;
+    line-height: 0.82;
+    text-transform: uppercase;
+  }
+
+  /* O ceu da AVLE: o verde da marca no lugar do azul da referencia, do escuro
+     em cima para o claro embaixo, onde a secao branca sobe por cima. */
+  .ceu-avle {
+    background:
+      radial-gradient(120% 80% at 50% 120%, rgba(247, 244, 235, 0.55), transparent 60%),
+      linear-gradient(180deg, #071409 0%, #0B1E14 35%, #1C3F24 75%, #2F5936 100%);
   }
 
   /* Faixa que atravessa a pagina repetindo o que a AVLE faz. E decoracao com
