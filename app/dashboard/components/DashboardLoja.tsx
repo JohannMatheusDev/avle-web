@@ -8,7 +8,7 @@ import ExtratoDePagamentos from './ExtratoDePagamentos';
 import ListaDeAvisos from './ListaDeAvisos';
 import {
   CabecalhoDoPainel, CartaoDeNumero, Identidade, ItemDeNavegacao,
-  PilulasDeSecao, TrilhoDeNavegacao,
+  TrilhoDeNavegacao,
 } from './Casca';
 import { parcelasPagas } from '../../lib/parcelas';
 import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
@@ -1637,13 +1637,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               nome={nomeLojaReal || usuario?.lojaNome || 'Unidade Administrativa'}
               detalhe="Painel da loja"
               aoClicar={() => irParaSecao('configuracoes')}
-            />
-          }
-          pilulas={
-            <PilulasDeSecao
-              itens={secoesDaLoja}
-              ativo={grupoSelecionado ? '' : abaLoja}
-              aoEscolher={irParaSecao}
             />
           }
         />
