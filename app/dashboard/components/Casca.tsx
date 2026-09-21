@@ -104,25 +104,53 @@ export function TrilhoDeNavegacao({
 }) {
   const todos = itemDeConfiguracao ? [...itens, itemDeConfiguracao] : itens;
 
+  // O rotulo sai do `title` do navegador e vira etiqueta propria.
+  //
+  // A barra de pilulas escrita por extenso saiu do topo do painel, entao o
+  // trilho passou a ser o unico lugar onde a navegacao mora - e icone sozinho
+  // nao diz para onde leva. O `title` nativo resolveria, mas demora quase um
+  // segundo para surgir e aparece na cor do sistema, fora da pagina.
+  //
+  // A etiqueta fica em `group-hover` e tambem em `group-focus-visible`, senao
+  // quem anda pelo teclado perde o rotulo que o mouse ganha. O `aria-label`
+  // continua no botao: leitor de tela nao depende de hover.
   const botao = (item: ItemDeNavegacao, ativoAgora: boolean) => (
-    <button
-      key={item.id}
-      type="button"
-      onClick={() => aoEscolher(item.id)}
-      title={item.rotulo}
-      aria-label={item.rotulo}
-      aria-current={ativoAgora ? 'page' : undefined}
-      className={`relative w-11 h-11 rounded-2xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
-        ativoAgora
-          ? 'bg-[#0B1E14] text-white shadow-md'
-          : 'bg-white text-stone-400 hover:text-[#0B1E14] hover:-translate-y-0.5 shadow-[0_1px_2px_rgba(11,30,20,0.06)]'
-      }`}
-    >
-      <Icone nome={item.icone} />
-      {!!item.contador && item.contador > 0 && (
-        <Contador valor={item.contador} urgente={item.urgente} />
-      )}
-    </button>
+    <div key={item.id} className="relative group">
+      <button
+        type="button"
+        onClick={() => aoEscolher(item.id)}
+        aria-label={item.rotulo}
+        aria-current={ativoAgora ? 'page' : undefined}
+        className={`relative w-11 h-11 rounded-2xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
+          ativoAgora
+            ? 'bg-[#0B1E14] text-white shadow-md'
+            : 'bg-white text-stone-400 hover:text-[#0B1E14] hover:-translate-y-0.5 shadow-[0_1px_2px_rgba(11,30,20,0.06)]'
+        }`}
+      >
+        <Icone nome={item.icone} />
+        {!!item.contador && item.contador > 0 && (
+          <Contador valor={item.contador} urgente={item.urgente} />
+        )}
+      </button>
+
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 flex items-center gap-2
+                   whitespace-nowrap rounded-full bg-[#0B1E14] text-white text-[11px] font-bold tracking-wide
+                   px-3.5 py-2 shadow-lg opacity-0 -translate-x-1 transition-all duration-200
+                   group-hover:opacity-100 group-hover:translate-x-0
+                   group-focus-within:opacity-100 group-focus-within:translate-x-0"
+      >
+        {item.rotulo}
+        {!!item.contador && item.contador > 0 && (
+          <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[9px] font-black flex items-center justify-center ${
+            item.urgente ? 'bg-rose-500 text-white' : 'bg-white/20 text-white'
+          }`}>
+            {item.contador > 99 ? '99+' : item.contador}
+          </span>
+        )}
+      </span>
+    </div>
   );
 
   return (
@@ -137,15 +165,26 @@ export function TrilhoDeNavegacao({
 
         <div className="flex flex-col items-center gap-2">
           {itemDeConfiguracao && botao(itemDeConfiguracao, ativo === itemDeConfiguracao.id)}
-          <button
-            type="button"
-            onClick={aoSair}
-            title="Sair"
-            aria-label="Sair"
-            className="w-11 h-11 rounded-2xl flex items-center justify-center bg-white text-stone-400 hover:text-rose-600 transition-colors cursor-pointer shadow-[0_1px_2px_rgba(11,30,20,0.06)]"
-          >
-            <Icone nome="sair" />
-          </button>
+          <div className="relative group">
+            <button
+              type="button"
+              onClick={aoSair}
+              aria-label="Sair"
+              className="w-11 h-11 rounded-2xl flex items-center justify-center bg-white text-stone-400 hover:text-rose-600 transition-colors cursor-pointer shadow-[0_1px_2px_rgba(11,30,20,0.06)]"
+            >
+              <Icone nome="sair" />
+            </button>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50
+                         whitespace-nowrap rounded-full bg-[#0B1E14] text-white text-[11px] font-bold tracking-wide
+                         px-3.5 py-2 shadow-lg opacity-0 -translate-x-1 transition-all duration-200
+                         group-hover:opacity-100 group-hover:translate-x-0
+                         group-focus-within:opacity-100 group-focus-within:translate-x-0"
+            >
+              Sair
+            </span>
+          </div>
         </div>
       </aside>
 

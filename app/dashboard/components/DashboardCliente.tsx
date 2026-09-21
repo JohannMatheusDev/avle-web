@@ -636,34 +636,95 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     }
   };
 
-  const handleUploadFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const arquivo = e.target.files[0];
-      if (!arquivo.type.startsWith('image/')) { mostrarAviso('Formato Inválido', 'Apenas arquivos de imagem.', true); return; }
-      if (arquivo.size > 2 * 1024 * 1024) { mostrarAviso('Arquivo Muito Grande', 'A imagem deve ter no máximo 2MB.', true); return; }
-
+  /**
+   * Encolhe a foto antes de enviar.
+   *
+   * A foto vai para o banco como texto na propria linha do usuario, e o que
+   * saia daqui era o arquivo inteiro da camera: 2 MB de JPEG viram quase
+   * 2,7 MB depois do base64, que e o formato em que ele viaja e e guardado.
+   * Isso pesa em tudo - no envio pela rede da cliente, na linha do banco e em
+   * cada vez que o perfil e lido de volta.
+   *
+   * 512 pixels no maior lado da conta para um avatar de 96 px em tela retina,
+   * e o resultado fica perto de 60 KB. A imagem e recortada no centro para
+   * sair quadrada, que e como ela aparece na tela - assim o corte acontece
+   * uma vez aqui, e nao a cada exibicao.
+   */
+  const encolherImagem = (arquivo: File): Promise<string> =>
+    new Promise((resolve, reject) => {
       const leitor = new FileReader();
-      leitor.onloadend = async () => {
-        const base64String = leitor.result as string;
-        try {
-          const res = await apiFetch(`${API_URL}/api/usuarios/${usuario?.id}/foto`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fotoPerfil: base64String }),
-          });
-          if (!res.ok) throw new Error();
-          setFotoPerfil(base64String);
-          const localUser = localStorage.getItem('@avle:usuario');
-          if (localUser) {
-            const parsed = JSON.parse(localUser);
-            parsed.fotoPerfil = base64String;
-            localStorage.setItem('@avle:usuario', JSON.stringify(parsed));
-          }
-        } catch (err) {
-          mostrarAviso('Erro', 'Não foi possível salvar sua foto de perfil.', true);
-        }
+      leitor.onerror = () => reject(new Error('Nao foi possivel ler o arquivo.'));
+      leitor.onloadend = () => {
+        const imagem = new Image();
+        imagem.onerror = () => reject(new Error('O arquivo nao e uma imagem valida.'));
+        imagem.onload = () => {
+          const LADO = 512;
+          const corte = Math.min(imagem.width, imagem.height);
+          const tela = document.createElement('canvas');
+          tela.width = LADO;
+          tela.height = LADO;
+
+          const pincel = tela.getContext('2d');
+          if (!pincel) { reject(new Error('Seu navegador nao conseguiu preparar a imagem.')); return; }
+
+          pincel.drawImage(
+            imagem,
+            (imagem.width - corte) / 2, (imagem.height - corte) / 2, corte, corte,
+            0, 0, LADO, LADO,
+          );
+          resolve(tela.toDataURL('image/jpeg', 0.85));
+        };
+        imagem.src = leitor.result as string;
       };
       leitor.readAsDataURL(arquivo);
+    });
+
+  const handleUploadFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const arquivo = e.target.files?.[0];
+    if (!arquivo) return;
+
+    if (!arquivo.type.startsWith('image/')) {
+      mostrarAviso('Formato Inválido', 'Apenas arquivos de imagem.', true);
+      return;
+    }
+    if (arquivo.size > 10 * 1024 * 1024) {
+      mostrarAviso('Arquivo Muito Grande', 'A imagem deve ter no máximo 10 MB.', true);
+      return;
+    }
+
+    try {
+      const imagemPronta = await encolherImagem(arquivo);
+
+      const res = await apiFetch(`${API_URL}/api/usuarios/${usuario?.id}/foto`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fotoPerfil: imagemPronta }),
+      });
+
+      // O motivo vem do servidor em vez de virar "nao foi possivel": foto que
+      // nao salva e problema que a pessoa nao consegue contornar sozinha, e
+      // sem o motivo ela tenta de novo com a mesma imagem.
+      if (!res.ok) {
+        const corpo = await res.text().catch(() => '');
+        let motivo = '';
+        try { motivo = JSON.parse(corpo)?.erro || ''; } catch { motivo = corpo; }
+        throw new Error(motivo || 'Não foi possível salvar sua foto de perfil.');
+      }
+
+      setFotoPerfil(imagemPronta);
+      const localUser = localStorage.getItem('@avle:usuario');
+      if (localUser) {
+        const parsed = JSON.parse(localUser);
+        parsed.fotoPerfil = imagemPronta;
+        localStorage.setItem('@avle:usuario', JSON.stringify(parsed));
+      }
+      mostrarAviso('Foto salva', 'Sua foto de perfil foi atualizada.', false);
+    } catch (err) {
+      mostrarAviso('Erro', mensagemDeErro(err, 'Não foi possível salvar sua foto de perfil.'), true);
+    } finally {
+      // Sem isto, escolher o mesmo arquivo de novo depois de um erro nao
+      // dispara o evento e parece que o botao parou de funcionar.
+      e.target.value = '';
     }
   };
 
