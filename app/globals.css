@@ -14,6 +14,19 @@
   --color-painel-acento: #BD6B42;
   --color-painel-borda: #E8E4DA;
   --color-painel-papel: #F5F2EB;
+
+  /* ── Tema escuro ──
+     A referencia escolhida e escura, com um unico acento em verde-limao. Os
+     tons ficam aqui em cima porque a camada de tema la embaixo inteira sai
+     deles: mudar o acento e trocar uma linha, e nao varrer os arquivos. */
+  --color-escuro-fundo: #0A0A0A;
+  --color-escuro-superficie: #161616;
+  --color-escuro-elevado: #212121;
+  --color-escuro-borda: #262626;
+  --color-escuro-tinta: #FCFCFC;
+  --color-escuro-tinta-2: #8E8E8E;
+  --color-limao: #D7FF67;
+  --color-limao-escuro: #BEE23F;
 }
 
 /* Entrada do aviso de privacidade. Nome proprio em vez de reaproveitar
@@ -54,42 +67,181 @@
      e fazia o cartao branco sumir dentro dele. Os dois brilhos sao da paleta
      da propria AVLE, bem diluidos: dao profundidade sem virar cor de fundo. */
   .fundo-painel {
-    background-color: #F3F3F0;
+    background-color: #0A0A0A;
     background-image:
-      radial-gradient(900px 520px at 100% -10%, rgba(189, 107, 66, 0.13), transparent 62%),
-      radial-gradient(760px 480px at -10% 105%, rgba(11, 30, 20, 0.10), transparent 58%);
+      radial-gradient(900px 520px at 100% -10%, rgba(215, 255, 103, 0.06), transparent 62%),
+      radial-gradient(760px 480px at -10% 105%, rgba(215, 255, 103, 0.04), transparent 58%);
     background-attachment: fixed;
+    color: #FCFCFC;
   }
 
   /* Cartao padrao de todos os paineis. A borda quase invisivel e a sombra
      longa e rasa fazem o trabalho que a borda bege forte fazia antes — o
      cartao se separa do fundo sem desenhar uma caixa em volta do conteudo. */
   .cartao-avle {
-    background-color: #FFFFFF;
-    border: 1px solid rgba(11, 30, 20, 0.05);
+    background-color: #161616;
+    border: 1px solid #262626;
     border-radius: 24px;
-    box-shadow:
-      0 1px 2px rgba(11, 30, 20, 0.04),
-      0 22px 44px -34px rgba(11, 30, 20, 0.55);
+    box-shadow: none;
+    color: #FCFCFC;
   }
 
   /* Cartao de numero principal da tela: um por painel, no lugar onde a
      referencia visual usa o bloco colorido. Aqui ele e o verde da marca, e nao
      um verde-limao qualquer, porque a loja reconhece a cor. */
+  /* O bloco de destaque e o unico lugar onde o limao ocupa area grande. Texto
+     preto em cima, porque limao com texto branco nao tem contraste nenhum. */
   .cartao-avle-destaque {
-    background-color: #0B1E14;
-    background-image: radial-gradient(560px 340px at 92% -10%, rgba(189, 107, 66, 0.30), transparent 72%);
-    border: 1px solid rgba(11, 30, 20, 0.08);
+    background-color: #D7FF67;
+    background-image: none;
+    border: 1px solid #D7FF67;
     border-radius: 24px;
-    color: #FFFFFF;
-    box-shadow: 0 24px 48px -32px rgba(11, 30, 20, 0.75);
+    color: #0A0A0A;
+    box-shadow: 0 24px 60px -34px rgba(215, 255, 103, 0.45);
+  }
+
+  .cartao-avle-destaque .text-white\/60,
+  .cartao-avle-destaque .text-white\/70,
+  .cartao-avle-destaque .text-white\/80 {
+    color: rgba(10, 10, 10, 0.62) !important;
   }
 
   /* Variacao sem preenchimento, para blocos que ficam dentro de um cartao e
      nao podem repetir a sombra (sombra dentro de sombra vira sujeira). */
   .cartao-avle-liso {
-    background-color: #FFFFFF;
-    border: 1px solid rgba(11, 30, 20, 0.06);
+    background-color: #212121;
+    border: 1px solid #262626;
     border-radius: 18px;
+    color: #FCFCFC;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   CAMADA DE TEMA ESCURO
+   ═══════════════════════════════════════════════════════════════
+
+   Os tres paineis foram escritos com a cor direto na classe: sao 165 usos de
+   `text-[#0B1E14]`, 58 de `bg-white` e mais de 600 tons de `stone`. Reescrever
+   isso a mao seria varrer tres arquivos de milhares de linhas, com risco de
+   quebrar tela por tela.
+
+   Esta camada reescreve as classes utilitarias no lugar. Cada regra abaixo
+   traduz um papel do tema claro para o escuro: fundo de cartao, texto
+   principal, texto secundario, borda, acento. O layout, o espacamento e a
+   estrutura continuam sendo dos componentes.
+
+   E de proposito que a lista seja curta: sao os poucos tons que os paineis
+   realmente usam. Cor nova que aparecer no codigo tem que entrar aqui tambem,
+   senao fica clara no escuro e some.
+   ─────────────────────────────────────────────────────────────── */
+
+/* ── Superficies ── */
+.bg-white,
+.bg-white\/60,
+.bg-white\/70,
+.bg-white\/80,
+.bg-white\/90,
+.bg-white\/95 { background-color: #161616 !important; }
+
+.bg-\[\#F5F2EB\],
+.bg-\[\#F3F3F0\],
+.bg-\[\#FAF8F4\],
+.bg-\[\#F7F4EB\],
+.bg-\[\#EFEAE1\],
+.bg-\[\#F0EEE8\] { background-color: #212121 !important; }
+
+.bg-stone-50,
+.bg-stone-100 { background-color: #212121 !important; }
+
+/* ── Texto ──
+   O verde profundo era a tinta de todo o sistema. No escuro ele vira o branco
+   quente da referencia; sem isto, todo titulo some no fundo preto. */
+.text-\[\#0B1E14\],
+.text-\[\#08170F\],
+.text-\[\#2C2A29\] { color: #FCFCFC !important; }
+
+.text-stone-400,
+.text-stone-500,
+.text-stone-600,
+.text-stone-700,
+.text-stone-800,
+.text-stone-900,
+.text-\[\#78716C\] { color: #8E8E8E !important; }
+
+.text-stone-300 { color: #6B6B6B !important; }
+
+/* ── Bordas ── */
+.border-\[\#DFD9CE\],
+.border-\[\#E6E2D8\],
+.border-\[\#E8E4DA\],
+.border-white,
+.border-stone-200,
+.border-stone-100 { border-color: #262626 !important; }
+
+/* ── Acento ──
+   O terracota some e entra o limao. Onde ele era fundo, o texto por cima passa
+   a ser preto: limao com texto branco nao se le. */
+.bg-\[\#BD6B42\],
+.bg-\[\#A95A33\],
+.bg-\[\#C05A3E\] { background-color: #D7FF67 !important; color: #0A0A0A !important; }
+
+.hover\:bg-\[\#A95A33\]:hover { background-color: #BEE23F !important; color: #0A0A0A !important; }
+
+.text-\[\#BD6B42\],
+.text-\[\#A95A33\],
+.text-\[\#C05A3E\] { color: #D7FF67 !important; }
+
+.border-\[\#BD6B42\] { border-color: #D7FF67 !important; }
+
+/* ── Botao primario ──
+   Era o verde profundo com texto branco. No escuro ele viraria um bloco preto
+   invisivel, entao passa a ser a superficie elevada com borda — o botao
+   discreto da referencia. A acao principal continua sendo a de acento. */
+.bg-\[\#0B1E14\] {
+  background-color: #212121 !important;
+  color: #FCFCFC !important;
+  border: 1px solid #2E2E2E;
+}
+
+.bg-\[\#0B1E14\]\/5,
+.bg-\[\#0B1E14\]\/10 { background-color: rgba(215, 255, 103, 0.10) !important; }
+
+/* O trilho de navegacao e a identidade usam o verde como fundo do item aceso:
+   ali o aceso vira limao, que e como a referencia marca a secao atual. */
+aside .bg-\[\#0B1E14\],
+nav .bg-\[\#0B1E14\] {
+  background-color: #D7FF67 !important;
+  color: #0A0A0A !important;
+  border: none;
+}
+
+/* ── Campos ── */
+input, select, textarea {
+  background-color: #161616;
+  color: #FCFCFC;
+  border-color: #2E2E2E;
+}
+
+input::placeholder, textarea::placeholder { color: #6B6B6B; }
+
+input:focus, select:focus, textarea:focus {
+  border-color: #D7FF67 !important;
+  outline: none;
+}
+
+/* ── Estados ──
+   Os semanticos continuam existindo, em versao que se le no escuro. */
+.bg-emerald-50, .bg-emerald-100 { background-color: rgba(110, 231, 163, 0.12) !important; }
+.text-emerald-600, .text-emerald-700, .text-emerald-800 { color: #6EE7A3 !important; }
+.bg-rose-50, .bg-rose-100 { background-color: rgba(240, 138, 138, 0.12) !important; }
+.text-rose-600, .text-rose-700, .text-rose-800 { color: #F08A8A !important; }
+.bg-amber-50, .bg-amber-100 { background-color: rgba(229, 183, 104, 0.12) !important; }
+.text-amber-600, .text-amber-700, .text-amber-800 { color: #E5B768 !important; }
+
+/* ── Tabelas ── */
+thead tr, tbody tr { border-color: #262626 !important; }
+tbody tr:hover { background-color: #1C1C1C !important; }
+
+/* ── Divisorias soltas ── */
+.divide-\[\#E8E4DA\] > * + *,
+.divide-stone-200 > * + * { border-color: #262626 !important; }
