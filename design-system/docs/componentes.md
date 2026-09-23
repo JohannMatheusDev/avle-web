@@ -226,7 +226,7 @@ itens; o que passar disso vai para uma folha "Mais".
 ```
 
 **Tabs**: abas de filtro com contagem e rolagem lateral; a ativa fica
-invertida (branco sobre o escuro).
+invertida (verde-tinta com texto branco).
 
 ```tsx
 <Tabs items={[{ value: 'todas', label: 'Todas', count: 128 }, { value: 'atraso', label: 'Em atraso', count: 6 }]} value={aba} onChange={setAba} />

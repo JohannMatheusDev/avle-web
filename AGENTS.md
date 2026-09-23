@@ -22,7 +22,7 @@ aparecem sem cor, e o que ainda diverge do visual no ar.
 - **As cores são as da AVLE**: verde-tinta (`--primary`) para ação e seleção,
   terracota (`--accent`) para destaque, papel e bege nas superfícies. Tema único,
   claro.
-- **Não mexa nos painéis** (`app/dashboard`) nem na camada de tema escuro do
+- **Não mexa nos painéis** (`app/dashboard`) nem nos tons do `@theme` do
   `app/globals.css` quando o trabalho for no design system. Eles ficam como estão.
 - Não mexa em `design-system/referencia/`: são as páginas aprovadas,
   congeladas, e não código do app.

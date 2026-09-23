@@ -435,8 +435,16 @@ Regras deste projeto, reunidas das seções acima.
 
 ## Os painéis que estão no ar
 
-Os painéis **não usam** este design system e continuam como estão: um tema
-escuro próprio em `app/globals.css`, com o verde-limão `#D7FF67` como acento.
-Os tokens `--color-escuro-*` e `--color-limao` de lá não fazem parte deste
-contrato. Uma tela que for migrada para o design system passa a aparecer na
-paleta clara da AVLE descrita aqui.
+Os painéis **ainda não usam** os componentes deste design system, mas estão na
+mesma paleta: os tons do `@theme` de `app/globals.css` são os tokens daqui com
+outro nome. Tela que migrar troca as classes do Tailwind pelos componentes, e
+a cor não muda.
+
+| Painéis (`@theme`) | Valor | Aqui |
+| --- | --- | --- |
+| `--color-painel-tinta` | `#0B1E14` | `primary`, `text-primary` |
+| `--color-painel-acento` | `#BD6B42` | `accent` |
+| `--color-painel-borda` | `#E8E4DA` | `border-default` |
+| `--color-painel-papel` | `#F5F2EB` | `bg-app` |
+| `--color-avle-bege` | `#F7F4EB` | `surface-raised` |
+| `--color-avle-verde` | `#1C3F24` | `primary-hover`, `surface-brand` |

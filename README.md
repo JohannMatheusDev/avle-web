@@ -54,7 +54,8 @@ renderizado fica em `/design-system`.
 As cores são as da própria AVLE: papel, bege, terracota e o verde-tinta da marca.
 Tela nova nasce com os componentes de `@/design-system`, e cor, fonte,
 espaçamento e raio saem de token, nunca de valor escrito à mão. Os painéis que
-estão no ar continuam como estão, no tema escuro de `app/globals.css`. Como usar, como criar um componente e o que
+estão no ar usam a mesma paleta, pelos tons do `@theme` de `app/globals.css`,
+mas ainda não usam os componentes. Como usar, como criar um componente e o que
 ainda diverge do visual no ar estão em
 [design-system/README.md](design-system/README.md).
 

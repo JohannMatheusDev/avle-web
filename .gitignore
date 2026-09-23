@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Marcadores do iCloud: o Desktop sincroniza, e o iCloud troca arquivo que
+# ficou sem uso por um marcador .icloud. Versionar o marcador apagou o video
+# da abertura (public/videos/intro.mp4) uma vez.
+*.icloud

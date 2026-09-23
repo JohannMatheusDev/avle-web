@@ -8,9 +8,9 @@
    Fica em `@layer base`, a mesma camada do preflight do Tailwind: assim um
    utilitário posto no elemento (`text-white`, `bg-...`) continua ganhando
    da base, como ganharia sem o design system. Os componentes (`av-*`) ficam
-   fora de camada de propósito — a camada de tema escuro do `globals.css`
-   também não tem camada e pinta todo `input` de #161616; em camada, os
-   campos do design system perderiam para ela. */
+   fora de camada, como vieram do export: o desenho deles ganha de qualquer
+   utilitário do Tailwind com a mesma propriedade, e ajuste de layout
+   (margem, largura) continua livre porque o componente não define essas. */
 @layer base{
 .avle-ds{background:var(--bg-app);color:var(--text-primary);font-family:var(--font-sans);font-size:var(--text-sm);line-height:var(--leading-normal);-webkit-font-smoothing:antialiased}
 
