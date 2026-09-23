@@ -13,9 +13,9 @@ veio com a paleta da referência visual (pretos e verde-limão), e ela foi
 trocada. Tema único, claro.
 
 > **Estado atual:** o design system está carregado no app, mas **nenhuma tela do
-> produto o usa ainda**; só a vitrine (`/design-system`). Os painéis continuam
-> como estão, no tema escuro próprio de `app/globals.css`, que o design system
-> não toca.
+> produto o usa ainda**; só a vitrine (`/design-system`). Os painéis usam as
+> classes do Tailwind com os tons do `@theme` de `app/globals.css` — a mesma
+> paleta da AVLE daqui, ainda sem os componentes.
 > Veja [O que ainda não bate](#o-que-ainda-não-bate) antes de migrar uma tela.
 
 ## Onde fica cada coisa
@@ -104,7 +104,7 @@ A cascata ficou assim:
 | Camada | O quê | Por quê |
 | --- | --- | --- |
 | `@layer base` | `tokens/base.css` | Utilitários do Tailwind no elemento continuam ganhando da base |
-| sem camada | tokens e `components.css` | A camada de tema escuro de `globals.css` também não tem camada e pinta todo `input`; em camada, os campos do design system perderiam para ela dentro de uma tela dos painéis |
+| sem camada | tokens e `components.css` | Como vieram do export: o desenho do componente ganha de utilitário do Tailwind com a mesma propriedade; margem e largura continuam livres |
 
 ## Como criar um componente
 
@@ -127,8 +127,7 @@ A cascata ficou assim:
 
 ## Vitrine
 
-A rota `/design-system` (`app/design-system/`) desenha a biblioteca inteira duas
-vezes, no escuro e no claro: cada componente com as variantes e os estados
+A rota `/design-system` (`app/design-system/`) desenha a biblioteca inteira: cada componente com as variantes e os estados
 (padrão, hover, foco, pressionado, desativado, erro, vazio, selecionado), os
 templates e as cores. Ela usa o código atual, dentro do Next, ao contrário das
 referências, que são o desenho congelado. Fica fora dos buscadores.
@@ -181,9 +180,10 @@ internet.
 
 Decisões que ficaram para quem decide o visual, sem mudança no código:
 
-- **Os painéis no ar são escuros.** Eles ficaram como estão: tema escuro com o
-  verde-limão `#D7FF67`. O design system é claro, na paleta da AVLE. Uma tela
-  migrada vai aparecer clara, diferente das que ainda não migraram.
+- **Os painéis ainda não usam os componentes.** Eles voltaram às cores da AVLE
+  de antes do visual escuro, que são as mesmas daqui, mas continuam com as
+  classes do Tailwind escritas à mão. Migrar é trocar essas classes pelos
+  componentes, tela por tela.
 - **Contraste da terracota.** Texto branco sobre `#BD6B42` dá 3,93:1, abaixo dos
   4,5:1 do WCAG AA para texto pequeno (passa nos 3:1 de texto grande e ícone).
   Aparece na faixa de aviso (Insight), no badge sólido, na pílula de acento e no

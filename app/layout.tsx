@@ -5,7 +5,8 @@ import AvisoCookies from "./components/AvisoCookies";
 
 // A tipografia da referencia escolhida. Geometrica e de terminacoes redondas,
 // ela carrega a personalidade que o Inter nao tem - e continua legivel na
-// tabela de parcelas, que e onde a loja passa o dia.
+// tabela de parcelas, que e onde a loja passa o dia. Ficou quando as cores
+// voltaram a ser as da AVLE: a troca de volta foi so de cor.
 const urbanist = Urbanist({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
@@ -28,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       
-      <body className={`${urbanist.className} ${urbanist.variable} bg-[#0A0A0A] antialiased`}>
+      <body className={`${urbanist.className} ${urbanist.variable} bg-avle-bege antialiased`}>
         {children}
         <AvisoCookies />
       </body>
