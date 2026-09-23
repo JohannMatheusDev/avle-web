@@ -1,0 +1,6 @@
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg-app);color:var(--text-primary);font-family:var(--font-sans);font-size:var(--text-sm);line-height:var(--leading-normal);-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink);text-decoration:none}a:hover{text-decoration:underline;text-underline-offset:3px}
+button,input,select,textarea{font:inherit;color:inherit}
+::selection{background:var(--accent);color:var(--text-on-accent)}

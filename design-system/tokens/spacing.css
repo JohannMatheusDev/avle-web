@@ -1,0 +1,7 @@
+.avle-ds{
+--space-0:0;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-7:28px;--space-8:32px;--space-10:40px;--space-12:48px;--space-16:64px;
+--radius-xs:8px;--radius-sm:12px;--radius-md:16px;--radius-lg:20px;--radius-xl:28px;--radius-2xl:36px;--radius-pill:999px;
+--card-padding:24px;--card-padding-mobile:18px;--grid-gap:16px;
+--control-sm:32px;--control-md:40px;--control-lg:48px;
+--nav-height:72px;--bottom-nav-height:64px;--content-max:1440px;
+}

@@ -1,0 +1,27 @@
+<!-- @dsCard group="Admin (Platform dashboard)" viewport="1440x900" name="Admin dashboard" subtitle="Marketplace KPIs, store approvals, users, disputes — responsive" -->
+<!doctype html><html lang="pt-BR" class="avle-ds"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AVLE · Admin</title>
+<link rel="stylesheet" href="../../styles.css">
+<script>document.documentElement.setAttribute('data-theme',localStorage.getItem('avle-theme')||'dark')</script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../runtime/ds-bundle.js"></script>
+<script type="text/babel" src="../shared/AppShell.jsx"></script>
+<script type="text/babel" src="AdminOverview.jsx"></script>
+<script type="text/babel" src="AdminStores.jsx"></script>
+<script type="text/babel" src="AdminMore.jsx"></script>
+</head><body><div id="root"></div>
+<script type="text/babel">
+
+const GROUPS=[{items:[{value:'visao',label:'Visão geral',icon:'layout-dashboard'}]},{label:'Operação',items:[{value:'lojas',label:'Lojas',icon:'store',count:3},{value:'usuarios',label:'Usuários',icon:'users'},{value:'disputas',label:'Disputas',icon:'shield-alert',count:3}]}];
+const FLAT=[{value:'visao',label:'Visão geral',icon:'layout-dashboard'},{value:'lojas',label:'Lojas',icon:'store',badge:true},{value:'usuarios',label:'Usuários',icon:'users'},{value:'disputas',label:'Disputas',icon:'shield-alert',badge:true}];
+function App(){
+  const [theme,setTheme]=useTheme();
+  const [page,setPageRaw]=React.useState(()=>localStorage.getItem('avle-admin-page')||'visao');
+  const setPage=(p)=>{setPageRaw(p);localStorage.setItem('avle-admin-page',p);};
+  const [toast,toastNode]=useToast();
+  const P={visao:AdminOverview,lojas:AdminStores,usuarios:AdminUsers,disputas:AdminDisputes}[page]||AdminOverview;
+  return <SideShell groups={GROUPS} flat={FLAT} page={page} setPage={setPage} user="Helena Prado" theme={theme} setTheme={setTheme}><P go={setPage} toast={toast}/>{toastNode}</SideShell>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script></body></html>

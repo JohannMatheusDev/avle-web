@@ -1,0 +1,141 @@
+/* Diagramação da vitrine. Só tokens do design system: esta rota é a primeira
+   página feita inteira dentro dele, e serve de exemplo de como se escreve uma. */
+
+.vitrine {
+  min-height: 100vh;
+  padding: var(--space-8) var(--space-7) var(--space-16);
+}
+
+.vitrine__topo {
+  max-width: var(--content-max);
+  margin: 0 auto var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.vitrine__topo h1 {
+  font: var(--type-display);
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+}
+
+.vitrine__topo p {
+  color: var(--text-secondary);
+  margin: 0;
+  max-width: 720px;
+}
+
+.vitrine__corpo {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.vitrine__catalogo {
+  border-radius: var(--radius-2xl);
+  padding: var(--space-8);
+  box-shadow: inset 0 0 0 1px var(--border-default);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+.vitrine__catalogo > header h2 {
+  font: var(--type-page-title);
+  margin: 0;
+}
+
+.vitrine__secao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.vitrine__secao > h3 {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+/* Uma linha de amostras: o nome do estado à esquerda, as peças à direita. */
+.vitrine__linha {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+/* Espaço para a dica forçada, que abre para cima. */
+.vitrine__linha--alta { padding-top: var(--space-8); }
+
+.vitrine__celula { display: block; }
+.vitrine__celula > .av-card { height: 100%; }
+
+.vitrine__coluna {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+.vitrine__rotulo {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.vitrine__pecas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  min-width: 0;
+}
+
+/* Moldura para o que é `position: fixed` (diálogo, toast, casca da tela).
+   O `transform` faz a moldura virar a referência do `fixed`: o diálogo abre
+   dentro dela, e não por cima da vitrine inteira. */
+.vitrine__moldura {
+  position: relative;
+  transform: translateZ(0);
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  box-shadow: inset 0 0 0 1px var(--border-default);
+  background: var(--bg-app);
+}
+
+.vitrine__moldura--dialogo { height: 380px; }
+.vitrine__moldura--casca { height: 560px; overflow: auto; }
+
+.vitrine__cor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  width: 132px;
+}
+
+.vitrine__cor span:first-child {
+  height: 56px;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--border-default);
+}
+
+.vitrine__nota {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 720px) {
+  .vitrine { padding: var(--space-4) var(--space-3) var(--space-16); }
+  .vitrine__catalogo { padding: var(--space-4); }
+  .vitrine__linha { grid-template-columns: 1fr; gap: var(--space-2); }
+}

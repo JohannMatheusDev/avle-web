@@ -1,0 +1,20 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Feedback" subtitle="Insight, Toast, Tooltip/Tag, Dialog" -->
+<!doctype html><html class="avle-ds"><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../runtime/ds-bundle.js"></script>
+<style>body{padding:24px;background:var(--bg-app)}.r{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.c{display:flex;flex-direction:column;gap:18px}.lbl{font-size:11px;color:var(--text-tertiary);letter-spacing:.08em;text-transform:uppercase;width:80px;flex:none}</style>
+</head><body><div id="root"></div><script type="text/babel">
+const NS=window.AVLEDesignSystem_11270f;
+
+const {Insight,Toast,Tooltip,Tag,IconButton,Button,Dialog}=NS;
+function App(){const [o,so]=React.useState(false);return <div className="c">
+<Insight title="Estoque baixo em 3 produtos" onClick={()=>{}}>Reponha antes de sexta para não perder vendas</Insight>
+<Insight muted icon="truck" title="12 pedidos aguardando envio">Prazo médio vence amanhã</Insight>
+<div className="r"><Toast action="Desfazer">Pedido marcado como enviado</Toast><Toast tone="negative">Falha no pagamento</Toast></div>
+<div className="r"><Tag accent>R$ 16.021</Tag><Tag>R$ 920</Tag><Tooltip content="Exportar CSV"><IconButton icon="download" label="Exportar"/></Tooltip><Button variant="secondary" size="sm" onClick={()=>so(true)}>Abrir diálogo</Button></div>
+<Dialog open={o} onClose={()=>so(false)} title="Recusar loja?" description="O lojista receberá o motivo por e-mail." footer={<><Button variant="ghost" onClick={()=>so(false)}>Cancelar</Button><Button variant="danger" onClick={()=>so(false)}>Recusar</Button></>}/>
+</div>}
+ReactDOM.createRoot(root).render(<App/>);
+</script></body></html>
