@@ -99,3 +99,121 @@
     border-radius: 18px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   DESENHO DO DESIGN SYSTEM NOS PAINEIS
+   ═══════════════════════════════════════════════════════════════
+
+   Os paineis, o login e o convite ganham o desenho do design system
+   (`DESIGN.md`) sem trocar de cor: as cores continuam as da AVLE, que ja
+   sao as mesmas do design system. O que muda e a forma — canto, sombra,
+   pilula, peso de titulo, numero.
+
+   E uma camada, e nao uma reescrita tela por tela, pelo mesmo motivo da
+   camada escura que existiu antes: as telas tem a forma escrita direto na
+   classe (106 `rounded-xl`, 348 `uppercase`, 176 `font-mono`) em arquivos de
+   milhares de linhas. Tudo fica preso a `.fundo-painel`, a raiz dessas telas;
+   a fatura e o resto do site nao mudam.
+
+   Os valores sao os tokens do DESIGN.md (`rounded`, `effects.shadow-card`).
+   Ficam aqui repetidos, e nao importados, porque os tokens do design system
+   so existem dentro de `.avle-ds` — la eles tem os mesmos nomes do Tailwind
+   (`--radius-xl`), e soltos mudariam o site inteiro.
+   ─────────────────────────────────────────────────────────────── */
+:root {
+  --painel-raio-cartao: 28px;  /* rounded.xl */
+  --painel-raio-bloco: 20px;   /* rounded.lg */
+  --painel-raio-peca: 16px;    /* rounded.md */
+  --painel-raio-miudo: 12px;   /* rounded.sm */
+  --painel-raio-pilula: 999px; /* rounded.pill */
+  --painel-sombra-cartao: 0 0 0 1px rgba(11, 30, 20, 0.05), 0 1px 2px rgba(11, 30, 20, 0.04), 0 22px 44px -34px rgba(11, 30, 20, 0.55); /* effects.shadow-card */
+}
+
+/* ── Fundo e cartoes ──
+   O design system usa fundo liso, sem degrade: o papel da AVLE. O cartao
+   perde a borda e fica so com a linha quase invisivel da sombra. */
+.fundo-painel {
+  background-color: var(--color-painel-papel);
+  background-image: none;
+}
+
+.cartao-avle {
+  border: 0;
+  border-radius: var(--painel-raio-cartao);
+  box-shadow: var(--painel-sombra-cartao);
+}
+
+.cartao-avle-destaque {
+  background-image: none;
+  border: 0;
+  border-radius: var(--painel-raio-cartao);
+}
+
+.cartao-avle-liso {
+  background-color: var(--color-avle-bege);
+  border: 0;
+  border-radius: var(--painel-raio-bloco);
+}
+
+/* ── Cantos ──
+   Uma escala acima da do Tailwind, como a do design system: bloco interno
+   de 16 a 20px, cartao de 28px. */
+.fundo-painel .rounded-lg { border-radius: var(--painel-raio-miudo); }
+.fundo-painel .rounded-xl { border-radius: var(--painel-raio-peca); }
+.fundo-painel .rounded-2xl { border-radius: var(--painel-raio-bloco); }
+.fundo-painel :is(.rounded-3xl, .rounded-\[24px\]) { border-radius: var(--painel-raio-cartao); }
+
+/* Tudo que e clicavel vira pilula. So o botao baixo (py de 1 a 3.5): botao
+   alto com canto e cartao clicavel, e virar pilula o deformaria. Os botoes
+   que ja eram `rounded-full` ficam como estao. */
+.fundo-painel button:is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.py-1, .py-1\.5, .py-2, .py-2\.5, .py-3, .py-3\.5) {
+  border-radius: var(--painel-raio-pilula);
+}
+
+.fundo-painel :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]), select) {
+  border-radius: var(--painel-raio-pilula);
+}
+
+.fundo-painel textarea { border-radius: var(--painel-raio-bloco); }
+
+/* ── Tipografia ──
+   Titulo leve, nunca em negrito: a hierarquia vem do tamanho. So Urbanist —
+   o serifado fica para a arte do logo. O "AVLE" escrito do login, que tem
+   `tracking-widest`, e a marca, e nao um titulo, e fica de fora. */
+.fundo-painel :is(h1, h2, h3):not(.tracking-widest) {
+  font-family: inherit;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.fundo-painel h4:not(.tracking-widest) {
+  font-family: inherit;
+  font-weight: 500;
+}
+
+/* Numero em Urbanist semibold com algarismos de largura fixa, no lugar da
+   fonte mono: a coluna de valores continua alinhada. */
+.fundo-painel .font-mono {
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Maiuscula so na primeira letra, como o design system pede. O rotulo que
+   era caixa alta espacada volta a ser escrito como foi digitado, sem o
+   espacamento largo nem o negrito pesado. */
+.fundo-painel .uppercase {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.fundo-painel .uppercase:is(.font-bold, .font-black, .font-extrabold) {
+  font-weight: 500;
+}
+
+/* Rotulo miudo: em caixa alta espacada, 9 e 10px ainda se liam; sem o
+   espacamento, somem. Sobem ao menor tamanho de rotulo do design system. */
+.fundo-painel .uppercase:is(.text-\[9px\], .text-\[10px\]) {
+  font-size: 12px; /* typography.text-xs */
+}

@@ -436,9 +436,11 @@ Regras deste projeto, reunidas das seções acima.
 ## Os painéis que estão no ar
 
 Os painéis **ainda não usam** os componentes deste design system, mas estão na
-mesma paleta: os tons do `@theme` de `app/globals.css` são os tokens daqui com
-outro nome. Tela que migrar troca as classes do Tailwind pelos componentes, e
-a cor não muda.
+mesma paleta e já têm o desenho dele: uma camada no fim de `app/globals.css`,
+presa a `.fundo-painel`, dá às classes antigas os cantos, a sombra, as pílulas,
+os títulos leves e os números em Urbanist daqui. Os tons do `@theme` de lá são
+os tokens daqui com outro nome. Tela que migrar troca as classes do Tailwind
+pelos componentes, e nem a cor nem a forma mudam.
 
 | Painéis (`@theme`) | Valor | Aqui |
 | --- | --- | --- |
