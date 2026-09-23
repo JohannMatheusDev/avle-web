@@ -1,0 +1,16 @@
+/* Profundidade e movimento. As sombras são as do cartão dos painéis no visual
+   claro: uma linha quase invisível e uma sombra longa e rasa, tingidas do
+   verde-tinta em vez de preto. */
+.avle-ds{
+--shadow-card:0 0 0 1px rgba(11,30,20,.05),0 1px 2px rgba(11,30,20,.04),0 22px 44px -34px rgba(11,30,20,.55);
+--shadow-pill:inset 0 1px 0 rgba(255,255,255,.9),0 1px 3px rgba(11,30,20,.08);
+--shadow-pop:0 24px 48px -12px rgba(11,30,20,.18),0 0 0 1px rgba(11,30,20,.06);
+--shadow-accent-glow:0 0 24px rgba(189,107,66,.35);
+--gradient-pill:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,0));
+--gradient-accent-bar:linear-gradient(180deg,#BD6B42 0%,rgba(189,107,66,.15) 100%);
+--gradient-bar-muted:linear-gradient(180deg,#E8E4DA 0%,rgba(232,228,218,0) 100%);
+--hatch:repeating-linear-gradient(135deg,rgba(11,30,20,.14) 0 2px,transparent 2px 7px);
+--blur-overlay:blur(16px);--scrim:rgba(11,30,20,.35);
+--ease-out:cubic-bezier(.2,.8,.2,1);--ease-in-out:cubic-bezier(.65,0,.35,1);
+--dur-fast:120ms;--dur-base:200ms;--dur-slow:320ms;
+}

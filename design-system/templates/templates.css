@@ -1,0 +1,37 @@
+/* Padrões de composição das telas: grade de 12 colunas, cabeçalho de página,
+   etapas, cascas com navegação. Veio do `ui_kits/shared/kit.css` do export e
+   é o mesmo arquivo que as telas de referência carregam — uma cópia só.
+
+   Grade: `.g` no contêiner, `.s3` a `.s12` nos filhos. Abaixo de 1100px o que
+   era 3, 4 ou 5 colunas passa a 6; abaixo de 720px tudo vai a 12, e `.m-half`
+   mantém um `.s3` pela metade. */
+.kit-main{max-width:var(--content-max);margin:0 auto;padding:var(--space-2) var(--space-7) var(--space-12)}
+.kit-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:var(--space-2) 0 22px}
+.kit-head h1{font-size:var(--text-h2);font-weight:400;margin:0;line-height:1.2;letter-spacing:-.01em;flex:1;min-width:200px}
+.kit-head h1 small{display:block;font-size:13px;color:var(--text-tertiary);letter-spacing:0;margin-top:2px}
+.kit-tools{display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap}
+.g{display:grid;gap:var(--grid-gap);grid-template-columns:repeat(12,minmax(0,1fr))}
+.s3{grid-column:span 3}.s4{grid-column:span 4}.s5{grid-column:span 5}.s6{grid-column:span 6}.s7{grid-column:span 7}.s8{grid-column:span 8}.s12{grid-column:span 12}
+.kit-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.kit-muted{color:var(--text-tertiary);font-size:var(--text-xs)}
+.kit-ph{border-radius:var(--radius-lg);background:linear-gradient(160deg,var(--surface-raised),var(--surface-sunken));display:grid;place-items:center;color:var(--text-tertiary);aspect-ratio:4/3;position:relative;overflow:hidden}
+.kit-ph::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 70% 20%,var(--accent-glow),transparent 60%)}
+.kit-steps{display:flex;align-items:center;gap:0}
+.kit-step{display:flex;flex-direction:column;align-items:center;gap:var(--space-2);flex:1;font-size:var(--text-xs);color:var(--text-tertiary);position:relative;text-align:center}
+.kit-step__dot{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--surface-raised);color:var(--text-tertiary);position:relative;z-index:1}
+.kit-step--done .kit-step__dot{background:var(--primary);color:var(--text-on-primary)}
+.kit-step--done{color:var(--text-primary)}
+.kit-step:not(:last-child)::after{content:"";position:absolute;top:14px;left:calc(50% + 14px);right:calc(-50% + 14px);height:2px;background:var(--border-default)}
+.kit-step--done:not(:last-child)::after{background:var(--primary)}
+.kit-layout{display:flex;min-height:100vh}
+.kit-side{position:sticky;top:0;height:100vh;border-right:1px solid var(--border-subtle);background:var(--surface-sunken)}
+@media (min-width:1101px){.kit-layout .av-topnav__brand{display:none}}
+@media (max-width:1100px){.s3,.s4,.s5{grid-column:span 6}.s6,.s7,.s8{grid-column:span 12}.kit-main{padding-bottom:110px}.kit-side{display:none}}
+@media (max-width:720px){.kit-main{padding:var(--space-1) 14px 110px}.g{gap:var(--space-3)}.s3,.s4,.s5,.s6{grid-column:span 12}.s3.m-half{grid-column:span 6}.kit-head h1{font-size:26px}.kit-head{margin:var(--space-1) 0 14px}.kit-desktop-only{display:none!important}}
+
+/* Partes da SideShell que eram estilo inline no export. */
+.kit-layout__main{flex:1;min-width:0}
+.kit-side__brand{padding:6px var(--space-3) var(--space-3);display:flex;align-items:center;gap:10px}
+.kit-side__user{display:flex;align-items:center;gap:10px;padding:var(--space-3);border-radius:var(--radius-md);background:var(--surface-card)}
+.kit-side__user-main{flex:1;min-width:0}
+.kit-side__user-name{font-size:13px;font-weight:500}

@@ -1,0 +1,17 @@
+/* Entrada das páginas de referência: o CSS original do export, congelado.
+
+   O design system do app passou a usar a paleta da própria AVLE (bege,
+   terracota, verde-tinta). Estas páginas continuam mostrando o que o Claude
+   Design entregou, com a paleta da referência visual — por isso carregam uma
+   cópia do CSS do export, em `runtime/estilo-original/`, e não o do app. É a
+   mesma lógica do `runtime/ds-bundle.js`: o desenho aprovado, que não muda
+   quando o código muda. Com os tokens do app, as guidelines de cor quebrariam,
+   porque pintam tokens (`--avle-sprout`, `--ink-*`) que o app não tem mais. */
+@import url('fonts.css');
+@import url('runtime/estilo-original/tokens/colors.css');
+@import url('runtime/estilo-original/tokens/typography.css');
+@import url('runtime/estilo-original/tokens/spacing.css');
+@import url('runtime/estilo-original/tokens/effects.css');
+@import url('runtime/estilo-original/tokens/base.css');
+@import url('runtime/estilo-original/components.css');
+@import url('runtime/estilo-original/kit.css');

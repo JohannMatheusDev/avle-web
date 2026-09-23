@@ -1,0 +1,26 @@
+/* Estilos de base do design system, presos ao escopo `.avle-ds`.
+
+   No export original isto mirava `body`, `a` e `button` direto. Carregado
+   no app, mudaria a fonte, o tamanho e a cor dos links de todas as telas que
+   ainda não usam o design system — o login, o convite, a fatura. Preso ao
+   escopo, só vale onde alguém escolheu entrar nele.
+
+   Fica em `@layer base`, a mesma camada do preflight do Tailwind: assim um
+   utilitário posto no elemento (`text-white`, `bg-...`) continua ganhando
+   da base, como ganharia sem o design system. Os componentes (`av-*`) ficam
+   fora de camada de propósito — a camada de tema escuro do `globals.css`
+   também não tem camada e pinta todo `input` de #161616; em camada, os
+   campos do design system perderiam para ela. */
+@layer base{
+.avle-ds{background:var(--bg-app);color:var(--text-primary);font-family:var(--font-sans);font-size:var(--text-sm);line-height:var(--leading-normal);-webkit-font-smoothing:antialiased}
+
+/* O escopo vai dentro de `:where()` para não somar especificidade. Escrito
+   como `.avle-ds button`, o `color: inherit` daqui passava a valer mais que
+   `.av-btn--primary` e o texto do botão principal saía claro sobre o verde,
+   ilegível — o mesmo com a aba acesa. Com `:where()` cada regra pesa o mesmo
+   que pesava no original, sem o escopo. */
+:where(.avle-ds) *,:where(.avle-ds) *::before,:where(.avle-ds) *::after{box-sizing:border-box}
+:where(.avle-ds) a{color:var(--accent-ink);text-decoration:none}:where(.avle-ds) a:hover{text-decoration:underline;text-underline-offset:3px}
+:where(.avle-ds) :where(button,input,select,textarea){font:inherit;color:inherit}
+:where(.avle-ds) ::selection{background:var(--accent);color:var(--text-on-accent)}
+}

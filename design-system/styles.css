@@ -1,0 +1,22 @@
+/* Ponto de entrada do design system para o app. É importado uma vez, em
+   `app/globals.css`.
+
+   Nenhum token daqui mora no `:root`. Todos ficam presos à classe `.avle-ds`
+   porque o design system usa os mesmos nomes de variável que o Tailwind 4
+   (`--radius-xl`, `--leading-relaxed`, `--tracking-wide`, `--font-sans`,
+   `--ease-out`) com valores diferentes. Soltos no `:root`, eles ganhariam do
+   tema do Tailwind e mudariam telas que ninguém mexeu: o `rounded-xl`, usado
+   151 vezes nos painéis, passaria de 12px para 28px, e o `leading-relaxed`
+   de 1.625 para 1.6.
+
+   Para usar: ponha `className="avle-ds"` no elemento que envolve a tela.
+   O tema claro entra com `data-theme="light"` nele ou em qualquer ancestral.
+   Dentro do escopo, os utilitários do Tailwind com o mesmo nome passam a
+   seguir o design system — `rounded-xl` vira os 28px dos cartões. */
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";
+@import "./tokens/effects.css";
+@import "./tokens/base.css";
+@import "./components/components.css";
+@import "./templates/templates.css";

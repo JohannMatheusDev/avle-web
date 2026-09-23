@@ -1,0 +1,16 @@
+.avle-ds{
+--font-sans:var(--font-urbanist,'Urbanist'),ui-sans-serif,system-ui,sans-serif;
+--font-mono:'JetBrains Mono',ui-monospace,monospace;
+--weight-light:300;--weight-regular:400;--weight-medium:500;--weight-semibold:600;--weight-bold:700;
+/* Scale from brand spec: 48 / 40 / 32 / 24 / 16 / 14 / 12 (+ 20, 18, 11 for UI density) */
+--text-display:48px;--text-h1:40px;--text-h2:32px;--text-h3:24px;--text-h4:20px;--text-lg:18px;--text-md:16px;--text-sm:14px;--text-xs:12px;--text-2xs:11px;
+--leading-tight:1.1;--leading-snug:1.25;--leading-normal:1.45;--leading-relaxed:1.6;
+--tracking-tight:-0.02em;--tracking-normal:0;--tracking-wide:0.04em;
+/* roles */
+--type-display:var(--weight-regular) var(--text-display)/var(--leading-tight) var(--font-sans);
+--type-page-title:var(--weight-regular) var(--text-h2)/var(--leading-snug) var(--font-sans);
+--type-card-title:var(--weight-regular) var(--text-h4)/var(--leading-snug) var(--font-sans);
+--type-body:var(--weight-regular) var(--text-sm)/var(--leading-normal) var(--font-sans);
+--type-label:var(--weight-medium) var(--text-xs)/var(--leading-snug) var(--font-sans);
+--type-metric:var(--weight-semibold) var(--text-h2)/1 var(--font-sans);
+}

@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AVLE: frontend
 
-## Getting Started
+Site e painéis da AVLE, o clube de compras planejado: a loja monta grupos, a
+cliente entra numa cota e paga em parcelas. É o app Next.js que conversa com a
+API do repositório `avle-api` (Spring Boot).
 
-First, run the development server:
+## Rodando
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev          # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+A única variável de ambiente é `NEXT_PUBLIC_API_URL`, em `.env.local`. Sem ela,
+o app aponta para `https://api.avle.com.br`, a API de produção.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Script | O que faz |
+| --- | --- |
+| `npm run dev` | servidor de desenvolvimento |
+| `npm run build` | build de produção |
+| `npm run lint` | ESLint, com as regras de aderência ao design system |
+| `npm run design-system` | serve as páginas de referência do design system em `http://localhost:4400/referencia/` |
+| `npm run design-system:conferir` | confere se os tokens do CSS batem com o `DESIGN.md` |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Estrutura
 
-## Learn More
+```
+app/
+├── page.tsx               entrada e login
+├── dashboard/             os três painéis (loja, cliente, admin) e a casca comum
+├── convite/[id]/          cadastro pelo link de convite da loja
+├── fatura/                faturas da cliente
+├── admin/                 painel administrativo da plataforma
+├── previa-visual/         os painéis com dados de exemplo, sem precisar logar
+├── design-system/         vitrine do design system (rota /design-system)
+├── components/            componentes usados por mais de uma rota
+└── lib/                   regras e acesso à API (api.ts é a porta única de saída)
+design-system/             tokens, componentes, templates e referências visuais (ver o README de lá)
+DESIGN.md                  contrato visual e fonte da verdade dos tokens
+docs/                      contratos de API entre este repositório e o avle-api
+```
 
-To learn more about Next.js, take a look at the following resources:
+Toda chamada à API passa por `apiFetch`, em `app/lib/api.ts`. A sessão é um
+cookie httpOnly, e uma chamada feita fora dele sai sem sessão.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Design system
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+O contrato visual é o [DESIGN.md](DESIGN.md), no formato aberto do Google
+Stitch: ele é a fonte da verdade dos tokens. A implementação está em
+`design-system/`: os tokens, os 34 componentes, os templates de composição e as
+páginas de referência visual que vieram do Claude Design. A vitrine com tudo
+renderizado fica em `/design-system`.
 
-## Deploy on Vercel
+As cores são as da própria AVLE: papel, bege, terracota e o verde-tinta da marca.
+Tela nova nasce com os componentes de `@/design-system`, e cor, fonte,
+espaçamento e raio saem de token, nunca de valor escrito à mão. Os painéis que
+estão no ar continuam como estão, no tema escuro de `app/globals.css`. Como usar, como criar um componente e o que
+ainda diverge do visual no ar estão em
+[design-system/README.md](design-system/README.md).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Publicação
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+A Vercel publica a partir de `main`. Dar push numa branch de feature não muda
+nada do que está no ar: a mudança só sai depois do merge em `main`.
+
+## Documentação
+
+- [DESIGN.md](DESIGN.md): contrato visual, tokens e regras de conteúdo e visual
+- [design-system/README.md](design-system/README.md): uso do design system, mapa da biblioteca e como criar um componente
+- [design-system/docs/componentes.md](design-system/docs/componentes.md): catálogo de componentes
+- [docs/fila-de-espera.md](docs/fila-de-espera.md): contrato de API da fila de espera
+- [AGENTS.md](AGENTS.md): instruções para agentes de código (o `CLAUDE.md` importa este arquivo)
+
+## Saiba mais sobre o Next.js
+
+- [Documentação do Next.js](https://nextjs.org/docs): recursos e API.
+- [Learn Next.js](https://nextjs.org/learn): tutorial interativo.
+- [Repositório do Next.js no GitHub](https://github.com/vercel/next.js).
+- [Publicação na Vercel](https://nextjs.org/docs/app/building-your-application/deploying).
+
+A documentação da versão instalada vem junto do pacote, em
+`node_modules/next/dist/docs/`, e é a que vale para este projeto.

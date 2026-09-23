@@ -1,0 +1,27 @@
+<!-- @dsCard group="Loja (Store dashboard)" viewport="1440x900" name="Store dashboard" subtitle="Seller overview, orders, products, finance — responsive" -->
+<!doctype html><html lang="pt-BR" class="avle-ds"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AVLE · Painel da loja</title>
+<link rel="stylesheet" href="../../styles.css">
+<script>document.documentElement.setAttribute('data-theme',localStorage.getItem('avle-theme')||'dark')</script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../runtime/ds-bundle.js"></script>
+<script type="text/babel" src="../shared/AppShell.jsx"></script>
+<script type="text/babel" src="StoreOverview.jsx"></script>
+<script type="text/babel" src="StoreOrders.jsx"></script>
+<script type="text/babel" src="StoreProducts.jsx"></script>
+<script type="text/babel" src="StoreFinance.jsx"></script>
+</head><body><div id="root"></div>
+<script type="text/babel">
+
+const NAV=[{value:'visao',label:'Visão geral',icon:'layout-dashboard'},{value:'pedidos',label:'Pedidos',icon:'package',badge:true},{value:'produtos',label:'Produtos',icon:'tag'},{value:'financeiro',label:'Financeiro',icon:'wallet'}];
+function App(){
+  const [theme,setTheme]=useTheme();
+  const [page,setPageRaw]=React.useState(()=>localStorage.getItem('avle-loja-page')||'visao');
+  const setPage=(p)=>{setPageRaw(p);localStorage.setItem('avle-loja-page',p);};
+  const [toast,toastNode]=useToast();
+  const P={visao:StoreOverview,pedidos:StoreOrders,produtos:StoreProducts,financeiro:StoreFinance}[page]||StoreOverview;
+  return <AppShell role="Loja" nav={NAV} page={page} setPage={setPage} user="Marina Costa" theme={theme} setTheme={setTheme}><P go={setPage} toast={toast}/>{toastNode}</AppShell>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script></body></html>

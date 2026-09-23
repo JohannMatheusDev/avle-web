@@ -1,0 +1,21 @@
+<!-- @dsCard group="Components" viewport="700x420" name="Navigation" subtitle="TopNav, BottomNav, SideNav, Tabs, Logo" -->
+<!doctype html><html class="avle-ds"><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../runtime/ds-bundle.js"></script>
+<style>body{padding:24px;background:var(--bg-app)}.r{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.c{display:flex;flex-direction:column;gap:18px}.lbl{font-size:11px;color:var(--text-tertiary);letter-spacing:.08em;text-transform:uppercase;width:80px;flex:none}</style>
+</head><body><div id="root"></div><script type="text/babel">
+const NS=window.AVLEDesignSystem_11270f;
+
+const {TopNav,BottomNav,SideNav,Tabs,IconButton,Avatar}=NS;
+function App(){const [p,sp]=React.useState('home');const [t,st]=React.useState('all');const [s,ss]=React.useState('lojas');
+return <div className="c" style={{gap:14}}>
+<div style={{border:'1px solid var(--border-subtle)',borderRadius:20,overflow:'hidden'}}><TopNav base="../../" role="Loja" items={[{value:'home',label:'Visão geral'},{value:'ped',label:'Pedidos'},{value:'prod',label:'Produtos'}]} value={p} onChange={sp} end={<><IconButton icon="bell" dot label="Avisos"/><Avatar name="Marina Costa"/></>}/></div>
+<Tabs items={[{value:'all',label:'Todos',count:128},{value:'p',label:'Pendentes',count:6},{value:'e',label:'Enviados'}]} value={t} onChange={st}/>
+<div style={{display:'flex',gap:16,alignItems:'flex-start'}}>
+<div style={{background:'var(--surface-sunken)',borderRadius:20}}><SideNav style={{width:210,padding:10}} groups={[{items:[{value:'visao',label:'Visão geral',icon:'layout-dashboard'},{value:'lojas',label:'Lojas',icon:'store',count:4}]}]} value={s} onChange={ss}/></div>
+<div style={{flex:1}}><BottomNav static items={[{value:'home',label:'Início',icon:'house'},{value:'ped',label:'Pedidos',icon:'package',badge:true},{value:'prod',label:'Produtos',icon:'tag'},{value:'fin',label:'Financeiro',icon:'wallet'}]} value={p==='home'?'home':p} onChange={sp}/></div>
+</div></div>}
+ReactDOM.createRoot(root).render(<App/>);
+</script></body></html>

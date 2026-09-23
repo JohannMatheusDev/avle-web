@@ -1,0 +1,62 @@
+/* Cores do design system: a paleta da própria AVLE.
+
+   O export do Claude Design veio com a paleta da referência visual (pretos
+   em escada e um verde-limão, tirados de um case do Behance). Não era a
+   AVLE. Estes são os tons que os painéis já usavam no visual claro — bege,
+   papel, terracota e o verde da marca —, tirados do `@theme` e das classes
+   de `app/globals.css` e dos painéis. Os de situação (em dia, atraso,
+   pendente) são os mesmos `emerald`, `rose` e `amber` do Tailwind que os
+   painéis usam, no mesmo valor `oklch`, para as duas coisas não destoarem.
+
+   Tema único, claro. O design system não tem tema escuro. */
+.avle-ds{
+/* Marca */
+--avle-tinta:#0B1E14;--avle-tinta-800:#08170F;--avle-verde:#1C3F24;
+--avle-terracota:#BD6B42;--avle-terracota-escuro:#A95A33;--avle-terracota-vivo:#C05A3E;
+--avle-bege:#F7F4EB;--avle-papel:#F5F2EB;--avle-areia:#EFEAE1;--avle-borda:#E8E4DA;--avle-borda-forte:#DFD9CE;
+--avle-texto:#2C2A29;
+/* Neutros (a pedra do Tailwind, que os painéis usam para texto de apoio) */
+--pedra-300:oklch(86.9% 0.005 56.366);--pedra-400:oklch(70.9% 0.01 56.259);--pedra-500:oklch(55.3% 0.013 58.071);--pedra-600:oklch(44.4% 0.011 73.639);
+/* Situação */
+--esmeralda-50:oklch(97.9% 0.021 166.113);--esmeralda-700:oklch(50.8% 0.118 165.612);
+--rosa-50:oklch(96.9% 0.015 12.422);--rosa-600:oklch(58.6% 0.253 17.585);--rosa-700:oklch(51.4% 0.222 16.935);
+--ambar-50:oklch(98.7% 0.022 95.277);--ambar-700:oklch(55.5% 0.163 48.998);
+
+/* ===== Papéis: é isto que os componentes usam ===== */
+--bg-app:var(--avle-papel);
+--surface-card:#FFFFFF;
+--surface-raised:var(--avle-bege);
+--surface-sunken:var(--avle-papel);
+--surface-hover:var(--avle-areia);
+--surface-inverse:var(--avle-tinta);
+--surface-brand:var(--avle-verde);
+--border-subtle:rgba(11,30,20,.05);
+--border-default:var(--avle-borda);
+--border-strong:var(--avle-borda-forte);
+--text-primary:var(--avle-tinta);
+--text-secondary:var(--pedra-500);
+--text-tertiary:var(--pedra-400);
+--text-disabled:var(--pedra-300);
+--text-inverse:#FFFFFF;
+/* Ação principal: o verde-tinta, como o botão principal dos painéis. */
+--primary:var(--avle-tinta);
+--primary-hover:var(--avle-verde);
+--primary-press:var(--avle-tinta-800);
+--text-on-primary:#FFFFFF;
+/* Acento: a terracota, para o que merece o olho — o número em foco, a barra
+   selecionada, o contador, a faixa de aviso. Nunca para a ação principal. */
+--accent:var(--avle-terracota);
+--accent-hover:var(--avle-terracota-escuro);
+--accent-press:var(--avle-terracota-escuro);
+--accent-soft:rgba(189,107,66,.12);
+--accent-ink:var(--avle-terracota-escuro);
+--accent-glow:rgba(189,107,66,.18);
+--text-on-accent:#FFFFFF;
+--positive:var(--esmeralda-700);
+--negative:var(--rosa-600);
+--warning:var(--ambar-700);
+--info:var(--avle-verde);
+--positive-soft:var(--esmeralda-50);--negative-soft:var(--rosa-50);--warning-soft:var(--ambar-50);--info-soft:rgba(28,63,36,.08);
+--focus-ring:0 0 0 3px rgba(189,107,66,.30);
+--chart-1:var(--avle-terracota);--chart-2:var(--avle-tinta);--chart-3:var(--avle-borda);--chart-4:var(--pedra-400);
+}

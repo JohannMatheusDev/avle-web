@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Design system da AVLE (`design-system/`). Carregar aqui não muda nenhuma
+   tela: os tokens e a base só valem dentro de um elemento com `.avle-ds`, e
+   os componentes usam classes próprias com prefixo `av-`. O motivo do escopo
+   está em `design-system/styles.css`. */
+@import "../design-system/styles.css";
+
 @theme {
   /* 🌳 Injetando a paleta orgânica do AVLE no motor do Tailwind 4 */
   --color-avle-bege: #F7F4EB;
