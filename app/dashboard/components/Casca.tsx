@@ -22,7 +22,8 @@
 type NomeDeIcone =
   | 'inicio' | 'clientes' | 'aprovacoes' | 'fila' | 'grupos' | 'sorteios'
   | 'configuracoes' | 'historico' | 'regras' | 'ajuda' | 'perfil' | 'lojas'
-  | 'financeiro' | 'cobranca' | 'planos' | 'sair';
+  | 'financeiro' | 'cobranca' | 'planos' | 'sair'
+  | 'link' | 'voltar' | 'seta' | 'calendario' | 'alerta' | 'relogio' | 'mais' | 'atualizar' | 'carteira';
 
 export type ItemDeNavegacao = {
   id: string;
@@ -51,6 +52,15 @@ const DESENHOS: Record<NomeDeIcone, React.ReactNode> = {
   cobranca: <><path d="M6 3.4h12v17.2l-3-1.9-3 1.9-3-1.9-3 1.9z" /><path d="M9.2 8.4h5.6M9.2 12.2h5.6" /></>,
   planos: <><rect x="3.4" y="5.6" width="17.2" height="12.8" rx="2.4" /><path d="M3.4 10h17.2" /><path d="M7 14.4h3.4" /></>,
   sair: <><path d="M14.6 4.4H5.4v15.2h9.2" /><path d="M10.8 12h9.4" /><path d="m17.2 8.8 3.4 3.2-3.4 3.2" /></>,
+  link: <><path d="M10.2 13.8a3.8 3.8 0 0 0 5.4 0l3-3a3.8 3.8 0 0 0-5.4-5.4l-1 1" /><path d="M13.8 10.2a3.8 3.8 0 0 0-5.4 0l-3 3a3.8 3.8 0 0 0 5.4 5.4l1-1" /></>,
+  voltar: <><path d="M19.4 12H4.8" /><path d="m10.6 6.2-5.8 5.8 5.8 5.8" /></>,
+  seta: <><path d="M7 17 17 7" /><path d="M8.4 7H17v8.6" /></>,
+  calendario: <><rect x="3.8" y="5.2" width="16.4" height="15" rx="2.6" /><path d="M3.8 10h16.4M8.4 3.4v3.4M15.6 3.4v3.4" /></>,
+  alerta: <><circle cx="12" cy="12" r="8.4" /><path d="M12 7.8v4.9" /><path d="M12 16.2h.01" /></>,
+  relogio: <><circle cx="12" cy="12" r="8.4" /><path d="M12 7.6V12l2.9 1.8" /></>,
+  mais: <><path d="M12 5.4v13.2M5.4 12h13.2" /></>,
+  atualizar: <><path d="M19.6 12a7.6 7.6 0 0 1-13.4 4.9" /><path d="M4.4 12a7.6 7.6 0 0 1 13.4-4.9" /><path d="M17.9 3.6v3.6h-3.6" /><path d="M6.1 20.4v-3.6h3.6" /></>,
+  carteira: <><rect x="3.4" y="6" width="17.2" height="13" rx="2.6" /><path d="M3.4 10.2h17.2" /><path d="M15.8 14.6h1.6" /><path d="M6.6 6 15 3.6l1 2.4" /></>,
 };
 
 export function Icone({ nome, className = 'w-[18px] h-[18px]' }: { nome: NomeDeIcone; className?: string }) {
@@ -94,6 +104,7 @@ export function TrilhoDeNavegacao({
   aoSair,
   itemDeConfiguracao,
   sigla = 'A',
+  soCelular = false,
 }: {
   itens: ItemDeNavegacao[];
   ativo: string;
@@ -101,6 +112,9 @@ export function TrilhoDeNavegacao({
   aoSair: () => void;
   itemDeConfiguracao?: ItemDeNavegacao;
   sigla?: string;
+  // Loja e admin navegam pela barra do topo no computador; o trilho fica so
+  // com a barra do rodape, que continua sendo a navegacao no celular.
+  soCelular?: boolean;
 }) {
   const todos = itemDeConfiguracao ? [...itens, itemDeConfiguracao] : itens;
 
@@ -155,7 +169,7 @@ export function TrilhoDeNavegacao({
 
   return (
     <>
-      <aside className="hidden md:flex sticky top-0 h-screen w-[84px] flex-col items-center justify-between py-6 flex-shrink-0">
+      {!soCelular && <aside className="hidden md:flex sticky top-0 h-screen w-[84px] flex-col items-center justify-between py-6 flex-shrink-0">
         <div className="flex flex-col items-center gap-2">
           <div className="w-11 h-11 rounded-2xl bg-[#0B1E14] text-white flex items-center justify-center font-serif font-bold text-base shadow-md mb-4">
             {sigla}
@@ -186,7 +200,7 @@ export function TrilhoDeNavegacao({
             </span>
           </div>
         </div>
-      </aside>
+      </aside>}
 
       {/* Barra do celular. `pb-[env(safe-area-inset-bottom)]` evita que o
           último ícone fique embaixo da barra de gestos do iPhone, onde o toque
@@ -404,6 +418,218 @@ export function CartaoDeNumero({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Barra do topo da loja e do admin, no computador.
+ *
+ * Veio da referencia que o Johann escolheu: marca a esquerda, as secoes numa
+ * pilula escura unica e os atalhos em botoes redondos a direita. Troca o
+ * trilho de icones porque a loja e o admin sao usados no computador, onde
+ * sobra largura para escrever o nome de cada secao - e nome escrito dispensa
+ * a etiqueta de hover que o icone sozinho precisava. No celular a navegacao
+ * continua na barra do rodape (`TrilhoDeNavegacao` com `soCelular`).
+ */
+export function BarraSuperior({
+  itens,
+  ativo,
+  aoEscolher,
+  detalhe,
+  acoes,
+  identidade,
+}: {
+  itens: ItemDeNavegacao[];
+  ativo: string;
+  aoEscolher: (id: string) => void;
+  detalhe?: string;
+  acoes?: React.ReactNode;
+  identidade?: React.ReactNode;
+}) {
+  return (
+    <>
+    {/* No celular a navegacao mora na barra do rodape; em cima sobram a
+        marca e os atalhos, para a pessoa saber onde esta e poder sair. */}
+    <header className="md:hidden flex items-center justify-between gap-3 px-4 pt-4">
+      <div className="flex items-center gap-2 min-w-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/arvore-escura.png" alt="" className="w-9 h-auto flex-shrink-0" />
+        <div className="leading-tight min-w-0">
+          <span className="block text-[15px] font-bold tracking-tight text-painel-tinta">AVLE</span>
+          {detalhe && <span className="block text-[10px] text-stone-400 truncate">{detalhe}</span>}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {acoes}
+        {identidade}
+      </div>
+    </header>
+
+    <header className="hidden md:flex items-center gap-4 px-6 lg:px-8 pt-6">
+      <div className="flex items-center gap-2.5 flex-shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/arvore-escura.png" alt="" className="w-11 h-auto" />
+        <div className="leading-tight">
+          <span className="block text-[17px] font-bold tracking-tight text-painel-tinta">AVLE</span>
+          {detalhe && (
+            <span className="block text-[10px] text-stone-400 max-w-[150px] truncate">{detalhe}</span>
+          )}
+        </div>
+      </div>
+
+      {/* A pilula rola sozinha quando a tela e estreita: entre 768 e 1200px
+          as seis secoes da loja nao cabem ao lado da marca e dos atalhos. */}
+      <nav aria-label="Seções do painel" className="min-w-0 flex-1 flex xl:justify-center">
+        <div className="flex items-center gap-1 bg-painel-tinta rounded-full p-1.5 max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shadow-[0_10px_24px_-14px_rgba(11,30,20,0.8)]">
+          {itens.map((item) => {
+            const ativoAgora = ativo === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => aoEscolher(item.id)}
+                aria-current={ativoAgora ? 'page' : undefined}
+                className={`flex items-center gap-1.5 px-4 h-9 rounded-full text-[12px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                  ativoAgora
+                    ? 'bg-painel-acento text-white shadow-[0_6px_16px_-8px_rgba(189,107,66,0.9)]'
+                    : 'text-white/65 hover:text-white'
+                }`}
+              >
+                {ativoAgora && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                {item.rotulo}
+                {!!item.contador && item.contador > 0 && (
+                  <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                    ativoAgora ? 'bg-white/25 text-white' : item.urgente ? 'bg-rose-500 text-white' : 'bg-white/15 text-white'
+                  }`}>
+                    {item.contador > 99 ? '99+' : item.contador}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {acoes}
+        {identidade}
+      </div>
+    </header>
+    </>
+  );
+}
+
+/**
+ * Botao redondo de atalho, com o nome escrito embaixo ao passar o mouse.
+ * O `ponto` marca que ha algo esperando, como o sino da referencia.
+ */
+export function BotaoRedondo({
+  icone,
+  rotulo,
+  aoClicar,
+  ponto = false,
+  ativo = false,
+  perigo = false,
+  desabilitado = false,
+}: {
+  icone: NomeDeIcone;
+  rotulo: string;
+  aoClicar?: () => void;
+  ponto?: boolean;
+  ativo?: boolean;
+  perigo?: boolean;
+  desabilitado?: boolean;
+}) {
+  return (
+    <div className="relative group">
+      <button
+        type="button"
+        onClick={aoClicar}
+        disabled={desabilitado}
+        aria-label={rotulo}
+        className={`relative w-11 h-11 rounded-full flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50 ${
+          ativo
+            ? 'bg-painel-tinta text-white'
+            : `bg-white text-painel-tinta border border-painel-borda ${perigo ? 'hover:text-rose-600' : 'hover:border-painel-tinta/30'}`
+        }`}
+      >
+        <Icone nome={icone} />
+        {ponto && <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />}
+      </button>
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 whitespace-nowrap rounded-full
+                   bg-painel-tinta text-white text-[11px] font-semibold px-3 py-1.5 shadow-lg opacity-0 -translate-y-1
+                   transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0
+                   group-focus-within:opacity-100 group-focus-within:translate-y-0"
+      >
+        {rotulo}
+      </span>
+    </div>
+  );
+}
+
+/** Foto ou iniciais, sem nome: o avatar da ponta direita da barra do topo. */
+export function Avatar({ nome, foto, aoClicar }: { nome: string; foto?: string | null; aoClicar?: () => void }) {
+  const iniciais = (nome || 'AV').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+  return (
+    <button
+      type="button"
+      onClick={aoClicar}
+      aria-label={nome}
+      title={nome}
+      className="w-11 h-11 rounded-full bg-painel-tinta text-white flex items-center justify-center text-[12px] font-bold overflow-hidden ring-2 ring-white shadow-sm cursor-pointer"
+    >
+      {foto ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={foto} alt="" className="w-full h-full object-cover" />
+      ) : (
+        iniciais
+      )}
+    </button>
+  );
+}
+
+/**
+ * Titulo da tela, grande como na referencia, com a seta de voltar quando ha
+ * para onde voltar e as acoes principais do lado direito.
+ */
+export function CabecalhoDaPagina({
+  titulo,
+  descricao,
+  aoVoltar,
+  acoes,
+}: {
+  titulo: React.ReactNode;
+  descricao?: React.ReactNode;
+  aoVoltar?: () => void;
+  acoes?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex items-center gap-4 min-w-0">
+        {aoVoltar && (
+          <button
+            type="button"
+            onClick={aoVoltar}
+            aria-label="Voltar"
+            className="w-11 h-11 rounded-full bg-white border border-painel-borda text-painel-tinta flex items-center justify-center hover:border-painel-tinta/30 transition-colors cursor-pointer flex-shrink-0"
+          >
+            <Icone nome="voltar" />
+          </button>
+        )}
+        <div className="min-w-0">
+          {/* Peso no `style`: a camada do design system deixa todo h1 leve
+              com um seletor mais forte que qualquer classe, e aqui o titulo
+              pesado e justamente o que a referencia tem. */}
+          <h1 style={{ fontWeight: 600 }} className="text-[28px] sm:text-[38px] tracking-tight text-painel-tinta leading-none truncate">
+            {titulo}
+          </h1>
+          {descricao && <p className="text-[13px] text-stone-400 mt-2 leading-snug">{descricao}</p>}
+        </div>
+      </div>
+      {acoes && <div className="flex items-center gap-2 flex-wrap min-w-0">{acoes}</div>}
     </div>
   );
 }

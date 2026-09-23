@@ -4,15 +4,17 @@ import { useEffect, useState } from 'react';
 import EnvioDeCobrancasWhatsapp from './EnvioDeCobrancasWhatsapp';
 import PainelDeAvisosFlutuante from './PainelDeAvisosFlutuante';
 import {
-  CabecalhoDoPainel, CartaoDeNumero, Identidade, ItemDeNavegacao,
-  PilulasDeSecao, TrilhoDeNavegacao,
+  Avatar, BarraSuperior, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
+  TrilhoDeNavegacao,
 } from './Casca';
+import {
+  ArteDaMarca, BarrasMini, BlocoDeAdicionar, BlocoDoDetalhe, BlocosDeValor, BotaoDeCanto,
+  BotaoEscuro, CartaoIndicador, FaixaDeNumeros, ItemDoPainel, LinhaMini, PainelEscuro,
+  Variacao, numeroCurto, realCurto, sigla, variacao,
+} from './Indicadores';
 import { useRouter } from 'next/navigation';
 import { apiFetch, encerrarSessao } from '../../lib/api';
 import { useHistoricoDoPainel } from '../../lib/historico';
-import {
-  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-} from 'recharts';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -21,6 +23,9 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
   const [abaExibida, setAbaExibida] = useState<'geral' | 'lojas' | 'financeiro' | 'cobranca'>('geral');
 
   const [lojaSelecionada, setLojaSelecionada] = useState<any | null>(null);
+  // Painel escuro da tela inicial: o recorte das lojas e qual esta no detalhe.
+  const [abaLojasInicio, setAbaLojasInicio] = useState<'todas' | 'areceber'>('todas');
+  const [lojaEmFoco, setLojaEmFoco] = useState<number | null>(null);
   const [limiteInput, setLimiteInput] = useState<number>(1);
 
   const [metricas, setMetricas] = useState<any>({
@@ -187,8 +192,36 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
   );
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen fundo-painel text-[#0B1E14]">
+    <div className="flex flex-col min-h-screen fundo-painel text-[#0B1E14]">
+      <BarraSuperior
+        itens={secoesDoAdmin}
+        ativo={lojaSelecionada ? '' : abaExibida}
+        aoEscolher={irParaSecao}
+        detalhe="Equipe AVLE · acesso master"
+        acoes={
+          <>
+            <BotaoRedondo
+              icone="atualizar"
+              rotulo={carregando ? 'Atualizando...' : 'Atualizar números'}
+              desabilitado={carregando}
+              aoClicar={carregarDadosDoBanco}
+            />
+            <BotaoRedondo
+              icone="sair"
+              rotulo="Sair"
+              perigo
+              aoClicar={async () => {
+                await encerrarSessao();
+                router.push('/');
+              }}
+            />
+          </>
+        }
+        identidade={<Avatar nome="Equipe AVLE" />}
+      />
+
       <TrilhoDeNavegacao
+        soCelular
         itens={secoesDoAdmin}
         ativo={lojaSelecionada ? '' : abaExibida}
         aoEscolher={irParaSecao}
@@ -198,20 +231,34 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
         }}
       />
 
-      <main className="flex-1 p-4 sm:p-6 md:py-8 md:pr-8 md:pl-2 overflow-x-hidden space-y-6 min-w-0 pb-28 md:pb-8">
-        <CabecalhoDoPainel
-          etiqueta={`AVLE · Painel administrativo · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`}
+      {/* A movimentacao so vira coluna ao lado a partir de 1536px: abaixo
+          disso ela roubaria a largura que os quatro cartoes de cima precisam,
+          e desce para depois do conteudo. */}
+      <div className="flex-1 w-full max-w-[1800px] mx-auto flex flex-col 2xl:flex-row min-w-0">
+      {/* No celular a barra do rodape e fixa: quem fica por ultimo na tela
+          precisa da folga para o ultimo botao nao ficar embaixo dela. */}
+      <main className={`flex-1 p-4 sm:p-6 lg:px-8 md:pt-8 overflow-x-hidden space-y-6 min-w-0 md:pb-10 ${
+        abaExibida === 'geral' && !lojaSelecionada ? 'pb-6' : 'pb-28'
+      }`}>
+        <CabecalhoDaPagina
           titulo={lojaSelecionada
             ? lojaSelecionada.nomeComercial
             : secoesDoAdmin.find((s) => s.id === abaExibida)?.rotulo ?? abaExibida}
-          identidade={<Identidade nome="Equipe AVLE" detalhe="acesso master" />}
-          pilulas={
-            <PilulasDeSecao
-              itens={secoesDoAdmin}
-              ativo={lojaSelecionada ? '' : abaExibida}
-              aoEscolher={irParaSecao}
-            />
+          descricao={`Painel administrativo · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`}
+          aoVoltar={
+            lojaSelecionada
+              ? () => setLojaSelecionada(null)
+              : abaExibida !== 'geral' ? () => irParaSecao('geral') : undefined
           }
+          acoes={abaExibida === 'geral' && !lojaSelecionada && (
+            <button
+              onClick={carregarDadosDoBanco}
+              disabled={carregando}
+              className="bg-painel-acento text-white px-5 h-11 rounded-full text-[13px] font-semibold shadow-[0_10px_20px_-12px_rgba(189,107,66,0.9)] hover:brightness-95 transition-all cursor-pointer disabled:opacity-50"
+            >
+              {carregando ? 'Atualizando...' : 'Atualizar números'}
+            </button>
+          )}
         />
 
         {lojaSelecionada ? (
@@ -431,190 +478,210 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               const recolhido = Math.max(0, taxaTotal - aReceber);
               const pctRecolhido = taxaTotal > 0 ? (recolhido / taxaTotal) * 100 : 0;
 
+              const crescimento: any[] = v?.crescimento ?? [];
+              const lojas: any[] = v?.lojas ?? [];
+              const volumeTotal = Number(v?.faturamentoBruto) || 0;
+
+              const recortes = {
+                todas: lojas,
+                areceber: lojas.filter((l) => Number(l.taxaAReceber) > 0),
+              };
+              const lojasDoPainel = recortes[abaLojasInicio];
+              const emFoco = lojasDoPainel.find((l) => l.id === lojaEmFoco) ?? lojasDoPainel[0] ?? null;
+
+              // A ficha espera o objeto da listagem de lojas, que tem status e
+              // limite; o consolidado so tem os numeros.
+              const abrirFicha = (l: any) =>
+                setLojaSelecionada(listaLojas.find((x) => x.id === l.id) ?? { ...l, nomeComercial: l.nome });
+
               return (
-              <div className="space-y-5 animate-fadeIn">
+              <div className="space-y-6 animate-fadeIn">
 
-                <div className="flex flex-wrap justify-between items-center gap-3">
-                  <p className="text-xs text-stone-400 font-medium">A plataforma inteira, em números.</p>
-                  <button
-                    onClick={carregarDadosDoBanco}
-                    disabled={carregando}
-                    className="text-[10px] font-bold uppercase tracking-wider px-4 py-2 rounded-full bg-white text-stone-600 hover:text-[#0B1E14] shadow-[0_1px_2px_rgba(11,30,20,0.06)] hover:shadow-md transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    {carregando ? 'Atualizando...' : 'Atualizar'}
-                  </button>
-                </div>
-
-                {/* ── Indicadores ── */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <CartaoDeNumero
-                    destaque
+                {/* ── Os quatro cartões de cima ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                  <CartaoIndicador
+                    titulo="Volume transacionado"
                     icone="financeiro"
-                    rotulo="Volume transacionado"
+                    tom="acento"
                     valor={dinheiro(v?.faturamentoBruto)}
-                    nota="somando todas as lojas"
-                  />
+                    nota={<span className="text-[11px] text-stone-400">somando todas as lojas</span>}
+                  >
+                    <ArteDaMarca />
+                  </CartaoIndicador>
 
-                  <CartaoDeNumero
-                    rotulo={`Receita AVLE · ${v?.percentualAvle ?? 10}%`}
-                    valor={<span className="text-emerald-700">{dinheiro(taxaTotal)}</span>}
-                    nota="taxa sobre o volume"
-                  />
-
-                  <CartaoDeNumero
-                    icone="lojas"
-                    rotulo="Lojas parceiras"
-                    valor={v?.totalLojas ?? 0}
-                    nota={(v?.lojasNoMes ?? 0) > 0 ? `+${v?.lojasNoMes} neste mês` : 'nenhuma nova neste mês'}
-                  />
-
-                  <CartaoDeNumero
+                  <CartaoIndicador
+                    titulo="Clientes"
                     icone="clientes"
-                    rotulo="Clientes"
                     valor={v?.totalClientes ?? 0}
-                    nota={(v?.clientesNoMes ?? 0) > 0 ? `+${v?.clientesNoMes} neste mês` : 'nenhum novo neste mês'}
-                  />
+                    nota={
+                      <span className="text-[11px] text-stone-400">
+                        {(v?.clientesNoMes ?? 0) > 0
+                          ? <><span className="font-semibold text-emerald-700">+{v?.clientesNoMes}</span> neste mês</>
+                          : 'nenhum novo neste mês'}
+                      </span>
+                    }
+                  >
+                    <BarrasMini
+                      dados={crescimento.map((c) => ({
+                        rotulo: c.mes,
+                        valor: Number(c.clientes) || 0,
+                        dica: `${c.mes}: ${c.clientes ?? 0} cliente(s) e ${c.lojas ?? 0} loja(s)`,
+                      }))}
+                    />
+                  </CartaoIndicador>
+
+                  <CartaoIndicador
+                    titulo="Quem entrou na AVLE"
+                    icone="lojas"
+                    tom="positivo"
+                    valor={v?.totalPessoas ?? 0}
+                    unidade="pessoas"
+                    nota={<Variacao valor={variacao(crescimento.map((c) => Number(c.acumulado) || 0))} />}
+                  >
+                    <LinhaMini
+                      dados={crescimento.map((c) => ({ rotulo: c.mes, valor: Number(c.acumulado) || 0 }))}
+                      formatar={(n) => `${n} no total`}
+                    />
+                  </CartaoIndicador>
+
+                  <CartaoIndicador
+                    titulo={`Receita AVLE · ${v?.percentualAvle ?? 10}%`}
+                    canto={<BotaoDeCanto rotulo="Ver financeiro" aoClicar={() => irParaSecao('financeiro')} />}
+                    valor={dinheiro(taxaTotal)}
+                    nota={
+                      <span className="text-[11px] text-stone-400">
+                        <span className="font-semibold text-emerald-700">{pctRecolhido.toFixed(0)}%</span> recolhido
+                        automaticamente
+                      </span>
+                    }
+                  >
+                    <BlocosDeValor
+                      // O bloco tem uns 70px: "R$ 131,8 mil" nao cabe numa
+                      // linha, entao o "R$" vai para o rotulo.
+                      blocos={[
+                        { rotulo: 'Recolhido, R$', valor: numeroCurto(recolhido), dica: dinheiro(recolhido) },
+                        { rotulo: 'A receber das lojas, R$', valor: numeroCurto(aReceber), destaque: true, dica: dinheiro(aReceber) },
+                        { rotulo: 'Repassado às lojas, R$', valor: numeroCurto(v?.repasseLojas), dica: dinheiro(v?.repasseLojas) },
+                      ]}
+                      acao={{ rotulo: 'Cobrança do mês', aoClicar: () => irParaSecao('cobranca') }}
+                    />
+                  </CartaoIndicador>
                 </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+                {/* ── Números miúdos da plataforma ── */}
+                <FaixaDeNumeros
+                  titulo="Plataforma"
+                  itens={[
+                    {
+                      rotulo: 'Lojas parceiras',
+                      valor: v?.totalLojas ?? 0,
+                      nota: (v?.lojasNoMes ?? 0) > 0 ? `+${v?.lojasNoMes} neste mês` : 'nenhuma nova neste mês',
+                    },
+                    { rotulo: 'Grupos', valor: v?.totalGrupos ?? 0 },
+                    { rotulo: 'Cotas', valor: v?.totalCotas ?? 0 },
+                    { rotulo: 'Repassado às lojas', valor: dinheiro(v?.repasseLojas) },
+                    {
+                      rotulo: 'A receber das lojas',
+                      valor: dinheiro(aReceber),
+                      tom: aReceber > 0 ? 'alerta' : undefined,
+                      // O valor a cobrar vem de baixa manual: a cliente pagou na
+                      // loja e o dinheiro nao passou pelo Asaas, entao a taxa
+                      // nao foi retida no ato.
+                      nota: aReceber > 0 ? 'de baixa manual, fora do Asaas' : undefined,
+                    },
+                  ]}
+                />
 
-                  {/* ── Crescimento ── */}
-                  <div className="cartao-avle xl:col-span-2 p-5">
-                    <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
-                      <div>
-                        <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Quem entrou na AVLE</h3>
-                        <p className="text-[10px] text-stone-400 mt-0.5">cadastros por mês · a linha é o total acumulado</p>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-2xl font-bold font-mono text-[#0B1E14] leading-none block">{v?.totalPessoas ?? 0}</span>
-                        <span className="text-[9px] text-stone-400 uppercase tracking-wider">pessoas no total</span>
-                      </div>
-                    </div>
-
-                    {(v?.crescimento ?? []).length === 0 ? (
-                      <div className="h-48 flex items-center justify-center text-xs text-stone-400 italic">
-                        Sem cadastros registrados ainda.
+                {/* ── Lojas: lista e detalhe ── */}
+                <PainelEscuro
+                  titulo="Lojas parceiras"
+                  abas={[
+                    { id: 'todas', rotulo: 'Todas', contador: recortes.todas.length },
+                    { id: 'areceber', rotulo: 'A receber', contador: recortes.areceber.length },
+                  ]}
+                  abaAtiva={abaLojasInicio}
+                  aoTrocarAba={(id) => setAbaLojasInicio(id as typeof abaLojasInicio)}
+                  canto={<BotaoEscuro icone="lojas" rotulo="Ver todas as lojas" aoClicar={() => irParaSecao('lojas')} />}
+                  lista={
+                    lojasDoPainel.length === 0 ? (
+                      <p className="text-[12px] text-white/45 px-3 py-8 text-center">
+                        {lojas.length === 0 ? 'Nenhuma loja cadastrada.' : 'Nenhuma loja neste recorte.'}
+                      </p>
+                    ) : (
+                      lojasDoPainel.map((l) => (
+                        <ItemDoPainel
+                          key={l.id}
+                          sigla={sigla(l.nome)}
+                          titulo={l.nome}
+                          subtitulo={l.cnpj}
+                          selo={Number(l.taxaAReceber) > 0 ? 'a receber' : `${l.clientes ?? 0} clientes`}
+                          valor={realCurto(l.faturamentoBruto)}
+                          ativo={emFoco?.id === l.id}
+                          aoEscolher={() => setLojaEmFoco(l.id)}
+                        />
+                      ))
+                    )
+                  }
+                  detalhe={
+                    !emFoco ? (
+                      <div className="h-full min-h-[240px] rounded-[24px] bg-white/[0.04] flex items-center justify-center text-center p-6">
+                        <p className="text-[13px] text-white/60">As lojas aparecem aqui assim que se cadastrarem.</p>
                       </div>
                     ) : (
-                      <ResponsiveContainer width="100%" height={230}>
-                        <ComposedChart data={v?.crescimento ?? []} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#F0EEE8" vertical={false} />
-                          <XAxis dataKey="mes" tick={{ fontSize: 10, fill: '#78716C', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                          <YAxis yAxisId="e" tick={{ fontSize: 9, fill: '#78716C' }} axisLine={false} tickLine={false} />
-                          <YAxis yAxisId="a" orientation="right" tick={{ fontSize: 9, fill: '#BD6B42' }} axisLine={false} tickLine={false} />
-                          <Tooltip
-                            contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 10 }}
-                            formatter={(valor, nome) => [valor, nome]}
+                      <div className="h-full rounded-[24px] bg-avle-verde p-5 flex flex-col gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div className="min-w-0">
+                            <span className="block text-[11px] text-white/50">Loja parceira</span>
+                            <span className="block text-[22px] font-semibold tracking-tight truncate mt-1.5">{emFoco.nome}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[11px] text-white/50">CNPJ</span>
+                            <span className="block text-[13px] font-semibold mt-1.5 tabular-nums">{emFoco.cnpj || '—'}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[11px] text-white/50">Participação no volume</span>
+                            <span className="block text-[17px] font-semibold mt-1.5 tabular-nums">
+                              {volumeTotal > 0 ? ((Number(emFoco.faturamentoBruto) || 0) / volumeTotal * 100).toFixed(1) : '0'}%
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                          <BlocoDoDetalhe rotulo="Volume" valor={dinheiro(emFoco.faturamentoBruto)} aoClicar={() => abrirFicha(emFoco)} />
+                          <BlocoDoDetalhe rotulo="Receita AVLE" valor={dinheiro(emFoco.taxaAvle)} aoClicar={() => abrirFicha(emFoco)} />
+                          <BlocoDoDetalhe
+                            rotulo="A receber"
+                            valor={dinheiro(emFoco.taxaAReceber)}
+                            nota={Number(emFoco.taxaAReceber) > 0 ? 'baixa manual, fora do Asaas' : 'nada em aberto'}
+                            aoClicar={() => abrirFicha(emFoco)}
                           />
-                          <Legend wrapperStyle={{ fontSize: 10, fontWeight: 700 }} />
-                          <Bar yAxisId="e" dataKey="clientes" name="Clientes" fill="#0B1E14" radius={[4, 4, 0, 0]} barSize={26} />
-                          <Bar yAxisId="e" dataKey="lojas" name="Lojas" fill="#BD6B42" radius={[4, 4, 0, 0]} barSize={26} />
-                          <Line yAxisId="a" type="monotone" dataKey="acumulado" name="Total acumulado"
-                            stroke="#BD6B42" strokeWidth={2} dot={{ r: 3, fill: '#BD6B42' }} />
-                        </ComposedChart>
-                      </ResponsiveContainer>
-                    )}
-                  </div>
+                          <BlocoDeAdicionar icone="seta" rotulo="Abrir ficha da loja" aoClicar={() => abrirFicha(emFoco)} />
+                        </div>
 
-                  {/* ── Análise: onde está a receita da plataforma ── */}
-                  <div className="cartao-avle-destaque p-5 flex flex-col">
-                    <h3 className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Receita da plataforma</h3>
-                    <p className="text-[10px] text-stone-500 mt-0.5 mb-4">quanto dos {v?.percentualAvle ?? 10}% já entrou de fato</p>
-
-                    <div className="mb-5">
-                      <span className="text-3xl font-bold font-mono leading-none block">{dinheiro(recolhido)}</span>
-                      <span className="text-[10px] text-stone-500 mt-1 block">recolhido automaticamente</span>
-                    </div>
-
-                    {/* A barra separa o que o Asaas reteve no ato do que ficou
-                        para cobrar. Sao os dois lados do mesmo percentual. */}
-                    <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-2">
-                      <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${pctRecolhido}%` }} />
-                    </div>
-                    <div className="flex justify-between text-[10px] mb-5">
-                      <span className="text-emerald-400 font-bold">{pctRecolhido.toFixed(0)}% recolhido</span>
-                      <span className="text-amber-400 font-bold">{(100 - pctRecolhido).toFixed(0)}% a cobrar</span>
-                    </div>
-
-                    <div className="mt-auto space-y-3 pt-4 border-t border-white/10">
-                      <div className="flex justify-between items-baseline">
-                        <span className="text-[10px] text-stone-400 uppercase tracking-wider">A receber das lojas</span>
-                        <span className={`text-sm font-bold font-mono ${aReceber > 0 ? 'text-amber-400' : 'text-stone-500'}`}>
-                          {dinheiro(aReceber)}
-                        </span>
+                        <div className="mt-auto rounded-[18px] bg-black/15 p-4 flex flex-wrap items-center gap-x-8 gap-y-3">
+                          <div>
+                            <span className="block text-[10px] text-white/50">Clientes</span>
+                            <span className="block text-[14px] font-semibold tabular-nums mt-0.5">{emFoco.clientes ?? 0}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] text-white/50">Grupos</span>
+                            <span className="block text-[14px] font-semibold tabular-nums mt-0.5">{emFoco.grupos ?? 0}</span>
+                          </div>
+                          <div className="ml-auto flex items-center gap-2">
+                            <BotaoEscuro icone="cobranca" rotulo="Cobrança do mês" aoClicar={() => irParaSecao('cobranca')} />
+                            <button
+                              type="button"
+                              onClick={() => abrirFicha(emFoco)}
+                              className="h-10 px-5 rounded-full bg-white text-painel-tinta text-[12px] font-semibold hover:bg-painel-papel transition-colors cursor-pointer"
+                            >
+                              Abrir ficha
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-baseline">
-                        <span className="text-[10px] text-stone-400 uppercase tracking-wider">Repassado às lojas</span>
-                        <span className="text-sm font-bold font-mono text-stone-300">{dinheiro(v?.repasseLojas)}</span>
-                      </div>
-                      <div className="flex justify-between items-baseline">
-                        <span className="text-[10px] text-stone-400 uppercase tracking-wider">Grupos · cotas</span>
-                        <span className="text-sm font-bold font-mono text-stone-300">
-                          {v?.totalGrupos ?? 0} · {v?.totalCotas ?? 0}
-                        </span>
-                      </div>
-                    </div>
-
-                    {aReceber > 0 && (
-                      <p className="text-[10px] text-amber-300/90 leading-relaxed mt-4 pt-4 border-t border-white/10">
-                        O valor a cobrar vem de baixa manual: a cliente pagou na loja e o dinheiro não passou
-                        pelo Asaas, então a taxa não foi retida no ato.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* ── Lojas ── */}
-                <div className="cartao-avle overflow-hidden">
-                  <div className="px-5 py-4 border-b border-[#E6E2D8] flex flex-wrap justify-between items-center gap-2">
-                    <div>
-                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Lojas parceiras</h3>
-                      <p className="text-[10px] text-stone-400">ordenadas por volume transacionado</p>
-                    </div>
-                    <button
-                      onClick={() => setAbaExibida('lojas')}
-                      className="text-[10px] font-bold uppercase tracking-wider text-[#BD6B42] hover:underline cursor-pointer"
-                    >
-                      Ver todas
-                    </button>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse min-w-[720px]">
-                      <thead>
-                        <tr className="bg-stone-50/60 text-stone-400 uppercase font-bold text-[9px] tracking-widest border-b border-[#E6E2D8]">
-                          <th className="py-3 px-5">Loja</th>
-                          <th className="py-3 px-5 text-right">Clientes</th>
-                          <th className="py-3 px-5 text-right">Grupos</th>
-                          <th className="py-3 px-5 text-right">Volume</th>
-                          <th className="py-3 px-5 text-right">Receita AVLE</th>
-                          <th className="py-3 px-5 text-right">A receber</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#EFEAE1]">
-                        {(v?.lojas ?? []).length === 0 ? (
-                          <tr><td colSpan={6} className="py-8 text-center text-stone-400 italic">Nenhuma loja cadastrada.</td></tr>
-                        ) : (
-                          (v?.lojas ?? []).map((l: any) => (
-                            <tr key={l.id} className="hover:bg-stone-50/50 transition-colors">
-                              <td className="py-3.5 px-5">
-                                <span className="block font-bold text-[#0B1E14]">{l.nome}</span>
-                                <span className="text-[10px] text-stone-400 font-mono">{l.cnpj}</span>
-                              </td>
-                              <td className="py-3.5 px-5 text-right font-mono text-stone-600">{l.clientes}</td>
-                              <td className="py-3.5 px-5 text-right font-mono text-stone-600">{l.grupos}</td>
-                              <td className="py-3.5 px-5 text-right font-mono font-bold text-[#0B1E14]">{dinheiro(l.faturamentoBruto)}</td>
-                              <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">{dinheiro(l.taxaAvle)}</td>
-                              <td className={`py-3.5 px-5 text-right font-mono font-bold ${Number(l.taxaAReceber) > 0 ? 'text-amber-700' : 'text-stone-300'}`}>
-                                {dinheiro(l.taxaAReceber)}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                    )
+                  }
+                />
               </div>
               );
             })()}
@@ -844,8 +911,8 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
       {/* Movimentacao recente. Fica fora do <main> para acompanhar a rolagem em
           tela grande e cair para baixo do conteudo no celular. */}
       {abaExibida === 'geral' && !lojaSelecionada && (
-        <aside className="w-full xl:w-80 flex-shrink-0 p-6 md:p-8 xl:pl-0 space-y-5">
-          <div className="cartao-avle overflow-hidden xl:sticky xl:top-8">
+        <aside className="w-full 2xl:w-80 flex-shrink-0 px-4 sm:px-6 lg:px-8 pb-28 md:pb-10 2xl:pt-8 2xl:pl-0 space-y-5">
+          <div className="cartao-avle overflow-hidden 2xl:sticky 2xl:top-8">
             <div className="px-5 py-4 border-b border-[#E6E2D8]">
               <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Movimentação</h3>
               <p className="text-[10px] text-stone-400">o que aconteceu por último na plataforma</p>
@@ -886,6 +953,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
           </div>
         </aside>
       )}
+      </div>
       <PainelDeAvisosFlutuante />
     </div>
   );

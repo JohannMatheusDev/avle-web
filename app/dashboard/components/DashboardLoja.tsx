@@ -7,9 +7,14 @@ import ParcelasDoPlano from './ParcelasDoPlano';
 import ExtratoDePagamentos from './ExtratoDePagamentos';
 import ListaDeAvisos from './ListaDeAvisos';
 import {
-  CabecalhoDoPainel, CartaoDeNumero, Identidade, ItemDeNavegacao,
+  Avatar, BarraSuperior, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
   TrilhoDeNavegacao,
 } from './Casca';
+import {
+  ArteDaMarca, BarrasMini, BlocoDeAdicionar, BlocoDoDetalhe, BlocosDeValor, BotaoDeCanto,
+  BotaoEscuro, CartaoIndicador, FaixaDeNumeros, ItemDoPainel, LinhaMini, PainelEscuro,
+  Variacao, real, sigla, variacao,
+} from './Indicadores';
 import { parcelasPagas } from '../../lib/parcelas';
 import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
@@ -17,10 +22,6 @@ import { grupoDisponivel, grupoEncerrado, vagasDoGrupo } from '../../lib/grupos'
 import { apiFetch, encerrarSessao } from '../../lib/api';
 import { useHistoricoDoPainel } from '../../lib/historico';
 import { useAvisos } from '../../lib/avisos';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, Cell, Legend,
-} from 'recharts';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -267,6 +268,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   };
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [periodoClientes, setPeriodoClientes] = useState<1 | 6 | 12>(12);
+  // O terceiro cartao da tela inicial alterna entre cadastros e churn: sao as
+  // duas historias da carteira, e cada uma tinha o seu grafico grande.
+  const [graficoCarteira, setGraficoCarteira] = useState<'novos' | 'churn'>('novos');
+  // Painel escuro da tela inicial: qual recorte dos grupos e qual deles esta
+  // aberto no detalhe. So o id, pelo mesmo motivo do historico: o objeto do
+  // grupo e remontado da lista, que e a que se mantem atualizada.
+  const [abaGruposInicio, setAbaGruposInicio] = useState<'todos' | 'vencidas' | 'abertos'>('todos');
+  const [grupoEmFoco, setGrupoEmFoco] = useState<number | null>(null);
   const [paginaClientes, setPaginaClientes] = useState(1);
   const CLIENTES_POR_PAGINA = 10;
 
@@ -1578,9 +1587,40 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       ?? (abaLoja === 'configuracoes' ? 'Configurações da Loja' : abaLoja);
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] fundo-painel relative">
+    <div className="flex flex-col min-h-screen text-[#0B1E14] fundo-painel relative">
+
+      <BarraSuperior
+        itens={secoesDaLoja}
+        ativo={grupoSelecionado ? '' : abaLoja}
+        aoEscolher={irParaSecao}
+        detalhe={nomeLojaReal || usuario?.lojaNome || 'Painel da loja'}
+        acoes={
+          <>
+            <BotaoRedondo icone="link" rotulo="Copiar link da loja" aoClicar={handleCopiarLinkConvite} />
+            <BotaoRedondo
+              icone="configuracoes"
+              rotulo="Configurações"
+              ativo={!grupoSelecionado && abaLoja === 'configuracoes'}
+              aoClicar={() => irParaSecao('configuracoes')}
+            />
+            <BotaoRedondo
+              icone="sair"
+              rotulo="Sair"
+              perigo
+              aoClicar={async () => { await encerrarSessao(); window.location.href = '/'; }}
+            />
+          </>
+        }
+        identidade={
+          <Avatar
+            nome={nomeLojaReal || usuario?.lojaNome || 'Unidade Administrativa'}
+            aoClicar={() => irParaSecao('configuracoes')}
+          />
+        }
+      />
 
       <TrilhoDeNavegacao
+        soCelular
         itens={secoesDaLoja}
         ativo={grupoSelecionado ? '' : abaLoja}
         aoEscolher={irParaSecao}
@@ -1590,7 +1630,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       {/* `pb-28` no celular: a barra de navegação é fixa no rodapé e comia o
           último botão de cada tela. */}
-      <main className="flex-1 p-4 sm:p-6 md:py-8 md:pr-8 md:pl-2 max-w-[1500px] min-w-0 space-y-6 pb-28 md:pb-8">
+      <main className="flex-1 w-full max-w-[1500px] mx-auto p-4 sm:p-6 lg:px-8 md:pt-8 min-w-0 space-y-6 pb-28 md:pb-10">
         {Object.keys(errosApi).length > 0 && (
           <div className="border border-red-200 bg-red-50 rounded-xl p-4 space-y-1.5">
             <p className="text-[10px] font-bold text-red-700 uppercase tracking-widest">
@@ -1607,38 +1647,30 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           </div>
         )}
 
-        <CabecalhoDoPainel
-          etiqueta={`AVLE · ${nomeLojaReal || 'Unidade'} · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`}
+        <CabecalhoDaPagina
           titulo={tituloDaSecao}
+          descricao={`${nomeLojaReal || 'Unidade'} · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`}
+          aoVoltar={
+            grupoSelecionado
+              ? () => setGrupoSelecionado(null)
+              : abaLoja !== 'geral' ? () => irParaSecao('geral') : undefined
+          }
           acoes={!grupoSelecionado && (abaLoja === 'geral' || abaLoja === 'grupos' || abaLoja === 'aprovacoes' || abaLoja === 'clientes') && (
             <>
               <button
-                onClick={handleCopiarLinkConvite}
-                className="bg-white text-[#0B1E14] px-4 py-2.5 rounded-full text-xs font-bold tracking-wide shadow-[0_1px_2px_rgba(11,30,20,0.06)] hover:shadow-md transition-all cursor-pointer"
-              >
-                Copiar Link da Loja
-              </button>
-              <button
                 onClick={() => setModalNovoClienteAberto(true)}
-                className="bg-[#0B1E14] text-white px-4 py-2.5 rounded-full text-xs font-bold tracking-wide shadow-sm hover:brightness-125 transition-all cursor-pointer"
+                className="bg-painel-tinta text-white px-5 h-11 rounded-full text-[13px] font-semibold hover:bg-avle-verde transition-colors cursor-pointer"
               >
-                + Nova Cliente
+                + Nova cliente
               </button>
               <button
                 onClick={() => setModalNovoGrupoAberto(true)}
-                className="bg-[#BD6B42] text-white px-4 py-2.5 rounded-full text-xs font-bold tracking-wide shadow-sm hover:bg-[#A95A33] transition-all cursor-pointer"
+                className="bg-painel-acento text-white px-5 h-11 rounded-full text-[13px] font-semibold shadow-[0_10px_20px_-12px_rgba(189,107,66,0.9)] hover:brightness-95 transition-all cursor-pointer"
               >
                 + Novo grupo
               </button>
             </>
           )}
-          identidade={
-            <Identidade
-              nome={nomeLojaReal || usuario?.lojaNome || 'Unidade Administrativa'}
-              detalhe="Painel da loja"
-              aoClicar={() => irParaSecao('configuracoes')}
-            />
-          }
         />
 
         {grupoSelecionado ? (
@@ -1922,294 +1954,350 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               const sort = proximoSorteio();
               const diasVenc = diasAte(venc);
               const diasSort = diasAte(sort);
+
+              const mensal = analytics?.faturamentoMensal ?? [];
+              const novos = (analytics?.novosPorMes ?? []).slice(-periodoClientes);
+              const churn = analytics?.churnHistorico ?? [];
+              const churnAlto = (analytics?.churnAtual ?? 0) > 10;
+              const pm = analytics?.parcelaDoMes;
+              const nomeMes = pm
+                ? new Date(`${pm.competencia}-01T12:00:00`).toLocaleDateString('pt-BR', { month: 'long' })
+                : null;
+              const cotasTotais = analytics?.cotasTotais ?? 0;
+              const cotasPreenchidas = analytics?.cotasPreenchidas ?? 0;
+              const semPreco = analytics?.retiradasSemValorInformado ?? 0;
+
+              // Recortes do painel escuro. "Com vencidas" e o que a loja
+              // precisa tratar hoje; "Abertos" e onde ainda cabe cliente nova.
+              const vencidasDoGrupo = (g: Grupo) => faturamentoDoGrupo(g.id)?.cotasVencidasNoMes ?? 0;
+              const abertoParaEntrar = (g: Grupo) => !grupoEncerrado(g) && vagasDoGrupo(g) !== 0;
+              const recortes = {
+                todos: listaGrupos,
+                vencidas: listaGrupos.filter((g) => vencidasDoGrupo(g) > 0),
+                abertos: listaGrupos.filter(abertoParaEntrar),
+              };
+              const gruposDoPainel = recortes[abaGruposInicio];
+              const emFoco = gruposDoPainel.find((g) => g.id === grupoEmFoco) ?? gruposDoPainel[0] ?? null;
+              const fatEmFoco = emFoco ? faturamentoDoGrupo(emFoco.id) : undefined;
+
+              const situacaoDoGrupo = (g: Grupo) => {
+                if (grupoEncerrado(g)) return 'Encerrado';
+                const vagas = vagasDoGrupo(g);
+                if (vagas === 0) return 'Lotado';
+                return vagas === null ? 'Aberto' : `${vagas} vaga${vagas === 1 ? '' : 's'}`;
+              };
+              const ocupadasDoGrupo = (g: Grupo) =>
+                Number(g.cotasOcupadas ?? faturamentoDoGrupo(g.id)?.cotasOcupadas ?? 0);
+
+              const abrirFicha = (g: Grupo) => setGrupoSelecionado(g);
+              // Mesmo caminho do botao "+ Adicionar Cliente" da ficha: o
+              // modal de participantes so existe com um grupo aberto.
+              const adicionarCliente = (g: Grupo) => {
+                setGrupoSelecionado(g);
+                setClientesSelecionados([]);
+                setBuscaClienteGrupo('');
+                setModalAddParticipantesAberto(true);
+                carregarClientesDisponiveis(g.id);
+              };
+
               return (
               <div className="space-y-6 animate-fadeIn">
 
-                {/* ── Banner de datas fixas ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className={`flex items-center justify-between px-5 py-4 ${
-                    diasVenc <= 3
-                      ? 'bg-amber-50 border border-amber-200 rounded-[24px]'
-                      : 'cartao-avle'
-                  }`}>
-                    <div>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Próximo Vencimento</p>
-                      <p className={`text-base font-black font-mono mt-0.5 ${diasVenc <= 3 ? 'text-amber-700' : 'text-[#0B1E14]'}`}>
-                        {formatarData(venc)}
-                      </p>
-                      <p className="text-[10px] text-stone-400 mt-0.5">5º dia útil do mês · feriados excluídos</p>
-                    </div>
-                    <div className={`text-right flex-shrink-0 ml-4`}>
-                      <span className={`text-2xl font-black font-mono ${diasVenc <= 3 ? 'text-amber-600' : 'text-[#BD6B42]'}`}>
-                        {diasVenc}d
+                {/* ── Os quatro cartões de cima ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+
+                  <CartaoIndicador
+                    titulo="Próximo vencimento"
+                    icone="alerta"
+                    tom={diasVenc <= 3 ? 'alerta' : 'acento'}
+                    valor={formatarData(venc)}
+                    nota={
+                      <span className="text-[11px] text-stone-400">
+                        <span className={`font-semibold ${diasVenc <= 3 ? 'text-amber-700' : 'text-painel-acento'}`}>
+                          {diasVenc} dia{diasVenc === 1 ? '' : 's'}
+                        </span>{' '}
+                        restantes · 5º dia útil, feriados excluídos
                       </span>
-                      <p className="text-[9px] text-stone-400 uppercase tracking-wider">restantes</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between px-5 py-4 cartao-avle">
-                    <div>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Próximo Sorteio</p>
-                      <p className="text-base font-black font-mono mt-0.5 text-[#0B1E14]">
-                        {formatarData(sort)}
-                      </p>
-                      <p className="text-[10px] text-stone-400 mt-0.5">dia 10 de cada mês · Loteria Federal</p>
-                    </div>
-                    <div className="text-right flex-shrink-0 ml-4">
-                      <span className="text-2xl font-black font-mono text-emerald-600">{diasSort}d</span>
-                      <p className="text-[9px] text-stone-400 uppercase tracking-wider">restantes</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── KPI cards ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* O faturamento ocupa duas colunas e é o único cartão escuro
-                      da tela: é o número pelo qual a loja abre o painel. */}
-                  <div className="sm:col-span-2">
-                    <CartaoDeNumero
-                      destaque
-                      icone="financeiro"
-                      rotulo="Faturamento Total"
-                      valor={`R$ ${(analytics?.totalFaturado ?? recebidoEsteMes).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-                      selo={
-                        <span className="inline-flex items-center gap-1.5 bg-white/10 text-white/80 text-[10px] font-bold px-2.5 py-1 rounded-full">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          ao vivo
-                        </span>
-                      }
-                      nota="receita líquida acumulada"
-                    />
-                  </div>
-                  <CartaoDeNumero
-                    icone="clientes"
-                    rotulo="Clientes Ativos"
-                    valor={totalClientes}
-                    nota="cadastrados na unidade"
-                  />
-                  <CartaoDeNumero
-                    icone="grupos"
-                    rotulo="Grupos Ativos"
-                    valor={totalGruposValidos}
-                    nota="grupos de compras"
-                  />
-                </div>
-
-                {/* ── Parcela do mês: total de todos os grupos ── */}
-                {analytics?.parcelaDoMes && (() => {
-                  const pm = analytics.parcelaDoMes;
-                  const nomeMes = new Date(`${pm.competencia}-01T12:00:00`).toLocaleDateString('pt-BR', { month: 'long' });
-                  return (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <CartaoDeNumero
-                        rotulo={`Pagas em ${nomeMes}`}
-                        valor={<span className="text-emerald-700">{pm.pagas}</span>}
-                        nota="cotas com a parcela do mês paga · todos os grupos"
-                      />
-                      <CartaoDeNumero
-                        rotulo={`Vencidas em ${nomeMes}`}
-                        valor={<span className="text-[#BD6B42]">{pm.vencidas}</span>}
-                        nota="parcela do mês vencida e não paga"
-                      />
-                      <CartaoDeNumero
-                        rotulo="Ainda no prazo"
-                        valor={pm.aguardandoVencimento}
-                        nota="parcela emitida, vencimento não chegou"
-                      />
-                    </div>
-                  );
-                })()}
-
-                {/* ── Operação: onde estão as clientes e as cotas ── */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <CartaoDeNumero
-                    rotulo="Clientes em Grupo"
-                    valor={analytics?.clientesAtivosEmGrupo ?? 0}
-                    nota="participando de algum clube"
-                  />
-                  <CartaoDeNumero
-                    rotulo="Clientes sem Grupo"
-                    valor={<span className="text-[#BD6B42]">{analytics?.clientesAtivosSemGrupo ?? 0}</span>}
-                    nota="na carteira, fora de clube"
-                  />
-                  <CartaoDeNumero
-                    rotulo="Sorteadas"
-                    valor={<span className="text-amber-600">{analytics?.sorteadasEmGruposAtivos ?? 0}</span>}
-                    nota="contempladas em grupos abertos"
-                  />
-                  <CartaoDeNumero
-                    rotulo="Cotas Preenchidas"
-                    valor={
-                      <>
-                        {analytics?.cotasPreenchidas ?? 0}
-                        <span className="text-base text-stone-400">/{analytics?.cotasTotais ?? 0}</span>
-                      </>
                     }
-                    nota={(analytics?.cotasTotais ?? 0) > 0
-                      ? `${Math.round(((analytics?.cotasPreenchidas ?? 0) / (analytics?.cotasTotais ?? 1)) * 100)}% de ocupação`
-                      : 'sem cotas cadastradas'}
-                  />
-                </div>
+                  >
+                    <ArteDaMarca />
+                  </CartaoIndicador>
 
-                {/* ── Saída de produto ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <CartaoDeNumero
-                    rotulo="Produtos Retirados"
-                    valor={`R$ ${(analytics?.valorProdutosRetirados ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-                    /* O aviso e a diferenca entre um numero conferido e um
-                       estimado pelo plano. Sem ele, a loja tomaria decisao
-                       achando que o valor foi somado produto a produto. */
-                    nota={(analytics?.retiradasSemValorInformado ?? 0) > 0 ? (
-                      <span className="text-amber-700 leading-snug">
-                        {analytics?.retiradasSemValorInformado} retirada
-                        {(analytics?.retiradasSemValorInformado ?? 0) !== 1 ? 's' : ''} ainda sem preço informado ·
-                        valor estimado pelo plano
-                      </span>
-                    ) : 'valor conferido produto a produto'}
-                  />
+                  <CartaoIndicador
+                    titulo="Faturamento do mês"
+                    icone="calendario"
+                    valor={real(analytics?.faturamentoMesAtual)}
+                    nota={
+                      variacao(mensal.map((m) => m.total)) !== null
+                        ? <Variacao valor={variacao(mensal.map((m) => m.total))} />
+                        : <span className="text-[11px] text-stone-400">receita líquida recebida · últimos 12 meses</span>
+                    }
+                  >
+                    <BarrasMini
+                      dados={mensal.map((m) => ({ rotulo: m.mes, valor: Number(m.total) || 0 }))}
+                      formatar={(n) => real(n)}
+                    />
+                  </CartaoIndicador>
 
-                  <CartaoDeNumero
-                    rotulo="UpSell"
-                    valor={<span className="text-[#BD6B42]">R$ {(analytics?.valorUpsell ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>}
-                    nota={(analytics?.valorUpsell ?? 0) > 0
-                      ? 'levado acima do plano contratado'
-                      : 'depende do preço informado na retirada'}
-                  />
-                </div>
-
-                {/* ── Linha 2: gráfico de clientes + churn histórico ── */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-                  {/* Novos clientes por mês */}
-                  <div className="cartao-avle lg:col-span-2 p-5">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Novos Clientes</h3>
-                        <p className="text-[10px] text-stone-400 mt-0.5">cadastros por mês na unidade</p>
-                      </div>
-                      <div className="flex gap-1">
-                        {([1, 6, 12] as const).map(p => (
+                  <CartaoIndicador
+                    titulo={
+                      <span className="flex items-center gap-1 -ml-1">
+                        {(['novos', 'churn'] as const).map((g) => (
                           <button
-                            key={p}
-                            onClick={() => setPeriodoClientes(p)}
-                            className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                              periodoClientes === p
-                                ? 'bg-[#0B1E14] text-white'
-                                : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                            key={g}
+                            type="button"
+                            onClick={() => setGraficoCarteira(g)}
+                            aria-pressed={graficoCarteira === g}
+                            className={`px-2.5 h-7 rounded-full text-[12px] font-medium transition-colors cursor-pointer ${
+                              graficoCarteira === g ? 'bg-painel-tinta text-white' : 'text-stone-500 hover:text-painel-tinta'
                             }`}
                           >
-                            {p === 1 ? '1M' : p === 6 ? '6M' : '12M'}
+                            {g === 'novos' ? 'Novos clientes' : 'Churn'}
                           </button>
                         ))}
+                      </span>
+                    }
+                    icone={graficoCarteira === 'novos' ? 'clientes' : 'relogio'}
+                    tom={graficoCarteira === 'churn' && churnAlto ? 'perigo' : 'positivo'}
+                    valor={
+                      graficoCarteira === 'novos'
+                        ? (novos[novos.length - 1]?.total ?? 0)
+                        : <span className={churnAlto ? 'text-rose-600' : 'text-emerald-700'}>
+                            {(analytics?.churnAtual ?? 0).toFixed(1)}%
+                          </span>
+                    }
+                    unidade={
+                      graficoCarteira === 'novos'
+                        ? 'no último mês'
+                        : `${analytics?.clientesQueSairam ?? 0} de ${analytics?.clientesNaCarteira ?? 0} clientes`
+                    }
+                    nota={
+                      graficoCarteira === 'novos' ? (
+                        <span className="flex items-center justify-between gap-2">
+                          <Variacao valor={variacao(novos.map((n) => n.total))} />
+                          <span className="flex gap-0.5 ml-auto">
+                            {([1, 6, 12] as const).map((p) => (
+                              <button
+                                key={p}
+                                type="button"
+                                onClick={() => setPeriodoClientes(p)}
+                                className={`text-[10px] font-semibold px-2 h-6 rounded-full transition-colors cursor-pointer ${
+                                  periodoClientes === p ? 'bg-painel-papel text-painel-tinta' : 'text-stone-400 hover:text-painel-tinta'
+                                }`}
+                              >
+                                {p}M
+                              </button>
+                            ))}
+                          </span>
+                        </span>
+                      ) : (
+                        <Variacao valor={variacao(churn.map((c) => c.taxa))} texto="clientes que saíram da carteira" bomQuandoSobe={false} />
+                      )
+                    }
+                  >
+                    {graficoCarteira === 'novos' ? (
+                      <LinhaMini
+                        dados={novos.map((n) => ({ rotulo: n.mes, valor: Number(n.total) || 0 }))}
+                        formatar={(n) => `${n} cadastro${n === 1 ? '' : 's'}`}
+                      />
+                    ) : (
+                      <LinhaMini
+                        dados={churn.map((c) => ({ rotulo: c.mes, valor: Number(c.taxa) || 0 }))}
+                        formatar={(n) => `${n.toFixed(1)}%`}
+                        cor={churnAlto ? 'text-rose-600' : 'text-emerald-600'}
+                      />
+                    )}
+                  </CartaoIndicador>
+
+                  <CartaoIndicador
+                    titulo="Faturamento total"
+                    canto={<BotaoDeCanto rotulo="Ver clientes" aoClicar={() => irParaSecao('clientes')} />}
+                    valor={real(analytics?.totalFaturado ?? recebidoEsteMes)}
+                    nota={
+                      <span className="inline-flex items-center gap-2 text-[11px] text-stone-400">
+                        <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 font-semibold px-2 h-5 rounded-full">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          ao vivo
+                        </span>
+                        receita líquida acumulada
+                      </span>
+                    }
+                  >
+                    <BlocosDeValor
+                      blocos={[
+                        { rotulo: nomeMes ? `Pagas em ${nomeMes}` : 'Pagas no mês', valor: pm?.pagas ?? '—' },
+                        { rotulo: 'Vencidas, sem pagar', valor: pm?.vencidas ?? '—', destaque: true },
+                        { rotulo: 'Ainda no prazo', valor: pm?.aguardandoVencimento ?? '—' },
+                      ]}
+                      acao={{ rotulo: 'Ver grupos', aoClicar: () => irParaSecao('grupos') }}
+                    />
+                  </CartaoIndicador>
+                </div>
+
+                {/* ── Números miúdos da operação ── */}
+                <FaixaDeNumeros
+                  titulo="Operação"
+                  itens={[
+                    { rotulo: 'Próximo sorteio', valor: formatarData(sort), nota: `${diasSort}d · Loteria Federal, dia 10` },
+                    { rotulo: 'Clientes ativos', valor: totalClientes },
+                    { rotulo: 'Grupos ativos', valor: totalGruposValidos },
+                    { rotulo: 'Em grupo', valor: analytics?.clientesAtivosEmGrupo ?? 0 },
+                    { rotulo: 'Sem grupo', valor: analytics?.clientesAtivosSemGrupo ?? 0, tom: 'acento' },
+                    { rotulo: 'Sorteadas', valor: analytics?.sorteadasEmGruposAtivos ?? 0, tom: 'alerta', nota: 'em grupos abertos' },
+                    {
+                      rotulo: 'Cotas preenchidas',
+                      valor: `${cotasPreenchidas}/${cotasTotais}`,
+                      nota: cotasTotais > 0 ? `${Math.round((cotasPreenchidas / cotasTotais) * 100)}% de ocupação` : 'sem cotas',
+                    },
+                    {
+                      rotulo: 'Produtos retirados',
+                      valor: real(analytics?.valorProdutosRetirados),
+                      // O aviso separa numero conferido de numero estimado
+                      // pelo plano. Sem ele a loja decidiria achando que o
+                      // valor foi somado produto a produto.
+                      nota: semPreco > 0
+                        ? <span className="text-amber-700">{semPreco} sem preço · estimado pelo plano</span>
+                        : 'conferido produto a produto',
+                    },
+                    {
+                      rotulo: 'UpSell',
+                      valor: real(analytics?.valorUpsell),
+                      tom: 'acento',
+                      nota: (analytics?.valorUpsell ?? 0) > 0 ? 'acima do plano' : 'depende do preço na retirada',
+                    },
+                  ]}
+                />
+
+                {/* ── Grupos: lista e detalhe ── */}
+                <PainelEscuro
+                  titulo="Grupos da loja"
+                  abas={[
+                    { id: 'todos', rotulo: 'Todos', contador: recortes.todos.length },
+                    { id: 'vencidas', rotulo: 'Com vencidas', contador: recortes.vencidas.length },
+                    { id: 'abertos', rotulo: 'Abertos', contador: recortes.abertos.length },
+                  ]}
+                  abaAtiva={abaGruposInicio}
+                  aoTrocarAba={(id) => setAbaGruposInicio(id as typeof abaGruposInicio)}
+                  canto={
+                    <>
+                      <BotaoEscuro icone="grupos" rotulo="Ver todos os grupos" aoClicar={() => irParaSecao('grupos')} />
+                      <BotaoEscuro icone="mais" rotulo="Novo grupo" aoClicar={() => setModalNovoGrupoAberto(true)} />
+                    </>
+                  }
+                  lista={
+                    gruposDoPainel.length === 0 ? (
+                      <p className="text-[12px] text-white/45 px-3 py-8 text-center">
+                        {listaGrupos.length === 0 ? 'Nenhum grupo criado ainda.' : 'Nenhum grupo neste recorte.'}
+                      </p>
+                    ) : (
+                      gruposDoPainel.map((g) => (
+                        <ItemDoPainel
+                          key={g.id}
+                          sigla={sigla(g.nome)}
+                          titulo={g.nome}
+                          subtitulo={`#${g.id} · ${ocupadasDoGrupo(g)}/${g.quantidadeMaxCotas} cotas`}
+                          selo={vencidasDoGrupo(g) > 0 ? `${vencidasDoGrupo(g)} vencida${vencidasDoGrupo(g) === 1 ? '' : 's'}` : situacaoDoGrupo(g)}
+                          valor={real(faturamentoDoGrupo(g.id)?.faturado, 0)}
+                          ativo={emFoco?.id === g.id}
+                          aoEscolher={() => setGrupoEmFoco(g.id)}
+                        />
+                      ))
+                    )
+                  }
+                  detalhe={
+                    !emFoco ? (
+                      <div className="h-full min-h-[240px] rounded-[24px] bg-white/[0.04] flex flex-col items-center justify-center gap-3 text-center p-6">
+                        <p className="text-[13px] text-white/60">Crie o primeiro grupo para acompanhar as parcelas aqui.</p>
+                        <button
+                          type="button"
+                          onClick={() => setModalNovoGrupoAberto(true)}
+                          className="h-10 px-5 rounded-full bg-white text-painel-tinta text-[12px] font-semibold cursor-pointer"
+                        >
+                          + Novo grupo
+                        </button>
                       </div>
-                    </div>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <BarChart
-                        data={(analytics?.novosPorMes ?? []).slice(-(periodoClientes))}
-                        margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
-                        barSize={periodoClientes === 1 ? 40 : periodoClientes === 6 ? 28 : 18}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#F0EEE8" vertical={false} />
-                        <XAxis dataKey="mes" tick={{ fontSize: 10, fill: '#78716C', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 10, fill: '#78716C' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                        <Tooltip
-                          contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 8, boxShadow: '0 2px 8px #0001' }}
-                          formatter={(v) => [v ?? 0, 'Novos clientes']}
-                        />
-                        <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                          {(analytics?.novosPorMes ?? []).slice(-periodoClientes).map((_, i, arr) => (
-                            <Cell
-                              key={i}
-                              fill={i === arr.length - 1 ? '#BD6B42' : '#0B1E14'}
-                            />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+                    ) : (
+                      <div className="h-full rounded-[24px] bg-avle-verde p-5 flex flex-col gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div className="min-w-0">
+                            <span className="block text-[11px] text-white/50">Detalhes do grupo</span>
+                            <span className="flex items-center gap-2 mt-1.5 min-w-0">
+                              <span className="text-[22px] font-semibold tracking-tight truncate">{emFoco.nome}</span>
+                              <span className="h-6 px-2.5 rounded-full bg-white/10 text-[10px] font-semibold flex items-center whitespace-nowrap">
+                                {situacaoDoGrupo(emFoco)}
+                              </span>
+                            </span>
+                          </div>
+                          <div>
+                            <span className="block text-[11px] text-white/50">Parcela</span>
+                            <span className="block text-[17px] font-semibold mt-1.5 tabular-nums">
+                              {real(emFoco.valorParcela)} <span className="text-[11px] font-normal text-white/50">por mês</span>
+                            </span>
+                          </div>
+                          <div>
+                            <span className="block text-[11px] text-white/50">Vigência · {emFoco.duracaoMeses} meses</span>
+                            <span className="block text-[13px] font-semibold mt-1.5 tabular-nums">
+                              {emFoco.dataInicio ? new Date(emFoco.dataInicio).toLocaleDateString('pt-BR') : '—'}
+                              <span className="text-white/40 font-normal"> até </span>
+                              {emFoco.dataTermino ? new Date(emFoco.dataTermino).toLocaleDateString('pt-BR') : '—'}
+                            </span>
+                          </div>
+                        </div>
 
-                  {/* Churn histórico */}
-                  <div className="cartao-avle p-5 flex flex-col">
-                    <div className="mb-4">
-                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Evolução do Churn</h3>
-                      <p className="text-[10px] text-stone-400 mt-0.5">clientes que saíram da carteira</p>
-                    </div>
-                    <div className="flex items-end gap-2 mb-3">
-                      <span className={`text-4xl font-black font-mono leading-none ${(analytics?.churnAtual ?? 0) > 10 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                        {(analytics?.churnAtual ?? 0).toFixed(1)}%
-                      </span>
-                      <span className="text-[10px] text-stone-400 mb-1">
-                        {analytics?.clientesQueSairam ?? 0} de {analytics?.clientesNaCarteira ?? 0} clientes
-                      </span>
-                    </div>
-                    <ResponsiveContainer width="100%" height={120}>
-                      <LineChart
-                        data={analytics?.churnHistorico ?? []}
-                        margin={{ top: 4, right: 4, left: -28, bottom: 0 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#F0EEE8" vertical={false} />
-                        <XAxis dataKey="mes" tick={{ fontSize: 9, fill: '#78716C', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 9, fill: '#78716C' }} axisLine={false} tickLine={false} />
-                        <Tooltip
-                          contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 8 }}
-                          formatter={(v, _nome, item) => {
-                            const saidas = Number(item?.payload?.saidas ?? 0);
-                            return [`${Number(v ?? 0).toFixed(1)}%  ·  ${saidas} saída${saidas === 1 ? '' : 's'}`, 'Churn'];
-                          }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="taxa"
-                          stroke={(analytics?.churnAtual ?? 0) > 10 ? '#E11D48' : '#10B981'}
-                          strokeWidth={2.5}
-                          dot={{ r: 3, fill: (analytics?.churnAtual ?? 0) > 10 ? '#E11D48' : '#10B981' }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                          <BlocoDoDetalhe rotulo="Faturado" valor={real(fatEmFoco?.faturado)} aoClicar={() => abrirFicha(emFoco)} />
+                          <BlocoDoDetalhe
+                            rotulo="Pagas no mês"
+                            valor={fatEmFoco?.cotasPagasNoMes ?? 0}
+                            aoClicar={() => abrirFicha(emFoco)}
+                          />
+                          <BlocoDoDetalhe
+                            rotulo="Vencidas no mês"
+                            valor={fatEmFoco?.cotasVencidasNoMes ?? 0}
+                            nota={`${fatEmFoco?.cotasAguardandoNoMes ?? 0} ainda no prazo`}
+                            aoClicar={() => abrirFicha(emFoco)}
+                          />
+                          <BlocoDeAdicionar rotulo="Adicionar cliente" aoClicar={() => adicionarCliente(emFoco)} />
+                        </div>
 
-                {/* ── Faturamento mês a mês ── */}
-                <div className="cartao-avle p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Faturamento Mensal</h3>
-                      <p className="text-[10px] text-stone-400 mt-0.5">receita líquida recebida por mês · últimos 12 meses</p>
-                    </div>
-                    <span className="text-lg font-black font-mono text-emerald-700">
-                      R$ {(analytics?.faturamentoMesAtual ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  {(analytics?.faturamentoMensal ?? []).length === 0 ? (
-                    <div className="flex items-center justify-center h-36 text-xs text-stone-400 italic">
-                      Nenhuma transação registrada ainda.
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={200}>
-                      <BarChart
-                        data={analytics?.faturamentoMensal ?? []}
-                        margin={{ top: 4, right: 4, left: -10, bottom: 0 }}
-                        barSize={18}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#F0EEE8" vertical={false} />
-                        <XAxis dataKey="mes" tick={{ fontSize: 10, fill: '#78716C', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                        <YAxis
-                          tick={{ fontSize: 10, fill: '#78716C' }} axisLine={false} tickLine={false}
-                          tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`}
-                        />
-                        <Tooltip
-                          contentStyle={{ fontSize: 11, border: '1px solid #DFD9CE', borderRadius: 8 }}
-                          formatter={(v) => [`R$ ${Number(v ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Faturamento']}
-                        />
-                        <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                          {(analytics?.faturamentoMensal ?? []).map((_, i, arr) => (
-                            <Cell key={i} fill={i === arr.length - 1 ? '#BD6B42' : '#0B1E14'} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
+                        {(() => {
+                          const faturado = Number(fatEmFoco?.faturado ?? 0);
+                          const previsto = Number(fatEmFoco?.previsto ?? 0);
+                          const pct = previsto > 0 ? Math.min(100, (faturado / previsto) * 100) : 0;
+                          return (
+                            <div className="mt-auto rounded-[18px] bg-black/15 p-4 flex flex-wrap items-center gap-x-8 gap-y-3">
+                              <div>
+                                <span className="block text-[10px] text-white/50">Previsto</span>
+                                <span className="block text-[14px] font-semibold tabular-nums mt-0.5">{real(previsto)}</span>
+                              </div>
+                              <div>
+                                <span className="block text-[10px] text-white/50">Já faturado</span>
+                                <span className="block text-[14px] font-semibold tabular-nums mt-0.5">{pct.toFixed(0)}%</span>
+                              </div>
+                              <div>
+                                <span className="block text-[10px] text-white/50">Cotas</span>
+                                <span className="block text-[14px] font-semibold tabular-nums mt-0.5">
+                                  {ocupadasDoGrupo(emFoco)}/{emFoco.quantidadeMaxCotas}
+                                </span>
+                              </div>
+                              <div className="ml-auto flex items-center gap-2">
+                                <BotaoEscuro icone="link" rotulo="Copiar link da loja" aoClicar={handleCopiarLinkConvite} />
+                                <BotaoEscuro icone="calendario" rotulo="Datas do grupo" aoClicar={() => abrirFicha(emFoco)} />
+                                <button
+                                  type="button"
+                                  onClick={() => abrirFicha(emFoco)}
+                                  className="h-10 px-5 rounded-full bg-white text-painel-tinta text-[12px] font-semibold hover:bg-painel-papel transition-colors cursor-pointer"
+                                >
+                                  Abrir ficha
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )
+                  }
+                />
 
               </div>
               );
