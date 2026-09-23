@@ -15,7 +15,8 @@ trocada. Tema único, claro.
 > **Estado atual:** o design system está carregado no app, mas **nenhuma tela do
 > produto o usa ainda**; só a vitrine (`/design-system`). Os painéis usam as
 > classes do Tailwind com os tons do `@theme` de `app/globals.css` — a mesma
-> paleta da AVLE daqui, ainda sem os componentes.
+> paleta da AVLE daqui — e uma camada no fim do mesmo arquivo que dá a elas o
+> desenho do design system. Ainda sem os componentes.
 > Veja [O que ainda não bate](#o-que-ainda-não-bate) antes de migrar uma tela.
 
 ## Onde fica cada coisa
