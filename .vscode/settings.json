@@ -1,0 +1,12 @@
+{
+  "//": "O editor precisa usar o TypeScript do projeto, e nao o que vem embutido nele. O tsconfig daqui usa moduleResolution 'bundler', que versoes antigas do TypeScript nao entendem - e o sintoma e o editor dizer que nao acha o 'react' em arquivos que compilam sem erro nenhum pela linha de comando.",
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+
+  "//2": "A raiz do TypeScript e esta pasta, e nao a de cima. Existe um .git em Desktop/AVLE, entao o editor pode abrir a pasta pai e procurar configuracao no lugar errado.",
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.next": true
+  }
+}
