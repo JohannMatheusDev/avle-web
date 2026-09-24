@@ -14,7 +14,7 @@
  * recharts ocupam mais que as barras, e a referência não tem nenhum deles.
  */
 
-import { useId } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Icone } from './Casca';
 
 type NomeDeIcone = Parameters<typeof Icone>[0]['nome'];
@@ -614,4 +614,86 @@ export function sigla(nome: string | null | undefined) {
   const partes = (nome || '?').trim().split(/\s+/).filter(Boolean);
   if (partes.length === 1) return partes[0].substring(0, 2).toUpperCase();
   return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+/**
+ * O ícone de calendário do canto do cartão, que abre a escolha do período.
+ *
+ * Fecha ao escolher, ao clicar fora e no Esc. Fica no canto, no lugar do
+ * ícone que era só enfeite, porque é ali que a referência põe o calendário.
+ */
+export function SeletorDePeriodo<T extends string>({
+  opcoes,
+  valor,
+  aoEscolher,
+}: {
+  opcoes: { id: T; rotulo: string }[];
+  valor: T;
+  aoEscolher: (id: T) => void;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const caixa = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!aberto) return;
+    const fora = (e: MouseEvent) => {
+      if (caixa.current && !caixa.current.contains(e.target as Node)) setAberto(false);
+    };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setAberto(false); };
+    document.addEventListener('mousedown', fora);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('mousedown', fora);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [aberto]);
+
+  const atual = opcoes.find((o) => o.id === valor);
+
+  return (
+    <div ref={caixa} className="relative flex-shrink-0">
+      <button
+        type="button"
+        onClick={() => setAberto((a) => !a)}
+        aria-haspopup="menu"
+        aria-expanded={aberto}
+        aria-label={`Período: ${atual?.rotulo ?? ''}. Trocar período`}
+        title="Trocar período"
+        className={`h-8 pl-2.5 pr-3 rounded-full ring-1 flex items-center gap-1.5 text-[11px] font-semibold transition-colors cursor-pointer ${
+          aberto
+            ? 'bg-painel-tinta text-white ring-painel-tinta'
+            : 'bg-painel-papel text-painel-tinta ring-painel-borda hover:ring-painel-tinta/30'
+        }`}
+      >
+        <Icone nome="calendario" className="w-4 h-4" />
+        {atual?.rotulo}
+      </button>
+
+      {aberto && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full mt-2 z-30 min-w-[150px] bg-white rounded-[18px] p-1.5 ring-1 ring-painel-borda shadow-[0_18px_40px_-18px_rgba(11,30,20,0.45)] animate-fadeIn"
+        >
+          {opcoes.map((o) => {
+            const escolhido = o.id === valor;
+            return (
+              <button
+                key={o.id}
+                type="button"
+                role="menuitemradio"
+                aria-checked={escolhido}
+                onClick={() => { aoEscolher(o.id); setAberto(false); }}
+                className={`w-full flex items-center justify-between gap-3 h-9 px-3 rounded-full text-[12px] font-medium text-left transition-colors cursor-pointer ${
+                  escolhido ? 'bg-painel-tinta text-white' : 'text-painel-tinta hover:bg-painel-papel'
+                }`}
+              >
+                {o.rotulo}
+                {escolhido && <span className="w-1.5 h-1.5 rounded-full bg-painel-acento" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }

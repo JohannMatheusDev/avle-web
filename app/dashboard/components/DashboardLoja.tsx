@@ -13,8 +13,9 @@ import {
 import {
   ArteDaMarca, BarrasMini, BlocoDeAdicionar, BlocoDoDetalhe, BlocosDeValor, BotaoDeCanto,
   BotaoEscuro, CartaoIndicador, FaixaDeNumeros, ItemDoPainel, LinhaMini, PainelEscuro,
-  Variacao, real, sigla, variacao,
+  SeletorDePeriodo, Variacao, real, sigla, variacao,
 } from './Indicadores';
+import { faturamentoPorSemana, semanaContraAnterior } from '../../lib/faturamento';
 import { parcelasPagas } from '../../lib/parcelas';
 import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
@@ -271,6 +272,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   // O terceiro cartao da tela inicial alterna entre cadastros e churn: sao as
   // duas historias da carteira, e cada uma tinha o seu grafico grande.
   const [graficoCarteira, setGraficoCarteira] = useState<'novos' | 'churn'>('novos');
+  // Periodo do cartao de faturamento da tela inicial.
+  const [periodoFaturamento, setPeriodoFaturamento] = useState<'semana' | 'mes' | '6m' | '12m'>('mes');
   // Painel escuro da tela inicial: qual recorte dos grupos e qual deles esta
   // aberto no detalhe. So o id, pelo mesmo motivo do historico: o objeto do
   // grupo e remontado da lista, que e a que se mantem atualizada.
@@ -2023,21 +2026,81 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <ArteDaMarca />
                   </CartaoIndicador>
 
-                  <CartaoIndicador
-                    titulo="Faturamento do mês"
-                    icone="calendario"
-                    valor={real(analytics?.faturamentoMesAtual)}
-                    nota={
-                      variacao(mensal.map((m) => m.total)) !== null
-                        ? <Variacao valor={variacao(mensal.map((m) => m.total))} />
-                        : <span className="text-[11px] text-stone-400">receita líquida recebida · últimos 12 meses</span>
-                    }
-                  >
-                    <BarrasMini
-                      dados={mensal.map((m) => ({ rotulo: m.mes, valor: Number(m.total) || 0 }))}
-                      formatar={(n) => real(n)}
-                    />
-                  </CartaoIndicador>
+                  {(() => {
+                    // Semana sai do extrato; mes, 6 e 12 meses saem do
+                    // faturamento mensal do servidor. Os dois seguem a mesma
+                    // regra (recebido, liquido de 90%, pela data do pagamento).
+                    const totais = mensal.map((m) => Number(m.total) || 0);
+                    const soma = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+                    const semanas = faturamentoPorSemana(historicoTransacoes, 8);
+                    const trechoDaSemana = semanaContraAnterior(historicoTransacoes);
+
+                    const vista = {
+                      semana: {
+                        titulo: 'Faturamento da semana',
+                        valor: semanas[semanas.length - 1]?.total ?? 0,
+                        variacao: variacao([trechoDaSemana.anterior, trechoDaSemana.atual]),
+                        comparacao: 'sobre o mesmo trecho da semana passada',
+                        barras: semanas.map((w) => ({
+                          rotulo: w.rotulo,
+                          valor: w.total,
+                          dica: `Semana de ${w.rotulo}: ${real(w.total)}`,
+                        })),
+                      },
+                      mes: {
+                        titulo: 'Faturamento do mês',
+                        valor: Number(analytics?.faturamentoMesAtual) || 0,
+                        variacao: variacao(totais),
+                        comparacao: 'sobre o mês anterior',
+                        barras: mensal.map((m) => ({ rotulo: m.mes, valor: Number(m.total) || 0 })),
+                      },
+                      '6m': {
+                        titulo: 'Faturamento em 6 meses',
+                        valor: soma(totais.slice(-6)),
+                        // Os 12 meses do servidor dao exatamente dois semestres.
+                        variacao: totais.length >= 12 ? variacao([soma(totais.slice(-12, -6)), soma(totais.slice(-6))]) : null,
+                        comparacao: 'sobre os 6 meses anteriores',
+                        barras: mensal.slice(-6).map((m) => ({ rotulo: m.mes, valor: Number(m.total) || 0 })),
+                      },
+                      '12m': {
+                        titulo: 'Faturamento em 1 ano',
+                        valor: soma(totais),
+                        // Nao ha o ano anterior para comparar: o servidor manda
+                        // so os ultimos 12 meses.
+                        variacao: null,
+                        comparacao: '',
+                        barras: mensal.map((m) => ({ rotulo: m.mes, valor: Number(m.total) || 0 })),
+                      },
+                    }[periodoFaturamento];
+
+                    return (
+                      <CartaoIndicador
+                        titulo={vista.titulo}
+                        canto={
+                          <SeletorDePeriodo
+                            valor={periodoFaturamento}
+                            aoEscolher={setPeriodoFaturamento}
+                            opcoes={[
+                              { id: 'semana', rotulo: 'Semana' },
+                              { id: 'mes', rotulo: 'Mês' },
+                              { id: '6m', rotulo: '6 meses' },
+                              { id: '12m', rotulo: '1 ano' },
+                            ]}
+                          />
+                        }
+                        valor={real(vista.valor)}
+                        nota={
+                          vista.variacao !== null
+                            ? <Variacao valor={vista.variacao} texto={vista.comparacao} />
+                            : <span className="text-[11px] text-stone-400">
+                                receita líquida recebida · {periodoFaturamento === 'semana' ? 'últimas 8 semanas' : 'últimos 12 meses'}
+                              </span>
+                        }
+                      >
+                        <BarrasMini dados={vista.barras} formatar={(n) => real(n)} />
+                      </CartaoIndicador>
+                    );
+                  })()}
 
                   <CartaoIndicador
                     titulo={
