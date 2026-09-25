@@ -3168,7 +3168,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         />
                       </div>
                       <div className="sm:col-span-3">
-                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Complemento (opcional)</label>
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Complemento </label>
                         <input
                           type="text"
                           value={dadosLoja.complemento ?? ''}
@@ -3416,7 +3416,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">E-mail de Notificação / Login (Opcional)</label>
+                <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">E-mail de Notificação / Login </label>
                 <input 
                   type="email" 
                   value={emailCliente}
@@ -3438,7 +3438,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Telefone / WhatsApp (Opcional)</label>
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Telefone / WhatsApp </label>
                   <input 
                     type="text" 
                     value={telefoneCliente}
