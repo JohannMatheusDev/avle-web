@@ -31,6 +31,16 @@ export type ResumoDaConta = {
   saqueEmAndamento: boolean;
   saldo?: number | null;
   erroSaldo?: string;
+  ativacao?: Ativacao;
+};
+
+type Ativacao = {
+  /** SEM_CONTA, SEM_CHAVE, PENDENTE, RECUSADA, ATIVA ou DESCONHECIDA. */
+  situacao: string;
+  aguardandoAprovacao?: boolean;
+  pendencias?: { titulo: string; situacao: string }[];
+  links?: { titulo: string; link: string }[];
+  erro?: string;
 };
 
 type Lancamento = {
@@ -50,6 +60,7 @@ type Saque = {
   tipoChavePix: string;
   status: string;
   motivoFalha?: string | null;
+  comprovanteUrl?: string | null;
   criadoEm: string;
 };
 
@@ -106,6 +117,108 @@ export function useResumoDaConta(lojaId: number | undefined, ativo = true) {
   }, [ativo, recarregar]);
 
   return { resumo, erro, carregando, recarregar };
+}
+
+// ── A faixa de ativação ─────────────────────────────────────────────────────
+
+/**
+ * O que falta para a Conta AVLE ficar pronta, dito do jeito que a loja
+ * entende: esperar a aprovação, completar o cadastro, ativar a conta no
+ * Asaas (com o link de cada documento) ou conectar a chave. Some quando a
+ * conta está ativa - faixa que fica para sempre vira paisagem.
+ */
+export function FaixaDeAtivacao({
+  resumo,
+  aoIrParaConfiguracoes,
+  aoAbrirConta,
+  aoAbrirSubconta,
+  compacta = false,
+}: {
+  resumo: ResumoDaConta | null;
+  aoIrParaConfiguracoes?: () => void;
+  aoAbrirConta?: () => void;
+  /** Só o admin: abre a conta no Asaas agora. */
+  aoAbrirSubconta?: () => void;
+  compacta?: boolean;
+}) {
+  const a = resumo?.ativacao;
+  if (!a || a.situacao === 'ATIVA' || a.situacao === 'DESCONHECIDA') return null;
+
+  let titulo = '';
+  let texto = '';
+  const botoes: { rotulo: string; aoClicar?: () => void; href?: string; principal?: boolean }[] = [];
+
+  if (a.situacao === 'SEM_CONTA') {
+    if (a.aguardandoAprovacao) {
+      titulo = 'Sua conta no Asaas abre quando a AVLE aprovar a loja';
+      texto = 'Enquanto isso, deixe o endereço completo e o faturamento preenchidos nas Configurações: é com eles que a conta é aberta.';
+    } else {
+      titulo = 'A loja ainda não tem conta no Asaas';
+      texto = 'É nela que caem os 90% de cada parcela. Complete o endereço e o faturamento nas Configurações para a AVLE abrir a conta.';
+    }
+    if (aoIrParaConfiguracoes) botoes.push({ rotulo: 'Abrir Configurações', aoClicar: aoIrParaConfiguracoes, principal: true });
+    if (aoAbrirSubconta) botoes.push({ rotulo: 'Abrir conta no Asaas agora', aoClicar: aoAbrirSubconta, principal: true });
+  } else if (a.situacao === 'SEM_CHAVE') {
+    titulo = 'Conecte a conta do Asaas para ver o saldo';
+    texto = 'O repasse dos 90% já cai na conta da loja. Falta conectar a chave de API para a Conta AVLE mostrar o saldo e sacar.';
+    if (aoAbrirConta) botoes.push({ rotulo: 'Conectar agora', aoClicar: aoAbrirConta, principal: true });
+  } else {
+    const recusada = a.situacao === 'RECUSADA';
+    titulo = recusada ? 'O Asaas pediu para refazer parte do cadastro' : 'Ative a conta da loja no Asaas';
+    const falta = (a.pendencias ?? []).map((p) => `${p.titulo} (${p.situacao})`).join(', ');
+    texto = falta
+      ? `Falta: ${falta}. Até a conta ficar ativa, o dinheiro fica retido no Asaas.`
+      : 'O Asaas ainda está conferindo o cadastro. Até a conta ficar ativa, o dinheiro fica retido lá.';
+    (a.links ?? []).forEach((l, i) => botoes.push({ rotulo: `Enviar ${l.titulo.toLowerCase()}`, href: l.link, principal: i === 0 }));
+    botoes.push({ rotulo: 'Abrir o Asaas', href: 'https://www.asaas.com/login', principal: (a.links ?? []).length === 0 });
+  }
+
+  return (
+    <div className={`rounded-[22px] bg-painel-acento/10 ring-1 ring-painel-acento/25 flex flex-wrap items-center gap-4 ${compacta ? 'px-5 py-4' : 'p-5'}`}>
+      <span className="w-10 h-10 rounded-full bg-painel-acento text-white flex items-center justify-center flex-shrink-0">
+        <Icone nome="alerta" className="w-[18px] h-[18px]" />
+      </span>
+      <div className="min-w-0 flex-1 basis-[260px]">
+        <p style={{ fontWeight: 600 }} className="text-[14px] text-painel-tinta leading-snug">{titulo}</p>
+        <p className="text-[12px] text-stone-500 mt-0.5 leading-relaxed">{texto}</p>
+      </div>
+      {botoes.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {botoes.map((b) => {
+            const classe = `h-10 px-4 rounded-full text-[12px] font-semibold inline-flex items-center transition-colors cursor-pointer ${
+              b.principal ? 'bg-painel-acento text-white hover:brightness-95' : 'bg-white text-painel-tinta ring-1 ring-painel-borda hover:ring-painel-tinta/30'
+            }`;
+            return b.href ? (
+              <a key={b.rotulo} href={b.href} target="_blank" rel="noreferrer" className={classe}>{b.rotulo}</a>
+            ) : (
+              <button key={b.rotulo} type="button" onClick={b.aoClicar} className={classe}>{b.rotulo}</button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A faixa sozinha, para a tela inicial: busca o resumo por conta própria. */
+export function FaixaDeAtivacaoNoInicio({
+  lojaId,
+  aoIrParaConfiguracoes,
+  aoAbrirConta,
+}: {
+  lojaId: number | undefined;
+  aoIrParaConfiguracoes: () => void;
+  aoAbrirConta: () => void;
+}) {
+  const { resumo } = useResumoDaConta(lojaId);
+  return (
+    <FaixaDeAtivacao
+      resumo={resumo}
+      compacta
+      aoIrParaConfiguracoes={aoIrParaConfiguracoes}
+      aoAbrirConta={aoAbrirConta}
+    />
+  );
 }
 
 // ── O que aparece dentro do painel verde da tela inicial ───────────────────
@@ -194,12 +307,15 @@ export function PaginaContaAvle({
   podeSacar,
   aoIrParaConfiguracoes,
   mostrarAviso,
+  podeAbrirSubconta = false,
 }: {
   lojaId: number | undefined;
   /** Só a própria loja saca; o admin vê a página sem o botão. */
   podeSacar: boolean;
   aoIrParaConfiguracoes?: () => void;
   mostrarAviso: (titulo: string, texto: string, erro: boolean) => void;
+  /** Só o admin abre a conta no Asaas pela ficha da loja. */
+  podeAbrirSubconta?: boolean;
 }) {
   const { resumo, erro, carregando, recarregar } = useResumoDaConta(lojaId);
   const [dias, setDias] = useState<7 | 30 | 90>(30);
@@ -208,8 +324,42 @@ export function PaginaContaAvle({
   const [carregandoExtrato, setCarregandoExtrato] = useState(false);
   const [saques, setSaques] = useState<Saque[]>([]);
   const [modalSaque, setModalSaque] = useState(false);
+  const [fluxo, setFluxo] = useState<{ inicio: string; entradas: number; saidas: number }[] | null>(null);
+  const [exportando, setExportando] = useState(false);
 
   const conectada = !!resumo?.conectada;
+
+  const abrirSubconta = async () => {
+    try {
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/abrir-subconta`, { method: 'POST' });
+      if (!res.ok) throw new Error(await lerErro(res, 'Não foi possível abrir a conta no Asaas.'));
+      const r = await res.json();
+      mostrarAviso(r.situacao === 'ABERTA' || r.situacao === 'JA_EXISTIA' ? 'Conta no Asaas' : 'Ainda não deu', r.mensagem, !(r.situacao === 'ABERTA' || r.situacao === 'JA_EXISTIA'));
+      recarregar();
+    } catch (e) {
+      mostrarAviso('Erro', e instanceof Error ? e.message : 'Não foi possível abrir a conta no Asaas.', true);
+    }
+  };
+
+  // Planilha pelo fetch, e não por link direto: a sessão viaja no cookie, e
+  // um <a href> para outra origem sairia sem ela.
+  const exportar = async () => {
+    setExportando(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/extrato.csv?dias=${dias}`);
+      if (!res.ok) throw new Error(await lerErro(res, 'Não foi possível gerar a planilha.'));
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `extrato-conta-avle-${dias}-dias.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      mostrarAviso('Erro', e instanceof Error ? e.message : 'Não foi possível gerar a planilha.', true);
+    } finally {
+      setExportando(false);
+    }
+  };
 
   const carregarExtrato = useCallback(async (offset: number) => {
     if (!lojaId) return;
@@ -249,6 +399,16 @@ export function PaginaContaAvle({
     return () => window.cancelAnimationFrame(quadro);
   }, [conectada, carregarExtrato, carregarSaques]);
 
+  useEffect(() => {
+    if (!conectada || !lojaId) return;
+    let ativo = true;
+    apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/fluxo?semanas=12`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((dados) => { if (ativo && Array.isArray(dados)) setFluxo(dados); })
+      .catch(() => {});
+    return () => { ativo = false; };
+  }, [conectada, lojaId]);
+
   if (!resumo) {
     return (
       <div className="cartao-avle p-8 text-center text-[13px] text-stone-400">
@@ -258,7 +418,22 @@ export function PaginaContaAvle({
   }
 
   if (!conectada) {
-    return <ConectarConta lojaId={lojaId} aoConectar={recarregar} mostrarAviso={mostrarAviso} resumo={resumo} />;
+    return (
+      <div className="space-y-4">
+        <FaixaDeAtivacao
+          resumo={resumo}
+          aoIrParaConfiguracoes={aoIrParaConfiguracoes}
+          aoAbrirSubconta={podeAbrirSubconta ? abrirSubconta : undefined}
+        />
+        <ConectarConta
+          lojaId={lojaId}
+          aoConectar={recarregar}
+          mostrarAviso={mostrarAviso}
+          resumo={resumo}
+          jaTemContaNoAsaas={resumo.ativacao?.situacao === 'SEM_CHAVE'}
+        />
+      </div>
+    );
   }
 
   const chavePix = resumo.chavePix;
@@ -266,6 +441,8 @@ export function PaginaContaAvle({
 
   return (
     <div className="space-y-6 animate-fadeIn">
+      <FaixaDeAtivacao resumo={resumo} aoIrParaConfiguracoes={aoIrParaConfiguracoes} />
+
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-4">
         <div className="cartao-avle-destaque p-6 flex flex-col justify-between min-h-[220px]">
           <div className="flex items-center justify-between">
@@ -344,6 +521,8 @@ export function PaginaContaAvle({
         )}
       </div>
 
+      {fluxo && fluxo.length > 0 && <GraficoDoFluxo semanas={fluxo} />}
+
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-4">
         <div className="cartao-avle overflow-hidden">
           <div className="px-5 py-4 flex flex-wrap items-center justify-between gap-3 border-b border-painel-borda/70">
@@ -351,6 +530,15 @@ export function PaginaContaAvle({
               <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Extrato</h3>
               <p className="text-[11px] text-stone-400">tudo o que entrou e saiu da conta da loja</p>
             </div>
+            <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={exportar}
+              disabled={exportando}
+              className="h-10 px-4 rounded-full border border-painel-borda text-[12px] font-semibold text-painel-tinta hover:border-painel-tinta/30 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {exportando ? 'Gerando…' : 'Exportar planilha'}
+            </button>
             <div className="flex gap-1 bg-painel-papel rounded-full p-1">
               {([7, 30, 90] as const).map((d) => (
                 <button
@@ -365,6 +553,7 @@ export function PaginaContaAvle({
                   {d} dias
                 </button>
               ))}
+            </div>
             </div>
           </div>
 
@@ -443,6 +632,17 @@ export function PaginaContaAvle({
                       {' · '}{NOME_DO_TIPO[s.tipoChavePix] ?? s.tipoChavePix} {s.chavePix}
                     </span>
                     {s.motivoFalha && <span className="block text-[11px] text-rose-600 mt-1">{s.motivoFalha}</span>}
+                    {s.comprovanteUrl && (
+                      <a
+                        href={s.comprovanteUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-painel-acento mt-1.5 hover:underline"
+                      >
+                        Ver comprovante
+                        <Icone nome="seta" className="w-3 h-3" />
+                      </a>
+                    )}
                   </li>
                 );
               })}
@@ -476,11 +676,13 @@ function ConectarConta({
   aoConectar,
   mostrarAviso,
   resumo,
+  jaTemContaNoAsaas,
 }: {
   lojaId: number | undefined;
   aoConectar: () => void;
   mostrarAviso: (titulo: string, texto: string, erro: boolean) => void;
   resumo: ResumoDaConta;
+  jaTemContaNoAsaas: boolean;
 }) {
   const [chave, setChave] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -513,7 +715,9 @@ function ConectarConta({
           <span className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center">
             <Icone nome="carteira" />
           </span>
-          <h3 style={{ fontWeight: 600 }} className="text-[24px] mt-5 leading-tight">Conecte a conta do Asaas da loja</h3>
+          <h3 style={{ fontWeight: 600 }} className="text-[24px] mt-5 leading-tight">
+            {jaTemContaNoAsaas ? 'Conecte a conta do Asaas da loja' : 'Já tem conta própria no Asaas?'}
+          </h3>
           <p className="text-[13px] text-white/65 mt-2 leading-relaxed">
             Os 90% de cada parcela caem na conta da loja no Asaas. Conectando, a Conta AVLE mostra o saldo, o extrato e
             deixa sacar por Pix sem sair do painel.
@@ -775,6 +979,62 @@ export function ContaAvleDoAdmin({ aoAbrirLoja }: { aoAbrirLoja?: (lojaId: numbe
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Entradas e saídas por semana, lado a lado: a entrada no verde da marca e a
+ * saída em terracota. O valor de cada barra fica no hover, como nos outros
+ * gráficos do painel.
+ */
+function GraficoDoFluxo({ semanas }: { semanas: { inicio: string; entradas: number; saidas: number }[] }) {
+  const maior = Math.max(1, ...semanas.flatMap((s) => [Number(s.entradas), Number(s.saidas)]));
+  const totalEntradas = semanas.reduce((a, s) => a + Number(s.entradas), 0);
+  const totalSaidas = semanas.reduce((a, s) => a + Number(s.saidas), 0);
+  const rotulo = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+  return (
+    <div className="cartao-avle p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
+        <div>
+          <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Entradas e saídas</h3>
+          <p className="text-[11px] text-stone-400">por semana · últimas {semanas.length} semanas</p>
+        </div>
+        <div className="flex gap-5 text-[12px]">
+          <span className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-painel-tinta" />
+            <span className="text-stone-400">Entrou</span>
+            <span className="font-semibold tabular-nums text-painel-tinta">{real(totalEntradas)}</span>
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-painel-acento" />
+            <span className="text-stone-400">Saiu</span>
+            <span className="font-semibold tabular-nums text-painel-tinta">{real(totalSaidas)}</span>
+          </span>
+        </div>
+      </div>
+      <div className="flex items-end gap-2 sm:gap-3 h-[140px]">
+        {semanas.map((s) => (
+          <div key={s.inicio} className="flex-1 h-full flex items-end justify-center gap-[3px]">
+            <div
+              title={`Semana de ${rotulo(s.inicio)}: entrou ${real(s.entradas)}`}
+              className="w-1/2 max-w-[18px] rounded-[6px] bg-painel-tinta"
+              style={{ height: `${Math.max(3, (Number(s.entradas) / maior) * 100)}%` }}
+            />
+            <div
+              title={`Semana de ${rotulo(s.inicio)}: saiu ${real(s.saidas)}`}
+              className="w-1/2 max-w-[18px] rounded-[6px] bg-painel-acento"
+              style={{ height: `${Math.max(3, (Number(s.saidas) / maior) * 100)}%` }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2 sm:gap-3 mt-2">
+        {semanas.map((s) => (
+          <span key={s.inicio} className="flex-1 text-center text-[9px] text-stone-400 truncate">{rotulo(s.inicio)}</span>
+        ))}
       </div>
     </div>
   );

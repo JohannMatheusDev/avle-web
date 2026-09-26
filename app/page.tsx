@@ -93,7 +93,10 @@ function Autenticacao() {
 
   const [cep, setCep] = useState('');
   const [faturamento, setFaturamento] = useState('');
-  const [walletIdInput, setWalletIdInput] = useState(''); 
+  // Como a loja chega ao Asaas: a AVLE abre a conta dela (padrão) ou ela já
+  // tem conta e cola a chave de API, de onde sai a carteira do split.
+  const [contaAsaas, setContaAsaas] = useState<'AVLE' | 'PROPRIA'>('AVLE');
+  const [chaveAsaasInput, setChaveAsaasInput] = useState('');
   
   const [aceitouTermos, setAceitouTermos] = useState(false);
   const [modalTermosAberto, setModalTermosAberto] = useState(false);
@@ -272,23 +275,23 @@ function Autenticacao() {
     }
 
     if (!isLogin && tipoUsuario === 'LOJA') {
-      if (walletIdInput.trim() === '') {
+      // A AVLE abre a conta no Asaas com este e-mail, e é nele que o Asaas
+      // manda a ativação: sem ele a loja nunca receberia o convite.
+      if (contaAsaas === 'AVLE' && emailCadastro.trim() === '') {
         setMensagem({
           tipo: 'erro',
-          texto: 'Informe o Wallet ID da conta Asaas da loja. Crie a conta em asaas.com, abra Perfil e copie o Wallet ID.',
+          texto: 'Informe o e-mail da loja: é nele que o Asaas manda a ativação da conta que a AVLE vai abrir.',
         });
         setCarregando(false);
         return;
       }
-      // O Wallet ID do Asaas é um UUID (7bafd95a-e783-4a62-9be1-23999af742c6).
-      // A regra antiga exigia o prefixo "wal_", que o Asaas não usa, e barrava
-      // toda loja que colava o Wallet ID certo. O formato continua conferido
-      // porque o engano comum é colar o número da conta ou a chave de API, e
-      // repasse para carteira errada só apareceria no primeiro pagamento.
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(walletIdInput.trim())) {
-        setMensagem({ 
-          tipo: 'erro', 
-          texto: 'O Wallet ID do Asaas tem letras, números e hífens, neste formato: 7bafd95a-e783-4a62-9be1-23999af742c6. Não é o número da conta nem a chave de API.' 
+      // A chave de API do Asaas começa com "$aact_". Colar o Wallet ID ou o
+      // número da conta no lugar é o engano comum, e só seria descoberto no
+      // servidor.
+      if (contaAsaas === 'PROPRIA' && !chaveAsaasInput.trim().startsWith('$aact_')) {
+        setMensagem({
+          tipo: 'erro',
+          texto: 'Cole a chave de API da conta do Asaas da loja. Ela começa com $aact_ e fica em Integrações → Chave de API, no Asaas.',
         });
         setCarregando(false);
         return;
@@ -327,7 +330,8 @@ function Autenticacao() {
               telefone: telefoneCadastroLimpo !== '' ? telefoneCadastroLimpo : null,
               cep: tipoUsuario === 'LOJA' ? cepLimpo : null,
               faturamento: tipoUsuario === 'LOJA' ? faturamentoNumerico : null,
-              walletId: tipoUsuario === 'LOJA' ? walletIdInput.trim() : null,
+              contaAsaas: tipoUsuario === 'LOJA' ? contaAsaas : null,
+              asaasApiKey: tipoUsuario === 'LOJA' && contaAsaas === 'PROPRIA' ? chaveAsaasInput.trim() : null,
               lojaId: tipoUsuario === 'CLIENTE' && conviteLojaId ? Number(conviteLojaId) : null,
             };
         }
@@ -398,7 +402,7 @@ function Autenticacao() {
           }
 
           setNome(''); setCpf(''); setRazaoSocial(''); setNomeSugerido(''); setEmailCadastro(''); setTelefoneCadastro(''); setCep('');
-          setFaturamento(''); setWalletIdInput(''); setSenha(''); setAceitouTermos(false);
+          setFaturamento(''); setChaveAsaasInput(''); setContaAsaas('AVLE'); setSenha(''); setAceitouTermos(false);
           setCarregando(false);
           return;
         }
@@ -891,7 +895,7 @@ function Autenticacao() {
                         <input type="text" placeholder="(42) 99999-9999" value={telefoneCadastro} onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))} className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                       </div>
                       
-                      <div className={`transition-all duration-500 ease-in-out overflow-hidden ${tipoUsuario === 'LOJA' ? 'max-h-[600px] opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'}`}>
+                      <div className={`transition-all duration-500 ease-in-out overflow-hidden ${tipoUsuario === 'LOJA' ? 'max-h-[900px] opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'}`}>
                         <div className="space-y-3 p-4 bg-stone-50/80 border border-stone-200 rounded-2xl shadow-inner">
                           <p className="text-[10px] font-bold uppercase text-[#BD6B42] tracking-wider mb-2">Dados da Loja</p>
                           <div className="grid grid-cols-2 gap-3">
@@ -904,14 +908,48 @@ function Autenticacao() {
                               <input type="text" placeholder="R$ 10.000,00" value={faturamento} onChange={(e) => setFaturamento(aplicarMascaraMoeda(e.target.value))} className="w-full px-3 py-2 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px]" required={tipoUsuario === 'LOJA'} disabled={carregando} />
                             </div>
                           </div>
-                          <div className="pt-1">
-                            <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 flex justify-between"><span>Wallet ID Asaas *</span></label>
-                            <input type="text" value={walletIdInput} onChange={(e) => setWalletIdInput(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" className="w-full px-3 py-2 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono" required disabled={carregando} />
-                            <p className="text-[10px] text-stone-500 mt-1.5 leading-relaxed">
-                              É para esta carteira que vão os 90% de cada pagamento. Crie a conta em{' '}
-                              <a href="https://www.asaas.com" target="_blank" rel="noreferrer" className="text-[#BD6B42] font-bold hover:underline">asaas.com</a>
-                              , abra <strong>Perfil</strong> e copie o Wallet ID.
-                            </p>
+                          <div className="pt-1 space-y-2">
+                            <p className="block text-[10px] font-bold uppercase text-stone-500">Conta para receber os 90% *</p>
+                            {/* Duas escolhas em cartão, e não um select: a
+                                diferença entre elas é o que a loja precisa
+                                entender, e cabe numa linha de explicação. */}
+                            {([
+                              { id: 'AVLE', titulo: 'A AVLE abre minha conta no Asaas', texto: 'Quando a AVLE aprovar a loja, o Asaas manda um e-mail para você ativar a conta e enviar os documentos.' },
+                              { id: 'PROPRIA', titulo: 'Já tenho conta no Asaas', texto: 'Cole a chave de API da sua conta. A carteira dos 90% é descoberta por ela.' },
+                            ] as const).map((opcao) => (
+                              <button
+                                key={opcao.id}
+                                type="button"
+                                onClick={() => setContaAsaas(opcao.id)}
+                                aria-pressed={contaAsaas === opcao.id}
+                                disabled={carregando}
+                                className={`w-full text-left rounded-2xl border p-3 flex gap-3 transition-colors cursor-pointer ${
+                                  contaAsaas === opcao.id ? 'border-[#0B1E14] bg-white' : 'border-stone-200 bg-white/60 hover:border-stone-300'
+                                }`}
+                              >
+                                <span className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 ${contaAsaas === opcao.id ? 'border-[#0B1E14] bg-[#0B1E14] shadow-[inset_0_0_0_2px_white]' : 'border-stone-300'}`} />
+                                <span>
+                                  <span className="block text-xs font-bold text-[#0B1E14]">{opcao.titulo}</span>
+                                  <span className="block text-[10px] text-stone-500 mt-0.5 leading-relaxed">{opcao.texto}</span>
+                                </span>
+                              </button>
+                            ))}
+                            {contaAsaas === 'PROPRIA' && (
+                              <div>
+                                <input
+                                  type="password"
+                                  autoComplete="off"
+                                  value={chaveAsaasInput}
+                                  onChange={(e) => setChaveAsaasInput(e.target.value)}
+                                  placeholder="$aact_…"
+                                  className="w-full px-3 py-2 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono"
+                                  disabled={carregando}
+                                />
+                                <p className="text-[10px] text-stone-500 mt-1.5 leading-relaxed">
+                                  No Asaas, abra <strong>Integrações → Chave de API</strong> e gere uma chave. Ela fica guardada cifrada.
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
