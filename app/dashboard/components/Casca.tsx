@@ -135,6 +135,7 @@ export function TrilhoDeNavegacao({
         onClick={() => aoEscolher(item.id)}
         aria-label={item.rotulo}
         aria-current={ativoAgora ? 'page' : undefined}
+        data-tour={`secao-${item.id}`}
         className={`relative w-11 h-11 rounded-2xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
           ativoAgora
             ? 'bg-[#0B1E14] text-white shadow-md'
@@ -169,7 +170,7 @@ export function TrilhoDeNavegacao({
 
   return (
     <>
-      {!soCelular && <aside className="hidden md:flex sticky top-0 h-screen w-[84px] flex-col items-center justify-between py-6 flex-shrink-0">
+      {!soCelular && <aside data-tour="navegacao" className="hidden md:flex sticky top-0 h-screen w-[84px] flex-col items-center justify-between py-6 flex-shrink-0">
         <div className="flex flex-col items-center gap-2">
           <div className="w-11 h-11 rounded-2xl bg-[#0B1E14] text-white flex items-center justify-center font-serif font-bold text-base shadow-md mb-4">
             {sigla}
@@ -205,7 +206,7 @@ export function TrilhoDeNavegacao({
       {/* Barra do celular. `pb-[env(safe-area-inset-bottom)]` evita que o
           último ícone fique embaixo da barra de gestos do iPhone, onde o toque
           não chega. */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-[#E8E4DA] pb-[env(safe-area-inset-bottom)]">
+      <nav data-tour="navegacao" className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-[#E8E4DA] pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center justify-around gap-1 px-2 py-2 overflow-x-auto">
           {todos.map((item) => {
             const ativoAgora = ativo === item.id;
@@ -216,6 +217,7 @@ export function TrilhoDeNavegacao({
                 onClick={() => aoEscolher(item.id)}
                 aria-label={item.rotulo}
                 aria-current={ativoAgora ? 'page' : undefined}
+                data-tour={`secao-${item.id}`}
                 className={`relative flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl min-w-[58px] transition-colors cursor-pointer ${
                   ativoAgora ? 'text-[#0B1E14]' : 'text-stone-400'
                 }`}
@@ -252,7 +254,7 @@ export function PilulasDeSecao({
   aoEscolher: (id: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div data-tour="navegacao" className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {itens.map((item) => {
         const ativoAgora = ativo === item.id;
         return (
@@ -261,6 +263,7 @@ export function PilulasDeSecao({
             type="button"
             onClick={() => aoEscolher(item.id)}
             aria-current={ativoAgora ? 'page' : undefined}
+            data-tour={`secao-${item.id}`}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[11px] font-bold tracking-wide whitespace-nowrap transition-all cursor-pointer ${
               ativoAgora
                 ? 'bg-[#0B1E14] text-white shadow-sm'
@@ -481,7 +484,7 @@ export function BarraSuperior({
       {/* A pilula rola sozinha quando a tela e estreita: entre 768 e 1200px
           as seis secoes da loja nao cabem ao lado da marca e dos atalhos. */}
       <nav aria-label="Seções do painel" className="min-w-0 flex-1 flex xl:justify-center">
-        <div className="flex items-center gap-1 bg-painel-tinta rounded-full p-1.5 max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shadow-[0_10px_24px_-14px_rgba(11,30,20,0.8)]">
+        <div data-tour="navegacao" className="flex items-center gap-1 bg-painel-tinta rounded-full p-1.5 max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shadow-[0_10px_24px_-14px_rgba(11,30,20,0.8)]">
           {itens.map((item) => {
             const ativoAgora = ativo === item.id;
             return (
@@ -490,6 +493,7 @@ export function BarraSuperior({
                 type="button"
                 onClick={() => aoEscolher(item.id)}
                 aria-current={ativoAgora ? 'page' : undefined}
+                data-tour={`secao-${item.id}`}
                 className={`flex items-center gap-1.5 px-4 h-9 rounded-full text-[12px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                   ativoAgora
                     ? 'bg-painel-acento text-white shadow-[0_6px_16px_-8px_rgba(189,107,66,0.9)]'
@@ -532,6 +536,7 @@ export function BotaoRedondo({
   ativo = false,
   perigo = false,
   desabilitado = false,
+  tour,
 }: {
   icone: NomeDeIcone;
   rotulo: string;
@@ -540,9 +545,11 @@ export function BotaoRedondo({
   ativo?: boolean;
   perigo?: boolean;
   desabilitado?: boolean;
+  /** Nome do passo do tour que aponta para este botão. */
+  tour?: string;
 }) {
   return (
-    <div className="relative group">
+    <div className="relative group" data-tour={tour}>
       <button
         type="button"
         onClick={aoClicar}

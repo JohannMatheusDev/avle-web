@@ -10,8 +10,9 @@ import { useRouter } from 'next/navigation';
 import { apiFetch, encerrarSessao } from '../../lib/api';
 import { useHistoricoDoPainel } from '../../lib/historico';
 import {
-  CabecalhoDoPainel, Identidade, ItemDeNavegacao, PilulasDeSecao, TrilhoDeNavegacao,
+  CabecalhoDoPainel, Icone, Identidade, ItemDeNavegacao, PilulasDeSecao, TrilhoDeNavegacao,
 } from './Casca';
+import { PassoDoTour, useTour } from './Tour';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -903,6 +904,68 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   const primeiroNome = (usuario?.nome || '').trim().split(' ')[0];
 
+  // O passo a passo do painel da cliente. Passo cujo elemento nao existe para
+  // ela - quem ainda nao tem plano nao tem botao de pagar - e pulado.
+  const passosDoTour: PassoDoTour[] = [
+    {
+      secao: 'inicio',
+      titulo: primeiroNome ? `Olá, ${primeiroNome}! Este é o seu painel` : 'Este é o seu painel na AVLE',
+      texto: 'Aqui você paga as parcelas, acompanha os seus planos e vê os sorteios. Leva menos de um minuto para conhecer.',
+    },
+    {
+      alvo: 'pagar-parcela',
+      titulo: 'Pagar a parcela',
+      texto: 'Este botão leva direto ao Pix ou ao boleto da parcela do mês. Ela vence todo 5º dia útil.',
+    },
+    {
+      alvo: 'navegacao',
+      titulo: 'O menu',
+      texto: 'Seus planos, o histórico do que você já pagou, o regulamento da loja e o suporte.',
+    },
+    {
+      alvo: 'abas-planos',
+      titulo: 'Seus planos e os grupos com vaga',
+      texto: 'Em "Meus planos" ficam os grupos de que você participa. Em "Grupos disponíveis", os da loja que ainda têm vaga para entrar.',
+    },
+    {
+      alvo: 'cartao-plano',
+      titulo: 'O detalhe do plano',
+      texto: 'Toque no plano para ver quanto você já pagou, as parcelas e o sorteio.',
+    },
+    {
+      alvo: 'secao-extrato',
+      titulo: 'Histórico',
+      texto: 'Todos os pagamentos que você já fez, com a data e o valor de cada um.',
+    },
+    {
+      alvo: 'secao-regras',
+      titulo: 'Regulamento',
+      texto: 'As regras do clube de compras da sua loja, para consultar quando quiser.',
+    },
+    {
+      alvo: 'secao-ajuda',
+      titulo: 'Suporte',
+      texto: 'Teve alguma dúvida ou problema com o pagamento? Fale com a AVLE por aqui.',
+    },
+    {
+      alvo: 'secao-perfil',
+      titulo: 'Meu perfil',
+      texto: 'Seus dados, foto e senha. Mantenha o celular sempre certo: é por ele que a AVLE avisa da parcela.',
+    },
+    {
+      secao: 'inicio',
+      alvo: 'rever-tour',
+      titulo: 'Pronto!',
+      texto: 'Quando quiser ver este passo a passo de novo, é só tocar aqui.',
+    },
+  ];
+  const tour = useTour({
+    chave: `@avle:tour:cliente:v1:${usuario?.id}`,
+    passos: passosDoTour,
+    aoIrParaSecao: irParaSecao,
+    pronto: !carregandoDados,
+  });
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen text-[#0B1E14] fundo-painel">
 
@@ -921,6 +984,18 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         <CabecalhoDoPainel
           etiqueta={`AVLE · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`}
           titulo={primeiroNome ? `Olá, ${primeiroNome}` : 'Meu painel'}
+          acoes={
+            <button
+              type="button"
+              data-tour="rever-tour"
+              onClick={tour.abrir}
+              aria-label="Rever o passo a passo"
+              title="Rever o passo a passo"
+              className="w-11 h-11 rounded-full bg-white border border-painel-borda text-painel-tinta flex items-center justify-center hover:border-painel-tinta/30 transition-colors cursor-pointer"
+            >
+              <Icone nome="ajuda" />
+            </button>
+          }
           identidade={
             <Identidade
               nome={usuario?.nome || 'Painel Cliente'}
@@ -1066,9 +1141,10 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 unica coisa que a cliente precisa achar sem procurar. */}
             {nivelVisao !== 'dashboard' && clubesAtivos.length > 0 && (
               <div className="mb-6 space-y-3">
-                {clubesAtivos.map((clube) => (
+                {clubesAtivos.map((clube, i) => (
                   <div
                     key={clube.cotaId}
+                    data-tour={i === 0 ? 'pagar-parcela' : undefined}
                     className="cartao-avle-destaque p-5 flex flex-wrap items-center justify-between gap-4"
                   >
                     <div className="min-w-0">
@@ -1076,7 +1152,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         Parcela deste mês
                       </span>
                       <span className="block text-3xl font-bold font-mono leading-none">
-                        R$ {(Number(clube.grupo?.valorParcela) || 0).toFixed(2)}
+                        R$ {((Number(clube.grupo?.valorParcela) || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                       <span className="block text-[11px] text-stone-400 mt-1.5 truncate">
                         {clube.grupo?.nome || 'Meu plano'}
@@ -1296,7 +1372,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
                    return (
                    <div className="pt-2">
-                   <div className="flex gap-1 bg-stone-100 p-1 rounded-xl mb-5 w-fit">
+                   <div data-tour="abas-planos" className="flex gap-1 bg-stone-100 p-1 rounded-xl mb-5 w-fit">
                       <button
                         type="button"
                         onClick={() => setAbaGrupos('meus')}
@@ -1325,13 +1401,14 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       </div>
                    ) : (
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                      {listaDaAba.slice().sort((a, b) => a.id - b.id).map(grupo => {
+                      {listaDaAba.slice().sort((a, b) => a.id - b.id).map((grupo, indiceDoGrupo) => {
                          const cotaExistente = clubesAtivos.find(c => c.grupo?.id === grupo.id);
                          const isAtivo = !!cotaExistente;
                          
                          return (
                             <div 
                               key={grupo.id}
+                              data-tour={indiceDoGrupo === 0 ? 'cartao-plano' : undefined}
                               onClick={() => handleAbrirGrupo(grupo, cotaExistente)}
                               className={`rounded-2xl p-5 border cursor-pointer flex flex-col justify-between min-h-[160px] transition-all group hover:-translate-y-1 hover:shadow-md ${
                                  isAtivo ? 'bg-white border-[#BD6B42] shadow-sm' : 'bg-stone-50/50 border-[#DFD9CE] hover:border-stone-300 hover:bg-white'
@@ -1351,7 +1428,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                                      <span className="text-[10px] text-stone-500 font-medium">Vigência: {grupo.duracaoMeses} Meses</span>
                                   </div>
                                   <span className={`text-lg font-bold font-mono ${isAtivo ? 'text-[#BD6B42]' : 'text-stone-500 group-hover:text-[#0B1E14]'}`}>
-                                     R$ {Number(grupo.valorParcela).toFixed(2)}
+                                     R$ {(Number(grupo.valorParcela)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                </div>
 
@@ -1406,7 +1483,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                           Parcela deste mês
                         </span>
                         <span className="text-4xl font-bold font-mono leading-none block">
-                          R$ {valorMensalidade.toFixed(2)}
+                          R$ {(valorMensalidade).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
                       <div className="text-right">
@@ -1496,7 +1573,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="cartao-avle-destaque p-5 relative overflow-hidden">
                     <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Saldo de Poupança</span>
-                    <span className="text-3xl font-bold tracking-tight block font-mono leading-none">R$ {saldoPoupanca.toFixed(2)}</span>
+                    <span className="text-3xl font-bold tracking-tight block font-mono leading-none">R$ {(saldoPoupanca).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     <span className="text-[10px] text-stone-500 mt-2 block">acumulado na cota</span>
                   </div>
                   <div className="cartao-avle border-t-2 border-t-[#0B1E14] p-5 flex flex-col">
@@ -1548,7 +1625,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       </div>
                     </div>
                     <div className="w-full text-center border-t border-stone-50 pt-3 text-[11px] font-semibold text-stone-500">
-                      Meta Coletiva do Circulo: <span className="font-mono text-[#0B1E14] font-bold">R$ {totalObjetivo.toFixed(2)}</span>
+                      Meta Coletiva do Circulo: <span className="font-mono text-[#0B1E14] font-bold">R$ {(totalObjetivo).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 </div>
@@ -1583,7 +1660,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                           <tr key={index} className="hover:bg-stone-50/50 transition-all">
                             <td className="py-3.5 px-5 text-stone-400">Parcela 0{index + 1}</td>
                             <td className="py-3.5 px-5 text-[#0B1E14] font-bold">Aporte Mensal Coletivo</td>
-                            <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">R$ {valorMensalidade.toFixed(2)}</td>
+                            <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">R$ {(valorMensalidade).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             <td className="py-3.5 px-5 text-center">
                               <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold text-[9px] uppercase tracking-wider">
                                 Liquidado
@@ -1642,7 +1719,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       <tr key={idx} className="hover:bg-stone-50/50 transition-all">
                         <td className="py-3.5 px-5 text-[#0B1E14] font-bold">{item.lojaNome}</td>
                         <td className="py-3.5 px-5 text-stone-500">{item.grupoNome} (Parcela #0{item.parcela})</td>
-                        <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">R$ {item.valor.toFixed(2)}</td>
+                        <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">R$ {(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td className="py-3.5 px-5 text-center">
                           <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[9px] uppercase">
                             Liquidado
@@ -1952,7 +2029,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         </div>
                         <div className="flex justify-between items-center border-b border-stone-200 pb-2">
                             <span className="text-[10px] font-bold text-stone-400 uppercase">Valor da Mensalidade</span>
-                            <span className="text-xs font-bold font-mono text-[#BD6B42]">R$ {Number(modalAdesao.grupo.valorParcela).toFixed(2)}</span>
+                            <span className="text-xs font-bold font-mono text-[#BD6B42]">R$ {(Number(modalAdesao.grupo.valorParcela)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between items-center">
                             <span className="text-[10px] font-bold text-stone-400 uppercase">Duração do Contrato</span>
@@ -2145,6 +2222,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         );
       })()}
 
+      {tour.elemento}
     </div>
   );
 }
@@ -2416,7 +2494,7 @@ function CheckoutForm({
         <form onSubmit={handlePagamentoCartao} className="space-y-3 pt-2 text-left text-xs">
           <div className="bg-[#F5F2EB] p-3 rounded-xl text-center text-[10px] text-[#BD6B42] font-medium leading-relaxed border border-[#DFD9CE]">
             {metodo === 'credito_total' ? (
-              <span>Quitação do plano: <strong>R$ {valorCobrado.toFixed(2)}</strong> à vista no seu limite, com repasse imediato à loja.</span>
+              <span>Quitação do plano: <strong>R$ {(valorCobrado).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> à vista no seu limite, com repasse imediato à loja.</span>
             ) : (
               <span>Transação de cartão de débito com liquidação instantânea.</span>
             )}
