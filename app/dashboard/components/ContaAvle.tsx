@@ -13,7 +13,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { Icone } from './Casca';
-import { real } from './Indicadores';
+import { SeletorDePeriodo, real, variacao } from './Indicadores';
+import {
+  CartaoDeSaques, ColmeiaDeGrupos, DadosDoPainel, DiaQueMaisEntra, GraficoDeMovimento, NumerosDoTopo, ResumoDaSemana,
+} from './PainelDaConta';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -23,6 +26,8 @@ export type ResumoDaConta = {
   competencia: string;
   recebidoNoMes: number;
   taxaAvleNoMes: number;
+  recebidoMesAnterior?: number;
+  taxaAvleMesAnterior?: number;
   aReceberNoMes: number;
   parcelasEmAberto: number;
   chavePix?: string | null;
@@ -324,7 +329,9 @@ export function PaginaContaAvle({
   const [carregandoExtrato, setCarregandoExtrato] = useState(false);
   const [saques, setSaques] = useState<Saque[]>([]);
   const [modalSaque, setModalSaque] = useState(false);
-  const [fluxo, setFluxo] = useState<{ inicio: string; entradas: number; saidas: number }[] | null>(null);
+  const [semanasDoPainel, setSemanasDoPainel] = useState<'4' | '12' | '26'>('12');
+  const [painel, setPainel] = useState<DadosDoPainel | null>(null);
+  const [grupos, setGrupos] = useState<{ nome: string; faturado: number }[]>([]);
   const [exportando, setExportando] = useState(false);
 
   const conectada = !!resumo?.conectada;
@@ -343,15 +350,15 @@ export function PaginaContaAvle({
 
   // Planilha pelo fetch, e não por link direto: a sessão viaja no cookie, e
   // um <a href> para outra origem sairia sem ela.
-  const exportar = async () => {
+  const exportar = async (periodo: number = dias) => {
     setExportando(true);
     try {
-      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/extrato.csv?dias=${dias}`);
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/extrato.csv?dias=${periodo}`);
       if (!res.ok) throw new Error(await lerErro(res, 'Não foi possível gerar a planilha.'));
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement('a');
       a.href = url;
-      a.download = `extrato-conta-avle-${dias}-dias.csv`;
+      a.download = `extrato-conta-avle-${periodo}-dias.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -402,12 +409,28 @@ export function PaginaContaAvle({
   useEffect(() => {
     if (!conectada || !lojaId) return;
     let ativo = true;
-    apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/fluxo?semanas=12`)
+    apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/painel?semanas=${semanasDoPainel}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((dados) => { if (ativo && Array.isArray(dados)) setFluxo(dados); })
+      .then((dados) => { if (ativo && dados?.semanas) setPainel(dados); })
       .catch(() => {});
     return () => { ativo = false; };
-  }, [conectada, lojaId]);
+  }, [conectada, lojaId, semanasDoPainel]);
+
+  // O faturado por grupo vem do analytics da loja, o mesmo da tela inicial.
+  useEffect(() => {
+    if (!lojaId) return;
+    let ativo = true;
+    apiFetch(`${API_URL}/api/analytics/loja/${lojaId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((dados) => {
+        if (!ativo || !Array.isArray(dados?.faturamentoPorGrupo)) return;
+        setGrupos(dados.faturamentoPorGrupo.map((g: { nome: string; faturado?: number; total?: number }) => ({
+          nome: g.nome, faturado: Number(g.faturado ?? g.total ?? 0),
+        })));
+      })
+      .catch(() => {});
+    return () => { ativo = false; };
+  }, [lojaId]);
 
   if (!resumo) {
     return (
@@ -443,58 +466,92 @@ export function PaginaContaAvle({
     <div className="space-y-6 animate-fadeIn">
       <FaixaDeAtivacao resumo={resumo} aoIrParaConfiguracoes={aoIrParaConfiguracoes} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-4">
-        <div className="cartao-avle-destaque p-6 flex flex-col justify-between min-h-[220px]">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] text-white/60">Saldo disponível</span>
-            <span className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center">
-              <Icone nome="carteira" className="w-4 h-4" />
-            </span>
-          </div>
-          <div>
-            {saldo != null ? (
-              <span className="block text-[38px] font-semibold tracking-tight tabular-nums leading-none">{real(saldo)}</span>
-            ) : (
-              <span className="block text-[13px] text-amber-300">{resumo.erroSaldo || 'Saldo indisponível agora.'}</span>
-            )}
-            <span className="block text-[11px] text-white/50 mt-2">na conta do Asaas da loja, pronto para sacar</span>
-            {podeSacar && (
-              <button
-                type="button"
-                onClick={() => setModalSaque(true)}
-                disabled={saldo == null || saldo <= 0 || resumo.saqueEmAndamento || !resumo.tipoChavePix}
-                className="mt-4 h-11 px-6 rounded-full bg-painel-acento text-white text-[13px] font-semibold hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-              >
-                {resumo.saqueEmAndamento ? 'Saque em andamento' : 'Sacar via Pix'}
-              </button>
-            )}
-          </div>
+      {/* A cabeça da página: os números soltos, como na referência, e as
+          ações do lado. */}
+      <div className="flex flex-col-reverse gap-6">
+        <div className="min-w-0">
+          <NumerosDoTopo
+            itens={[
+              {
+                rotulo: 'Saldo disponível',
+                valor: saldo != null ? real(saldo) : '—',
+                nota: saldo != null ? 'na conta do Asaas' : (resumo.erroSaldo || 'indisponível agora'),
+              },
+              {
+                rotulo: 'Recebido no mês',
+                valor: real(resumo.recebidoNoMes),
+                variacao: variacao([Number(resumo.recebidoMesAnterior ?? 0), Number(resumo.recebidoNoMes)]),
+                nota: 'vs mês anterior',
+              },
+              {
+                rotulo: 'A receber no mês',
+                valor: real(resumo.aReceberNoMes),
+                nota: `${resumo.parcelasEmAberto} parcela${resumo.parcelasEmAberto === 1 ? '' : 's'} em aberto`,
+              },
+              {
+                rotulo: 'Taxa AVLE no mês',
+                valor: real(resumo.taxaAvleNoMes),
+                variacao: variacao([Number(resumo.taxaAvleMesAnterior ?? 0), Number(resumo.taxaAvleNoMes)]),
+                nota: '10% retidos',
+              },
+            ]}
+          />
         </div>
-
-        {[
-          { rotulo: 'Recebido no mês', valor: resumo.recebidoNoMes, nota: 'os 90% das parcelas pagas', icone: 'financeiro' as const },
-          {
-            rotulo: 'A receber no mês',
-            valor: resumo.aReceberNoMes,
-            nota: `${resumo.parcelasEmAberto} parcela${resumo.parcelasEmAberto === 1 ? '' : 's'} em aberto`,
-            icone: 'calendario' as const,
-          },
-          { rotulo: 'Taxa AVLE no mês', valor: resumo.taxaAvleNoMes, nota: '10% retidos no pagamento', icone: 'cobranca' as const },
-        ].map((c) => (
-          <div key={c.rotulo} className="cartao-avle p-5 flex flex-col justify-between min-h-[220px]">
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-medium text-painel-tinta">{c.rotulo}</span>
-              <span className="w-8 h-8 rounded-full bg-painel-papel ring-1 ring-painel-borda text-painel-tinta flex items-center justify-center">
-                <Icone nome={c.icone} className="w-4 h-4" />
-              </span>
-            </div>
-            <div>
-              <span className="block text-[26px] font-semibold tabular-nums tracking-tight text-painel-tinta">{real(c.valor)}</span>
-              <span className="block text-[11px] text-stone-400 mt-1">{c.nota}</span>
-            </div>
-          </div>
-        ))}
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <button
+            type="button"
+            onClick={() => exportar()}
+            disabled={exportando}
+            className="h-11 px-5 rounded-full bg-white ring-1 ring-painel-borda text-[13px] font-semibold text-painel-tinta hover:ring-painel-tinta/30 disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            {exportando ? 'Gerando…' : 'Exportar planilha'}
+          </button>
+          {podeSacar && (
+            <button
+              type="button"
+              onClick={() => setModalSaque(true)}
+              disabled={saldo == null || saldo <= 0 || resumo.saqueEmAndamento || !resumo.tipoChavePix}
+              className="h-11 px-6 rounded-full bg-painel-acento text-white text-[13px] font-semibold shadow-[0_10px_20px_-12px_rgba(189,107,66,0.9)] hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+            >
+              {resumo.saqueEmAndamento ? 'Saque em andamento' : 'Sacar via Pix'}
+            </button>
+          )}
+        </div>
       </div>
+
+      {painel ? (
+        <>
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)] gap-4">
+            <GraficoDeMovimento
+              semanas={painel.semanas}
+              controle={
+                <SeletorDePeriodo
+                  valor={semanasDoPainel}
+                  aoEscolher={setSemanasDoPainel}
+                  opcoes={[
+                    { id: '4', rotulo: '4 semanas' },
+                    { id: '12', rotulo: '12 semanas' },
+                    { id: '26', rotulo: '6 meses' },
+                  ]}
+                />
+              }
+            />
+            <CartaoDeSaques
+              saldo={saldo}
+              saques={painel.saques}
+              aoSacar={podeSacar && saldo != null && saldo > 0 && !resumo.saqueEmAndamento && resumo.tipoChavePix
+                ? () => setModalSaque(true) : undefined}
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <ColmeiaDeGrupos grupos={grupos} />
+            <DiaQueMaisEntra porDia={painel.porDiaDaSemana} />
+            <ResumoDaSemana dados={painel.resumoDaSemana} aoBaixar={() => exportar(7)} />
+          </div>
+        </>
+      ) : (
+        <div className="cartao-avle p-8 text-center text-[13px] text-stone-400">Carregando os gráficos da conta…</div>
+      )}
 
       <div className="cartao-avle p-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
@@ -521,19 +578,17 @@ export function PaginaContaAvle({
         )}
       </div>
 
-      {fluxo && fluxo.length > 0 && <GraficoDoFluxo semanas={fluxo} />}
-
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-4">
         <div className="cartao-avle overflow-hidden">
-          <div className="px-5 py-4 flex flex-wrap items-center justify-between gap-3 border-b border-painel-borda/70">
+          <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-painel-borda/70">
             <div>
               <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Extrato</h3>
               <p className="text-[11px] text-stone-400">tudo o que entrou e saiu da conta da loja</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              onClick={exportar}
+              onClick={() => exportar()}
               disabled={exportando}
               className="h-10 px-4 rounded-full border border-painel-borda text-[12px] font-semibold text-painel-tinta hover:border-painel-tinta/30 disabled:opacity-50 transition-colors cursor-pointer"
             >
@@ -546,7 +601,7 @@ export function PaginaContaAvle({
                   type="button"
                   onClick={() => setDias(d)}
                   aria-pressed={dias === d}
-                  className={`h-8 px-3.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
+                  className={`h-8 px-3.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                     dias === d ? 'bg-painel-tinta text-white' : 'text-stone-500 hover:text-painel-tinta'
                   }`}
                 >
@@ -979,62 +1034,6 @@ export function ContaAvleDoAdmin({ aoAbrirLoja }: { aoAbrirLoja?: (lojaId: numbe
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Entradas e saídas por semana, lado a lado: a entrada no verde da marca e a
- * saída em terracota. O valor de cada barra fica no hover, como nos outros
- * gráficos do painel.
- */
-function GraficoDoFluxo({ semanas }: { semanas: { inicio: string; entradas: number; saidas: number }[] }) {
-  const maior = Math.max(1, ...semanas.flatMap((s) => [Number(s.entradas), Number(s.saidas)]));
-  const totalEntradas = semanas.reduce((a, s) => a + Number(s.entradas), 0);
-  const totalSaidas = semanas.reduce((a, s) => a + Number(s.saidas), 0);
-  const rotulo = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-
-  return (
-    <div className="cartao-avle p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
-        <div>
-          <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Entradas e saídas</h3>
-          <p className="text-[11px] text-stone-400">por semana · últimas {semanas.length} semanas</p>
-        </div>
-        <div className="flex gap-5 text-[12px]">
-          <span className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-painel-tinta" />
-            <span className="text-stone-400">Entrou</span>
-            <span className="font-semibold tabular-nums text-painel-tinta">{real(totalEntradas)}</span>
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-painel-acento" />
-            <span className="text-stone-400">Saiu</span>
-            <span className="font-semibold tabular-nums text-painel-tinta">{real(totalSaidas)}</span>
-          </span>
-        </div>
-      </div>
-      <div className="flex items-end gap-2 sm:gap-3 h-[140px]">
-        {semanas.map((s) => (
-          <div key={s.inicio} className="flex-1 h-full flex items-end justify-center gap-[3px]">
-            <div
-              title={`Semana de ${rotulo(s.inicio)}: entrou ${real(s.entradas)}`}
-              className="w-1/2 max-w-[18px] rounded-[6px] bg-painel-tinta"
-              style={{ height: `${Math.max(3, (Number(s.entradas) / maior) * 100)}%` }}
-            />
-            <div
-              title={`Semana de ${rotulo(s.inicio)}: saiu ${real(s.saidas)}`}
-              className="w-1/2 max-w-[18px] rounded-[6px] bg-painel-acento"
-              style={{ height: `${Math.max(3, (Number(s.saidas) / maior) * 100)}%` }}
-            />
-          </div>
-        ))}
-      </div>
-      <div className="flex gap-2 sm:gap-3 mt-2">
-        {semanas.map((s) => (
-          <span key={s.inicio} className="flex-1 text-center text-[9px] text-stone-400 truncate">{rotulo(s.inicio)}</span>
-        ))}
       </div>
     </div>
   );

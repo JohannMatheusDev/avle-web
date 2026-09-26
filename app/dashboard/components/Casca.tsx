@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
+
 /**
  * Casca visual dos três painéis (loja, cliente e admin).
  *
@@ -33,6 +35,8 @@ export type ItemDeNavegacao = {
   // desenham nada: bolinha vazia treina a pessoa a ignorar a bolinha.
   contador?: number;
   urgente?: boolean;
+  /** O nome na barra do rodapé do celular, onde "Sorteios / Entrega" não cabe. */
+  rotuloCurto?: string;
 };
 
 const DESENHOS: Record<NomeDeIcone, React.ReactNode> = {
@@ -207,7 +211,10 @@ export function TrilhoDeNavegacao({
           último ícone fique embaixo da barra de gestos do iPhone, onde o toque
           não chega. */}
       <nav data-tour="navegacao" className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-[#E8E4DA] pb-[env(safe-area-inset-bottom)]">
-        <div className="flex items-center justify-around gap-1 px-2 py-2 overflow-x-auto">
+        {/* Os itens dividem a largura, em vez de terem largura minima: com sete
+            secoes (a loja), a largura minima empurrava a ultima para fora da
+            tela e ninguem via que dava para rolar. */}
+        <div className="flex items-stretch gap-0.5 px-1.5 py-1.5">
           {todos.map((item) => {
             const ativoAgora = ativo === item.id;
             return (
@@ -218,15 +225,17 @@ export function TrilhoDeNavegacao({
                 aria-label={item.rotulo}
                 aria-current={ativoAgora ? 'page' : undefined}
                 data-tour={`secao-${item.id}`}
-                className={`relative flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl min-w-[58px] transition-colors cursor-pointer ${
+                className={`relative flex-1 min-w-0 flex flex-col items-center gap-1 px-0.5 py-1.5 rounded-xl transition-colors cursor-pointer ${
                   ativoAgora ? 'text-[#0B1E14]' : 'text-stone-400'
                 }`}
               >
                 <span className={`w-9 h-8 rounded-xl flex items-center justify-center ${ativoAgora ? 'bg-[#0B1E14] text-white' : ''}`}>
                   <Icone nome={item.icone} />
                 </span>
-                <span className="text-[9px] font-bold uppercase tracking-wide leading-none truncate max-w-[56px]">
-                  {item.rotulo}
+                {/* Sem `uppercase`: a camada do design system aumenta todo rotulo
+                    em caixa alta miudo para 12px, e aqui ele nao caberia. */}
+                <span className="text-[10px] font-semibold leading-none truncate max-w-full">
+                  {item.rotuloCurto ?? item.rotulo}
                 </span>
                 {!!item.contador && item.contador > 0 && (
                   <Contador valor={item.contador} urgente={item.urgente} />
@@ -442,6 +451,8 @@ export function BarraSuperior({
   detalhe,
   acoes,
   identidade,
+  principal,
+  menuDoCelular,
 }: {
   itens: ItemDeNavegacao[];
   ativo: string;
@@ -449,6 +460,10 @@ export function BarraSuperior({
   detalhe?: string;
   acoes?: React.ReactNode;
   identidade?: React.ReactNode;
+  /** O único atalho que fica à vista no topo do celular. */
+  principal?: React.ReactNode;
+  /** Os outros atalhos, que no celular vão para o menu. */
+  menuDoCelular?: ItemDoMenu[];
 }) {
   return (
     <>
@@ -464,7 +479,12 @@ export function BarraSuperior({
         </div>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
-        {acoes}
+        {menuDoCelular ? (
+          <>
+            {principal}
+            <MenuDoCelular itens={menuDoCelular} />
+          </>
+        ) : acoes}
         {identidade}
       </div>
     </header>
@@ -663,5 +683,73 @@ export function BotaoDaConta({ aoClicar, ativo = false }: { aoClicar: () => void
       <Icone nome="carteira" className="w-[18px] h-[18px]" />
       <span className="hidden sm:inline whitespace-nowrap">Conta AVLE</span>
     </button>
+  );
+}
+
+export type ItemDoMenu = {
+  icone: NomeDeIcone;
+  rotulo: string;
+  aoClicar: () => void;
+  perigo?: boolean;
+  desabilitado?: boolean;
+};
+
+/**
+ * O menu dos atalhos no topo do celular. Seis botões redondos e o avatar não
+ * cabem ao lado da marca em 390px - ficavam por cima do logotipo -, então no
+ * celular eles viram uma lista com nome, que abre por este botão.
+ */
+function MenuDoCelular({ itens }: { itens: ItemDoMenu[] }) {
+  const [aberto, setAberto] = useState(false);
+  const caixa = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!aberto) return;
+    const fora = (e: MouseEvent | TouchEvent) => {
+      if (caixa.current && !caixa.current.contains(e.target as Node)) setAberto(false);
+    };
+    document.addEventListener('mousedown', fora);
+    document.addEventListener('touchstart', fora);
+    return () => {
+      document.removeEventListener('mousedown', fora);
+      document.removeEventListener('touchstart', fora);
+    };
+  }, [aberto]);
+
+  return (
+    <div ref={caixa} className="relative">
+      <button
+        type="button"
+        onClick={() => setAberto((a) => !a)}
+        aria-label="Mais atalhos"
+        aria-expanded={aberto}
+        className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+          aberto ? 'bg-painel-tinta text-white' : 'bg-white text-painel-tinta border border-painel-borda'
+        }`}
+      >
+        <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+          <path d="M4.5 7h15M4.5 12h15M4.5 17h15" />
+        </svg>
+      </button>
+      {aberto && (
+        <div role="menu" className="absolute right-0 top-full mt-2 z-50 w-56 bg-white rounded-[20px] p-1.5 ring-1 ring-painel-borda shadow-[0_18px_40px_-18px_rgba(11,30,20,0.45)] animate-fadeIn">
+          {itens.map((item) => (
+            <button
+              key={item.rotulo}
+              type="button"
+              role="menuitem"
+              disabled={item.desabilitado}
+              onClick={() => { setAberto(false); item.aoClicar(); }}
+              className={`w-full flex items-center gap-3 h-11 px-3 rounded-[14px] text-[13px] font-medium text-left transition-colors cursor-pointer disabled:opacity-40 ${
+                item.perigo ? 'text-rose-600 hover:bg-rose-50' : 'text-painel-tinta hover:bg-painel-papel'
+              }`}
+            >
+              <Icone nome={item.icone} className="w-[18px] h-[18px]" />
+              {item.rotulo}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

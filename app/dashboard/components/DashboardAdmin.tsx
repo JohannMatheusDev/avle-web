@@ -173,7 +173,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
     { id: 'geral',      rotulo: 'Início',          icone: 'inicio' },
     { id: 'lojas',      rotulo: 'Lojas',           icone: 'lojas', contador: listaLojas.length },
     { id: 'financeiro', rotulo: 'Financeiro',      icone: 'financeiro' },
-    { id: 'cobranca',   rotulo: 'Cobrança do mês', icone: 'cobranca' },
+    { id: 'cobranca',   rotulo: 'Cobrança do mês', icone: 'cobranca', rotuloCurto: 'Cobrança' },
   ];
 
   const irParaSecao = (id: string) => {
@@ -203,6 +203,11 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
         ativo={lojaSelecionada ? '' : abaExibida}
         aoEscolher={irParaSecao}
         detalhe="Equipe AVLE · acesso master"
+        principal={<BotaoDaConta ativo={!lojaSelecionada && abaExibida === 'conta'} aoClicar={() => irParaSecao('conta')} />}
+        menuDoCelular={[
+          { icone: 'atualizar', rotulo: carregando ? 'Atualizando...' : 'Atualizar números', aoClicar: carregarDadosDoBanco, desabilitado: carregando },
+          { icone: 'sair', rotulo: 'Sair', perigo: true, aoClicar: async () => { await encerrarSessao(); router.push('/'); } },
+        ]}
         acoes={
           <>
             <BotaoDaConta
