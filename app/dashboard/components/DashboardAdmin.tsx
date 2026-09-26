@@ -130,9 +130,13 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
       });
 
       if (!res.ok) throw new Error();
+      const corpo = await res.json().catch(() => null);
 
       await carregarDadosDoBanco();
-      alert(`Status da loja alterado com sucesso!`);
+      // Aprovar abre a conta da loja no Asaas quando ela ainda nao tem: o
+      // resultado (aberta, ja existia ou o que falta preencher) vem junto.
+      const conta = corpo?.contaAsaas?.mensagem;
+      alert(conta ? `Status da loja alterado.\n\nConta no Asaas: ${conta}` : 'Status da loja alterado com sucesso!');
     } catch (err) {
       alert('Falha ao atualizar o status da loja. Verifique o servidor.');
     } finally {
@@ -385,6 +389,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 key={lojaSelecionada.id}
                 lojaId={lojaSelecionada.id}
                 podeSacar={false}
+                podeAbrirSubconta
                 mostrarAviso={(titulo, texto) => window.alert(`${titulo}\n\n${texto}`)}
               />
             </div>

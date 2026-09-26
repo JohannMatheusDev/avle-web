@@ -10,7 +10,7 @@ import {
   Avatar, BarraSuperior, BotaoDaConta, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
   TrilhoDeNavegacao,
 } from './Casca';
-import { PaginaContaAvle, ResumoNoPainel } from './ContaAvle';
+import { FaixaDeAtivacaoNoInicio, PaginaContaAvle, ResumoNoPainel } from './ContaAvle';
 import {
   BarrasMini, LinhaDosProximosDias, BlocoDeAdicionar, BlocoDoDetalhe, BlocosDeValor, BotaoDeCanto,
   BotaoEscuro, CartaoIndicador, FaixaDeNumeros, ItemDoPainel, LinhaMini, PainelEscuro,
@@ -2108,6 +2108,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
               return (
               <div className="space-y-6 animate-fadeIn">
+
+                {/* Enquanto a conta do Asaas nao estiver pronta, a loja ve aqui
+                    o que falta - some sozinha quando a conta fica ativa. */}
+                <FaixaDeAtivacaoNoInicio
+                  lojaId={usuario?.lojaId || usuario?.id}
+                  aoIrParaConfiguracoes={() => irParaSecao('configuracoes')}
+                  aoAbrirConta={() => irParaSecao('conta')}
+                />
 
                 {/* ── Os quatro cartões de cima ── */}
                 {/* `relative z-10` nos blocos de cima: a arvore da marca fica
