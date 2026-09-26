@@ -1557,12 +1557,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const secoesDaLoja: ItemDeNavegacao[] = [
     { id: 'geral',      rotulo: 'Início',             icone: 'inicio' },
     { id: 'clientes',   rotulo: 'Clientes',           icone: 'clientes' },
-    { id: 'aprovacoes', rotulo: 'Aprovações',         icone: 'aprovacoes', contador: aguardandoCredito.length, urgente: true },
-    { id: 'fila',       rotulo: 'Fila de Espera',     icone: 'fila',       contador: filaEspera.length },
+    { id: 'aprovacoes', rotulo: 'Aprovações',         icone: 'aprovacoes', contador: aguardandoCredito.length, urgente: true, rotuloCurto: 'Aprovar' },
+    { id: 'fila',       rotulo: 'Fila de Espera',     icone: 'fila',       contador: filaEspera.length, rotuloCurto: 'Fila' },
     { id: 'grupos',     rotulo: 'Grupos',             icone: 'grupos' },
-    { id: 'sorteios',   rotulo: 'Sorteios / Entrega', icone: 'sorteios' },
+    { id: 'sorteios',   rotulo: 'Sorteios / Entrega', icone: 'sorteios', rotuloCurto: 'Sorteios' },
   ];
-  const configuracoesDaLoja: ItemDeNavegacao = { id: 'configuracoes', rotulo: 'Configurações', icone: 'configuracoes' };
+  const configuracoesDaLoja: ItemDeNavegacao = { id: 'configuracoes', rotulo: 'Configurações', icone: 'configuracoes', rotuloCurto: 'Ajustes' };
 
   // Sair da ficha de um grupo faz parte de trocar de seção: sem isso a pessoa
   // clicava em "Clientes" e continuava vendo a ficha do grupo aberta por cima.
@@ -1695,6 +1695,13 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         ativo={grupoSelecionado ? '' : abaLoja}
         aoEscolher={irParaSecao}
         detalhe={nomeLojaReal || usuario?.lojaNome || 'Painel da loja'}
+        principal={<BotaoDaConta ativo={!grupoSelecionado && abaLoja === 'conta'} aoClicar={() => irParaSecao('conta')} />}
+        menuDoCelular={[
+          { icone: 'ajuda', rotulo: 'Rever o passo a passo', aoClicar: tour.abrir },
+          { icone: 'link', rotulo: 'Copiar link da loja', aoClicar: handleCopiarLinkConvite },
+          { icone: 'configuracoes', rotulo: 'Configurações', aoClicar: () => irParaSecao('configuracoes') },
+          { icone: 'sair', rotulo: 'Sair', perigo: true, aoClicar: async () => { await encerrarSessao(); window.location.href = '/'; } },
+        ]}
         acoes={
           <>
             <BotaoDaConta ativo={!grupoSelecionado && abaLoja === 'conta'} aoClicar={() => irParaSecao('conta')} />
