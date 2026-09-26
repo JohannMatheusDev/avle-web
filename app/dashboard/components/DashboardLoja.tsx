@@ -11,7 +11,7 @@ import {
   TrilhoDeNavegacao,
 } from './Casca';
 import {
-  ArteDaMarca, BarrasMini, BlocoDeAdicionar, BlocoDoDetalhe, BlocosDeValor, BotaoDeCanto,
+  BarrasMini, LinhaDosProximosDias, BlocoDeAdicionar, BlocoDoDetalhe, BlocosDeValor, BotaoDeCanto,
   BotaoEscuro, CartaoIndicador, FaixaDeNumeros, ItemDoPainel, LinhaMini, PainelEscuro,
   SeletorDePeriodo, Variacao, real, sigla, variacao,
 } from './Indicadores';
@@ -2101,7 +2101,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               <div className="space-y-6 animate-fadeIn">
 
                 {/* ── Os quatro cartões de cima ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                {/* `relative z-10` nos blocos de cima: a arvore da marca fica
+                    atras deles, e aparece so nos vaos entre um e outro. */}
+                <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
 
                   <CartaoIndicador
                     tour="cartao-vencimento"
@@ -2118,7 +2120,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       </span>
                     }
                   >
-                    <ArteDaMarca />
+                    <LinhaDosProximosDias
+                      eventos={[
+                        { dias: diasVenc, rotulo: 'Vencimento', data: formatarData(venc).slice(0, 5), destaque: true },
+                        { dias: diasSort, rotulo: 'Sorteio', data: formatarData(sort).slice(0, 5) },
+                      ]}
+                    />
                   </CartaoIndicador>
 
                   {(() => {
@@ -2295,6 +2302,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </div>
 
                 {/* ── Números miúdos da operação ── */}
+                <div className="relative z-10">
                 <FaixaDeNumeros
                   tour="faixa-operacao"
                   titulo="Operação"
@@ -2328,8 +2336,22 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     },
                   ]}
                 />
+                </div>
 
                 {/* ── Grupos: lista e detalhe ── */}
+                {/* A arvore da AVLE cresce de tras do painel escuro: o tronco
+                    fica escondido atras da borda de cima dele, e a copa sobe
+                    por tras da faixa e dos cartoes. So a partir de 1024px -
+                    no celular os blocos empilham e nao sobra vao para ela. */}
+                <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/arvore-escura.png"
+                  alt=""
+                  aria-hidden="true"
+                  className="hidden lg:block pointer-events-none select-none absolute z-0 right-[5%] bottom-full -mb-14 w-[480px] xl:w-[560px]"
+                />
+                <div className="relative z-10">
                 <PainelEscuro
                   tour="painel-grupos"
                   titulo="Grupos da loja"
@@ -2460,6 +2482,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     )
                   }
                 />
+                </div>
+                </div>
 
               </div>
               );
