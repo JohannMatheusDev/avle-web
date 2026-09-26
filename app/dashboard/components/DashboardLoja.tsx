@@ -7,13 +7,14 @@ import ParcelasDoPlano from './ParcelasDoPlano';
 import ExtratoDePagamentos from './ExtratoDePagamentos';
 import ListaDeAvisos from './ListaDeAvisos';
 import {
-  Avatar, BarraSuperior, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
+  Avatar, BarraSuperior, BotaoDaConta, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
   TrilhoDeNavegacao,
 } from './Casca';
+import { PaginaContaAvle, ResumoNoPainel } from './ContaAvle';
 import {
   BarrasMini, LinhaDosProximosDias, BlocoDeAdicionar, BlocoDoDetalhe, BlocosDeValor, BotaoDeCanto,
   BotaoEscuro, CartaoIndicador, FaixaDeNumeros, ItemDoPainel, LinhaMini, PainelEscuro,
-  SeletorDePeriodo, Variacao, real, sigla, variacao,
+  AlternanciaDoPainel, SeletorDePeriodo, Variacao, real, sigla, variacao,
 } from './Indicadores';
 import { faturamentoPorSemana, semanaContraAnterior } from '../../lib/faturamento';
 import { PassoDoTour, useTour } from './Tour';
@@ -86,7 +87,9 @@ interface ResumoFinanceiro {
 export default function DashboardLoja({ usuario }: { usuario: any }) {
   const router = useRouter();
   
-  const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'fila' | 'grupos' | 'sorteios' | 'configuracoes'>('geral');
+  const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'fila' | 'grupos' | 'sorteios' | 'configuracoes' | 'conta'>('geral');
+  // O painel verde da tela inicial mostra os grupos ou o resumo da Conta AVLE.
+  const [painelVerde, setPainelVerde] = useState<'grupos' | 'conta'>('grupos');
   const [obrigacoesFuturas, setObrigacoesFuturas] = useState<number>(0);
   const [idOperacao, setIdOperacao] = useState('Nenhuma');
   const [grupoSorteioId, setGrupoSorteioId] = useState('');
@@ -1623,6 +1626,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       texto: 'Escolha um grupo na lista para ver o detalhe ao lado. "Com vencidas" separa onde há parcela atrasada, e "Abrir ficha" leva à lista de integrantes, onde se registra pagamento no balcão e entrega.',
     },
     {
+      alvo: 'conta-avle',
+      titulo: 'Conta AVLE',
+      texto: 'O dinheiro da loja num lugar só: o saldo na conta do Asaas, o extrato, o que ainda vai entrar no mês e o saque por Pix para a chave cadastrada.',
+    },
+    {
       alvo: 'secao-aprovacoes',
       titulo: 'Aprovações',
       texto: 'As clientes sorteadas que esperam a análise de crédito para retirar o produto. O número em vermelho é quantas estão esperando.',
@@ -1677,7 +1685,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const tituloDaSecao = grupoSelecionado
     ? `Ficha: ${grupoSelecionado.nome}`
     : secoesDaLoja.find((s) => s.id === abaLoja)?.rotulo
-      ?? (abaLoja === 'configuracoes' ? 'Configurações da Loja' : abaLoja);
+      ?? (abaLoja === 'configuracoes' ? 'Configurações da Loja' : abaLoja === 'conta' ? 'Conta AVLE' : abaLoja);
 
   return (
     <div className="flex flex-col min-h-screen text-[#0B1E14] fundo-painel relative">
@@ -1689,6 +1697,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         detalhe={nomeLojaReal || usuario?.lojaNome || 'Painel da loja'}
         acoes={
           <>
+            <BotaoDaConta ativo={!grupoSelecionado && abaLoja === 'conta'} aoClicar={() => irParaSecao('conta')} />
             <BotaoRedondo icone="ajuda" rotulo="Rever o passo a passo" tour="rever-tour" aoClicar={tour.abrir} />
             <BotaoRedondo icone="link" rotulo="Copiar link da loja" tour="copiar-link" aoClicar={handleCopiarLinkConvite} />
             <BotaoRedondo
@@ -2352,8 +2361,35 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   className="hidden lg:block pointer-events-none select-none absolute z-0 right-[5%] bottom-full -mb-14 w-[480px] xl:w-[560px]"
                 />
                 <div className="relative z-10">
+                {painelVerde === 'conta' ? (
+                  <PainelEscuro
+                    tour="painel-grupos"
+                    titulo="Conta AVLE"
+                    alternancia={
+                      <AlternanciaDoPainel
+                        opcoes={[{ id: 'grupos', rotulo: 'Grupos' }, { id: 'conta', rotulo: 'Conta AVLE' }]}
+                        valor={painelVerde}
+                        aoEscolher={setPainelVerde}
+                      />
+                    }
+                    canto={<BotaoEscuro icone="seta" rotulo="Abrir Conta AVLE" aoClicar={() => irParaSecao('conta')} />}
+                    corpo={
+                      <ResumoNoPainel
+                        lojaId={usuario?.lojaId || usuario?.id}
+                        aoAbrir={() => irParaSecao('conta')}
+                      />
+                    }
+                  />
+                ) : (
                 <PainelEscuro
                   tour="painel-grupos"
+                  alternancia={
+                    <AlternanciaDoPainel
+                      opcoes={[{ id: 'grupos', rotulo: 'Grupos' }, { id: 'conta', rotulo: 'Conta AVLE' }]}
+                      valor={painelVerde}
+                      aoEscolher={setPainelVerde}
+                    />
+                  }
                   titulo="Grupos da loja"
                   abas={[
                     { id: 'todos', rotulo: 'Todos', contador: recortes.todos.length },
@@ -2482,12 +2518,22 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     )
                   }
                 />
+                )}
                 </div>
                 </div>
 
               </div>
               );
             })()}
+
+            {abaLoja === 'conta' && (
+              <PaginaContaAvle
+                lojaId={usuario?.lojaId || usuario?.id}
+                podeSacar
+                aoIrParaConfiguracoes={() => irParaSecao('configuracoes')}
+                mostrarAviso={mostrarAviso}
+              />
+            )}
 
             {abaLoja === 'clientes' && (() => {
               // Compara sem acento e sem caixa: quem procura "leticia" precisa

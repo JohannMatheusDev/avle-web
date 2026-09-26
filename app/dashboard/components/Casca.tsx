@@ -640,3 +640,28 @@ export function CabecalhoDaPagina({
     </div>
   );
 }
+
+/**
+ * O botão da Conta AVLE na barra do topo. Pílula com nome, e não só ícone
+ * como os atalhos ao lado: é a área do dinheiro da loja, e precisa ser achada
+ * sem passar o mouse. No celular fica só o ícone, para caber na linha.
+ */
+export function BotaoDaConta({ aoClicar, ativo = false }: { aoClicar: () => void; ativo?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={aoClicar}
+      data-tour="conta-avle"
+      aria-label="Conta AVLE"
+      aria-current={ativo ? 'page' : undefined}
+      className={`h-11 rounded-full flex items-center gap-2 px-3 sm:pl-3 sm:pr-4 text-[12px] font-semibold transition-colors cursor-pointer ${
+        ativo
+          ? 'bg-painel-acento text-white'
+          : 'bg-painel-tinta text-white hover:bg-avle-verde'
+      }`}
+    >
+      <Icone nome="carteira" className="w-[18px] h-[18px]" />
+      <span className="hidden sm:inline whitespace-nowrap">Conta AVLE</span>
+    </button>
+  );
+}
