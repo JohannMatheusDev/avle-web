@@ -703,3 +703,81 @@ export function SeletorDePeriodo<T extends string>({
     </div>
   );
 }
+
+/**
+ * Os próximos dias como uma régua: hoje na ponta esquerda e as datas que
+ * importam marcadas nela. Mostra num olhar o que o número sozinho não mostra
+ * - que o sorteio vem poucos dias depois do vencimento.
+ */
+export function LinhaDosProximosDias({
+  eventos,
+  total = 30,
+}: {
+  eventos: { dias: number; rotulo: string; data: string; destaque?: boolean }[];
+  total?: number;
+}) {
+  const pct = (dias: number) => Math.min(100, Math.max(0, (dias / total) * 100));
+  // O rótulo não pode passar da borda: perto das pontas ele encosta nela em
+  // vez de centrar no marcador.
+  const alinhamento = (p: number) =>
+    p < 14 ? 'translate-x-0 text-left' : p > 86 ? '-translate-x-full text-right' : '-translate-x-1/2 text-center';
+  const primeiro = eventos.find((e) => e.destaque) ?? eventos[0];
+
+  return (
+    <div className="-mx-5 -mb-5 px-5 pt-5 pb-4 bg-painel-papel/70 border-t border-painel-borda/70">
+      <div className="flex justify-between text-[10px] text-stone-400 mb-2.5">
+        <span>hoje</span>
+        <span>próximos {total} dias</span>
+      </div>
+
+      <div className="relative h-2 rounded-full bg-white ring-1 ring-painel-borda">
+        {primeiro && (
+          <div
+            className="absolute inset-y-0 left-0 rounded-full bg-painel-acento/25"
+            style={{ width: `${pct(primeiro.dias)}%` }}
+          />
+        )}
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 -ml-1 w-3 h-3 rounded-full bg-painel-tinta ring-2 ring-white" />
+        {eventos.map((e) => (
+          <span
+            key={e.rotulo}
+            title={`${e.rotulo}: ${e.data}`}
+            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full ring-2 ring-white ${
+              e.destaque ? 'bg-painel-acento' : 'bg-painel-tinta'
+            }`}
+            style={{ left: `${pct(e.dias)}%` }}
+          />
+        ))}
+      </div>
+
+      <div className="relative h-9 mt-2">
+        {eventos.map((e, i) => {
+          const p = pct(e.dias);
+          // Dois marcadores perto um do outro (vencimento no dia 7, sorteio no
+          // 10) teriam os rotulos um em cima do outro. O primeiro passa a
+          // terminar no marcador, e o seguinte a comecar nele.
+          const perto = (outro?: { dias: number }) => !!outro && Math.abs(pct(outro.dias) - p) < 24;
+          const anterior = eventos[i - 1];
+          const seguinte = eventos[i + 1];
+          const classe = perto(seguinte) && seguinte!.dias > e.dias
+            ? '-translate-x-full text-right pr-1'
+            : perto(anterior) && anterior!.dias < e.dias
+              ? 'translate-x-0 text-left pl-1'
+              : alinhamento(p);
+          return (
+            <span
+              key={e.rotulo}
+              className={`absolute top-0 whitespace-nowrap leading-tight ${classe}`}
+              style={{ left: `${p}%` }}
+            >
+              <span className={`block text-[11px] font-semibold ${e.destaque ? 'text-painel-acento' : 'text-painel-tinta'}`}>
+                {e.rotulo}
+              </span>
+              <span className="block text-[10px] text-stone-400 tabular-nums">{e.data}</span>
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
