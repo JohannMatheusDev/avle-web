@@ -95,6 +95,7 @@ export function CartaoIndicador({
   unidade,
   nota,
   children,
+  tour,
 }: {
   titulo: React.ReactNode;
   icone?: NomeDeIcone;
@@ -104,9 +105,10 @@ export function CartaoIndicador({
   unidade?: React.ReactNode;
   nota?: React.ReactNode;
   children?: React.ReactNode;
+  tour?: string;
 }) {
   return (
-    <div className="cartao-avle p-5 flex flex-col min-h-[272px] overflow-hidden relative">
+    <div data-tour={tour} className="cartao-avle p-5 flex flex-col min-h-[272px] overflow-hidden relative">
       <div className="flex items-start justify-between gap-3">
         <span className="text-[13px] font-medium text-painel-tinta leading-snug">{titulo}</span>
         {canto ?? (icone && (
@@ -360,14 +362,16 @@ export function FaixaDeNumeros({
   titulo,
   itens,
   fim,
+  tour,
 }: {
   titulo: string;
   itens: { rotulo: string; valor: React.ReactNode; nota?: React.ReactNode; tom?: 'alerta' | 'acento' | 'positivo' }[];
   fim?: React.ReactNode;
+  tour?: string;
 }) {
   const corDoValor = { alerta: 'text-amber-700', acento: 'text-painel-acento', positivo: 'text-emerald-700' };
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div data-tour={tour} className="flex flex-wrap items-center gap-2">
       <span className="flex items-center gap-2 pr-2 text-[13px] font-medium text-painel-tinta">
         {titulo}
         <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-painel-tinta text-white text-[10px] font-bold flex items-center justify-center">
@@ -406,6 +410,7 @@ export function PainelEscuro({
   canto,
   lista,
   detalhe,
+  tour,
 }: {
   titulo: string;
   abas: { id: string; rotulo: string; contador?: number }[];
@@ -414,13 +419,14 @@ export function PainelEscuro({
   canto?: React.ReactNode;
   lista: React.ReactNode;
   detalhe: React.ReactNode;
+  tour?: string;
 }) {
   const curva = (lado: 'esq' | 'dir') => ({
     background: `radial-gradient(circle at ${lado === 'esq' ? '0' : '100%'} 100%, transparent 18px, var(--color-painel-papel) 18.5px)`,
   });
 
   return (
-    <section className="relative bg-painel-tinta rounded-[28px] p-5 pt-5 text-white shadow-[0_30px_60px_-40px_rgba(11,30,20,0.9)]">
+    <section data-tour={tour} className="relative bg-painel-tinta rounded-[28px] p-5 pt-5 text-white shadow-[0_30px_60px_-40px_rgba(11,30,20,0.9)]">
       <div className="hidden lg:flex absolute top-0 left-1/2 -translate-x-1/2 bg-painel-papel rounded-b-[22px] px-2 pb-2 z-10">
         <span aria-hidden="true" className="absolute top-0 right-full w-[18px] h-[18px]" style={curva('esq')} />
         <span aria-hidden="true" className="absolute top-0 left-full w-[18px] h-[18px]" style={curva('dir')} />

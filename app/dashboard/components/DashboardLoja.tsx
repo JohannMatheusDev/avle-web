@@ -16,6 +16,8 @@ import {
   SeletorDePeriodo, Variacao, real, sigla, variacao,
 } from './Indicadores';
 import { faturamentoPorSemana, semanaContraAnterior } from '../../lib/faturamento';
+import { PassoDoTour, useTour } from './Tour';
+import { SeletorDeGrupo } from './SeletorDeGrupo';
 import { parcelasPagas } from '../../lib/parcelas';
 import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
 import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
@@ -1566,6 +1568,94 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     setAbaLoja(id as any);
   };
 
+  // O passo a passo do painel. Cada passo aponta para um elemento marcado com
+  // `data-tour`; os que dependem de uma secao a abrem antes.
+  const passosDoTour: PassoDoTour[] = [
+    {
+      secao: 'geral',
+      titulo: `Bem-vinda ao painel da ${nomeLojaReal || 'sua loja'}`,
+      texto: 'Em um minuto a gente mostra onde fica cada coisa. Dá para pular agora e rever quando quiser.',
+    },
+    {
+      secao: 'geral',
+      alvo: 'navegacao',
+      titulo: 'As seções do painel',
+      texto: 'Início, Clientes, Aprovações, Fila de espera, Grupos e Sorteios. A seção aberta fica em terracota.',
+    },
+    {
+      alvo: 'copiar-link',
+      titulo: 'O link da sua loja',
+      texto: 'Copia o convite da loja para mandar às clientes. Quem se cadastra por ele já entra vinculada a você e escolhe um grupo.',
+    },
+    {
+      alvo: 'nova-cliente',
+      titulo: 'Cadastrar uma cliente',
+      texto: 'Para quem compra no balcão e prefere que a loja faça o cadastro. Ela recebe uma senha inicial para entrar no painel dela.',
+    },
+    {
+      alvo: 'novo-grupo',
+      titulo: 'Criar um grupo',
+      texto: 'Você define o nome, o valor da parcela, a duração e quantas cotas o grupo tem. O valor da parcela não muda até o grupo terminar.',
+    },
+    {
+      alvo: 'cartao-vencimento',
+      titulo: 'Próximo vencimento',
+      texto: 'A parcela vence no 5º dia útil de cada mês. A AVLE emite a cobrança de cada cliente sozinha: você não precisa cobrar ninguém.',
+    },
+    {
+      alvo: 'cartao-faturamento',
+      titulo: 'Quanto a loja faturou',
+      texto: 'Clique no calendário para ver a semana, o mês, 6 meses ou 1 ano. Passe o mouse sobre uma barra para ver o valor dela.',
+    },
+    {
+      alvo: 'cartao-parcelas',
+      titulo: 'As parcelas do mês',
+      texto: 'Quantas clientes já pagaram, quantas deixaram vencer sem pagar e quantas ainda estão no prazo.',
+    },
+    {
+      alvo: 'faixa-operacao',
+      titulo: 'O resumo da operação',
+      texto: 'Próximo sorteio, clientes em grupo e fora dele, cotas preenchidas e o valor dos produtos já retirados.',
+    },
+    {
+      alvo: 'painel-grupos',
+      titulo: 'Seus grupos',
+      texto: 'Escolha um grupo na lista para ver o detalhe ao lado. "Com vencidas" separa onde há parcela atrasada, e "Abrir ficha" leva à lista de integrantes, onde se registra pagamento no balcão e entrega.',
+    },
+    {
+      alvo: 'secao-aprovacoes',
+      titulo: 'Aprovações',
+      texto: 'As clientes sorteadas que esperam a análise de crédito para retirar o produto. O número em vermelho é quantas estão esperando.',
+    },
+    {
+      alvo: 'secao-fila',
+      titulo: 'Fila de espera',
+      texto: 'Quem quis entrar num grupo lotado. Quando abrir vaga, você chama a cliente daqui.',
+    },
+    {
+      secao: 'sorteios',
+      alvo: 'seletor-grupo-sorteio',
+      titulo: 'Sorteios e entregas',
+      texto: 'Escolha o grupo e agende. A lista de quem concorre é congelada antes, e o resultado sai da Loteria Federal, que qualquer pessoa pode conferir.',
+    },
+    {
+      alvo: 'configuracoes',
+      titulo: 'Configurações da loja',
+      texto: 'Nome, endereço, logotipo que aparece no convite, o regulamento e a conta que recebe os 90% de cada parcela.',
+    },
+    {
+      secao: 'geral',
+      alvo: 'rever-tour',
+      titulo: 'Pronto!',
+      texto: 'Sempre que quiser ver este passo a passo de novo, é só clicar aqui.',
+    },
+  ];
+  const tour = useTour({
+    chave: `@avle:tour:loja:v1:${usuario?.lojaId || usuario?.id}`,
+    passos: passosDoTour,
+    aoIrParaSecao: irParaSecao,
+  });
+
   // O voltar do navegador refaz o caminho pelas seções e pela ficha do grupo.
   // A ficha guarda só o id: o objeto do grupo é remontado da lista que a tela
   // já tem, porque guardar o objeto inteiro no histórico gravaria números que
@@ -1599,10 +1689,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         detalhe={nomeLojaReal || usuario?.lojaNome || 'Painel da loja'}
         acoes={
           <>
-            <BotaoRedondo icone="link" rotulo="Copiar link da loja" aoClicar={handleCopiarLinkConvite} />
+            <BotaoRedondo icone="ajuda" rotulo="Rever o passo a passo" tour="rever-tour" aoClicar={tour.abrir} />
+            <BotaoRedondo icone="link" rotulo="Copiar link da loja" tour="copiar-link" aoClicar={handleCopiarLinkConvite} />
             <BotaoRedondo
               icone="configuracoes"
               rotulo="Configurações"
+              tour="configuracoes"
               ativo={!grupoSelecionado && abaLoja === 'configuracoes'}
               aoClicar={() => irParaSecao('configuracoes')}
             />
@@ -1661,12 +1753,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           acoes={!grupoSelecionado && (abaLoja === 'geral' || abaLoja === 'grupos' || abaLoja === 'aprovacoes' || abaLoja === 'clientes') && (
             <>
               <button
+                data-tour="nova-cliente"
                 onClick={() => setModalNovoClienteAberto(true)}
                 className="bg-painel-tinta text-white px-5 h-11 rounded-full text-[13px] font-semibold hover:bg-avle-verde transition-colors cursor-pointer"
               >
                 + Nova cliente
               </button>
               <button
+                data-tour="novo-grupo"
                 onClick={() => setModalNovoGrupoAberto(true)}
                 className="bg-painel-acento text-white px-5 h-11 rounded-full text-[13px] font-semibold shadow-[0_10px_20px_-12px_rgba(189,107,66,0.9)] hover:brightness-95 transition-all cursor-pointer"
               >
@@ -2010,6 +2104,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
 
                   <CartaoIndicador
+                    tour="cartao-vencimento"
                     titulo="Próximo vencimento"
                     icone="alerta"
                     tom={diasVenc <= 3 ? 'alerta' : 'acento'}
@@ -2075,6 +2170,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
                     return (
                       <CartaoIndicador
+                        tour="cartao-faturamento"
                         titulo={vista.titulo}
                         canto={
                           <SeletorDePeriodo
@@ -2173,6 +2269,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   </CartaoIndicador>
 
                   <CartaoIndicador
+                    tour="cartao-parcelas"
                     titulo="Faturamento total"
                     canto={<BotaoDeCanto rotulo="Ver clientes" aoClicar={() => irParaSecao('clientes')} />}
                     valor={real(analytics?.totalFaturado ?? recebidoEsteMes)}
@@ -2199,6 +2296,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
                 {/* ── Números miúdos da operação ── */}
                 <FaixaDeNumeros
+                  tour="faixa-operacao"
                   titulo="Operação"
                   itens={[
                     { rotulo: 'Próximo sorteio', valor: formatarData(sort), nota: `${diasSort}d · Loteria Federal, dia 10` },
@@ -2233,6 +2331,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
                 {/* ── Grupos: lista e detalhe ── */}
                 <PainelEscuro
+                  tour="painel-grupos"
                   titulo="Grupos da loja"
                   abas={[
                     { id: 'todos', rotulo: 'Todos', contador: recortes.todos.length },
@@ -2844,25 +2943,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">Agendar Sorteio Auditável</h3>
 
                   <form onSubmit={agendarSorteio} className="flex flex-wrap gap-2 items-end">
-                    <div>
+                    <div className="w-full sm:w-auto">
                       <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Grupo</label>
-                      {/* appearance-none tira o desenho nativo do navegador, que
-                          nao acompanha a altura nem a borda dos demais campos.
-                          A seta e desenhada por cima, sem capturar o clique. */}
-                      <div className="relative">
-                        <select
-                          value={grupoSorteioId}
-                          onChange={(e) => { setGrupoSorteioId(e.target.value); carregarPainelDeSorteio(e.target.value); }}
-                          className="appearance-none w-full min-w-[220px] h-[38px] pl-3 pr-9 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs text-[#0B1E14] cursor-pointer focus:outline-none focus:border-[#BD6B42] transition-colors"
-                          required
-                        >
-                          <option value="">Selecione o grupo de compras</option>
-                          {listaGrupos.map((grupo) => (
-                            <option key={grupo.id} value={grupo.id}>{grupo.nome}</option>
-                          ))}
-                        </select>
-                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[9px] text-stone-400">▼</span>
-                      </div>
+                      <SeletorDeGrupo
+                        tour="seletor-grupo-sorteio"
+                        grupos={listaGrupos}
+                        valor={grupoSorteioId}
+                        aoEscolher={(id) => { setGrupoSorteioId(id); carregarPainelDeSorteio(id); }}
+                      />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Data de corte</label>
@@ -2870,13 +2958,13 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         type="date"
                         value={dataCorteSorteio}
                         onChange={(e) => setDataCorteSorteio(e.target.value)}
-                        className="h-[38px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-xs font-mono text-[#0B1E14] focus:outline-none focus:border-[#BD6B42]"
+                        className="h-[52px] px-4 bg-painel-papel ring-1 ring-painel-borda rounded-[18px] text-[13px] font-mono text-painel-tinta focus:outline-none focus:ring-2 focus:ring-painel-acento/50"
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={processandoSorteio || !grupoSorteioId}
-                      className="h-[38px] bg-[#0B1E14] text-white text-[10px] font-bold px-5 rounded-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider hover:bg-opacity-90 transition-all shadow-sm"
+                      className="h-[52px] bg-painel-tinta text-white text-[13px] font-semibold px-6 rounded-full cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:bg-avle-verde transition-colors"
                     >
                       {processandoSorteio ? 'Processando...' : 'Congelar lista e agendar'}
                     </button>
@@ -4498,6 +4586,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           </div>
         </div>
       )}
+      {tour.elemento}
     </div>
   );
 }
