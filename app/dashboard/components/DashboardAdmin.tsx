@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import EnvioDeCobrancasWhatsapp from './EnvioDeCobrancasWhatsapp';
 import PainelDeAvisosFlutuante from './PainelDeAvisosFlutuante';
 import {
-  Avatar, BarraSuperior, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
+  Avatar, BarraSuperior, BotaoDaConta, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
   TrilhoDeNavegacao,
 } from './Casca';
+import { ContaAvleDoAdmin, PaginaContaAvle } from './ContaAvle';
 import {
   ArteDaMarca, BarrasMini, BlocoDeAdicionar, BlocoDoDetalhe, BlocosDeValor, BotaoDeCanto,
   BotaoEscuro, CartaoIndicador, FaixaDeNumeros, ItemDoPainel, LinhaMini, PainelEscuro,
@@ -20,7 +21,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function DashboardAdmin({ usuario }: { usuario: any }) {
   const router = useRouter();
-  const [abaExibida, setAbaExibida] = useState<'geral' | 'lojas' | 'financeiro' | 'cobranca'>('geral');
+  const [abaExibida, setAbaExibida] = useState<'geral' | 'lojas' | 'financeiro' | 'cobranca' | 'conta'>('geral');
 
   const [lojaSelecionada, setLojaSelecionada] = useState<any | null>(null);
   // Painel escuro da tela inicial: o recorte das lojas e qual esta no detalhe.
@@ -200,6 +201,10 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
         detalhe="Equipe AVLE · acesso master"
         acoes={
           <>
+            <BotaoDaConta
+              ativo={!lojaSelecionada && abaExibida === 'conta'}
+              aoClicar={() => irParaSecao('conta')}
+            />
             <BotaoRedondo
               icone="atualizar"
               rotulo={carregando ? 'Atualizando...' : 'Atualizar números'}
@@ -243,7 +248,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
         <CabecalhoDaPagina
           titulo={lojaSelecionada
             ? lojaSelecionada.nomeComercial
-            : secoesDoAdmin.find((s) => s.id === abaExibida)?.rotulo ?? abaExibida}
+            : secoesDoAdmin.find((s) => s.id === abaExibida)?.rotulo ?? (abaExibida === 'conta' ? 'Conta AVLE' : abaExibida)}
           descricao={`Painel administrativo · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`}
           aoVoltar={
             lojaSelecionada
@@ -370,6 +375,19 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 </div>
               );
             })()}
+
+            {/* A Conta AVLE desta loja, como a loja ve, mas sem o saque: o
+                dinheiro e dela. E daqui que o admin conecta a conta do Asaas
+                de uma loja que ainda nao conectou. */}
+            <div className="space-y-3">
+              <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Conta AVLE da loja</h3>
+              <PaginaContaAvle
+                key={lojaSelecionada.id}
+                lojaId={lojaSelecionada.id}
+                podeSacar={false}
+                mostrarAviso={(titulo, texto) => window.alert(`${titulo}\n\n${texto}`)}
+              />
+            </div>
 
             <div className="cartao-avle p-6">
               <h3 className="text-sm font-bold text-[#0B1E14] uppercase tracking-wider mb-4">Controle de Expansao de Negocio</h3>
@@ -769,6 +787,15 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   )}
                 </div>
               </div>
+            )}
+
+            {abaExibida === 'conta' && !lojaSelecionada && (
+              <ContaAvleDoAdmin
+                aoAbrirLoja={(id) => {
+                  const loja = listaLojas.find((l) => l.id === id);
+                  if (loja) setLojaSelecionada(loja);
+                }}
+              />
             )}
 
             {abaExibida === 'cobranca' && !lojaSelecionada && (

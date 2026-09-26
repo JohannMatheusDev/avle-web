@@ -410,48 +410,65 @@ export function PainelEscuro({
   canto,
   lista,
   detalhe,
+  corpo,
+  alternancia,
   tour,
 }: {
   titulo: string;
-  abas: { id: string; rotulo: string; contador?: number }[];
-  abaAtiva: string;
-  aoTrocarAba: (id: string) => void;
+  /** Sem abas, o recorte da borda de cima não aparece. */
+  abas?: { id: string; rotulo: string; contador?: number }[];
+  abaAtiva?: string;
+  aoTrocarAba?: (id: string) => void;
   canto?: React.ReactNode;
-  lista: React.ReactNode;
-  detalhe: React.ReactNode;
+  lista?: React.ReactNode;
+  detalhe?: React.ReactNode;
+  /** Conteúdo livre no lugar da lista com detalhe. */
+  corpo?: React.ReactNode;
+  /** Controle ao lado do título, para trocar o que o painel mostra. */
+  alternancia?: React.ReactNode;
   tour?: string;
 }) {
+  const temAbas = !!abas && abas.length > 0 && !!aoTrocarAba;
   const curva = (lado: 'esq' | 'dir') => ({
     background: `radial-gradient(circle at ${lado === 'esq' ? '0' : '100%'} 100%, transparent 18px, var(--color-painel-papel) 18.5px)`,
   });
 
   return (
     <section data-tour={tour} className="relative bg-painel-tinta rounded-[28px] p-5 pt-5 text-white shadow-[0_30px_60px_-40px_rgba(11,30,20,0.9)]">
-      <div className="hidden lg:flex absolute top-0 left-1/2 -translate-x-1/2 bg-painel-papel rounded-b-[22px] px-2 pb-2 z-10">
-        <span aria-hidden="true" className="absolute top-0 right-full w-[18px] h-[18px]" style={curva('esq')} />
-        <span aria-hidden="true" className="absolute top-0 left-full w-[18px] h-[18px]" style={curva('dir')} />
-        <Abas abas={abas} abaAtiva={abaAtiva} aoTrocarAba={aoTrocarAba} />
-      </div>
+      {temAbas && (
+        <div className="hidden lg:flex absolute top-0 left-1/2 -translate-x-1/2 bg-painel-papel rounded-b-[22px] px-2 pb-2 z-10">
+          <span aria-hidden="true" className="absolute top-0 right-full w-[18px] h-[18px]" style={curva('esq')} />
+          <span aria-hidden="true" className="absolute top-0 left-full w-[18px] h-[18px]" style={curva('dir')} />
+          <Abas abas={abas!} abaAtiva={abaAtiva ?? ''} aoTrocarAba={aoTrocarAba!} />
+        </div>
+      )}
 
       <div className="flex items-center justify-between gap-3 mb-4 min-h-[36px]">
-        <h3 style={{ fontWeight: 600 }} className="text-[15px] text-white">{titulo}</h3>
+        <div className="flex items-center gap-3 flex-wrap min-w-0">
+          <h3 style={{ fontWeight: 600 }} className="text-[15px] text-white">{titulo}</h3>
+          {alternancia}
+        </div>
         <div className="flex items-center gap-2">{canto}</div>
       </div>
 
       {/* Abaixo de 1024px o recorte não cabe entre o título e o canto: as
           abas descem para uma linha própria, dentro do escuro. */}
-      <div className="lg:hidden mb-4 bg-white/5 rounded-full p-1 w-fit max-w-full overflow-x-auto">
-        <Abas abas={abas} abaAtiva={abaAtiva} aoTrocarAba={aoTrocarAba} escuro />
-      </div>
+      {temAbas && (
+        <div className="lg:hidden mb-4 bg-white/5 rounded-full p-1 w-fit max-w-full overflow-x-auto">
+          <Abas abas={abas!} abaAtiva={abaAtiva ?? ''} aoTrocarAba={aoTrocarAba!} escuro />
+        </div>
+      )}
 
       {/* Lado a lado so a partir de 1280px: em 1024 a coluna da lista deixava
           o detalhe com 500px e cortava o nome do grupo. */}
+      {corpo ?? (
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)] gap-4">
         <div className="space-y-2 xl:max-h-[440px] xl:overflow-y-auto pr-0.5 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]">
           {lista}
         </div>
         <div className="min-w-0">{detalhe}</div>
       </div>
+      )}
     </section>
   );
 }
@@ -778,6 +795,41 @@ export function LinhaDosProximosDias({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/**
+ * A troca ao lado do título do painel escuro: "Grupos" ou "Conta AVLE".
+ * Pílulas pequenas no escuro, para não competir com as abas do recorte.
+ */
+export function AlternanciaDoPainel<T extends string>({
+  opcoes,
+  valor,
+  aoEscolher,
+  tour,
+}: {
+  opcoes: { id: T; rotulo: string }[];
+  valor: T;
+  aoEscolher: (id: T) => void;
+  tour?: string;
+}) {
+  return (
+    <div data-tour={tour} role="tablist" className="flex items-center gap-1 bg-white/[0.07] rounded-full p-1">
+      {opcoes.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          role="tab"
+          aria-selected={o.id === valor}
+          onClick={() => aoEscolher(o.id)}
+          className={`h-8 px-3.5 rounded-full text-[12px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+            o.id === valor ? 'bg-white text-painel-tinta' : 'text-white/60 hover:text-white'
+          }`}
+        >
+          {o.rotulo}
+        </button>
+      ))}
     </div>
   );
 }
