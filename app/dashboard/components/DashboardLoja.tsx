@@ -2118,11 +2118,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
                 {/* Enquanto a conta do Asaas nao estiver pronta, a loja ve aqui
                     o que falta - some sozinha quando a conta fica ativa. */}
-                <FaixaDeAtivacaoNoInicio
-                  lojaId={usuario?.lojaId || usuario?.id}
-                  aoIrParaConfiguracoes={() => irParaSecao('configuracoes')}
-                  aoAbrirConta={() => irParaSecao('conta')}
-                />
+                {/* Na frente da arvore e com fundo de papel por baixo: a faixa e
+                    translucida, e os galhos passavam por cima do texto. */}
+                <div className="relative z-10 rounded-[22px] bg-painel-papel empty:hidden">
+                  <FaixaDeAtivacaoNoInicio
+                    lojaId={usuario?.lojaId || usuario?.id}
+                    aoIrParaConfiguracoes={() => irParaSecao('configuracoes')}
+                    aoAbrirConta={() => irParaSecao('conta')}
+                  />
+                </div>
 
                 {/* ── Os quatro cartões de cima ── */}
                 {/* `relative z-10` nos blocos de cima: a arvore da marca fica
@@ -2363,9 +2367,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 </div>
 
                 {/* ── Grupos: lista e detalhe ── */}
-                {/* A arvore da AVLE cresce de tras do painel escuro: o tronco
-                    fica escondido atras da borda de cima dele, e a copa sobe
-                    por tras da faixa e dos cartoes. So a partir de 1024px -
+                {/* A arvore da AVLE cresce de tras do painel escuro, no centro
+                    da tela: o tronco fica escondido atras da borda de cima dele
+                    e a copa se abre por tras da faixa e dos quatro cartoes. So a partir de 1024px -
                     no celular os blocos empilham e nao sobra vao para ela. */}
                 <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2373,7 +2377,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   src="/arvore-escura.png"
                   alt=""
                   aria-hidden="true"
-                  className="hidden lg:block pointer-events-none select-none absolute z-0 right-[5%] bottom-full -mb-14 w-[480px] xl:w-[560px]"
+                  className="hidden lg:block pointer-events-none select-none absolute z-0 left-1/2 -translate-x-1/2 bottom-full -mb-16 w-[820px] xl:w-[980px] max-w-none"
                 />
                 <div className="relative z-10">
                 {painelVerde === 'conta' ? (
