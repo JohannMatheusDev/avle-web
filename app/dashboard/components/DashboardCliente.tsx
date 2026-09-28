@@ -515,7 +515,16 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
            body: JSON.stringify({ lojaId: Number(lojaEmFoco?.id), grupoId: Number(grupo?.id) })
          });
          
-         if (!res.ok) throw new Error();
+         // O motivo da recusa vem do servidor e e o que a cliente precisa
+         // ler: "grupo lotado" pede outro grupo, "sem autorizacao" pede falar
+         // com a loja. Antes todos viravam o mesmo "tente novamente".
+         if (!res.ok) {
+           const texto = await res.text().catch(() => '');
+           let motivo = texto;
+           try { motivo = JSON.parse(texto)?.erro ?? texto; } catch { /* texto puro */ }
+           mostrarAviso('Não deu para entrar no grupo', motivo || 'Tente de novo em instantes.', true);
+           return;
+         }
          
          const resClubes = await apiFetch(`${API_URL}/api/usuarios/${usuario?.id}/clubes-ativos`);
          const dataClubes = await resClubes.json();
@@ -538,7 +547,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             setModalCheckoutAberto(true);
          }
       } catch {
-         mostrarAviso('Erro de Adesão', 'Falha ao registrar vínculo no clube. Tente novamente.', true);
+         mostrarAviso('Não deu para entrar no grupo', 'Não conseguimos falar com o servidor. Confira a conexão e tente de novo.', true);
       }
   };
 
@@ -814,34 +823,15 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     setNivelVisao('dashboard');
   };
 
-  // Quem ja tem plano nao deveria precisar navegar para pagar. Antes a cliente
-  // caia na lista de lojas ou de grupos e so encontrava o botao de pagar depois
-  // de dois cliques - e quem nao esta acostumada com painel simplesmente nao
-  // achava. Com um plano so, o painel abre dentro dele.
+  // O painel sempre abre no Inicio, com todos os planos dela, e e dali que ela
+  // entra no grupo que quiser. Antes, com um plano so, o painel abria direto
+  // dentro dele - e a cliente que tinha acabado de entrar num segundo grupo
+  // perdia de vista que tinha dois. O botao de pagar de cada plano ja fica no
+  // topo do Inicio, entao pagar continua a um toque.
   //
-  // Roda uma vez por sessao: sem isso, quem clicasse em "voltar para os clubes"
-  // seria arrastada de volta para dentro do grupo e ficaria presa.
-  const aberturaAutomaticaFeita = useRef(false);
-
-  // Separado do de cima de proposito: este marca que a tela realmente entrou no
-  // grupo. A busca das lojas termina depois e manda a cliente para a lista de
-  // grupos; sem saber que ja entramos, ela jogaria a cliente para fora do
-  // painel que acabou de abrir.
+  // A unica excecao e a primeira parcela em aberto: ai o pagamento abre
+  // sozinho, pela regra de entrar e pagar na hora (efeito acima).
   const abriuGrupoDireto = useRef(false);
-
-  useEffect(() => {
-    if (aberturaAutomaticaFeita.current) return;
-    if (clubesAtivos.length === 0) return;
-
-    aberturaAutomaticaFeita.current = true;
-
-    // Com mais de um plano a escolha e dela: abrir um por conta propria
-    // esconderia os outros. Nesse caso o atalho de pagamento fica na lista.
-    if (clubesAtivos.length > 1) return;
-
-    abriuGrupoDireto.current = true;
-    handleMudarClubeEmExibicao(clubesAtivos[0]);
-  }, [clubesAtivos]);
 
   // Variável que diz se o painel deve ser isolado
   const isClienteAmarrado = !!lojaBloqueadaId;
