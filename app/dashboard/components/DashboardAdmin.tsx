@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import EnvioDeCobrancasWhatsapp from './EnvioDeCobrancasWhatsapp';
+import GruposDaLojaNoAdmin from './GruposDaLojaNoAdmin';
 import PainelDeAvisosFlutuante from './PainelDeAvisosFlutuante';
 import {
   Avatar, BarraSuperior, BotaoDaConta, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
@@ -424,6 +425,8 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 Define a quantidade máxima de clubes ou grupos de compras que esta loja tem permissão para manter operando simultaneamente na plataforma.
               </p>
             </div>
+
+            <GruposDaLojaNoAdmin lojaId={lojaSelecionada.id} />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="cartao-avle-destaque p-5">
