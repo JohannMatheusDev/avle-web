@@ -303,32 +303,48 @@ export function BlocosDeValor({
   blocos,
   acao,
 }: {
-  blocos: { rotulo: string; valor: React.ReactNode; destaque?: boolean; dica?: string }[];
+  blocos: { rotulo: string; valor: React.ReactNode; destaque?: boolean; dica?: string; aoClicar?: () => void }[];
   acao?: { rotulo: string; aoClicar: () => void };
 }) {
   return (
     <div className="relative">
       <div className="flex items-end gap-2">
-        {blocos.map((b) => (
-          <div
-            key={b.rotulo}
-            title={b.dica}
-            className={`flex-1 min-w-0 rounded-[16px] px-3 pt-3 flex flex-col ${
-              b.destaque
-                ? 'h-[118px] bg-painel-acento text-white shadow-[0_14px_24px_-16px_rgba(189,107,66,0.9)]'
-                : 'h-[92px] bg-painel-papel text-painel-tinta'
-            }`}
-          >
-            <span className={`text-[10px] leading-tight ${b.destaque ? 'text-white/75' : 'text-stone-400'}`}>{b.rotulo}</span>
-            <span className="text-[17px] font-semibold tabular-nums leading-tight mt-1 break-words">{b.valor}</span>
-          </div>
-        ))}
+        {blocos.map((b) => {
+          const classe = `flex-1 min-w-0 rounded-[16px] px-3 pt-3 flex flex-col text-left ${
+            b.destaque
+              ? 'h-[118px] bg-painel-acento text-white shadow-[0_14px_24px_-16px_rgba(189,107,66,0.9)]'
+              : 'h-[92px] bg-painel-papel text-painel-tinta'
+          }`;
+          const miolo = (
+            <>
+              <span className={`text-[10px] leading-tight ${b.destaque ? 'text-white/75' : 'text-stone-400'}`}>{b.rotulo}</span>
+              <span className="text-[17px] font-semibold tabular-nums leading-tight mt-1 break-words">{b.valor}</span>
+              {b.aoClicar && (
+                <span className={`text-[10px] font-semibold mt-auto mb-2 ${b.destaque ? 'text-white/85' : 'text-painel-acento'}`}>Ver quem ↗</span>
+              )}
+            </>
+          );
+          // Com aoClicar o bloco vira botao: o numero leva a lista de quem esta nele.
+          return b.aoClicar ? (
+            <button
+              key={b.rotulo}
+              type="button"
+              title={b.dica}
+              onClick={b.aoClicar}
+              className={`${classe} cursor-pointer transition-transform hover:-translate-y-0.5`}
+            >
+              {miolo}
+            </button>
+          ) : (
+            <div key={b.rotulo} title={b.dica} className={classe}>{miolo}</div>
+          );
+        })}
       </div>
       {acao && (
         <button
           type="button"
           onClick={acao.aoClicar}
-          className="absolute -bottom-1 right-0 h-9 px-4 rounded-full bg-painel-tinta text-white text-[11px] font-semibold shadow-lg hover:bg-avle-verde transition-colors cursor-pointer"
+          className="absolute -bottom-4 right-0 h-9 px-4 rounded-full bg-painel-tinta text-white text-[11px] font-semibold shadow-lg hover:bg-avle-verde transition-colors cursor-pointer"
         >
           {acao.rotulo}
         </button>
@@ -443,12 +459,14 @@ export function PainelEscuro({
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-3 mb-4 min-h-[36px]">
-        <div className="flex items-center gap-3 flex-wrap min-w-0">
+      <div className="flex items-start sm:items-center justify-between gap-3 mb-4 min-h-[36px]">
+        <div className="flex items-center gap-3 flex-wrap min-w-0 flex-1 min-h-[36px]">
           <h3 style={{ fontWeight: 600 }} className="text-[15px] text-white">{titulo}</h3>
           {alternancia}
         </div>
-        <div className="flex items-center gap-2">{canto}</div>
+        {/* No celular o canto sobe para o lado do titulo, e a alternancia
+            ganha a linha inteira abaixo dele. */}
+        <div className="flex items-center gap-2 absolute top-5 right-5 sm:static">{canto}</div>
       </div>
 
       {/* Abaixo de 1024px o recorte não cabe entre o título e o canto: as
@@ -583,10 +601,14 @@ export function BlocoDoDetalhe({
       {...(aoClicar ? { type: 'button' as const, onClick: aoClicar } : {})}
       className={`relative text-left rounded-[18px] bg-white/[0.07] p-4 min-h-[96px] flex flex-col justify-between ${aoClicar ? 'hover:bg-white/[0.11] transition-colors cursor-pointer' : ''}`}
     >
-      <span className="absolute top-3 right-3 text-white/40">
-        <Icone nome="seta" className="w-3.5 h-3.5" />
-      </span>
-      <span className="text-[18px] font-semibold tabular-nums text-white leading-tight pr-5">{valor}</span>
+      {/* A seta so aparece no que abre alguma coisa: no bloco so de leitura
+          ela prometia um clique que nao existia. */}
+      {aoClicar && (
+        <span className="absolute top-3 right-3 text-white/40">
+          <Icone nome="seta" className="w-3.5 h-3.5" />
+        </span>
+      )}
+      <span className={`text-[18px] font-semibold tabular-nums text-white leading-tight ${aoClicar ? 'pr-5' : ''}`}>{valor}</span>
       <span className="text-[11px] text-white/55 mt-2 leading-snug">
         {rotulo}
         {nota && <span className="block text-[10px] text-white/40 mt-0.5">{nota}</span>}
@@ -815,7 +837,7 @@ export function AlternanciaDoPainel<T extends string>({
   tour?: string;
 }) {
   return (
-    <div data-tour={tour} role="tablist" className="flex items-center gap-1 bg-white/[0.07] rounded-full p-1">
+    <div data-tour={tour} role="tablist" className="flex items-center gap-1 bg-white/[0.07] rounded-full p-1 max-w-full overflow-x-auto [scrollbar-width:none]">
       {opcoes.map((o) => (
         <button
           key={o.id}

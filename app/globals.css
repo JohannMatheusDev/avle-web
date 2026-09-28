@@ -215,5 +215,37 @@
 /* Rotulo miudo: em caixa alta espacada, 9 e 10px ainda se liam; sem o
    espacamento, somem. Sobem ao menor tamanho de rotulo do design system. */
 .fundo-painel .uppercase:is(.text-\[9px\], .text-\[10px\]) {
-  font-size: 12px; /* typography.text-xs */
+  font-size: 13px; /* typography.text-xs, mais o degrau abaixo */
 }
+
+/* ── Fonte um degrau acima ──
+   A loja pediu o texto do site inteiro um pouco maior. O painel escreve o
+   tamanho em px direto na classe, entao cada tamanho usado sobe 1px aqui, e o
+   que e medido em rem acompanha pela fonte da raiz. Nao e `zoom`: no iPhone,
+   onde a cliente mais usa o painel, ele desencontra os elementos fixos e o
+   recorte do tour. */
+html { font-size: 106.25%; }
+.fundo-painel .text-\[8px\] { font-size: 9px; }
+.fundo-painel .text-\[9px\] { font-size: 10px; }
+.fundo-painel .text-\[10px\] { font-size: 11px; }
+.fundo-painel .text-\[11px\] { font-size: 12px; }
+.fundo-painel .text-\[12px\] { font-size: 13px; }
+.fundo-painel .text-\[13px\] { font-size: 14px; }
+.fundo-painel .text-\[14px\] { font-size: 15px; }
+.fundo-painel .text-\[15px\] { font-size: 16px; }
+.fundo-painel .text-\[16px\] { font-size: 17px; }
+.fundo-painel .text-\[17px\] { font-size: 18px; }
+.fundo-painel .text-\[18px\] { font-size: 19px; }
+.fundo-painel .text-\[20px\] { font-size: 21px; }
+.fundo-painel .text-\[22px\] { font-size: 23px; }
+.fundo-painel .text-\[24px\] { font-size: 25px; }
+.fundo-painel .text-\[26px\] { font-size: 27px; }
+.fundo-painel .text-\[28px\] { font-size: 29px; }
+.fundo-painel .text-\[30px\] { font-size: 31px; }
+.fundo-painel .text-\[34px\] { font-size: 35px; }
+.fundo-painel .text-\[36px\] { font-size: 37px; }
+.fundo-painel .text-\[38px\] { font-size: 39px; }
+
+/* Nome de grupo em negrito, apesar da regra de titulo leve acima: a loja le a
+   lista pelos nomes, e em peso 400 eles se misturavam com o resto. */
+.fundo-painel .nome-do-grupo.nome-do-grupo { font-weight: 700; }
