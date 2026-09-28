@@ -56,6 +56,10 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [lojaEmFoco, setLojaEmFoco] = useState<any | null>(null);
   const [gruposDaLoja, setGruposDaLoja] = useState<any[]>([]);
   const [carregandoGrupos, setCarregandoGrupos] = useState(false);
+  // Falha ao buscar os grupos, dita como falha. Antes ela virava lista vazia
+  // e a tela dizia "nenhum grupo com vaga" - a cliente desistia de uma loja
+  // que tinha grupo aberto.
+  const [erroGrupos, setErroGrupos] = useState(false);
 
   const [lojas, setLojas] = useState<any[]>([]);
   const [erroConexao, setErroConexao] = useState(false);
@@ -372,13 +376,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
                   setLojaEmFoco(lojaDoConvite);
                   if (!abriuGrupoDireto.current) setNivelVisao('grupos');
-                  setCarregandoGrupos(true);
-                  
-                  apiFetch(`${API_URL}/api/grupos/loja/${lojaDoConvite.id}`)
-                     .then((res) => res.json())
-                     .then((grupos) => setGruposDaLoja(Array.isArray(grupos) ? grupos : []))
-                     .catch(() => setGruposDaLoja([]))
-                     .finally(() => setCarregandoGrupos(false));
+                  buscarGruposDaLoja(lojaDoConvite.id);
                }
                sessionStorage.removeItem('@avle:convite_loja_id');
                conviteProcessado.current = true; 
@@ -389,13 +387,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     setLojaBloqueadaId(lojaDaPessoa.id);
                     setLojaEmFoco(lojaDaPessoa);
                     if (!abriuGrupoDireto.current) setNivelVisao('grupos');
-                    setCarregandoGrupos(true);
-                    
-                    apiFetch(`${API_URL}/api/grupos/loja/${lojaVinculadaId}`)
-                        .then((res) => res.json())
-                        .then((grupos) => setGruposDaLoja(Array.isArray(grupos) ? grupos : []))
-                        .catch(() => setGruposDaLoja([]))
-                        .finally(() => setCarregandoGrupos(false));
+                    buscarGruposDaLoja(lojaVinculadaId);
                 }
             }
         } else {
@@ -409,17 +401,27 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       });
   }, [usuario?.id]);
 
+  /** Os grupos da loja para a vitrine, com a falha tratada como falha. */
+  const buscarGruposDaLoja = (lojaId: number) => {
+    setCarregandoGrupos(true);
+    setErroGrupos(false);
+    apiFetch(`${API_URL}/api/grupos/loja/${lojaId}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        const grupos = await res.json();
+        setGruposDaLoja(Array.isArray(grupos) ? grupos : []);
+      })
+      .catch(() => {
+        setGruposDaLoja([]);
+        setErroGrupos(true);
+      })
+      .finally(() => setCarregandoGrupos(false));
+  };
+
   const entrarNaLoja = (loja: any) => {
     setLojaEmFoco(loja);
     setNivelVisao('grupos');
-    setCarregandoGrupos(true);
-    setGruposDaLoja([]);
-
-    apiFetch(`${API_URL}/api/grupos/loja/${loja.id}`)
-      .then((res) => res.json())
-      .then((data) => setGruposDaLoja(Array.isArray(data) ? data : []))
-      .catch(() => setGruposDaLoja([]))
-      .finally(() => setCarregandoGrupos(false));
+    buscarGruposDaLoja(loja.id);
   };
 
   /**
@@ -1298,7 +1300,19 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
 
                 {carregandoGrupos ? (
-                   <div className="py-12 text-center text-xs font-bold text-stone-400 animate-pulse">Consultando planos no servidor...</div>
+                   <div className="py-12 text-center text-xs font-bold text-stone-400 animate-pulse">Carregando os grupos da loja...</div>
+                ) : erroGrupos ? (
+                   <div className="cartao-avle p-8 text-center space-y-4">
+                      <p className="text-[15px] text-[#0B1E14] font-semibold">Não conseguimos carregar os grupos agora</p>
+                      <p className="text-[13px] text-stone-500 leading-relaxed">A loja tem grupos, mas a conexão falhou. Tente de novo em instantes.</p>
+                      <button
+                        type="button"
+                        onClick={() => lojaEmFoco && buscarGruposDaLoja(lojaEmFoco.id)}
+                        className="h-12 px-6 rounded-full bg-[#0B1E14] text-white text-[14px] font-semibold cursor-pointer"
+                      >
+                        Tentar de novo
+                      </button>
+                   </div>
                 ) : (() => {
                    // Um grupo encerrado ou lotado sai da vitrine, mas continua visivel
                    // se a cliente ja tem cota nele: caso contrario ela perderia o acesso
@@ -1400,48 +1414,71 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                           : 'Nenhum grupo com vaga aberta nesta loja no momento.'}
                       </div>
                    ) : (
-                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {listaDaAba.slice().sort((a, b) => a.id - b.id).map((grupo, indiceDoGrupo) => {
                          const cotaExistente = clubesAtivos.find(c => c.grupo?.id === grupo.id);
                          const isAtivo = !!cotaExistente;
                          
                          return (
-                            <div 
+                            <button
+                              type="button"
                               key={grupo.id}
                               data-tour={indiceDoGrupo === 0 ? 'cartao-plano' : undefined}
                               onClick={() => handleAbrirGrupo(grupo, cotaExistente)}
-                              className={`rounded-2xl p-5 border cursor-pointer flex flex-col justify-between min-h-[160px] transition-all group hover:-translate-y-1 hover:shadow-md ${
-                                 isAtivo ? 'bg-white border-[#BD6B42] shadow-sm' : 'bg-stone-50/50 border-[#DFD9CE] hover:border-stone-300 hover:bg-white'
+                              className={`text-left rounded-[24px] p-5 flex flex-col gap-4 min-h-[210px] transition-all cursor-pointer active:scale-[0.99] ${
+                                 isAtivo
+                                   ? 'bg-white ring-2 ring-[#BD6B42] shadow-sm'
+                                   : 'bg-white ring-1 ring-[#E8E4DA] hover:ring-[#0B1E14]/25 hover:shadow-md'
                               }`}
                             >
-                               <div className="flex justify-between items-start w-full mb-4">
-                                  <div>
-                                     <span className="text-[9px] bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded text-stone-500 font-mono font-bold mb-2 inline-block">Lote #{grupo.id}</span>
-                                     <h3 className={`font-serif font-bold text-base leading-tight pr-2 transition-colors ${isAtivo ? 'text-[#0B1E14]' : 'text-stone-700 group-hover:text-[#0B1E14]'}`}>
-                                        {grupo.nome}
-                                     </h3>
-                                  </div>
-                               </div>
-                               
-                               <div className="flex justify-between items-end w-full border-t border-stone-200/60 pt-3">
-                                  <div className="flex flex-col">
-                                     <span className="text-[10px] text-stone-500 font-medium">Vigência: {grupo.duracaoMeses} Meses</span>
-                                  </div>
-                                  <span className={`text-lg font-bold font-mono ${isAtivo ? 'text-[#BD6B42]' : 'text-stone-500 group-hover:text-[#0B1E14]'}`}>
-                                     R$ {(Number(grupo.valorParcela)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                               </div>
+                               {(() => {
+                                  // O que a cliente precisa para decidir, na ordem em que
+                                  // ela pergunta: quanto por mes, por quanto tempo, e se
+                                  // ainda cabe gente. "Lote #12" nao respondia nada disso.
+                                  const maximo = Number(grupo.quantidadeMaxCotas) || 0;
+                                  const ocupadas = Number(grupo.cotasOcupadas) || 0;
+                                  const vagas = Math.max(0, maximo - ocupadas);
+                                  const pct = maximo > 0 ? Math.min(100, (ocupadas / maximo) * 100) : 0;
+                                  const poucas = !isAtivo && maximo > 0 && vagas > 0 && vagas <= 3;
+                                  const valor = Number(grupo.valorParcela) || 0;
+                                  const dinheiro = (n: number) => `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                  return (
+                                    <>
+                                      <div className="flex items-start justify-between gap-3">
+                                        <h3 style={{ fontWeight: 600 }} className="text-[17px] text-[#0B1E14] leading-snug">{grupo.nome}</h3>
+                                        <span className={`flex-shrink-0 h-7 px-3 rounded-full text-[11px] font-semibold flex items-center ${
+                                          isAtivo ? 'bg-[#BD6B42] text-white' : poucas ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-700'
+                                        }`}>
+                                          {isAtivo ? 'Seu plano' : maximo > 0 ? (poucas ? `Últimas ${vagas} vagas` : `${vagas} vagas`) : 'Aberto'}
+                                        </span>
+                                      </div>
 
-                               {isAtivo ? (
-                                  <div className="mt-4 pt-3 border-t border-[#BD6B42]/20 w-full text-center text-[10px] font-bold text-[#BD6B42] uppercase tracking-wider group-hover:bg-[#BD6B42] group-hover:text-white rounded-lg transition-colors py-1">
-                                     Acessar Dashboard
-                                  </div>
-                               ) : (
-                                  <div className="mt-4 pt-3 border-t border-stone-200 w-full text-center text-[10px] font-bold text-stone-400 uppercase tracking-wider group-hover:text-[#0B1E14] transition-colors py-1">
-                                     Participar do Clube
-                                  </div>
-                               )}
-                            </div>
+                                      <div>
+                                        <span className="block text-[26px] font-semibold tracking-tight text-[#0B1E14] tabular-nums leading-none">{dinheiro(valor)}</span>
+                                        <span className="block text-[13px] text-stone-500 mt-1.5">
+                                          por mês · {grupo.duracaoMeses} {Number(grupo.duracaoMeses) === 1 ? 'mês' : 'meses'}
+                                          {valor > 0 && Number(grupo.duracaoMeses) > 0 && <> · total {dinheiro(valor * Number(grupo.duracaoMeses))}</>}
+                                        </span>
+                                      </div>
+
+                                      {maximo > 0 && (
+                                        <div>
+                                          <div className="h-1.5 rounded-full bg-[#F5F2EB] overflow-hidden">
+                                            <div className="h-full rounded-full bg-[#0B1E14]" style={{ width: `${pct}%` }} />
+                                          </div>
+                                          <span className="block text-[11px] text-stone-400 mt-1.5">{ocupadas} de {maximo} participantes</span>
+                                        </div>
+                                      )}
+
+                                      <span className={`mt-auto h-12 rounded-full text-[14px] font-semibold flex items-center justify-center transition-colors ${
+                                        isAtivo ? 'bg-[#0B1E14] text-white' : 'bg-[#BD6B42] text-white'
+                                      }`}>
+                                        {isAtivo ? 'Ver meu plano' : 'Entrar no grupo'}
+                                      </span>
+                                    </>
+                                  );
+                               })()}
+                            </button>
                          )
                       })}
                    </div>
