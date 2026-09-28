@@ -585,19 +585,23 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     const userId = usuario?.id;
     if (!userId || clubesAtivos.length === 0) return;
 
+    // Quem manda é o servidor: ele diz qual cota entrou pelo painel e ainda
+    // não pagou nada, e isso vale em qualquer aparelho. O navegador só guarda
+    // a cota recém-criada até a primeira leitura do servidor chegar.
+    const pelaApi = clubesAtivos.find((c: any) => c.aguardandoPrimeiraParcela === true);
     let pendente: string | null = null;
     try {
       pendente = localStorage.getItem(chaveDaPrimeiraParcela(userId));
     } catch {
-      return;
+      // Sem armazenamento, vale só o que o servidor disse.
     }
-    if (!pendente) return;
+    if (!pelaApi && !pendente) return;
 
-    const cotaId = Number(pendente);
+    const cotaId = pelaApi ? Number(pelaApi.cotaId) : Number(pendente);
     const cota = clubesAtivos.find((c: any) => c.cotaId === cotaId);
 
     // Cota que sumiu (a loja desfez a participação) ou que já tem saldo: não
-    // há mais primeira parcela em aberto para cobrar.
+    // há mais primeira parcela para cobrar.
     if (!cota || Number(cota.saldoPoupanca) > 0) {
       encerrarPrimeiraParcelaPendente();
       return;
@@ -2062,6 +2066,18 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                             <span className="text-[10px] font-bold text-stone-400 uppercase">Duração do contrato</span>
                             <span className="text-xs font-bold text-[#0B1E14]">{modalAdesao.grupo.duracaoMeses} meses</span>
                         </div>
+                    </div>
+
+                    {/* O pagamento vem logo depois, sem saída: ela precisa saber
+                        disso aqui, antes de confirmar, e não descobrir na tela seguinte. */}
+                    <div className="rounded-xl bg-painel-tinta text-white p-4">
+                        <p className="text-[12px] font-semibold">
+                            Ao confirmar, você entra no grupo e paga agora a 1ª parcela de{' '}
+                            R$ {(Number(modalAdesao.grupo.valorParcela)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.
+                        </p>
+                        <p className="text-[11px] text-white/70 mt-1 leading-relaxed">
+                            O seu painel do grupo libera assim que o pagamento for confirmado.
+                        </p>
                     </div>
 
                     <div className="flex items-start gap-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
