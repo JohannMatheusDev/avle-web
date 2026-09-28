@@ -37,7 +37,7 @@ export default function PainelDeAvisosFlutuante() {
 
       <button
         onClick={() => setAberto(!aberto)}
-        aria-label={naoLidas > 0 ? `${naoLidas} avisos não lidos` : 'Avisos'}
+        aria-label={naoLidas > 0 ? `${naoLidas} ${naoLidas === 1 ? 'aviso não lido' : 'avisos não lidos'}` : 'Avisos'}
         className="group relative flex h-16 w-16 cursor-pointer items-center justify-center rounded-full border-[3px] border-[#BD6B42] bg-[#0B1E14] shadow-2xl transition-transform hover:scale-105"
       >
         <img

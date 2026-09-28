@@ -43,7 +43,7 @@ export default function CheckoutPix() {
   return (
     <div className="w-full max-w-md mx-auto bg-white rounded-3xl border border-stone-200/60 p-6 shadow-xl transition-all text-stone-800">
       <div className="text-center border-b border-stone-100 pb-4 mb-6">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-avle-verde">Checkout Digital AVLE</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wider text-avle-verde">Checkout digital AVLE</h3>
         <p className="text-xs text-stone-500 mt-1">Gere pagamentos dinâmicos instantâneos</p>
       </div>
 
@@ -51,7 +51,7 @@ export default function CheckoutPix() {
         // TELA 1: Definição do Valor para a Demonstração
         <div className="space-y-4">
           <div>
-            <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Valor da Parcela (R$) *</label>
+            <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Valor da parcela (R$) *</label>
             <input 
               type="number" 
               value={valorInput}
@@ -83,13 +83,13 @@ export default function CheckoutPix() {
           </div>
 
           <div className="text-center space-y-1">
-            <p className="text-[10px] font-black tracking-widest text-amber-600 bg-amber-50 px-3 py-1 rounded-full uppercase inline-block">⏱️ Aguardando Pagamento</p>
-            <p className="text-xs text-stone-400 mt-1">Ref Transação: #{dadosPix.idTransacao}</p>
+            <p className="text-[10px] font-black tracking-widest text-amber-600 bg-amber-50 px-3 py-1 rounded-full uppercase inline-block">⏱️ Aguardando pagamento</p>
+            <p className="text-xs text-stone-400 mt-1">Ref. da transação: #{dadosPix.idTransacao}</p>
           </div>
 
           {/* Copia e Cola Input */}
           <div className="w-full space-y-2">
-            <label className="block text-[10px] font-bold uppercase text-stone-500">Código Pix Copia e Cola</label>
+            <label className="block text-[10px] font-bold uppercase text-stone-500">Código Pix copia e cola</label>
             <div className="relative flex items-center">
               <input 
                 type="text" 

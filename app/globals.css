@@ -224,7 +224,25 @@
    que e medido em rem acompanha pela fonte da raiz. Nao e `zoom`: no iPhone,
    onde a cliente mais usa o painel, ele desencontra os elementos fixos e o
    recorte do tour. */
-html { font-size: 106.25%; }
+html {
+  font-size: 106.25%;
+  /* Sem isto o iPhone deitado aumenta o texto por conta propria. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Campo com letra menor que 16px faz o iPhone dar zoom sozinho ao tocar nele,
+   e o zoom nao volta: a loja entrava pelo login e o painel ja abria ampliado,
+   pedindo pinca para caber na tela. No celular todo campo fica com 16px. O
+   zoom com dois dedos continua liberado, de proposito - travar tira a lupa de
+   quem precisa. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
 .fundo-painel .text-\[8px\] { font-size: 9px; }
 .fundo-painel .text-\[9px\] { font-size: 10px; }
 .fundo-painel .text-\[10px\] { font-size: 11px; }

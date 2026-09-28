@@ -102,7 +102,7 @@ export default function CadastroConvite() {
         return res.json();
       })
       .then(data => {
-        setLojaNome(data.nomeComercial || data.nome || 'Loja Parceira');
+        setLojaNome(data.nomeComercial || data.nome || 'Loja parceira');
         setLojaIdNum(data.id);
         setLogoDaLoja(data.logo || null);
         
@@ -559,7 +559,7 @@ export default function CadastroConvite() {
            <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-200">
               <span className="text-rose-600 font-bold text-2xl">!</span>
            </div>
-           <h2 className="text-xl font-bold text-rose-700 mb-2">Convite Inválido</h2>
+           <h2 className="text-xl font-bold text-rose-700 mb-2">Convite inválido</h2>
            <p className="text-sm text-stone-500">A loja que você está tentando acessar não existe, ou o link expirou.</p>
            <button onClick={() => router.push('/')} className="mt-6 px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-full text-xs uppercase tracking-wider cursor-pointer hover:bg-opacity-90">Ir para o início</button>
         </div>
@@ -598,7 +598,7 @@ export default function CadastroConvite() {
           <p className="text-stone-300 text-sm mt-1">Seu clube de compras planejado</p>
           
           <div className="mt-8 pt-6 border-t border-stone-700/50 flex flex-col items-center">
-             <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider block mb-2">Convite Exclusivo</span>
+             <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider block mb-2">Convite exclusivo</span>
              {/* A marca de quem convidou vem antes do nome: quem recebe o link
                  reconhece a loja pela imagem antes de ler qualquer coisa. */}
              {logoDaLoja && (
@@ -626,7 +626,7 @@ export default function CadastroConvite() {
                   isLogin ? 'text-white bg-[#0B1E14] shadow-sm' : 'text-stone-500 hover:text-[#0B1E14]'
                 }`}
               >
-                Acessar Conta
+                Acessar conta
               </button>
               <button
                 type="button"
@@ -639,7 +639,7 @@ export default function CadastroConvite() {
                   !isLogin ? 'text-white bg-[#0B1E14] shadow-sm' : 'text-stone-500 hover:text-[#0B1E14]'
                 }`}
               >
-                Nova Conta
+                Nova conta
               </button>
             </div>
           )}
@@ -648,7 +648,7 @@ export default function CadastroConvite() {
             <form onSubmit={handleConfirmarCodigo} className="p-6 flex-1 flex flex-col justify-between space-y-4 text-left">
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificação de Conta</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificação de conta</h3>
                   <p className="text-xs text-stone-400 mt-1">
                     Insira o código verificador enviado por e-mail para: <br />
                     <strong className="text-[#BD6B42] font-semibold">
@@ -669,7 +669,7 @@ export default function CadastroConvite() {
                 )}
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Código de Confirmação (6 dígitos)
+                    Código de confirmação (6 dígitos)
                   </label>
                   <input
                     type="text"
@@ -693,7 +693,7 @@ export default function CadastroConvite() {
                       : 'bg-stone-300 cursor-not-allowed shadow-none opacity-50'
                   }`}
                 >
-                  {carregando ? 'PROCESSANDO...' : 'Confirmar e Ativar Conta'}
+                  {carregando ? 'PROCESSANDO...' : 'Confirmar e ativar conta'}
                 </button>
                 <button
                   type="button"
@@ -718,7 +718,7 @@ export default function CadastroConvite() {
             <form onSubmit={handleSolicitarRecuperacao} className="p-6 flex-1 flex flex-col justify-between space-y-6 text-left">
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Recuperação de Acesso</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Recuperação de acesso</h3>
                   <p className="text-xs text-stone-400 mt-1">
                     Informe seu e-mail ou telefone cadastrado. Enviaremos um código token para criar uma nova senha.
                   </p>
@@ -735,7 +735,7 @@ export default function CadastroConvite() {
                   </div>
                 )}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail ou Telefone com DDD</label>
+                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail ou telefone com DDD</label>
                   <input
                     type="text"
                     placeholder="E-mail, telefone ou CPF"
@@ -753,14 +753,14 @@ export default function CadastroConvite() {
                   disabled={carregando}
                   className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-full text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55"
                 >
-                  {carregando ? 'ENVIANDO...' : 'Enviar Código Verificador'}
+                  {carregando ? 'ENVIANDO...' : 'Enviar código verificador'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsEsqueceuSenha(false)}
                   className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-1 cursor-pointer"
                 >
-                  Voltar ao Login
+                  Voltar ao login
                 </button>
               </div>
             </form>
@@ -770,7 +770,7 @@ export default function CadastroConvite() {
             <form onSubmit={handleSalvarNovaSenha} className="p-6 flex-1 flex flex-col justify-between space-y-4 text-left">
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Criar Nova Senha</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Criar nova senha</h3>
                   <p className="text-xs text-stone-400 mt-1">Insira o token de 6 dígitos recebido.</p>
                 </div>
                 {mensagem.texto && (
@@ -801,7 +801,7 @@ export default function CadastroConvite() {
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="block text-[10px] font-bold uppercase text-stone-500">Nova Senha</label>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500">Nova senha</label>
                     {novaSenha.length > 0 && (
                       <span className={`text-[10px] font-bold ${novaSenhaForte ? 'text-emerald-600' : 'text-stone-400'}`}>
                         {novaSenhaForte ? 'Forte' : 'Fraca'}
@@ -834,7 +834,7 @@ export default function CadastroConvite() {
                   disabled={codigoOtp.length !== 6 || !novaSenhaForte || carregando}
                   className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-full text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 hover:scale-[1.01] transition-all"
                 >
-                  {carregando ? 'PROCESSANDO...' : 'Redefinir e Gravar Senha'}
+                  {carregando ? 'PROCESSANDO...' : 'Redefinir e gravar senha'}
                 </button>
                 <button
                   type="button"
@@ -866,7 +866,7 @@ export default function CadastroConvite() {
                     <div>
                       <div className="flex justify-between items-center mb-1">
                         <label className="block text-[10px] font-bold uppercase text-stone-500">
-                          E-mail ou Telefone com DDD *
+                          E-mail ou telefone com DDD *
                         </label>
                         {identificadorLogin.length > 0 && (
                           <span className={`text-[10px] font-bold ${loginValido ? 'text-emerald-600' : 'text-rose-500'}`}>
@@ -891,11 +891,11 @@ export default function CadastroConvite() {
                     
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                        Nome Completo *
+                        Nome completo *
                       </label>
                       <input
                         type="text"
-                        placeholder="Ex: Joao Silva"
+                        placeholder="Ex.: João Silva"
                         value={nome}
                         onChange={(e) => setNome(e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
@@ -967,7 +967,7 @@ export default function CadastroConvite() {
 
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="block text-[10px] font-bold uppercase text-stone-500">Senha de Acesso *</label>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500">Senha de acesso *</label>
                     {isLogin && (
                       <button
                         type="button"
@@ -1004,7 +1004,7 @@ export default function CadastroConvite() {
 
                   {!isLogin && senha.length > 0 && (
                     <div className="mt-2.5 p-3 bg-stone-50 border border-stone-200/60 rounded-xl space-y-1.5 text-[11px] font-medium animate-fade-in text-left">
-                      <p className="text-[10px] font-bold uppercase text-stone-400 mb-1">Estrutura da Senha:</p>
+                      <p className="text-[10px] font-bold uppercase text-stone-400 mb-1">Estrutura da senha:</p>
                       <div
                         className={`flex items-center space-x-1.5 transition-colors ${
                           senha.length >= 8 ? 'text-emerald-600 font-bold' : 'text-stone-400'
@@ -1019,7 +1019,7 @@ export default function CadastroConvite() {
                         }`}
                       >
                         <span>{temMaiuscula ? '✓' : '○'}</span>
-                        <span>Pelo menos uma letra maiuscula</span>
+                        <span>Pelo menos uma letra maiúscula</span>
                       </div>
                       <div
                         className={`flex items-center space-x-1.5 transition-colors ${
@@ -1058,7 +1058,7 @@ export default function CadastroConvite() {
                         onClick={(e) => { e.preventDefault(); setModalTermosAberto(true); }} 
                         className="text-[#BD6B42] font-bold underline hover:text-[#0B1E14] transition-colors cursor-pointer"
                       >
-                        Termos de Uso e o Contrato da Loja
+                        termos de uso e o contrato da loja
                       </button>{' '}
                       hospedada na plataforma AVLE.
                     </label>
@@ -1072,7 +1072,7 @@ export default function CadastroConvite() {
                 disabled={!formularioValido || carregando}
                 className="w-full mt-6 py-3.5 bg-[#0B1E14] text-white font-bold rounded-full tracking-wide uppercase transition-all disabled:opacity-50 cursor-pointer text-xs shadow-md hover:bg-[#08170f]"
               >
-                {carregando ? statusConexao : isLogin ? 'Entrar no Sistema' : 'Finalizar Cadastro'}
+                {carregando ? statusConexao : isLogin ? 'Entrar no sistema' : 'Finalizar cadastro'}
               </button>
             </form>
           )}
@@ -1084,7 +1084,7 @@ export default function CadastroConvite() {
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
             <div className="flex justify-between items-center p-5 border-b border-stone-100">
               <div>
-                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Contrato de Adesão</h3>
+                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Contrato de adesão</h3>
                 <p className="text-[10px] text-stone-400 mt-0.5">Loja: {lojaNome}</p>
               </div>
               <button 
@@ -1101,7 +1101,7 @@ export default function CadastroConvite() {
                 <iframe
                    src={`${API_URL}/api/lojas/${lojaIdNum}/regras`}
                    className="w-full h-[50vh] sm:h-[60vh] border-none"
-                   title="Contrato da Loja"
+                   title="Contrato da loja"
                 />
               )}
             </div>
@@ -1122,7 +1122,7 @@ export default function CadastroConvite() {
                 }} 
                 className="px-6 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all shadow-sm"
               >
-                Li e Aceito as Condições
+                Li e aceito as condições
               </button>
             </div>
           </div>

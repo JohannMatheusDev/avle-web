@@ -82,7 +82,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
         if (Array.isArray(data)) {
           const lojasTratadas = data.map((loja: any) => ({
             ...loja,
-            nomeComercial: loja.nomeComercial || loja.nome_comercial || loja.nome || 'Loja Cadastrada',
+            nomeComercial: loja.nomeComercial || loja.nome_comercial || loja.nome || 'Loja cadastrada',
             cnpj: loja.cnpj || 'Sem CNPJ',
             statusHomologacao: loja.statusHomologacao || 'HOMOLOGADO',
             limiteGruposAtivos: loja.limiteGruposAtivos || 1,
@@ -281,18 +281,18 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               onClick={() => setLojaSelecionada(null)}
               className="text-xs font-bold text-stone-500 hover:text-[#0B1E14] transition-all bg-white border border-[#E6E2D8] px-4 py-2 rounded-full cursor-pointer"
             >
-              Voltar para o Painel Geral
+              Voltar para o painel geral
             </button>
 
             <div className="cartao-avle p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <span className="text-[9px] font-bold bg-[#0B1E14] text-white px-2 py-0.5 rounded font-mono uppercase tracking-widest">
-                  Auditoria Unidade
+                  Auditoria da unidade
                 </span>
                 <h2 className="text-2xl font-serif font-bold text-[#0B1E14] mt-1.5">
                   {lojaSelecionada.nomeComercial}
                 </h2>
-                <p className="text-xs text-stone-400 font-mono mt-0.5">CNPJ Fiscal: {lojaSelecionada.cnpj}</p>
+                <p className="text-xs text-stone-400 font-mono mt-0.5">CNPJ fiscal: {lojaSelecionada.cnpj}</p>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -400,10 +400,10 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
             </div>
 
             <div className="cartao-avle p-6">
-              <h3 className="text-sm font-bold text-[#0B1E14] uppercase tracking-wider mb-4">Controle de Expansao de Negocio</h3>
+              <h3 className="text-sm font-bold text-[#0B1E14] uppercase tracking-wider mb-4">Controle de expansão de negócio</h3>
               <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
                 <div className="w-full sm:w-1/3">
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Limite de Clubes Ativos Simultâneos</label>
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Limite de clubes ativos simultâneos</label>
                   <input
                     type="number"
                     min="0"
@@ -417,18 +417,18 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   onClick={() => alterarLimiteGrupos(lojaSelecionada.id, limiteInput)}
                   className="px-6 h-[42px] bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase tracking-wider hover:bg-opacity-90 disabled:opacity-50 transition-all cursor-pointer"
                 >
-                  Aplicar Limite
+                  Aplicar limite
                 </button>
               </div>
               <p className="text-[10px] text-stone-400 mt-3 leading-relaxed">
-                Define a quantidade máxima de clubes ou grupos de compras que esta loja tem permissao para manter operando simultaneamente na plataforma.
+                Define a quantidade máxima de clubes ou grupos de compras que esta loja tem permissão para manter operando simultaneamente na plataforma.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="cartao-avle-destaque p-5">
                 <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
-                  Clientes Vinculados
+                  Clientes vinculados
                 </span>
                 <span className="text-2xl font-bold tracking-tight block mt-2 font-mono">
                   {Number(lojaSelecionada.participantes) || 0}
@@ -437,7 +437,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               </div>
               <div className="cartao-avle p-5">
                 <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
-                  Clubes Criados
+                  Clubes criados
                 </span>
                 <span className="text-2xl font-bold tracking-tight text-[#0B1E14] block mt-2 font-mono">
                   {Number(lojaSelecionada.grupos) || 0}
@@ -446,7 +446,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               </div>
               <div className="cartao-avle p-5">
                 <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
-                  Volume Transacionado Pix
+                  Volume transacionado Pix
                 </span>
                 <span className="text-2xl font-bold tracking-tight text-emerald-600 block mt-2 font-mono">
                   R$ {(Number(lojaSelecionada.volumeBruto) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -455,7 +455,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               </div>
               <div className="cartao-avle p-5">
                 <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
-                  Risco de Inadimplencia
+                  Risco de inadimplência
                 </span>
                 <span className="text-2xl font-bold text-stone-400 block mt-2 font-mono">
                   {(Number(lojaSelecionada.inadimplencia) || 0).toFixed(2)}%
@@ -467,7 +467,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="cartao-avle lg:col-span-2 p-5 flex flex-col justify-between min-h-[250px]">
                 <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block mb-4">
-                  Curva de Captação Mensal da Unidade
+                  Curva de captação mensal da unidade
                 </span>
                 <div className="h-32 w-full pt-2">
                   <svg className="w-full h-full" viewBox="0 0 100 30" preserveAspectRatio="none">
@@ -479,7 +479,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
 
               <div className="cartao-avle p-5 flex flex-col justify-between min-h-[250px]">
                 <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block mb-2">
-                  Composição de Carteira
+                  Composição de carteira
                 </span>
                 <div className="w-24 h-24 mx-auto relative flex items-center justify-center my-auto">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
@@ -717,7 +717,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
             {abaExibida === 'lojas' && (
               <div className="space-y-6 animate-fadeIn">
                 <div>
-                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Central de Controle de Lojas</h2>
+                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Central de controle de lojas</h2>
                   <p className="text-xs text-stone-400 font-medium mt-0.5">
                     Selecione uma loja parceira para carregar seu dashboard corporativo individual.
                   </p>
@@ -744,7 +744,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                             <h4 className="font-serif font-bold text-lg text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">
                               {loja.nomeComercial}
                             </h4>
-                            <p className="text-[11px] font-mono text-stone-400 mt-0.5">CNPJ Fiscal: {loja.cnpj} | Limite Permitido: {loja.limiteGruposAtivos || 1}</p>
+                            <p className="text-[11px] font-mono text-stone-400 mt-0.5">CNPJ fiscal: {loja.cnpj} | Limite permitido: {loja.limiteGruposAtivos || 1}</p>
                           </div>
                           <span
                             className={`text-[9px] font-bold px-2.5 py-1 rounded-md uppercase border tracking-wider ${
@@ -825,7 +825,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
             {abaExibida === 'financeiro' && (
               <div className="space-y-6 animate-fadeIn">
                 <div>
-                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Fluxo de Caixa e Split Contábil</h2>
+                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Fluxo de caixa e split contábil</h2>
                   <p className="text-xs text-stone-400 font-medium">
                     Divisão de 10% para a AVLE e 90% para a loja, sobre cada entrada registrada.
                   </p>

@@ -103,7 +103,7 @@ export default function Faturas() {
       const data = await res.json();
       setDadosPix({ encodedImage: data.encodedImage, payload: data.payload, paymentId: data.paymentId });
     } catch {
-      alert('Erro ao gerar PIX. Tente novamente.');
+      alert('Erro ao gerar o Pix. Tente novamente.');
       setMetodo(null);
     } finally {
       setProcessando(false);
@@ -156,8 +156,8 @@ export default function Faturas() {
       <div className="w-full max-w-md flex flex-col space-y-6">
 
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-stone-200/60">
-          <p className="text-xs text-stone-400 font-bold uppercase tracking-wider">Módulo Financeiro</p>
-          <h2 className="text-lg font-bold text-avle-verde">Minhas Parcelas</h2>
+          <p className="text-xs text-stone-400 font-bold uppercase tracking-wider">Módulo financeiro</p>
+          <h2 className="text-lg font-bold text-avle-verde">Minhas parcelas</h2>
         </div>
 
         <div className="space-y-3">
@@ -230,7 +230,7 @@ export default function Faturas() {
               <div className="text-center space-y-4 py-4">
                 <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-3xl">✅</div>
                 <div>
-                  <h3 className="text-lg font-bold text-stone-800">Pagamento Registrado!</h3>
+                  <h3 className="text-lg font-bold text-stone-800">Pagamento registrado!</h3>
                   <p className="text-sm text-stone-500 mt-1">Seu pagamento foi processado com sucesso.</p>
                 </div>
                 <button onClick={fecharModal} className="w-full bg-avle-verde text-white font-bold py-3 rounded-xl text-sm tracking-wide">
@@ -251,10 +251,10 @@ export default function Faturas() {
                   />
                 </div>
                 <p className="text-[10px] font-black tracking-widest text-amber-600 bg-amber-50 px-3 py-1 rounded-full uppercase">
-                  ⏱ Aguardando Pagamento
+                  ⏱ Aguardando pagamento
                 </p>
                 <div className="w-full space-y-2">
-                  <label className="block text-[10px] font-bold uppercase text-stone-500">Copia e Cola</label>
+                  <label className="block text-[10px] font-bold uppercase text-stone-500">Copia e cola</label>
                   <div className="relative flex items-center">
                     <input
                       type="text"
@@ -300,7 +300,7 @@ export default function Faturas() {
                 >
                   <span className="text-2xl">⚡</span>
                   <div>
-                    <p className="text-sm font-bold text-stone-800">PIX</p>
+                    <p className="text-sm font-bold text-stone-800">Pix</p>
                     <p className="text-xs text-stone-400">Pagamento imediato desta parcela</p>
                   </div>
                 </button>
@@ -311,7 +311,7 @@ export default function Faturas() {
                 >
                   <span className="text-2xl">💳</span>
                   <div>
-                    <p className="text-sm font-bold text-stone-800">Cartão de Crédito</p>
+                    <p className="text-sm font-bold text-stone-800">Cartão de crédito</p>
                     <p className="text-xs text-stone-400">Débito automático mensal · sem comprometer seu limite</p>
                   </div>
                 </button>
@@ -322,7 +322,7 @@ export default function Faturas() {
                 >
                   <span className="text-2xl">🏦</span>
                   <div>
-                    <p className="text-sm font-bold text-stone-800">Cartão de Débito</p>
+                    <p className="text-sm font-bold text-stone-800">Cartão de débito</p>
                     <p className="text-xs text-stone-400">Cobrança direta na conta corrente</p>
                   </div>
                 </button>
@@ -339,7 +339,7 @@ export default function Faturas() {
                   <button onClick={() => setMetodo(null)} className="text-stone-400 hover:text-stone-600 text-sm font-bold leading-none">←</button>
                   <div>
                     <h3 className="text-base font-bold text-stone-800">
-                      {metodo === 'CREDITO' ? 'Cartão de Crédito' : 'Cartão de Débito'}
+                      {metodo === 'CREDITO' ? 'Cartão de crédito' : 'Cartão de débito'}
                     </h3>
                     <p className="text-xs text-stone-500">
                       {metodo === 'CREDITO'
@@ -351,7 +351,7 @@ export default function Faturas() {
 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Número do Cartão</label>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Número do cartão</label>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -368,7 +368,7 @@ export default function Faturas() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Nome Impresso no Cartão</label>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Nome impresso no cartão</label>
                     <input
                       type="text"
                       placeholder="NOME COMPLETO"
