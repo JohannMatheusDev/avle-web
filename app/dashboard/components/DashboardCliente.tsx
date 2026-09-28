@@ -119,12 +119,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   };
 
   const obterNomeLoja = (item: any) => {
-    if (!item) return 'Loja Parceira';
+    if (!item) return 'Loja parceira';
     if (typeof item === 'string' && item.trim().length > 0) return item;
     const objLoja = item.loja || item.grupo?.loja || item;
     const nome = objLoja.nomeComercial || objLoja.nome_comercial || objLoja.nome || objLoja.nomeLoja || objLoja.razaoSocial || item.nomeComercial || item.nome_comercial || item.nome;
     if (nome && typeof nome === 'string' && nome.trim().length > 0) return nome.trim();
-    return item.grupo?.nome || item.nomeGrupo || 'Loja Parceira';
+    return item.grupo?.nome || item.nomeGrupo || 'Loja parceira';
   };
 
   const aplicarMascaraTelefone = (valor: string) => {
@@ -220,7 +220,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           const removidos = cotasSalvas.filter((id: number) => !idsAtuais.includes(id));
           
           if (removidos.length > 0) {
-             mostrarAviso('Participação Cancelada', 'A administração da loja encerrou a sua participação em um dos grupos de compras. O seu histórico vinculado a esta cota foi fechado.', true);
+             mostrarAviso('Participação cancelada', 'A administração da loja encerrou a sua participação em um dos grupos de compras. O seu histórico vinculado a esta cota foi fechado.', true);
              
              if (clubeAtualSelecionado && removidos.includes(clubeAtualSelecionado.cotaId)) {
                  if (lojaBloqueadaId) {
@@ -478,7 +478,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
        });
        
        if(res.ok) {
-          mostrarAviso('Solicitação Enviada', 'A caixa de mensagens da loja foi notificada para realizar a análise de crédito. O processo costuma ser rápido.', false);
+          mostrarAviso('Solicitação enviada', 'A caixa de mensagens da loja foi notificada para realizar a análise de crédito. O processo costuma ser rápido.', false);
           buscarAcessosLoja(usuario?.id);
           buscarFilasEspera(usuario?.id);
           setModalAcessoAberto(false);
@@ -486,7 +486,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           mostrarAviso('Erro', 'Não foi possível enviar a solicitação no momento.', true);
        }
     } catch(e) {
-       mostrarAviso('Erro de Conexão', 'Erro ao conectar ao servidor ao solicitar acesso.', true);
+       mostrarAviso('Erro de conexão', 'Erro ao conectar ao servidor ao solicitar acesso.', true);
     } finally {
        setSolicitandoAcesso(false);
     }
@@ -665,10 +665,10 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const encolherImagem = (arquivo: File): Promise<string> =>
     new Promise((resolve, reject) => {
       const leitor = new FileReader();
-      leitor.onerror = () => reject(new Error('Nao foi possivel ler o arquivo.'));
+      leitor.onerror = () => reject(new Error('Não foi possível ler o arquivo.'));
       leitor.onloadend = () => {
         const imagem = new Image();
-        imagem.onerror = () => reject(new Error('O arquivo nao e uma imagem valida.'));
+        imagem.onerror = () => reject(new Error('O arquivo não é uma imagem válida.'));
         imagem.onload = () => {
           const LADO = 512;
           const corte = Math.min(imagem.width, imagem.height);
@@ -677,7 +677,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           tela.height = LADO;
 
           const pincel = tela.getContext('2d');
-          if (!pincel) { reject(new Error('Seu navegador nao conseguiu preparar a imagem.')); return; }
+          if (!pincel) { reject(new Error('Seu navegador não conseguiu preparar a imagem.')); return; }
 
           pincel.drawImage(
             imagem,
@@ -696,11 +696,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     if (!arquivo) return;
 
     if (!arquivo.type.startsWith('image/')) {
-      mostrarAviso('Formato Inválido', 'Apenas arquivos de imagem.', true);
+      mostrarAviso('Formato inválido', 'Apenas arquivos de imagem.', true);
       return;
     }
     if (arquivo.size > 10 * 1024 * 1024) {
-      mostrarAviso('Arquivo Muito Grande', 'A imagem deve ter no máximo 10 MB.', true);
+      mostrarAviso('Arquivo muito grande', 'A imagem deve ter no máximo 10 MB.', true);
       return;
     }
 
@@ -837,7 +837,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const isClienteAmarrado = !!lojaBloqueadaId;
 
   const secoesDaCliente: ItemDeNavegacao[] = [
-    { id: 'inicio',  rotulo: isClienteAmarrado ? 'Meus Planos' : 'Rede de Lojas', icone: isClienteAmarrado ? 'planos' : 'lojas' },
+    { id: 'inicio',  rotulo: isClienteAmarrado ? 'Meus planos' : 'Rede de lojas', icone: isClienteAmarrado ? 'planos' : 'lojas' },
     { id: 'extrato', rotulo: 'Histórico',   icone: 'historico' },
     { id: 'regras',  rotulo: 'Regulamento', icone: 'regras' },
     { id: 'ajuda',   rotulo: 'Suporte',     icone: 'ajuda' },
@@ -990,7 +990,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           }
           identidade={
             <Identidade
-              nome={usuario?.nome || 'Painel Cliente'}
+              nome={usuario?.nome || 'Painel da cliente'}
               detalhe={usuario?.email}
               foto={fotoPerfil}
               aoClicar={() => irParaSecao('perfil')}
@@ -1167,7 +1167,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">
                     AVLE · {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
                   </p>
-                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Rede de Lojas Parceiras</h2>
+                  <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Rede de lojas parceiras</h2>
                   <p className="text-xs text-stone-400 mt-1">Explore os estabelecimentos credenciados e acesse seus clubes de compras.</p>
                 </div>
 
@@ -1185,12 +1185,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         const quantidadeCotantes = cotasNestaLoja.length;
 
                         let corBorda = 'border-[#DFD9CE] hover:border-[#BD6B42]/50 hover:shadow-md bg-white';
-                        let labelStatus = 'Ver Estabelecimento';
+                        let labelStatus = 'Ver estabelecimento';
                         let labelColor = 'text-stone-400';
 
                         if (statusAcesso === 'APROVADO' || statusAcesso === 'PENDENTE') {
                             corBorda = 'border-emerald-600 bg-emerald-50/20 shadow-sm';
-                            labelStatus = quantidadeCotantes > 0 ? `${quantidadeCotantes} Clube(s) Ativo(s)` : 'Acesso Liberado';
+                            labelStatus = quantidadeCotantes > 0 ? `${quantidadeCotantes} clube(s) ativo(s)` : 'Acesso liberado';
                             labelColor = 'text-emerald-700 font-bold';
                         } else if (statusAcesso === 'REJEITADO' || statusAcesso === 'BLOQUEADO') {
                             corBorda = 'border-rose-300 bg-rose-50/20 shadow-sm opacity-80';
@@ -1205,7 +1205,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                                if (statusAcesso !== 'BLOQUEADO') {
                                  handleAbrirLoja(loja);
                                } else {
-                                 mostrarAviso('Acesso Restrito', 'O seu acesso a este estabelecimento está suspenso no momento. Entre em contato com a loja para mais informações.', true);
+                                 mostrarAviso('Acesso restrito', 'O seu acesso a este estabelecimento está suspenso no momento. Entre em contato com a loja para mais informações.', true);
                                }
                              }}
                              className={`rounded-2xl p-5 cursor-pointer flex flex-col items-center justify-center text-center space-y-3 transition-all hover:-translate-y-1 hover:shadow-md border-t-2 border ${corBorda}`}
@@ -1236,7 +1236,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     onClick={() => setNivelVisao('lojas')}
                     className="text-[10px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-2 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-full cursor-pointer shadow-xs w-fit"
                   >
-                    ← Voltar para Rede de Lojas
+                    ← Voltar para a rede de lojas
                   </button>
                 )}
 
@@ -1247,10 +1247,10 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   <div className="flex-1 w-full">
                     <div className="flex items-center gap-3 mb-1">
                       <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0B1E14]">{obterNomeLoja(lojaEmFoco)}</h2>
-                      <span className="bg-[#EFEAE2] text-[#BD6B42] border border-[#DFD9CE] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Unidade Oficial</span>
+                      <span className="bg-[#EFEAE2] text-[#BD6B42] border border-[#DFD9CE] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Unidade oficial</span>
                     </div>
                     <p className="text-xs text-stone-500 mb-4 max-w-2xl leading-relaxed">
-                      Bem-vindo à página oficial desta loja. Aqui você pode visualizar todos os clubes de compras disponíveis, consultar o regulamento contratual e gerenciar suas faturas ativas.
+                      Bem-vinda à página oficial desta loja. Aqui você pode visualizar todos os clubes de compras disponíveis, consultar o regulamento contratual e gerenciar suas faturas ativas.
                     </p>
                     
                     <div className="flex flex-wrap gap-4 pt-4 border-t border-stone-100">
@@ -1276,7 +1276,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       onClick={() => window.open(`${API_URL}/api/lojas/${lojaEmFoco.id}/regras`, '_blank')}
                       className="w-full bg-[#0B1E14] text-white px-5 py-3 rounded-full text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 transition-all shadow-sm cursor-pointer text-center"
                     >
-                      Ler Regulamento
+                      Ler regulamento
                     </button>
                     {lojaEmFoco?.telefone && (
                       <button 
@@ -1485,7 +1485,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   onClick={() => setNivelVisao('grupos')}
                   className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-full cursor-pointer shadow-xs w-fit"
                 >
-                  ← Voltar para os Clubes
+                  ← Voltar para os clubes
                 </button>
 
                 <div className="border-b border-[#DFD9CE] pb-5">
@@ -1494,7 +1494,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </p>
                   <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">{grupoSelecionado?.nome}</h2>
                   <span className="inline-block mt-1 text-[9px] font-black text-[#BD6B42] bg-[#F5F2EB] px-3 py-1 rounded-full uppercase tracking-widest border border-[#DFD9CE]">
-                    Painel de Acompanhamento
+                    Painel de acompanhamento
                   </span>
                 </div>
 
@@ -1567,7 +1567,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       : 'bg-white border-[#E6E2D8]'
                   }`}>
                     <div>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Próximo Vencimento</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Próximo vencimento</p>
                       <p className={`text-base font-black font-mono mt-0.5 ${diasRestantesVencimento <= 3 ? 'text-amber-700' : 'text-[#0B1E14]'}`}>
                         {dataVencimentoCota || '--/--'}
                       </p>
@@ -1582,7 +1582,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </div>
                   <div className="flex items-center justify-between px-5 py-3.5 rounded-xl border bg-white border-[#E6E2D8]">
                     <div>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Próximo Sorteio</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Próximo sorteio</p>
                       <p className="text-base font-black font-mono mt-0.5 text-[#0B1E14]">
                         {formatarData(proximoSorteio())}
                       </p>
@@ -1599,30 +1599,30 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="cartao-avle-destaque p-5 relative overflow-hidden">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Saldo de Poupança</span>
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Saldo de poupança</span>
                     <span className="text-3xl font-bold tracking-tight block font-mono leading-none">R$ {(saldoPoupanca).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     <span className="text-[10px] text-stone-500 mt-2 block">acumulado na cota</span>
                   </div>
                   <div className="cartao-avle border-t-2 border-t-[#0B1E14] p-5 flex flex-col">
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Vigência do Plano</span>
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Vigência do plano</span>
                     <span className="text-3xl font-bold text-[#0B1E14] font-mono leading-none">{grupoSelecionado?.duracaoMeses || 0}</span>
                     <span className="text-[10px] text-stone-400 mt-2">meses de sorteios</span>
                   </div>
                   <div className={`p-5 rounded-xl shadow-sm flex flex-col border-t-2 ${
                     etapaAtual >= 3 ? 'bg-emerald-50 border border-emerald-200 border-t-emerald-500' : 'bg-white border border-[#E6E2D8] border-t-[#0B1E14]'
                   }`}>
-                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Fase do Contrato</span>
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest block mb-3">Fase do contrato</span>
                     <span className={`text-3xl font-bold font-mono leading-none ${etapaAtual >= 3 ? 'text-emerald-600' : 'text-[#0B1E14]'}`}>
                       0{etapaAtual}
                     </span>
-                    <span className="text-[10px] text-stone-400 mt-2">aptidao coletiva</span>
+                    <span className="text-[10px] text-stone-400 mt-2">aptidão coletiva</span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="cartao-avle lg:col-span-2 p-5 flex flex-col justify-between min-h-[260px]">
                     <div className="flex justify-between items-center mb-4">
-                      <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Histórico de Quitação da Cota</span>
+                      <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Histórico de quitação da cota</span>
                       <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded font-bold font-mono">Evolução</span>
                     </div>
                     <div className="flex items-end justify-between h-40 pt-4 border-b border-stone-100 px-2">
@@ -1640,7 +1640,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </div>
 
                   <div className="cartao-avle p-5 flex flex-col items-center justify-between min-h-[260px]">
-                    <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block w-full text-left">Progresso do Objetivo</span>
+                    <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block w-full text-left">Progresso do objetivo</span>
                     <div className="relative w-32 h-32 flex items-center justify-center my-auto">
                       <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                         <circle cx="18" cy="18" r="15.915" fill="none" stroke="#E6E2D8" strokeWidth="4" />
@@ -1648,18 +1648,18 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       </svg>
                       <div className="absolute text-center">
                         <span className="text-xl font-bold tracking-tight font-mono text-[#0B1E14]">{percentual}%</span>
-                        <span className="block text-[8px] uppercase text-stone-400 font-bold tracking-wider">Concluido</span>
+                        <span className="block text-[8px] uppercase text-stone-400 font-bold tracking-wider">Concluído</span>
                       </div>
                     </div>
                     <div className="w-full text-center border-t border-stone-50 pt-3 text-[11px] font-semibold text-stone-500">
-                      Meta Coletiva do Circulo: <span className="font-mono text-[#0B1E14] font-bold">R$ {(totalObjetivo).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      Meta coletiva do círculo: <span className="font-mono text-[#0B1E14] font-bold">R$ {(totalObjetivo).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="cartao-avle overflow-hidden">
                   <div className="px-5 py-4 border-b bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Regua de Vencimentos e Aportes Efetuados</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Régua de vencimentos e aportes efetuados</h3>
                     {etapaAtual !== 4 && (
                       <button
                         onClick={() => setModalCheckoutAberto(true)}
@@ -1686,7 +1686,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         Array.from({ length: Math.ceil(saldoPoupanca / valorMensalidade) }).map((_, index) => (
                           <tr key={index} className="hover:bg-stone-50/50 transition-all">
                             <td className="py-3.5 px-5 text-stone-400">Parcela 0{index + 1}</td>
-                            <td className="py-3.5 px-5 text-[#0B1E14] font-bold">Aporte Mensal Coletivo</td>
+                            <td className="py-3.5 px-5 text-[#0B1E14] font-bold">Aporte mensal coletivo</td>
                             <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">R$ {(valorMensalidade).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             <td className="py-3.5 px-5 text-center">
                               <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold text-[9px] uppercase tracking-wider">
@@ -1710,7 +1710,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         {abaAtiva === 'extrato' && (
           <div className="space-y-6 animate-fadeIn text-left">
             <div>
-              <h2 className="text-xl font-bold text-[#0B1E14]">Histórico Financeiro Consolidado</h2>
+              <h2 className="text-xl font-bold text-[#0B1E14]">Histórico financeiro consolidado</h2>
               <p className="text-xs text-stone-400 mt-1">Extrato detalhado de cada aporte e parcela liquidada em todas as suas unidades ativas.</p>
             </div>
             <div className="cartao-avle overflow-hidden">
@@ -1745,7 +1745,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     }).map((item, idx) => (
                       <tr key={idx} className="hover:bg-stone-50/50 transition-all">
                         <td className="py-3.5 px-5 text-[#0B1E14] font-bold">{item.lojaNome}</td>
-                        <td className="py-3.5 px-5 text-stone-500">{item.grupoNome} (Parcela #0{item.parcela})</td>
+                        <td className="py-3.5 px-5 text-stone-500">{item.grupoNome} (parcela #0{item.parcela})</td>
                         <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">R$ {(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td className="py-3.5 px-5 text-center">
                           <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[9px] uppercase">
@@ -1770,13 +1770,13 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             </div>
 
             <p className="bg-stone-50 p-3 rounded-xl border border-dashed text-stone-500">
-              Compra Planejada: A AVLE nao atua como consorcio tradicional ou fundo financeiro. Trata-se de uma comunidade estruturada de compras programadas de moveis e decoracoes corporativas ou residenciais.
+              Compra Planejada: A AVLE não atua como consórcio tradicional ou fundo financeiro. Trata-se de uma comunidade estruturada de compras programadas de móveis e decorações corporativas ou residenciais.
             </p>
 
             {lojaSelecionada ? (
               <div className="pt-4 border-t border-stone-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <h4 className="font-bold text-[#0B1E14] uppercase text-[11px]">Termos Especificos da Unidade</h4>
+                  <h4 className="font-bold text-[#0B1E14] uppercase text-[11px]">Termos específicos da unidade</h4>
                   <p className="text-stone-400 text-[10px] mt-0.5">Regulamento de termos contratuais enviado por: <strong>{obterNomeLoja(lojaSelecionada)}</strong></p>
                 </div>
                 <button
@@ -1784,12 +1784,12 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   onClick={() => window.open(`${API_URL}/api/lojas/${lojaSelecionada.id}/regras`, '_blank')}
                   className="px-4 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase tracking-wider hover:bg-opacity-90 cursor-pointer transition-all"
                 >
-                  Visualizar Contrato PDF
+                  Visualizar contrato em PDF
                 </button>
               </div>
             ) : (
               <p className="text-[10px] text-stone-400 italic pt-2">
-                Acesse um dos seus clubes ativos ou visualize as lojas na aba inicial para habilitar a visualização do documento de termos especificos em PDF.
+                Acesse um dos seus clubes ativos ou visualize as lojas na aba inicial para habilitar a visualização do documento de termos específicos em PDF.
               </p>
             )}
           </div>
@@ -1799,7 +1799,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           <div className="space-y-6 max-w-2xl text-left animate-fadeIn">
             <div className="cartao-avle p-6 md:p-8 space-y-6">
               <div>
-                <h2 className="text-xl font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Meus Dados Cadastrais</h2>
+                <h2 className="text-xl font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Meus dados cadastrais</h2>
                 <p className="text-xs text-stone-400 mt-1">Gerencie suas informações de conta salvas na plataforma e sincronizadas com o gateway do Asaas.</p>
               </div>
 
@@ -1818,8 +1818,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   <input id="perfil-foto-upload" type="file" accept="image/*" onChange={handleUploadFoto} className="hidden" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold uppercase text-stone-500">Foto de Perfil</h4>
-                  <p className="text-[11px] text-stone-400 mt-0.5">Selecione uma imagem quadrada de até 2MB nos formatos comuns de imagem.</p>
+                  <h4 className="text-xs font-bold uppercase text-stone-500">Foto de perfil</h4>
+                  <p className="text-[11px] text-stone-400 mt-0.5">Selecione uma imagem quadrada de até 2 MB nos formatos comuns de imagem.</p>
                 </div>
               </div>
 
@@ -1831,13 +1831,13 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 )}
                 {statusSalvar === 'erro' && (
                   <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 font-bold rounded-xl">
-                    Não foi possível salvar as alteracoes. Tente novamente mais tarde.
+                    Não foi possível salvar as alterações. Tente novamente mais tarde.
                   </div>
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Nome Completo</label>
+                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Nome completo</label>
                     <input
                       type="text"
                       value={nomeInput}
@@ -1849,7 +1849,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">E-mail de Notificação</label>
+                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">E-mail de notificação</label>
                     <input
                       type="email"
                       value={emailInput}
@@ -1861,7 +1861,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Telefone / Celular</label>
+                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Telefone / celular</label>
                     <input
                       type="text"
                       value={telefoneInput}
@@ -1876,8 +1876,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
                 <div className="bg-stone-50 p-4 rounded-xl border border-dashed border-stone-200 space-y-2 max-w-sm">
                   <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider flex items-center justify-between">
-                    <span>CPF / CNPJ do Titular</span>
-                    <span className="text-xs text-[#0B1E14]" title="Informação imutavel por segurança contratual">Protegido</span>
+                    <span>CPF / CNPJ do titular</span>
+                    <span className="text-xs text-[#0B1E14]" title="Informação imutável por segurança contratual">Protegido</span>
                   </label>
                   <input
                     type="text"
@@ -1887,7 +1887,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     className="w-full px-3 py-2 border border-stone-200 rounded-xl bg-stone-100 text-stone-500 h-[40px] text-sm font-mono cursor-not-allowed font-bold"
                   />
                   <p className="text-[10px] text-stone-400 leading-relaxed pt-1">
-                    Este documento esta atrelado as faturas e regras de sorteio coletivo. Alterações cadastrais exigem auditoria direta com o administrador.
+                    Este documento está atrelado às faturas e regras de sorteio coletivo. Alterações cadastrais exigem auditoria direta com o administrador.
                   </p>
                 </div>
 
@@ -1897,7 +1897,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     disabled={carregandoDados || salvandoPerfil}
                     className="px-6 py-3 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 disabled:opacity-50 transition-all"
                   >
-                    {salvandoPerfil ? 'Salvando...' : 'Salvar Novas Informações'}
+                    {salvandoPerfil ? 'Salvando...' : 'Salvar novas informações'}
                   </button>
                 </div>
               </form>
@@ -1905,9 +1905,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
             <div className="cartao-avle p-6 md:p-8 space-y-5">
               <div>
-                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Segurança da Conta e Alteração de Senha</h3>
+                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Segurança da conta e alteração de senha</h3>
                 <p className="text-xs text-stone-400 mt-0.5">
-                  Se você utilizou uma senha temporaria/padrão fornecida pelo estabelecimento no seu primeiro cadastro, atualize-a abaixo por uma senha pessoal.
+                  Se você utilizou uma senha temporária/padrão fornecida pelo estabelecimento no seu primeiro cadastro, atualize-a abaixo por uma senha pessoal.
                 </p>
               </div>
 
@@ -1924,7 +1924,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 )}
 
                 <div>
-                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Senha Atual (ou Senha Padrão Inicial)</label>
+                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Senha atual (ou senha padrão inicial)</label>
                   <input
                     type="password"
                     placeholder={`Digite sua senha atual ou ${SENHA_PADRAO_INICIAL}`}
@@ -1938,7 +1938,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
                   <div>
-                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Nova Senha</label>
+                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Nova senha</label>
                     <input
                       type="password"
                       placeholder="Mínimo de 6 caracteres"
@@ -1951,7 +1951,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Confirmar Nova Senha</label>
+                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1.5 tracking-wider">Confirmar nova senha</label>
                     <input
                       type="password"
                       placeholder="Repita a nova senha"
@@ -1970,7 +1970,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     disabled={salvandoSenha}
                     className="px-6 py-3 bg-[#BD6B42] text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-[#A95A33] disabled:opacity-50 transition-all"
                   >
-                    {salvandoSenha ? 'Processando...' : 'Atualizar Minha Senha'}
+                    {salvandoSenha ? 'Processando...' : 'Atualizar minha senha'}
                   </button>
                 </div>
               </form>
@@ -1981,16 +1981,16 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         {abaAtiva === 'ajuda' && (
           <div className="cartao-avle p-6 space-y-6 animate-fadeIn text-left max-w-2xl">
             <div>
-              <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Central de Atendimento e Suporte</h3>
+              <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Central de atendimento e suporte</h3>
               <p className="text-stone-400 mt-1">Escolha o canal de atendimento ideal para resolver a sua dúvida ou problema rapidamente.</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col justify-between space-y-4">
                 <div>
-                  <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#0B1E14]/10 text-[#0B1E14] uppercase">Suporte do Site</span>
-                  <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase">Atendimento Tecnico</h4>
-                  <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">Para duvidas sobre acesso a conta, faturas Pix, dificuldades de navegação, atualização de dados pessoais ou instabilidades no sistema.</p>
+                  <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#0B1E14]/10 text-[#0B1E14] uppercase">Suporte do site</span>
+                  <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase">Atendimento técnico</h4>
+                  <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">Para dúvidas sobre acesso à conta, faturas Pix, dificuldades de navegação, atualização de dados pessoais ou instabilidades no sistema.</p>
                 </div>
                 <div className="pt-2 border-t border-stone-200/60">
                   <p className="text-stone-500 font-bold text-xs font-mono mb-2">(42) 98411-7768</p>
@@ -1999,7 +1999,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     onClick={() => window.open('https://wa.me/5542984117768', '_blank')}
                     className="w-full text-center py-2.5 bg-[#0B1E14] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer"
                   >
-                    Chamar Suporte Tecnico
+                    Chamar suporte técnico
                   </button>
                 </div>
               </div>
@@ -2008,7 +2008,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 {lojaSelecionada || lojaEmFoco ? (
                   <>
                     <div>
-                      <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#BD6B42]/10 text-[#BD6B42] uppercase">Suporte da Loja</span>
+                      <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#BD6B42]/10 text-[#BD6B42] uppercase">Suporte da loja</span>
                       <h4 className="font-bold text-[#0B1E14] text-xs mt-2 uppercase truncate max-w-[180px]">{obterNomeLoja(lojaSelecionada || lojaEmFoco)}</h4>
                       <p className="text-stone-400 text-[11px] mt-1 leading-relaxed">Para tratar diretamente sobre especificações de produtos, datas de assembleias locais, andamento de entregas ou retiradas de mercadorias.</p>
                     </div>
@@ -2026,7 +2026,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                         }}
                         className="w-full text-center py-2.5 bg-[#BD6B42] text-white font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-opacity-90 transition-all cursor-pointer disabled:opacity-40"
                       >
-                        {(lojaSelecionada || lojaEmFoco).telefone ? 'Falar com Atendimento' : 'Telefone não cadastrado'}
+                        {(lojaSelecionada || lojaEmFoco).telefone ? 'Falar com o atendimento' : 'Telefone não cadastrado'}
                       </button>
                     </div>
                   </>
@@ -2045,30 +2045,30 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80] animate-fadeIn text-left">
             <div className="cartao-avle w-full max-w-md shadow-2xl overflow-hidden">
                 <div className="bg-[#0B1E14] p-5 text-white">
-                    <h3 className="font-serif font-bold text-lg uppercase tracking-wide">Confirmar Participação</h3>
+                    <h3 className="font-serif font-bold text-lg uppercase tracking-wide">Confirmar participação</h3>
                     <p className="text-[10px] text-stone-300 mt-1">Revise os detalhes contratuais da cota antes de prosseguir.</p>
                 </div>
                 <div className="p-6 space-y-4">
                     <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 space-y-3">
                         <div className="flex justify-between items-center border-b border-stone-200 pb-2">
-                            <span className="text-[10px] font-bold text-stone-400 uppercase">Clube Vinculado</span>
+                            <span className="text-[10px] font-bold text-stone-400 uppercase">Clube vinculado</span>
                             <span className="text-xs font-bold text-[#0B1E14]">{modalAdesao.grupo.nome}</span>
                         </div>
                         <div className="flex justify-between items-center border-b border-stone-200 pb-2">
-                            <span className="text-[10px] font-bold text-stone-400 uppercase">Valor da Mensalidade</span>
+                            <span className="text-[10px] font-bold text-stone-400 uppercase">Valor da mensalidade</span>
                             <span className="text-xs font-bold font-mono text-[#BD6B42]">R$ {(Number(modalAdesao.grupo.valorParcela)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-bold text-stone-400 uppercase">Duração do Contrato</span>
-                            <span className="text-xs font-bold text-[#0B1E14]">{modalAdesao.grupo.duracaoMeses} Meses</span>
+                            <span className="text-[10px] font-bold text-stone-400 uppercase">Duração do contrato</span>
+                            <span className="text-xs font-bold text-[#0B1E14]">{modalAdesao.grupo.duracaoMeses} meses</span>
                         </div>
                     </div>
 
                     <div className="flex items-start gap-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
                         <span className="text-blue-500 mt-0.5 text-xs font-bold">INFO</span>
                         <p className="text-[10px] text-stone-600 leading-relaxed">
-                            Antes de confirmar a sua participação, e obrigatória a leitura do{' '}
-                            <button onClick={() => window.open(`${API_URL}/api/lojas/${lojaEmFoco?.id}/regras`, '_blank')} className="text-blue-600 font-bold underline cursor-pointer">Regulamento Operacional da Loja</button>. Ao entrar no grupo, voce concorda legalmente com todos os termos estabelecidos pelo estabelecimento.
+                            Antes de confirmar a sua participação, é obrigatória a leitura do{' '}
+                            <button onClick={() => window.open(`${API_URL}/api/lojas/${lojaEmFoco?.id}/regras`, '_blank')} className="text-blue-600 font-bold underline cursor-pointer">regulamento operacional da loja</button>. Ao entrar no grupo, você concorda legalmente com todos os termos estabelecidos pelo estabelecimento.
                         </p>
                     </div>
                 </div>
@@ -2085,14 +2085,14 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
           <div className="cartao-avle w-full max-w-md p-6 space-y-5 shadow-xl">
             <div className="flex justify-between items-center border-b border-stone-100 pb-3">
               <div>
-                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Autorização de Acesso</h3>
+                <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Autorização de acesso</h3>
                 <p className="text-[10px] text-stone-400 mt-0.5">Estabelecimento: {obterNomeLoja(lojaParaAcesso)}</p>
               </div>
               <button onClick={() => setModalAcessoAberto(false)} className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer px-2">X</button>
             </div>
             
             <div className="text-xs text-stone-600 leading-relaxed space-y-4">
-                <p>Para visualizar os planos disponíveis e registrar cotas na <strong>{obterNomeLoja(lojaParaAcesso)}</strong>, o estabelecimento exige uma análise de crédito previa do seu CPF.</p>
+                <p>Para visualizar os planos disponíveis e registrar cotas na <strong>{obterNomeLoja(lojaParaAcesso)}</strong>, o estabelecimento exige uma análise de crédito prévia do seu CPF.</p>
                 
                 <div className="bg-stone-50 border border-dashed border-stone-300 p-4 rounded-xl space-y-2">
                     <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Dados enviados para consulta:</p>
@@ -2150,7 +2150,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 type="text"
                 value={produtoEscolhido}
                 onChange={(e) => setProdutoEscolhido(e.target.value)}
-                placeholder="Ex: Geladeira Frost Free 400L"
+                placeholder="Ex.: Geladeira Frost Free 400L"
                 className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
               />
             </div>
@@ -2203,7 +2203,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
             <div className="flex justify-between items-start border-b pb-3 gap-3">
               <div>
                 <h3 className="text-sm font-serif font-bold text-[#0B1E14] uppercase tracking-wide">
-                  {obrigatorio ? 'Primeira parcela do seu plano' : 'Ambiente de Checkout Secure'}
+                  {obrigatorio ? 'Primeira parcela do seu plano' : 'Ambiente de checkout seguro'}
                 </h3>
                 {obrigatorio && (
                   <p className="text-[11px] text-stone-500 leading-relaxed mt-1">
@@ -2417,7 +2417,7 @@ function CheckoutForm({
             }}
             className="w-full py-3.5 bg-[#0B1E14] text-white font-bold text-[10px] rounded-full uppercase tracking-wider cursor-pointer"
           >
-            Já paguei · Conferir meu saldo
+            Já paguei · conferir meu saldo
           </button>
           {!obrigatorio && (
             <button
@@ -2534,7 +2534,7 @@ function CheckoutForm({
           )}
 
           <div>
-            <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Número do Cartão</label>
+            <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Número do cartão</label>
             <input 
               type="text" 
               maxLength={19}
@@ -2546,7 +2546,7 @@ function CheckoutForm({
           </div>
 
           <div>
-            <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Nome Impresso no Cartão</label>
+            <label className="block text-[9px] font-bold uppercase text-stone-500 mb-1">Nome impresso no cartão</label>
             <input 
               type="text" 
               value={nomeImpresso}
@@ -2632,7 +2632,7 @@ function CheckoutForm({
             disabled={processando}
             className="w-full h-12 mt-4 bg-[#BD6B42] text-white font-bold rounded-full text-[10px] uppercase tracking-wider hover:bg-[#A95A33] transition-all disabled:opacity-50 cursor-pointer shadow-md"
           >
-            {processando ? 'Processando...' : 'Confirmar Pagamento'}
+            {processando ? 'Processando...' : 'Confirmar pagamento'}
           </button>
         </form>
       )}

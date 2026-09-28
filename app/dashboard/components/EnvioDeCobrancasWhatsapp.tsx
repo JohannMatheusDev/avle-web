@@ -406,7 +406,7 @@ export default function EnvioDeCobrancasWhatsapp({ grupoId }: { grupoId?: number
         <p className="text-[10px] text-stone-400 leading-relaxed">
           O botão abre o WhatsApp com a mensagem escrita. Confira e envie você mesma — o disparo
           é manual de propósito, para o número da AVLE não ser bloqueado por envio em massa. Quem
-          já foi avisada fica marcado para todo mundo que abrir esta tela.
+          já foi avisada fica marcada para todo mundo que abrir esta tela.
         </p>
       </div>
     </div>

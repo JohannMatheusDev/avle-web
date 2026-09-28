@@ -193,7 +193,7 @@ export default function PainelAdminSaaS() {
         {/* Cabeçalho administrativo SaaS */}
         <div className="bg-stone-900 p-6 text-center border-b border-stone-800">
           <span className="text-[10px] font-extrabold text-white bg-avle-terracotta px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
-            🛡️ Central Master SaaS
+            🛡️ Central master SaaS
           </span>
           <h2 className="text-white text-lg font-bold mt-3">Infraestrutura AVLE</h2>
         </div>
@@ -215,19 +215,19 @@ export default function PainelAdminSaaS() {
               
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100">
-                  <span className="text-[9px] block font-bold text-stone-400 uppercase">Faturamento Geral</span>
+                  <span className="text-[9px] block font-bold text-stone-400 uppercase">Faturamento geral</span>
                   <span className="text-base font-black text-emerald-600">R$ {metricasSaaS.faturamentoGlobal.toFixed(2)}</span>
                 </div>
                 <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100">
-                  <span className="text-[9px] block font-bold text-stone-400 uppercase">Clientes Totais</span>
+                  <span className="text-[9px] block font-bold text-stone-400 uppercase">Clientes totais</span>
                   <span className="text-base font-black text-stone-800">{metricasSaaS.totalClientes}</span>
                 </div>
                 <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100">
-                  <span className="text-[9px] block font-bold text-stone-400 uppercase">Lojas Ativas</span>
+                  <span className="text-[9px] block font-bold text-stone-400 uppercase">Lojas ativas</span>
                   <span className="text-base font-black text-stone-800">{metricasSaaS.totalLojasAtivas}</span>
                 </div>
                 <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100">
-                  <span className="text-[9px] block font-bold text-stone-400 uppercase">Clubes Rodando</span>
+                  <span className="text-[9px] block font-bold text-stone-400 uppercase">Clubes rodando</span>
                   <span className="text-base font-black text-stone-800">{metricasSaaS.totalClubesAndamento}</span>
                 </div>
               </div>
@@ -249,7 +249,7 @@ export default function PainelAdminSaaS() {
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500" />
                     <div className="text-xs">
                       <h4 className="font-bold text-stone-800 text-sm">{loja.nome}</h4>
-                      <p className="text-stone-400">CNPJ: {loja.cpf} | Email: {loja.email}</p>
+                      <p className="text-stone-400">CNPJ: {loja.cpf} | E-mail: {loja.email}</p>
                     </div>
                     <button
                       type="button"
@@ -269,13 +269,13 @@ export default function PainelAdminSaaS() {
             <div className="space-y-5 animate-fade-in">
               <p className="text-xs text-stone-400 leading-relaxed">
                 O agendamento congela a lista de cotas aptas e grava o hash dela. A contemplada sai do concurso da
-                Loteria Federal seguinte a data de corte, então o resultado pode ser conferido por qualquer pessoa e
+                Loteria Federal seguinte à data de corte, então o resultado pode ser conferido por qualquer pessoa e
                 não depende de confiar no sistema.
               </p>
 
               <form onSubmit={agendarSorteio} className="space-y-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Grupo de Compras</label>
+                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Grupo de compras</label>
                   <select
                     value={grupoSorteioId}
                     onChange={(e) => { setGrupoSorteioId(e.target.value); carregarSorteios(e.target.value); }}
@@ -377,24 +377,24 @@ export default function PainelAdminSaaS() {
 
               <form onSubmit={criarGrupo} className="space-y-3.5">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Nome do Clube/Produto</label>
-                  <input type="text" placeholder="Ex: Clube do iPhone 15 Pro" value={nomeGrupo} onChange={(e) => setNomeGrupo(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border text-sm bg-stone-50" required />
+                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Nome do clube/produto</label>
+                  <input type="text" placeholder="Ex.: Clube do iPhone 15 Pro" value={nomeGrupo} onChange={(e) => setNomeGrupo(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border text-sm bg-stone-50" required />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Valor Parcela (R$)</label>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Valor da parcela (R$)</label>
                     <input type="number" step="0.01" placeholder="350.00" value={valorParcela} onChange={(e) => setValorParcela(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border text-sm bg-stone-50" required />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Duração (Meses)</label>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Duração (meses)</label>
                     <input type="number" placeholder="12" value={duracaoMeses} onChange={(e) => setDuracaoMeses(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border text-sm bg-stone-50" required />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Limite Máximo de Participantes (Cotas)</label>
-                  <input type="number" placeholder="Ex: 10" value={qtdMaxCotas} onChange={(e) => setQtdMaxCotas(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border text-sm bg-stone-50" required />
+                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Limite máximo de participantes (cotas)</label>
+                  <input type="number" placeholder="Ex.: 10" value={qtdMaxCotas} onChange={(e) => setQtdMaxCotas(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border text-sm bg-stone-50" required />
                 </div>
 
                 <button type="submit" disabled={loadingGrupo} className="w-full bg-avle-terracotta text-white font-bold py-3 rounded-xl text-xs tracking-wider shadow-sm transition-all active:scale-95 disabled:opacity-50 mt-4">
