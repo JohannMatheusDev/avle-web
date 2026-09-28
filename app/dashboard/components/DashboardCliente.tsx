@@ -522,6 +522,18 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
            const texto = await res.text().catch(() => '');
            let motivo = texto;
            try { motivo = JSON.parse(texto)?.erro ?? texto; } catch { /* texto puro */ }
+           // Lotou entre ela abrir o grupo e confirmar: a vitrine se atualiza
+           // e, sem outro grupo com vaga, a fila de espera aparece na tela.
+           if (/lota[cç][aã]o/i.test(motivo)) {
+             if (lojaEmFoco?.id) buscarGruposDaLoja(lojaEmFoco.id);
+             setAbaGrupos('disponiveis');
+             mostrarAviso(
+               'Esse grupo acabou de lotar',
+               'Alguém ocupou a última vaga agora. Escolha outro grupo com vaga ou entre na fila de espera da loja, que aparece nesta tela quando não há vaga.',
+               true,
+             );
+             return;
+           }
            mostrarAviso('Não deu para entrar no grupo', motivo || 'Tente de novo em instantes.', true);
            return;
          }
@@ -1324,25 +1336,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                    const listaDaAba = abaAtual === 'meus' ? meusGrupos : gruposParaEntrar;
                    const minhaFila = filasEspera.find((f) => f.lojaId === lojaEmFoco?.id);
 
-                   if (gruposDaLoja.length === 0) {
-                      return (
-                         <div className="bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
-                            Este estabelecimento ainda não lançou nenhum grupo de compras na plataforma.
-                         </div>
-                      );
-                   }
-
-                   if (gruposVisiveis.length === 0) {
-                      return (
-                         <div className="cartao-avle p-8 text-center space-y-4">
-                            <span className="inline-block text-[9px] font-black text-[#BD6B42] bg-[#F5F2EB] px-3 py-1 rounded-full uppercase tracking-widest border border-[#DFD9CE]">
-                               Grupos preenchidos
-                            </span>
-                            <h3 className="text-base font-serif font-bold text-[#0B1E14]">
-                               Todos os grupos desta loja já estão preenchidos
-                            </h3>
-
-                            {minhaFila ? (
+                   // A fila é por loja: vale tanto quando todos os grupos lotaram
+                   // quanto para quem já tem um plano e quer outro, sem vaga.
+                   const blocoDaFila = (
+                      <>
+                        {minhaFila ? (
                                <>
                                   <p className="text-xs text-stone-500 leading-relaxed max-w-md mx-auto">
                                      Você já está na fila de espera desta loja
@@ -1374,6 +1372,28 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                                   </button>
                                </>
                             )}
+                      </>
+                   );
+
+                   if (gruposDaLoja.length === 0) {
+                      return (
+                         <div className="bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
+                            Este estabelecimento ainda não lançou nenhum grupo de compras na plataforma.
+                         </div>
+                      );
+                   }
+
+                   if (gruposVisiveis.length === 0) {
+                      return (
+                         <div className="cartao-avle p-8 text-center space-y-4">
+                            <span className="inline-block text-[9px] font-black text-[#BD6B42] bg-[#F5F2EB] px-3 py-1 rounded-full uppercase tracking-widest border border-[#DFD9CE]">
+                               Grupos preenchidos
+                            </span>
+                            <h3 className="text-base font-serif font-bold text-[#0B1E14]">
+                               Todos os grupos desta loja já estão preenchidos
+                            </h3>
+
+                            {blocoDaFila}
                          </div>
                       );
                    }
@@ -1402,11 +1422,16 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                    </div>
 
                    {listaDaAba.length === 0 ? (
-                      <div className="bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
-                        {abaAtual === 'meus'
-                          ? 'Você ainda não participa de nenhum grupo desta loja. Veja os grupos disponíveis ao lado.'
-                          : 'Nenhum grupo com vaga aberta nesta loja no momento.'}
-                      </div>
+                      abaAtual === 'meus' ? (
+                        <div className="bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl p-8 text-center text-xs text-stone-400 font-medium">
+                          Você ainda não participa de nenhum grupo desta loja. Veja os grupos disponíveis ao lado.
+                        </div>
+                      ) : (
+                        <div className="cartao-avle p-8 text-center space-y-4">
+                          <h3 className="text-base font-serif font-bold text-[#0B1E14]">Nenhum grupo com vaga aberta nesta loja no momento</h3>
+                          {blocoDaFila}
+                        </div>
+                      )
                    ) : (
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {listaDaAba.slice().sort((a, b) => a.id - b.id).map((grupo, indiceDoGrupo) => {
