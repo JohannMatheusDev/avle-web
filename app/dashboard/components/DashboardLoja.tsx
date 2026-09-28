@@ -88,8 +88,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const router = useRouter();
   
   const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'fila' | 'grupos' | 'sorteios' | 'configuracoes' | 'conta'>('geral');
-  // O painel verde da tela inicial mostra os grupos ou o resumo da Conta AVLE.
-  const [painelVerde, setPainelVerde] = useState<'grupos' | 'conta'>('grupos');
+  // O painel verde da tela inicial mostra os grupos, quem esta devendo ou o
+  // resumo da Conta AVLE.
+  const [painelVerde, setPainelVerde] = useState<'grupos' | 'inadimplentes' | 'conta'>('grupos');
+  const [inadimplenteEmFoco, setInadimplenteEmFoco] = useState<number | null>(null);
+  const [detalheFaturamentoAberto, setDetalheFaturamentoAberto] = useState(false);
   const [obrigacoesFuturas, setObrigacoesFuturas] = useState<number>(0);
   const [idOperacao, setIdOperacao] = useState('Nenhuma');
   const [grupoSorteioId, setGrupoSorteioId] = useState('');
@@ -271,6 +274,32 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     faturamentoMesAtual?: number;
     // Parcela do mes corrente, contada por cota a partir dos lancamentos.
     parcelaDoMes?: { competencia: string; pagas: number; vencidas: number; aguardandoVencimento: number };
+    // Uma linha por cota com parcela vencida e nao paga, de qualquer mes.
+    // `temVencidaDoMes` marca as que entram no "Vencidas, sem pagar".
+    inadimplentes?: {
+      cotaId: number;
+      clienteId?: number;
+      clienteNome?: string;
+      clienteTelefone?: string;
+      grupoId: number;
+      grupoNome: string;
+      parcelas: number;
+      valorEmAberto: number;
+      vencimentoMaisAntigo: string;
+      diasEmAtraso: number;
+      temVencidaDoMes: boolean;
+    }[];
+    // Toda cliente ja sorteada na loja, de todos os grupos.
+    sorteadas?: {
+      cotaId: number;
+      clienteNome?: string;
+      grupoId?: number;
+      grupoNome?: string;
+      dataContemplacao?: string;
+      etapa?: string;
+      retirado?: boolean;
+      produto?: string;
+    }[];
   };
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [periodoClientes, setPeriodoClientes] = useState<1 | 6 | 12>(12);
@@ -952,14 +981,34 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     });
   };
 
-  const handleExcluirGrupo = (grupoId: number, e?: React.MouseEvent) => {
+  // Antes de perguntar, o servidor faz um ensaio e diz o que vai sair: grupo
+  // de teste com participantes sai inteiro, com as cobrancas do Asaas; grupo
+  // com parcela paga nao sai, e o motivo aparece em vez da confirmacao.
+  const handleExcluirGrupo = async (grupoId: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    let relato: { grupoNome?: string; cotas?: number; parcelas?: number; cobrancasNoAsaas?: number; motivo?: string; erro?: string } | null = null;
+    try {
+      const res = await apiFetch(`${API_URL}/api/grupos/${grupoId}/completo?ensaio=true`, { method: 'DELETE' });
+      relato = await res.json().catch(() => null);
+      if (!res.ok) {
+        mostrarAviso('Este grupo não pode ser excluído', relato?.motivo || relato?.erro || 'Não foi possível conferir o grupo.', true);
+        return;
+      }
+    } catch {
+      mostrarAviso('Erro ao Excluir', 'Não foi possível falar com o servidor.', true);
+      return;
+    }
+    const cotas = Number(relato?.cotas) || 0;
+    const noAsaas = Number(relato?.cobrancasNoAsaas) || 0;
     setModalExclusao({
       aberto: true,
       tipo: 'grupo',
       idTarget: grupoId,
-      titulo: 'Excluir Grupo de Compras',
-      mensagem: 'Tem certeza que deseja excluir este grupo de compras? Esta ação não pode ser desfeita e removerá todas as cotas e recebimentos futuros atrelados a ele.'
+      titulo: `Excluir o grupo ${relato?.grupoNome ?? ''}`.trim(),
+      mensagem: cotas === 0
+        ? 'O grupo não tem participantes. Esta ação não pode ser desfeita.'
+        : `Saem junto ${cotas} cota${cotas === 1 ? '' : 's'}, ${relato?.parcelas ?? 0} parcela${Number(relato?.parcelas) === 1 ? '' : 's'} em aberto`
+          + ` e ${noAsaas} cobrança${noAsaas === 1 ? '' : 's'} no Asaas, que a cliente deixa de ver. Nenhuma parcela foi paga neste grupo. Esta ação não pode ser desfeita.`,
     });
   };
 
@@ -994,10 +1043,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       }
     } else if (tipo === 'grupo') {
       try {
-        const res = await apiFetch(`${API_URL}/api/grupos/${idTarget}`, { method: 'DELETE' });
+        const res = await apiFetch(`${API_URL}/api/grupos/${idTarget}/completo?ensaio=false`, { method: 'DELETE' });
         if (!res.ok) {
-          const textoErro = await res.text();
-          throw new Error(textoErro || 'Falha ao excluir grupo.');
+          const corpo = await res.json().catch(() => null);
+          throw new Error(corpo?.motivo || corpo?.erro || 'Falha ao excluir grupo.');
         }
 
         mostrarAviso('Grupo Removido', 'O grupo foi excluido com sucesso do sistema.', false);
@@ -1008,6 +1057,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         
         carregarGruposDoBanco();
         carregarDadosFinanceiros();
+        carregarAnalytics();
       } catch (err: any) {
         mostrarAviso('Erro ao Excluir', err.message, true);
       }
@@ -1537,7 +1587,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const recebidoEsteMes = Number(dadosFinanceiros?.recebidoEsteMes) || 0;
   const totalParticipantesValidos = Array.isArray(participantesDoGrupo) ? participantesDoGrupo.length : 0;
 
-  const totalGruposValidos = Array.isArray(listaGrupos) ? listaGrupos.length : 0;
+  // Encerrado nao e ativo: contava junto, e o numero nao batia com a aba Grupos.
+  const totalGruposValidos = Array.isArray(listaGrupos) ? listaGrupos.filter((g) => !grupoEncerrado(g)).length : 0;
 
   const termoBuscaCliente = buscaClienteGrupo.trim().toLowerCase();
   const clientesDisponiveisFiltrados = clientesDisponiveis.filter((c) => {
@@ -1569,6 +1620,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const irParaSecao = (id: string) => {
     setGrupoSelecionado(null);
     setAbaLoja(id as any);
+  };
+
+  // "Vencidas, sem pagar" leva ao painel verde ja com a lista de quem deve.
+  const abrirInadimplentes = () => {
+    setPainelVerde('inadimplentes');
+    requestAnimationFrame(() => document.getElementById('painel-verde')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
 
   // O passo a passo do painel. Cada passo aponta para um elemento marcado com
@@ -1613,17 +1670,18 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     {
       alvo: 'cartao-parcelas',
       titulo: 'As parcelas do mês',
-      texto: 'Quantas clientes já pagaram, quantas deixaram vencer sem pagar e quantas ainda estão no prazo.',
-    },
-    {
-      alvo: 'faixa-operacao',
-      titulo: 'O resumo da operação',
-      texto: 'Próximo sorteio, clientes em grupo e fora dele, cotas preenchidas e o valor dos produtos já retirados.',
+      texto: 'Quantas clientes já pagaram, quantas deixaram vencer sem pagar e quantas ainda estão no prazo. Clique em "Vencidas, sem pagar" para ver quem são, e no valor para ver o faturamento de cada grupo.',
     },
     {
       alvo: 'painel-grupos',
-      titulo: 'Seus grupos',
-      texto: 'Escolha um grupo na lista para ver o detalhe ao lado. "Com vencidas" separa onde há parcela atrasada, e "Abrir ficha" leva à lista de integrantes, onde se registra pagamento no balcão e entrega.',
+      titulo: 'Seus grupos e quem está devendo',
+      texto: 'Escolha um grupo na lista para ver o detalhe ao lado; "Abrir ficha" leva à lista de integrantes. Em "Inadimplentes" ficam as clientes com parcela vencida, com o grupo, o valor e há quantos dias.',
+    },
+    {
+      secao: 'clientes',
+      alvo: 'faixa-operacao',
+      titulo: 'O resumo da operação',
+      texto: 'Na aba Clientes: próximo sorteio, clientes em grupo e fora dele, cotas preenchidas e o valor dos produtos já retirados.',
     },
     {
       alvo: 'conta-avle',
@@ -2076,9 +2134,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               const nomeMes = pm
                 ? new Date(`${pm.competencia}-01T12:00:00`).toLocaleDateString('pt-BR', { month: 'long' })
                 : null;
-              const cotasTotais = analytics?.cotasTotais ?? 0;
-              const cotasPreenchidas = analytics?.cotasPreenchidas ?? 0;
-              const semPreco = analytics?.retiradasSemValorInformado ?? 0;
 
               // Recortes do painel escuro. "Com vencidas" e o que a loja
               // precisa tratar hoje; "Abertos" e onde ainda cabe cliente nova.
@@ -2103,6 +2158,22 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 Number(g.cotasOcupadas ?? faturamentoDoGrupo(g.id)?.cotasOcupadas ?? 0);
 
               const abrirFicha = (g: Grupo) => setGrupoSelecionado(g);
+
+              const inadimplentes = analytics?.inadimplentes ?? [];
+              const totalEmAberto = inadimplentes.reduce((soma, i) => soma + (Number(i.valorEmAberto) || 0), 0);
+              const inadimplentesDoMes = inadimplentes.filter((i) => i.temVencidaDoMes).length;
+              const inadEmFoco = inadimplentes.find((i) => i.cotaId === inadimplenteEmFoco) ?? inadimplentes[0] ?? null;
+              const alternanciaDoPainel = (
+                <AlternanciaDoPainel
+                  opcoes={[
+                    { id: 'grupos', rotulo: 'Grupos' },
+                    { id: 'inadimplentes', rotulo: 'Inadimplentes' },
+                    { id: 'conta', rotulo: 'Conta AVLE' },
+                  ]}
+                  valor={painelVerde}
+                  aoEscolher={setPainelVerde}
+                />
+              );
               // Mesmo caminho do botao "+ Adicionar Cliente" da ficha: o
               // modal de participantes so existe com um grupo aberto.
               const adicionarCliente = (g: Grupo) => {
@@ -2306,8 +2377,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   <CartaoIndicador
                     tour="cartao-parcelas"
                     titulo="Faturamento total"
-                    canto={<BotaoDeCanto rotulo="Ver clientes" aoClicar={() => irParaSecao('clientes')} />}
-                    valor={real(analytics?.totalFaturado ?? recebidoEsteMes)}
+                    canto={<BotaoDeCanto rotulo="Ver faturamento por grupo" aoClicar={() => setDetalheFaturamentoAberto(true)} />}
+                    valor={
+                      <button
+                        type="button"
+                        onClick={() => setDetalheFaturamentoAberto(true)}
+                        title="Ver faturamento por grupo"
+                        className="cursor-pointer hover:text-painel-acento transition-colors"
+                      >
+                        {real(analytics?.totalFaturado ?? recebidoEsteMes)}
+                      </button>
+                    }
                     nota={
                       <span className="inline-flex items-center gap-2 text-[11px] text-stone-400">
                         <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 font-semibold px-2 h-5 rounded-full">
@@ -2321,7 +2401,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <BlocosDeValor
                       blocos={[
                         { rotulo: nomeMes ? `Pagas em ${nomeMes}` : 'Pagas no mês', valor: pm?.pagas ?? '—' },
-                        { rotulo: 'Vencidas, sem pagar', valor: pm?.vencidas ?? '—', destaque: true },
+                        { rotulo: 'Vencidas, sem pagar', valor: pm?.vencidas ?? '—', destaque: true, aoClicar: abrirInadimplentes },
                         { rotulo: 'Ainda no prazo', valor: pm?.aguardandoVencimento ?? '—' },
                       ]}
                       acao={{ rotulo: 'Ver grupos', aoClicar: () => irParaSecao('grupos') }}
@@ -2329,68 +2409,107 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   </CartaoIndicador>
                 </div>
 
-                {/* ── Números miúdos da operação ── */}
-                <div className="relative z-10">
-                <FaixaDeNumeros
-                  tour="faixa-operacao"
-                  titulo="Operação"
-                  itens={[
-                    { rotulo: 'Próximo sorteio', valor: formatarData(sort), nota: `${diasSort}d · Loteria Federal, dia 10` },
-                    { rotulo: 'Clientes ativos', valor: totalClientes },
-                    { rotulo: 'Grupos ativos', valor: totalGruposValidos },
-                    { rotulo: 'Em grupo', valor: analytics?.clientesAtivosEmGrupo ?? 0 },
-                    { rotulo: 'Sem grupo', valor: analytics?.clientesAtivosSemGrupo ?? 0, tom: 'acento' },
-                    { rotulo: 'Sorteadas', valor: analytics?.sorteadasEmGruposAtivos ?? 0, tom: 'alerta', nota: 'em grupos abertos' },
-                    {
-                      rotulo: 'Cotas preenchidas',
-                      valor: `${cotasPreenchidas}/${cotasTotais}`,
-                      nota: cotasTotais > 0 ? `${Math.round((cotasPreenchidas / cotasTotais) * 100)}% de ocupação` : 'sem cotas',
-                    },
-                    {
-                      rotulo: 'Produtos retirados',
-                      valor: real(analytics?.valorProdutosRetirados),
-                      // O aviso separa numero conferido de numero estimado
-                      // pelo plano. Sem ele a loja decidiria achando que o
-                      // valor foi somado produto a produto.
-                      nota: semPreco > 0
-                        ? <span className="text-amber-700">{semPreco} sem preço · estimado pelo plano</span>
-                        : 'conferido produto a produto',
-                    },
-                    {
-                      rotulo: 'UpSell',
-                      valor: real(analytics?.valorUpsell),
-                      tom: 'acento',
-                      nota: (analytics?.valorUpsell ?? 0) > 0 ? 'acima do plano' : 'depende do preço na retirada',
-                    },
-                  ]}
-                />
-                </div>
-
-                {/* ── Grupos: lista e detalhe ── */}
-                {/* A arvore da AVLE cresce de tras do painel escuro, no centro
-                    da tela: o tronco fica escondido atras da borda de cima dele
-                    e a copa se abre por tras da faixa e dos quatro cartoes. So a partir de 1024px -
-                    no celular os blocos empilham e nao sobra vao para ela. */}
-                <div className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/arvore-escura.png"
-                  alt=""
-                  aria-hidden="true"
-                  className="hidden lg:block pointer-events-none select-none absolute z-0 left-1/2 -translate-x-1/2 bottom-full -mb-16 w-[820px] xl:w-[980px] max-w-none"
-                />
-                <div className="relative z-10">
-                {painelVerde === 'conta' ? (
+                {/* ── Painel verde: grupos, inadimplentes ou Conta AVLE ── */}
+                <div id="painel-verde" className="scroll-mt-24">
+                {painelVerde === 'inadimplentes' ? (
+                  <PainelEscuro
+                    tour="painel-grupos"
+                    titulo="Inadimplentes"
+                    alternancia={alternanciaDoPainel}
+                    canto={<BotaoEscuro icone="clientes" rotulo="Ver clientes" aoClicar={() => irParaSecao('clientes')} />}
+                    lista={
+                      <>
+                        <div className="rounded-[18px] bg-white/[0.06] px-4 py-3 mb-1">
+                          <span className="block text-[11px] text-white/50">Total vencido, sem pagar</span>
+                          <span className="block text-[24px] font-semibold tabular-nums mt-0.5">{real(totalEmAberto)}</span>
+                          <span className="block text-[11px] text-white/55 mt-1">
+                            {inadimplentes.length} cliente{inadimplentes.length === 1 ? '' : 's'}
+                            {' · '}{inadimplentesDoMes} com a parcela deste mês vencida
+                          </span>
+                        </div>
+                        {inadimplentes.length === 0 ? (
+                          <p className="text-[12px] text-white/45 px-3 py-8 text-center">Nenhuma cliente com parcela vencida sem pagar.</p>
+                        ) : (
+                          inadimplentes.map((i) => (
+                            <ItemDoPainel
+                              key={i.cotaId}
+                              sigla={sigla(i.clienteNome || 'Cliente')}
+                              titulo={i.clienteNome || `Cota #${i.cotaId}`}
+                              subtitulo={<><span className="nome-do-grupo text-white/70">{i.grupoNome}</span> · {i.parcelas} parcela{i.parcelas === 1 ? '' : 's'}</>}
+                              selo={`${i.diasEmAtraso} dia${i.diasEmAtraso === 1 ? '' : 's'}`}
+                              valor={real(i.valorEmAberto)}
+                              ativo={inadEmFoco?.cotaId === i.cotaId}
+                              aoEscolher={() => setInadimplenteEmFoco(i.cotaId)}
+                            />
+                          ))
+                        )}
+                      </>
+                    }
+                    detalhe={
+                      !inadEmFoco ? (
+                        <div className="h-full min-h-[240px] rounded-[24px] bg-white/[0.04] flex items-center justify-center text-center p-6">
+                          <p className="text-[13px] text-white/60">Quando uma parcela vencer sem pagamento, a cliente aparece aqui com o grupo e o valor.</p>
+                        </div>
+                      ) : (
+                        <div className="h-full rounded-[24px] bg-avle-verde p-5 flex flex-col gap-4">
+                          <div className="min-w-0">
+                            <span className="block text-[11px] text-white/50">Cliente em atraso</span>
+                            <span className="block text-[22px] font-semibold tracking-tight truncate mt-1.5">
+                              {inadEmFoco.clienteNome || `Cota #${inadEmFoco.cotaId}`}
+                            </span>
+                            <span className="block text-[13px] text-white/70 mt-1">
+                              Grupo <span className="nome-do-grupo text-white">{inadEmFoco.grupoNome}</span> · cota #{inadEmFoco.cotaId}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            <BlocoDoDetalhe rotulo="Em aberto" valor={real(inadEmFoco.valorEmAberto)} />
+                            <BlocoDoDetalhe rotulo="Parcelas vencidas" valor={inadEmFoco.parcelas} />
+                            <BlocoDoDetalhe
+                              rotulo="Vencida desde"
+                              valor={new Date(`${inadEmFoco.vencimentoMaisAntigo}T12:00:00`).toLocaleDateString('pt-BR')}
+                            />
+                            <BlocoDoDetalhe
+                              rotulo="Em atraso"
+                              valor={`${inadEmFoco.diasEmAtraso} dia${inadEmFoco.diasEmAtraso === 1 ? '' : 's'}`}
+                              nota={inadEmFoco.temVencidaDoMes ? 'inclui a parcela deste mês' : 'de meses anteriores'}
+                            />
+                          </div>
+                          <div className="mt-auto rounded-[18px] bg-black/15 p-4 flex flex-wrap items-center gap-3">
+                            <p className="text-[11px] text-white/55 flex-1 min-w-[180px]">
+                              Valor que a cliente deve, sem o desconto da plataforma. Quem pagou no balcão já sai desta lista.
+                            </p>
+                            {inadEmFoco.clienteTelefone && (
+                              <a
+                                href={`https://wa.me/55${inadEmFoco.clienteTelefone.replace(/\D/g, '')}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="h-10 px-5 rounded-full bg-white/10 text-white text-[12px] font-semibold flex items-center hover:bg-white/20 transition-colors"
+                              >
+                                {aplicarMascaraTelefone(inadEmFoco.clienteTelefone)}
+                              </a>
+                            )}
+                            {(() => {
+                              const g = listaGrupos.find((x) => x.id === inadEmFoco.grupoId);
+                              return g ? (
+                                <button
+                                  type="button"
+                                  onClick={() => abrirFicha(g)}
+                                  className="h-10 px-5 rounded-full bg-white text-painel-tinta text-[12px] font-semibold hover:bg-painel-papel transition-colors cursor-pointer"
+                                >
+                                  Abrir ficha do grupo
+                                </button>
+                              ) : null;
+                            })()}
+                          </div>
+                        </div>
+                      )
+                    }
+                  />
+                ) : painelVerde === 'conta' ? (
                   <PainelEscuro
                     tour="painel-grupos"
                     titulo="Conta AVLE"
-                    alternancia={
-                      <AlternanciaDoPainel
-                        opcoes={[{ id: 'grupos', rotulo: 'Grupos' }, { id: 'conta', rotulo: 'Conta AVLE' }]}
-                        valor={painelVerde}
-                        aoEscolher={setPainelVerde}
-                      />
-                    }
+                    alternancia={alternanciaDoPainel}
                     canto={<BotaoEscuro icone="seta" rotulo="Abrir Conta AVLE" aoClicar={() => irParaSecao('conta')} />}
                     corpo={
                       <ResumoNoPainel
@@ -2402,13 +2521,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 ) : (
                 <PainelEscuro
                   tour="painel-grupos"
-                  alternancia={
-                    <AlternanciaDoPainel
-                      opcoes={[{ id: 'grupos', rotulo: 'Grupos' }, { id: 'conta', rotulo: 'Conta AVLE' }]}
-                      valor={painelVerde}
-                      aoEscolher={setPainelVerde}
-                    />
-                  }
+                  alternancia={alternanciaDoPainel}
                   titulo="Grupos da loja"
                   abas={[
                     { id: 'todos', rotulo: 'Todos', contador: recortes.todos.length },
@@ -2433,7 +2546,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         <ItemDoPainel
                           key={g.id}
                           sigla={sigla(g.nome)}
-                          titulo={g.nome}
+                          titulo={<span className="nome-do-grupo">{g.nome}</span>}
                           subtitulo={`#${g.id} · ${ocupadasDoGrupo(g)}/${g.quantidadeMaxCotas} cotas`}
                           selo={vencidasDoGrupo(g) > 0 ? `${vencidasDoGrupo(g)} vencida${vencidasDoGrupo(g) === 1 ? '' : 's'}` : situacaoDoGrupo(g)}
                           valor={real(faturamentoDoGrupo(g.id)?.faturado, 0)}
@@ -2461,7 +2574,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           <div className="min-w-0">
                             <span className="block text-[11px] text-white/50">Detalhes do grupo</span>
                             <span className="flex items-center gap-2 mt-1.5 min-w-0">
-                              <span className="text-[22px] font-semibold tracking-tight truncate">{emFoco.nome}</span>
+                              <span className="nome-do-grupo text-[22px] tracking-tight truncate">{emFoco.nome}</span>
                               <span className="h-6 px-2.5 rounded-full bg-white/10 text-[10px] font-semibold flex items-center whitespace-nowrap">
                                 {situacaoDoGrupo(emFoco)}
                               </span>
@@ -2539,7 +2652,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 />
                 )}
                 </div>
-                </div>
+
+                {detalheFaturamentoAberto && (
+                  <DetalheDoFaturamento
+                    total={Number(analytics?.totalFaturado ?? 0)}
+                    grupos={analytics?.faturamentoPorGrupo ?? []}
+                    aoFechar={() => setDetalheFaturamentoAberto(false)}
+                  />
+                )}
 
               </div>
               );
@@ -2572,8 +2692,47 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 (paginaSegura - 1) * CLIENTES_POR_PAGINA,
                 paginaSegura * CLIENTES_POR_PAGINA
               );
+              // Os numeros da operacao, que ficavam em cima do painel verde no Inicio.
+              const sort = proximoSorteio();
+              const diasSort = diasAte(sort);
+              const cotasTotais = analytics?.cotasTotais ?? 0;
+              const cotasPreenchidas = analytics?.cotasPreenchidas ?? 0;
+              const semPreco = analytics?.retiradasSemValorInformado ?? 0;
               return (
               <div className="space-y-6 animate-fadeIn text-left">
+                <FaixaDeNumeros
+                  tour="faixa-operacao"
+                  titulo="Operação"
+                  itens={[
+                    { rotulo: 'Próximo sorteio', valor: formatarData(sort), nota: `${diasSort}d · Loteria Federal, dia 10` },
+                    { rotulo: 'Clientes ativos', valor: totalClientes },
+                    { rotulo: 'Grupos ativos', valor: totalGruposValidos },
+                    { rotulo: 'Em grupo', valor: analytics?.clientesAtivosEmGrupo ?? 0 },
+                    { rotulo: 'Sem grupo', valor: analytics?.clientesAtivosSemGrupo ?? 0, tom: 'acento' },
+                    { rotulo: 'Sorteadas', valor: analytics?.sorteadasEmGruposAtivos ?? 0, tom: 'alerta', nota: 'em grupos abertos' },
+                    {
+                      rotulo: 'Cotas preenchidas',
+                      valor: `${cotasPreenchidas}/${cotasTotais}`,
+                      nota: cotasTotais > 0 ? `${Math.round((cotasPreenchidas / cotasTotais) * 100)}% de ocupação` : 'sem cotas',
+                    },
+                    {
+                      rotulo: 'Produtos retirados',
+                      valor: real(analytics?.valorProdutosRetirados),
+                      // O aviso separa numero conferido de numero estimado
+                      // pelo plano. Sem ele a loja decidiria achando que o
+                      // valor foi somado produto a produto.
+                      nota: semPreco > 0
+                        ? <span className="text-amber-700">{semPreco} sem preço · estimado pelo plano</span>
+                        : 'conferido produto a produto',
+                    },
+                    {
+                      rotulo: 'UpSell',
+                      valor: real(analytics?.valorUpsell),
+                      tom: 'acento',
+                      nota: (analytics?.valorUpsell ?? 0) > 0 ? 'acima do plano' : 'depende do preço na retirada',
+                    },
+                  ]}
+                />
                   <div className="cartao-avle overflow-hidden">
                       <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                           <div>
@@ -2954,7 +3113,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <div key={grupo.id} onClick={() => setGrupoSelecionado(grupo)} className="cartao-avle p-5 hover:border-[#BD6B42] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group relative">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h3 className="font-serif font-bold text-base text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">{grupo.nome}</h3>
+                          <h3 className="nome-do-grupo font-serif font-bold text-base text-[#0B1E14] group-hover:text-[#BD6B42] transition-colors">{grupo.nome}</h3>
                           <p className="text-[10px] font-mono text-stone-400 mt-0.5">Duracao: {grupo.duracaoMeses} Meses</p>
                         </div>
                         <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-stone-50 border text-stone-500">ID #{grupo.id}</span>
@@ -3064,6 +3223,45 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       <strong className="text-[#0B1E14]">{elegiveisDoGrupo.length}</strong> cota(s) disputando o próximo sorteio.
                       Cotas já contempladas não voltam a concorrer, mesmo com crédito reprovado.
                     </p>
+                  )}
+                </div>
+
+                {/* Todas as sorteadas da loja, de todos os grupos: o resto da
+                    aba mostra um grupo por vez. */}
+                <div className="cartao-avle overflow-hidden">
+                  <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex flex-wrap items-baseline justify-between gap-2">
+                    <div>
+                      <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Quem já foi sorteada</h3>
+                      <p className="text-[10px] text-stone-400">Todos os grupos da loja, da mais recente para a mais antiga.</p>
+                    </div>
+                    <span className="text-[12px] font-semibold text-painel-tinta tabular-nums">
+                      {(analytics?.sorteadas ?? []).length} sorteada{(analytics?.sorteadas ?? []).length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                  {(analytics?.sorteadas ?? []).length === 0 ? (
+                    <p className="px-5 py-6 text-[12px] text-stone-400">Nenhuma cliente foi sorteada ainda.</p>
+                  ) : (
+                    <div className="divide-y divide-[#EFEAE1] max-h-[420px] overflow-y-auto">
+                      {(analytics?.sorteadas ?? []).map((c) => (
+                        <div key={c.cotaId} className="px-5 py-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] font-semibold text-painel-tinta truncate">{c.clienteNome || `Cota #${c.cotaId}`}</p>
+                            <p className="text-[11px] text-stone-500">
+                              <span className="nome-do-grupo text-painel-tinta">{c.grupoNome || 'Grupo'}</span> · cota #{c.cotaId}
+                              {c.etapa && <> · {c.etapa}</>}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[13px] font-semibold text-painel-tinta tabular-nums">
+                              {c.dataContemplacao ? new Date(c.dataContemplacao).toLocaleDateString('pt-BR') : 'Sem data'}
+                            </p>
+                            <p className={`text-[11px] ${c.retirado ? 'text-emerald-700' : 'text-stone-400'}`}>
+                              {c.retirado ? 'Produto retirado' : 'Ainda não retirou'}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
 
@@ -4676,6 +4874,83 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         </div>
       )}
       {tour.elemento}
+    </div>
+  );
+}
+
+/**
+ * O "Faturamento total" aberto por grupo. A soma dos grupos fecha com o total
+ * do cartao; o que sobra e lancamento sem grupo (saldo anterior de cliente que
+ * saiu, por exemplo), e aparece numa linha propria em vez de sumir.
+ */
+function DetalheDoFaturamento({
+  total,
+  grupos,
+  aoFechar,
+}: {
+  total: number;
+  grupos: { grupoId?: number; nome: string; faturado?: number; previsto?: number; cotasOcupadas?: number }[];
+  aoFechar: () => void;
+}) {
+  const somaDosGrupos = grupos.reduce((soma, g) => soma + (Number(g.faturado) || 0), 0);
+  const semGrupo = Math.round((total - somaDosGrupos) * 100) / 100;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-4 z-50 text-left animate-fadeIn"
+      onClick={aoFechar}
+    >
+      <div
+        role="dialog"
+        aria-label="Faturamento por grupo"
+        className="cartao-avle w-full max-w-lg p-6 space-y-4 shadow-xl max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-start gap-4">
+          <div>
+            <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Faturamento total</h3>
+            <p className="text-[11px] text-stone-400 mt-0.5">Receita líquida recebida desde o início, já sem os 10% da plataforma.</p>
+          </div>
+          <button type="button" onClick={aoFechar} aria-label="Fechar" className="text-stone-400 hover:text-stone-700 text-[15px] font-semibold cursor-pointer">
+            ✕
+          </button>
+        </div>
+
+        <p className="text-[30px] font-semibold tracking-tight text-painel-tinta tabular-nums">{real(total)}</p>
+
+        {grupos.length === 0 ? (
+          <p className="text-[12px] text-stone-400">Nenhum grupo criado ainda.</p>
+        ) : (
+          <div className="divide-y divide-[#EFEAE1]">
+            {grupos.map((g) => {
+              const faturado = Number(g.faturado) || 0;
+              const previsto = Number(g.previsto) || 0;
+              const pct = previsto > 0 ? Math.min(100, (faturado / previsto) * 100) : 0;
+              return (
+                <div key={g.grupoId ?? g.nome} className="py-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="nome-do-grupo text-[13px] text-painel-tinta truncate">{g.nome}</span>
+                    <span className="text-[13px] font-semibold text-painel-tinta tabular-nums">{real(faturado)}</span>
+                  </div>
+                  <div className="h-1.5 bg-painel-papel rounded-full overflow-hidden mt-2">
+                    <div className="h-full bg-painel-acento rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="flex justify-between text-[11px] text-stone-400 mt-1">
+                    <span>de {real(previsto)} previstos · {g.cotasOcupadas ?? 0} cotas</span>
+                    <span className="tabular-nums">{pct.toFixed(0)}%</span>
+                  </div>
+                </div>
+              );
+            })}
+            {Math.abs(semGrupo) >= 0.01 && (
+              <div className="py-3 flex items-baseline justify-between gap-3">
+                <span className="text-[13px] text-stone-500">Lançamentos sem grupo</span>
+                <span className="text-[13px] font-semibold text-stone-500 tabular-nums">{real(semGrupo)}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
