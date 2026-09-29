@@ -7,6 +7,7 @@ import ParcelasDoPlano from './ParcelasDoPlano';
 import ExtratoDePagamentos from './ExtratoDePagamentos';
 import ListaDeAvisos from './ListaDeAvisos';
 import EquipeDaLoja from './EquipeDaLoja';
+import EmailDaConta from './EmailDaConta';
 import PedidosDaEquipe from './PedidosDaEquipe';
 import {
   Avatar, BarraSuperior, BotaoDaConta, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
@@ -3519,6 +3520,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
             {abaLoja === 'configuracoes' && (
               <div className="space-y-6 text-left max-w-xl animate-fadeIn">
+                {!ehColaborador && (
+                  <EmailDaConta lojaId={usuario?.lojaId || usuario?.id} emailAtual={usuario?.email} mostrarAviso={mostrarAviso} />
+                )}
                 {!ehColaborador && (
                   <EquipeDaLoja lojaId={usuario?.lojaId || usuario?.id} mostrarAviso={mostrarAviso} />
                 )}
