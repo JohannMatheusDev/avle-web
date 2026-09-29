@@ -7,6 +7,7 @@ import ParcelasDoPlano from './ParcelasDoPlano';
 import ExtratoDePagamentos from './ExtratoDePagamentos';
 import ListaDeAvisos from './ListaDeAvisos';
 import EquipeDaLoja from './EquipeDaLoja';
+import PedidosDaEquipe from './PedidosDaEquipe';
 import {
   Avatar, BarraSuperior, BotaoDaConta, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
   TrilhoDeNavegacao,
@@ -237,6 +238,37 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const mostrarAviso = (titulo: string, mensagem: string, isError: boolean = false) => {
     setNotificacao({ aberto: true, titulo, mensagem, isError });
   };
+
+  // A ação do colaborador foi para a aprovação da loja: a tela que chamou
+  // mostra o próprio aviso de "não deu", e este vem logo depois, por cima,
+  // dizendo o que de fato aconteceu.
+  useEffect(() => {
+    const aoPedir = () => {
+      setTimeout(() => setNotificacao({
+        aberto: true,
+        titulo: 'Enviado para aprovação',
+        mensagem: 'A loja vai ver o seu pedido em Aprovações. Quando ela aprovar, a ação é feita.',
+        isError: false,
+      }), 120);
+    };
+    window.addEventListener('avle:aguardando-aprovacao', aoPedir);
+    return () => window.removeEventListener('avle:aguardando-aprovacao', aoPedir);
+  }, []);
+  const [pedidosPendentes, setPedidosPendentes] = useState(0);
+  // O número no menu de Aprovações conta também os pedidos da equipe, e
+  // precisa aparecer sem a loja abrir a aba.
+  useEffect(() => {
+    if (ehColaborador) return;
+    const lojaDoPainel = usuario?.lojaId || usuario?.id;
+    if (!lojaDoPainel) return;
+    const contar = () => apiFetch(`${API_URL}/api/lojas/${lojaDoPainel}/aprovacoes`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setPedidosPendentes(Number(d.pendentes) || 0); })
+      .catch(() => {});
+    contar();
+    const relogio = setInterval(contar, 60000);
+    return () => clearInterval(relogio);
+  }, [ehColaborador, usuario?.lojaId, usuario?.id]);
   
   const [nomeGrupo, setNomeGrupo] = useState('');
   const [valorTotal, setValorTotal] = useState('');
@@ -1650,7 +1682,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const secoesDaLoja: ItemDeNavegacao[] = [
     { id: 'geral',      rotulo: 'Início',             icone: 'inicio' },
     { id: 'clientes',   rotulo: 'Clientes',           icone: 'clientes' },
-    { id: 'aprovacoes', rotulo: 'Aprovações',         icone: 'aprovacoes', contador: aguardandoCredito.length, urgente: true, rotuloCurto: 'Aprovar' },
+    { id: 'aprovacoes', rotulo: 'Aprovações',         icone: 'aprovacoes', contador: aguardandoCredito.length + (ehColaborador ? 0 : pedidosPendentes), urgente: true, rotuloCurto: 'Aprovar' },
     { id: 'fila',       rotulo: 'Fila de espera',     icone: 'fila',       contador: filaEspera.length, rotuloCurto: 'Fila' },
     { id: 'grupos',     rotulo: 'Grupos',             icone: 'grupos' },
     { id: 'sorteios',   rotulo: 'Sorteios / Entrega', icone: 'sorteios', rotuloCurto: 'Sorteios' },
@@ -2963,6 +2995,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
             {abaLoja === 'aprovacoes' && (
               <div className="space-y-6 animate-fadeIn text-left">
+                  <PedidosDaEquipe
+                    lojaId={usuario?.lojaId || usuario?.id}
+                    ehColaborador={ehColaborador}
+                    mostrarAviso={mostrarAviso}
+                    aoContarPendentes={setPedidosPendentes}
+                    aoDecidir={() => {
+                      carregarGruposDoBanco();
+                      carregarAnalytics();
+                      carregarContagemClientes(usuario?.lojaId || usuario?.id);
+                    }}
+                  />
                   <div className="cartao-avle overflow-hidden">
                       <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50">
                           <h3 className="text-xs font-bold text-[#0B1E14] uppercase tracking-wider">Análise de crédito das sorteadas</h3>
