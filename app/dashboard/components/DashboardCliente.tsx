@@ -675,9 +675,23 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   // Quem confirma o Pix é o banco, e ele avisa o servidor, não a tela. Sem
   // esta consulta de tempos em tempos a cliente pagaria e continuaria olhando
   // o QR Code, sem entender que já podia seguir.
+  // Antes de reler a carteira, pede ao servidor para perguntar ao Asaas se a
+  // cobrança já foi paga: assim a tela libera mesmo que o aviso do Asaas
+  // (o webhook) não chegue.
+  const conferirPagamentoNoAsaas = async (cotaId?: number | null) => {
+    if (cotaId) {
+      try {
+        await apiFetch(`${API_URL}/api/pagamentos/conferir/${cotaId}`, { method: 'POST' });
+      } catch {
+        // Sem a conferência, vale o que o webhook já tiver gravado.
+      }
+    }
+    await buscarCarteiraDeClubes();
+  };
+
   useEffect(() => {
     if (cotaAguardandoPrimeiraParcela == null) return;
-    const relogio = setInterval(() => { buscarCarteiraDeClubes(); }, 12_000);
+    const relogio = setInterval(() => { conferirPagamentoNoAsaas(cotaAguardandoPrimeiraParcela); }, 8_000);
     return () => clearInterval(relogio);
   }, [cotaAguardandoPrimeiraParcela]);
 
@@ -2180,7 +2194,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               <div className="pt-3 border-t border-stone-100 text-center space-y-2">
                 <button
                   type="button"
-                  onClick={() => buscarCarteiraDeClubes()}
+                  onClick={() => conferirPagamentoNoAsaas(cotaAguardandoPrimeiraParcela)}
                   className="text-[10px] font-bold text-[#0B1E14] uppercase tracking-wider hover:underline cursor-pointer"
                 >
                   Já paguei · conferir agora
