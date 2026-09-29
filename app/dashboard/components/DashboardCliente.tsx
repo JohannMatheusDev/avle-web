@@ -1263,55 +1263,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </button>
                 )}
 
-                <div className="cartao-avle p-6 flex flex-col md:flex-row items-start md:items-center gap-6 relative overflow-hidden">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#0B1E14] flex items-center justify-center font-serif font-bold text-white text-3xl shrink-0 shadow-lg">
-                    {obterNomeLoja(lojaEmFoco).substring(0, 2).toUpperCase()}
-                  </div>
-                  <div className="flex-1 w-full">
-                    <div className="flex items-center gap-3 mb-1">
-                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0B1E14]">{obterNomeLoja(lojaEmFoco)}</h2>
-                      <span className="bg-[#EFEAE2] text-[#BD6B42] border border-[#DFD9CE] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Unidade oficial</span>
-                    </div>
-                    <p className="text-xs text-stone-500 mb-4 max-w-2xl leading-relaxed">
-                      Bem-vinda à página oficial desta loja. Aqui você pode visualizar todos os clubes de compras disponíveis, consultar o regulamento contratual e gerenciar suas faturas ativas.
-                    </p>
-                    
-                    <div className="flex flex-wrap gap-4 pt-4 border-t border-stone-100">
-                      <div className="flex items-center gap-1.5 text-xs text-stone-600">
-                         <span className="font-bold text-stone-400 uppercase text-[9px] tracking-wider">Contato:</span>
-                         {lojaEmFoco?.telefone ? aplicarMascaraTelefone(lojaEmFoco.telefone) : 'Não informado'}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-stone-600">
-                         <span className="font-bold text-stone-400 uppercase text-[9px] tracking-wider">E-mail:</span>
-                         {lojaEmFoco?.email || 'Não informado'}
-                      </div>
-                      {lojaEmFoco?.cnpj && (
-                        <div className="flex items-center gap-1.5 text-xs text-stone-600">
-                           <span className="font-bold text-stone-400 uppercase text-[9px] tracking-wider">CNPJ:</span>
-                           {aplicarMascaraCpfCnpj(lojaEmFoco.cnpj)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col gap-2 w-full md:w-auto shrink-0 border-t md:border-t-0 md:border-l border-stone-100 pt-4 md:pt-0 md:pl-6 mt-4 md:mt-0">
-                    <button 
-                      onClick={() => window.open(`${API_URL}/api/lojas/${lojaEmFoco.id}/regras`, '_blank')}
-                      className="w-full bg-[#0B1E14] text-white px-5 py-3 rounded-full text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 transition-all shadow-sm cursor-pointer text-center"
-                    >
-                      Ler regulamento
-                    </button>
-                    {lojaEmFoco?.telefone && (
-                      <button 
-                        onClick={() => window.open(`https://wa.me/55${lojaEmFoco.telefone.replace(/\D/g, '')}`, '_blank')}
-                        className="w-full bg-stone-100 text-[#0B1E14] border border-stone-200 px-5 py-3 rounded-full text-[10px] font-bold uppercase tracking-wider hover:bg-stone-200 transition-all shadow-sm cursor-pointer text-center"
-                      >
-                        Suporte no WhatsApp
-                      </button>
-                    )}
-                  </div>
-                </div>
-
+                {/* So os grupos: a cliente veio pelo convite de uma loja e nao
+                    precisa da vitrine dela. O regulamento e o WhatsApp da loja
+                    ficam nas abas Regulamento e Suporte. */}
                 {carregandoGrupos ? (
                    <div className="py-12 text-center text-xs font-bold text-stone-400 animate-pulse">Carregando os grupos da loja...</div>
                 ) : erroGrupos ? (
@@ -1759,15 +1713,15 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
               Compra Planejada: A AVLE não atua como consórcio tradicional ou fundo financeiro. Trata-se de uma comunidade estruturada de compras programadas de móveis e decorações corporativas ou residenciais.
             </p>
 
-            {lojaSelecionada ? (
+            {(lojaSelecionada || lojaEmFoco) ? (
               <div className="pt-4 border-t border-stone-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h4 className="font-bold text-[#0B1E14] uppercase text-[11px]">Termos específicos da unidade</h4>
-                  <p className="text-stone-400 text-[10px] mt-0.5">Regulamento de termos contratuais enviado por: <strong>{obterNomeLoja(lojaSelecionada)}</strong></p>
+                  <p className="text-stone-400 text-[10px] mt-0.5">Regulamento de termos contratuais enviado por: <strong>{obterNomeLoja(lojaSelecionada || lojaEmFoco)}</strong></p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => window.open(`${API_URL}/api/lojas/${lojaSelecionada.id}/regras`, '_blank')}
+                  onClick={() => window.open(`${API_URL}/api/lojas/${(lojaSelecionada || lojaEmFoco).id}/regras`, '_blank')}
                   className="px-4 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase tracking-wider hover:bg-opacity-90 cursor-pointer transition-all"
                 >
                   Visualizar contrato em PDF
