@@ -5,6 +5,8 @@ import { API_URL, apiFetch } from '../../lib/api';
 
 type Grupo = { id: number; nome: string; quantidadeMaxCotas?: number; cotasOcupadas?: number; status?: string };
 
+type RelatoDoEncerramento = { cotasACancelar?: number; parcelasEmAberto?: number; aviso?: string; erro?: string };
+
 type Relato = {
   grupoNome?: string;
   cotas?: number;
@@ -30,6 +32,9 @@ export default function GruposDaLojaNoAdmin({ lojaId }: { lojaId: number }) {
   const [conferindo, setConferindo] = useState<{ grupo: Grupo; relato: Relato } | null>(null);
   const [excluindo, setExcluindo] = useState(false);
   const [aviso, setAviso] = useState<{ texto: string; erro: boolean } | null>(null);
+  // Grupo com dinheiro recebido não pode ser apagado: o caminho é encerrar.
+  const [encerrando, setEncerrando] = useState<{ grupo: Grupo; relato: RelatoDoEncerramento; motivo: string } | null>(null);
+  const [enviandoEncerramento, setEnviandoEncerramento] = useState(false);
 
   const carregar = useCallback(async () => {
     try {
@@ -54,6 +59,15 @@ export default function GruposDaLojaNoAdmin({ lojaId }: { lojaId: number }) {
       const res = await apiFetch(`${API_URL}/api/grupos/${grupo.id}/completo?ensaio=true&forcar=true`, { method: 'DELETE' });
       const relato: Relato = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (relato.permitido === false) {
+          // Tem pagamento pelo Asaas: oferece encerrar em vez de apagar.
+          const ensaio = await apiFetch(`${API_URL}/api/grupos/${grupo.id}/encerrar?ensaio=true`, { method: 'PUT' });
+          const relatoEncerrar: RelatoDoEncerramento = await ensaio.json().catch(() => ({}));
+          if (ensaio.ok) {
+            setEncerrando({ grupo, relato: relatoEncerrar, motivo: relato.motivo || '' });
+            return;
+          }
+        }
         setAviso({ texto: relato.motivo || relato.erro || 'Não foi possível conferir o grupo.', erro: true });
         return;
       }
@@ -80,6 +94,29 @@ export default function GruposDaLojaNoAdmin({ lojaId }: { lojaId: number }) {
     } finally {
       setExcluindo(false);
       setConferindo(null);
+    }
+  };
+
+  const encerrar = async () => {
+    if (!encerrando) return;
+    setEnviandoEncerramento(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/grupos/${encerrando.grupo.id}/encerrar?ensaio=false`, { method: 'PUT' });
+      const relato: RelatoDoEncerramento = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAviso({ texto: relato.erro || 'O grupo não foi encerrado.', erro: true });
+      } else {
+        setAviso({
+          texto: `O grupo ${encerrando.grupo.nome} foi encerrado e as cobranças dele pararam.${relato.aviso ? ` ${relato.aviso}` : ''}`,
+          erro: !!relato.aviso,
+        });
+        carregar();
+      }
+    } catch {
+      setAviso({ texto: 'Não foi possível falar com o servidor.', erro: true });
+    } finally {
+      setEnviandoEncerramento(false);
+      setEncerrando(null);
     }
   };
 
@@ -110,6 +147,7 @@ export default function GruposDaLojaNoAdmin({ lojaId }: { lojaId: number }) {
                 <p className="nome-do-grupo text-[13px] text-painel-tinta truncate">{g.nome}</p>
                 <p className="text-[11px] text-stone-400">
                   #{g.id} · {g.cotasOcupadas ?? 0}/{g.quantidadeMaxCotas ?? '—'} cotas
+                  {g.status === 'ENCERRADO' && <span className="text-stone-500"> · encerrado</span>}
                 </p>
               </div>
               <button
@@ -121,6 +159,30 @@ export default function GruposDaLojaNoAdmin({ lojaId }: { lojaId: number }) {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {encerrando && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
+            <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Encerrar o grupo {encerrando.grupo.nome}</h3>
+            <p className="text-[12px] text-stone-600 leading-relaxed">{encerrando.motivo}</p>
+            <p className="text-[12px] text-stone-600 leading-relaxed">
+              Encerrando, o grupo some para novas clientes, {encerrando.relato.cotasACancelar ?? 0} cota(s) são canceladas e
+              a cobrança mensal para. {encerrando.relato.parcelasEmAberto ?? 0} parcela(s) em aberto saem do Asaas. O que já foi
+              pago continua registrado.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => setEncerrando(null)}
+                className="flex-1 py-2.5 border rounded-full text-stone-500 font-semibold text-[12px] hover:bg-stone-50 cursor-pointer">
+                Cancelar
+              </button>
+              <button type="button" disabled={enviandoEncerramento} onClick={encerrar}
+                className="flex-1 py-2.5 bg-painel-tinta text-white font-semibold rounded-full text-[12px] hover:bg-avle-verde disabled:opacity-50 cursor-pointer">
+                {enviandoEncerramento ? 'Encerrando…' : 'Encerrar o grupo'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
