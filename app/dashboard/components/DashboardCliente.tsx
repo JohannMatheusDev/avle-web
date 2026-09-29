@@ -36,6 +36,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [abaAtiva, setAbaAtiva] = useState<'inicio' | 'extrato' | 'regras' | 'ajuda' | 'perfil'>('inicio');
   const [saldoPoupanca, setSaldoPoupanca] = useState<number>(0);
   const [modalCheckoutAberto, setModalCheckoutAberto] = useState(false);
+  const [entrandoNoGrupo, setEntrandoNoGrupo] = useState(false);
 
   // Cota recem-criada cuja primeira parcela ainda nao foi paga. Enquanto ela
   // existe, o checkout fica por cima do painel e nao aceita ser fechado: a
@@ -515,7 +516,11 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
   const confirmarAdesaoNoGrupo = async () => {
       const grupo = modalAdesao.grupo;
-      setModalAdesao({ aberto: false, grupo: null });
+      if (entrandoNoGrupo) return;
+      // A confirmação fica aberta, com "Entrando…", até o servidor responder:
+      // fechar na hora deixava a tela parada por segundos na rede do celular,
+      // e parecia que o botão não tinha feito nada.
+      setEntrandoNoGrupo(true);
 
       try {
          const res = await apiFetch(`${API_URL}/api/usuarios/${usuario?.id}/vincular-clube`, {
@@ -551,7 +556,15 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
          const dataClubes = await resClubes.json();
          setClubesAtivos(dataClubes);
          
-         const novaCota = dataClubes.find((c: any) => c.grupo.id === grupo.id);
+         const novaCota = dataClubes.find((c: any) => c.grupo?.id === grupo.id);
+         if (!novaCota) {
+           mostrarAviso(
+             'Não deu para abrir o seu plano',
+             'A entrada foi registrada, mas o plano ainda não apareceu. Atualize a página em instantes; se continuar assim, fale com a loja.',
+             true,
+           );
+           return;
+         }
          if (novaCota) {
             setClubeAtualSelecionado(novaCota);
             setGrupoSelecionado(novaCota.grupo);
@@ -569,6 +582,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
          }
       } catch {
          mostrarAviso('Não deu para entrar no grupo', 'Não conseguimos falar com o servidor. Confira a conexão e tente de novo.', true);
+      } finally {
+         setEntrandoNoGrupo(false);
+         setModalAdesao({ aberto: false, grupo: null });
       }
   };
 
@@ -2143,8 +2159,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     </div>
                 </div>
                 <div className="p-5 border-t border-stone-100 bg-stone-50 flex gap-3">
-                    <button onClick={() => setModalAdesao({ aberto: false, grupo: null })} className="flex-1 py-3 border border-stone-200 text-stone-500 font-bold rounded-full text-[10px] uppercase hover:bg-stone-100 transition-colors cursor-pointer">Cancelar</button>
-                    <button onClick={confirmarAdesaoNoGrupo} className="flex-1 py-3 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase hover:bg-opacity-90 transition-all cursor-pointer">Entrar e pagar a 1ª parcela</button>
+                    <button onClick={() => setModalAdesao({ aberto: false, grupo: null })} disabled={entrandoNoGrupo} className="flex-1 py-3 border border-stone-200 text-stone-500 font-bold rounded-full text-[10px] uppercase hover:bg-stone-100 transition-colors cursor-pointer">Cancelar</button>
+                    <button onClick={confirmarAdesaoNoGrupo} disabled={entrandoNoGrupo} className="flex-1 py-3 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase hover:bg-opacity-90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-wait">{entrandoNoGrupo ? 'Entrando…' : 'Entrar e pagar a 1ª parcela'}</button>
                 </div>
             </div>
         </div>
