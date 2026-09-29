@@ -1502,6 +1502,25 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </span>
                 </div>
 
+                {/* Pagar fica no alto, logo abaixo do nome do grupo: é o que a
+                    cliente vem fazer aqui, e no cartão lá de baixo o botão
+                    ficava fora da tela do celular. Abre Pix, cartão ou quitar. */}
+                {etapaAtual !== 4 && (
+                  <div>
+                    <button
+                      type="button"
+                      data-tour="pagar-parcela"
+                      onClick={() => setModalCheckoutAberto(true)}
+                      className="w-full bg-[#BD6B42] text-white py-4 rounded-full text-sm font-bold uppercase tracking-wider hover:brightness-110 active:brightness-95 transition-all cursor-pointer shadow-md"
+                    >
+                      Pagar parcela · R$ {(valorMensalidade).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </button>
+                    <p className="text-[10px] text-stone-400 text-center mt-2">
+                      Pix, cartão ou quitar o plano de uma vez · o comprovante entra no seu histórico
+                    </p>
+                  </div>
+                )}
+
                 {etapaAtual === 4 && (
                   <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center">
                     <span className="block text-[9px] font-black uppercase tracking-widest text-emerald-700 mb-1">
@@ -1614,14 +1633,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 <div className="cartao-avle overflow-hidden">
                   <div className="px-5 py-4 border-b bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B1E14]">Régua de vencimentos e aportes efetuados</h3>
-                    {etapaAtual !== 4 && (
-                      <button
-                        onClick={() => setModalCheckoutAberto(true)}
-                        className="bg-[#0B1E14] text-white px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider hover:bg-opacity-90 cursor-pointer shadow-xs"
-                      >
-                        Pagar parcela
-                      </button>
-                    )}
                   </div>
                   <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse min-w-[420px]">
