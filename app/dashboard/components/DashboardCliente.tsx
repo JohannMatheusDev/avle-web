@@ -77,6 +77,10 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const [modalAdesao, setModalAdesao] = useState<{ aberto: boolean; grupo: any | null }>({ aberto: false, grupo: null });
 
   const [clubesAtivos, setClubesAtivos] = useState<any[]>([]);
+  // O plano aberto e a loja em foco só voltam depois do refresh quando as
+  // duas listas já chegaram.
+  const [clubesCarregados, setClubesCarregados] = useState(false);
+  const [lojasCarregadas, setLojasCarregadas] = useState(false);
   const [clubeAtualSelecionado, setClubeAtualSelecionado] = useState<any | null>(null);
   const [grupoSelecionado, setGrupoSelecionado] = useState<any | null>(null);
   const [lojaSelecionada, setLojaSelecionada] = useState<any | null>(null);
@@ -240,6 +244,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       }
     } catch {
       setClubesAtivos([]);
+    } finally {
+      setClubesCarregados(true);
     }
   };
 
@@ -398,6 +404,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       .catch(() => {
         setLojas([]);
         setErroConexao(true);
+      })
+      .finally(() => {
+        setLojasCarregadas(true);
       });
   }, [usuario?.id]);
 
@@ -908,6 +917,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
       setNivelVisao(isClienteAmarrado ? 'grupos' : 'lojas');
     },
+    clubesCarregados && lojasCarregadas,
   );
 
   const primeiroNome = (usuario?.nome || '').trim().split(' ')[0];

@@ -106,6 +106,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const { avisos, naoLidas, marcarTodas } = useAvisos();
 
   const [listaGrupos, setListaGrupos] = useState<Grupo[]>([]);
+  // A ficha do grupo só volta depois do refresh quando a lista já chegou.
+  const [gruposCarregados, setGruposCarregados] = useState(false);
   const [listaClientesLoja, setListaClientesLoja] = useState<any[]>([]);
   const [modalNovoGrupoAberto, setModalNovoGrupoAberto] = useState(false);
 
@@ -415,7 +417,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       Array.isArray(data)
         ? [...data].sort((a, b) => (a?.nome ?? '').localeCompare(b?.nome ?? '', 'pt-BR'))
         : []
-    );
+    );    setGruposCarregados(true);
   };
 
   const carregarDadosFinanceiros = async () => {
@@ -1738,6 +1740,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       if (grupo) setGrupoSelecionado(grupo);
       else setGrupoSelecionado(null);
     },
+    gruposCarregados,
   );
 
   const tituloDaSecao = grupoSelecionado

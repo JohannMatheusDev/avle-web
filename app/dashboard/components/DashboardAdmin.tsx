@@ -195,6 +195,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
       const loja = listaLojas.find((l) => l.id === alvo.loja);
       setLojaSelecionada(loja ?? null);
     },
+    !carregando,
   );
 
   return (
