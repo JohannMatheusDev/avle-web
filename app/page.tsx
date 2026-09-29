@@ -360,7 +360,9 @@ function Autenticacao() {
         }
 
         if (resposta.status >= 400 && resposta.status < 500) {
-          const textoErro = await resposta.text();
+          let textoErro = await resposta.text();
+          // Algumas recusas vêm em JSON ({"erro": "..."}), como a do colaborador sem acesso.
+          try { textoErro = JSON.parse(textoErro)?.erro || textoErro; } catch { /* texto puro */ }
           throw new Error(textoErro || (isLogin ? 'E-mail, telefone ou senha incorretos!' : 'Erro ao realizar cadastro.'));
         }
 

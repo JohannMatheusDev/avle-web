@@ -63,6 +63,8 @@ export default function DashboardPage() {
       return <DashboardAdmin usuario={usuario} />;
     
     case 'LOJA':
+    // O colaborador usa o painel da loja, sem o que é só da loja mãe.
+    case 'COLABORADOR':
       return <DashboardLoja usuario={usuario} />;
     
     case 'CLIENTE':

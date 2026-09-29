@@ -6,6 +6,7 @@ import { CardContemplacao, CotaElegivel, SorteioResumo, ehSorteioAuditavel, mens
 import ParcelasDoPlano from './ParcelasDoPlano';
 import ExtratoDePagamentos from './ExtratoDePagamentos';
 import ListaDeAvisos from './ListaDeAvisos';
+import EquipeDaLoja from './EquipeDaLoja';
 import {
   Avatar, BarraSuperior, BotaoDaConta, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
   TrilhoDeNavegacao,
@@ -86,6 +87,10 @@ interface ResumoFinanceiro {
 
 export default function DashboardLoja({ usuario }: { usuario: any }) {
   const router = useRouter();
+  // O colaborador cuida da loja sem ver o dinheiro dela: Conta AVLE,
+  // faturamento e equipe ficam só para a loja mãe. O servidor já recusa essas
+  // rotas para ele; aqui a tela só deixa de oferecer o que ele não pode abrir.
+  const ehColaborador = String(usuario?.tipoUsuario || '').toUpperCase() === 'COLABORADOR';
   
   const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'fila' | 'grupos' | 'sorteios' | 'configuracoes' | 'conta'>('geral');
   // O painel verde da tela inicial mostra os grupos, quem esta devendo ou o
@@ -425,6 +430,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   };
 
   const carregarDadosFinanceiros = async () => {
+    if (ehColaborador) return;
     const lojaId = usuario?.lojaId || usuario?.id;
 
     const [obrigacoes, resumo, transacoes, churn] = await Promise.all([
@@ -1790,7 +1796,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         ativo={grupoSelecionado ? '' : abaLoja}
         aoEscolher={irParaSecao}
         detalhe={nomeLojaReal || usuario?.lojaNome || 'Painel da loja'}
-        principal={<BotaoDaConta ativo={!grupoSelecionado && abaLoja === 'conta'} aoClicar={() => irParaSecao('conta')} />}
+        principal={ehColaborador ? undefined : <BotaoDaConta ativo={!grupoSelecionado && abaLoja === 'conta'} aoClicar={() => irParaSecao('conta')} />}
         menuDoCelular={[
           { icone: 'ajuda', rotulo: 'Rever o passo a passo', aoClicar: tour.abrir },
           { icone: 'link', rotulo: 'Copiar link da loja', aoClicar: handleCopiarLinkConvite },
@@ -1799,7 +1805,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         ]}
         acoes={
           <>
-            <BotaoDaConta ativo={!grupoSelecionado && abaLoja === 'conta'} aoClicar={() => irParaSecao('conta')} />
+            {!ehColaborador && <BotaoDaConta ativo={!grupoSelecionado && abaLoja === 'conta'} aoClicar={() => irParaSecao('conta')} />}
             <BotaoRedondo icone="ajuda" rotulo="Rever o passo a passo" tour="rever-tour" aoClicar={tour.abrir} />
             <BotaoRedondo icone="link" rotulo="Copiar link da loja" tour="copiar-link" aoClicar={handleCopiarLinkConvite} />
             <BotaoRedondo
@@ -1915,6 +1921,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Vigência</span>
                 <span className="text-base font-bold text-[#0B1E14] font-mono block mt-1">{grupoSelecionado.duracaoMeses} M</span>
               </div>
+              {!ehColaborador && (<>
               <div>
                 <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Faturado</span>
                 <span className="text-base font-bold text-emerald-700 font-mono block mt-1">
@@ -1927,6 +1934,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   R$ {(faturamentoDoGrupo(grupoSelecionado.id)?.previsto ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
+              </>)}
               <div>
                 <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wide">Cotas preenchidas</span>
                 <span className="text-base font-bold text-[#BD6B42] font-mono block mt-1">{totalParticipantesValidos} / {grupoSelecionado.quantidadeMaxCotas}</span>
@@ -2203,9 +2211,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               const alternanciaDoPainel = (
                 <AlternanciaDoPainel
                   opcoes={[
-                    { id: 'grupos', rotulo: 'Grupos' },
-                    { id: 'inadimplentes', rotulo: 'Inadimplentes' },
-                    { id: 'conta', rotulo: 'Conta AVLE' },
+                    { id: 'grupos' as const, rotulo: 'Grupos' },
+                    { id: 'inadimplentes' as const, rotulo: 'Inadimplentes' },
+                    ...(ehColaborador ? [] : [{ id: 'conta' as const, rotulo: 'Conta AVLE' }]),
                   ]}
                   valor={painelVerde}
                   aoEscolher={setPainelVerde}
@@ -2229,17 +2237,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 {/* Na frente da arvore e com fundo de papel por baixo: a faixa e
                     translucida, e os galhos passavam por cima do texto. */}
                 <div className="relative z-10 rounded-[22px] bg-painel-papel empty:hidden">
-                  <FaixaDeAtivacaoNoInicio
+                  {!ehColaborador && <FaixaDeAtivacaoNoInicio
                     lojaId={usuario?.lojaId || usuario?.id}
                     aoIrParaConfiguracoes={() => irParaSecao('configuracoes')}
                     aoAbrirConta={() => irParaSecao('conta')}
-                  />
+                  />}
                 </div>
 
                 {/* ── Os quatro cartões de cima ── */}
                 {/* `relative z-10` nos blocos de cima: a arvore da marca fica
                     atras deles, e aparece so nos vaos entre um e outro. */}
-                <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div className={`relative z-10 grid grid-cols-1 sm:grid-cols-2 ${ehColaborador ? 'xl:grid-cols-3' : 'xl:grid-cols-4'} gap-4`}>
 
                   <CartaoIndicador
                     tour="cartao-vencimento"
@@ -2264,7 +2272,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     />
                   </CartaoIndicador>
 
-                  {(() => {
+                  {!ehColaborador && (() => {
                     // Semana sai do extrato; mes, 6 e 12 meses saem do
                     // faturamento mensal do servidor. Os dois seguem a mesma
                     // regra (recebido, liquido de 90%, pela data do pagamento).
@@ -2413,9 +2421,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
                   <CartaoIndicador
                     tour="cartao-parcelas"
-                    titulo="Faturamento total"
-                    canto={<BotaoDeCanto rotulo="Ver faturamento por grupo" aoClicar={() => setDetalheFaturamentoAberto(true)} />}
-                    valor={
+                    titulo={ehColaborador ? 'Parcelas do mês' : 'Faturamento total'}
+                    canto={ehColaborador ? undefined : <BotaoDeCanto rotulo="Ver faturamento por grupo" aoClicar={() => setDetalheFaturamentoAberto(true)} />}
+                    valor={ehColaborador ? `${pm?.pagas ?? 0} pagas` : (
                       <button
                         type="button"
                         onClick={() => setDetalheFaturamentoAberto(true)}
@@ -2424,8 +2432,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       >
                         {real(analytics?.totalFaturado ?? recebidoEsteMes)}
                       </button>
-                    }
-                    nota={
+                    )}
+                    nota={ehColaborador ? (
+                      <span className="text-[11px] text-stone-400">quem já pagou a parcela deste mês</span>
+                    ) : (
                       <span className="inline-flex items-center gap-2 text-[11px] text-stone-400">
                         <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 font-semibold px-2 h-5 rounded-full">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -2433,7 +2443,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         </span>
                         receita líquida acumulada
                       </span>
-                    }
+                    )}
                   >
                     <BlocosDeValor
                       blocos={[
@@ -2457,8 +2467,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     lista={
                       <>
                         <div className="rounded-[18px] bg-white/[0.06] px-4 py-3 mb-1">
-                          <span className="block text-[11px] text-white/50">Total vencido, sem pagar</span>
-                          <span className="block text-[24px] font-semibold tabular-nums mt-0.5">{real(totalEmAberto)}</span>
+                          <span className="block text-[11px] text-white/50">{ehColaborador ? 'Clientes com parcela vencida' : 'Total vencido, sem pagar'}</span>
+                          <span className="block text-[24px] font-semibold tabular-nums mt-0.5">{ehColaborador ? inadimplentes.length : real(totalEmAberto)}</span>
                           <span className="block text-[11px] text-white/55 mt-1">
                             {inadimplentes.length} cliente{inadimplentes.length === 1 ? '' : 's'}
                             {' · '}{inadimplentesDoMes} com a parcela deste mês vencida
@@ -2474,7 +2484,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                               titulo={i.clienteNome || `Cota #${i.cotaId}`}
                               subtitulo={<><span className="nome-do-grupo text-white/70">{i.grupoNome}</span> · {i.parcelas} parcela{i.parcelas === 1 ? '' : 's'}</>}
                               selo={`${i.diasEmAtraso} dia${i.diasEmAtraso === 1 ? '' : 's'}`}
-                              valor={real(i.valorEmAberto)}
+                              valor={ehColaborador ? undefined : real(i.valorEmAberto)}
                               ativo={inadEmFoco?.cotaId === i.cotaId}
                               aoEscolher={() => setInadimplenteEmFoco(i.cotaId)}
                             />
@@ -2499,7 +2509,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                             </span>
                           </div>
                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                            <BlocoDoDetalhe rotulo="Em aberto" valor={real(inadEmFoco.valorEmAberto)} />
+                            {!ehColaborador && <BlocoDoDetalhe rotulo="Em aberto" valor={real(inadEmFoco.valorEmAberto)} />}
                             <BlocoDoDetalhe rotulo="Parcelas vencidas" valor={inadEmFoco.parcelas} />
                             <BlocoDoDetalhe
                               rotulo="Vencida desde"
@@ -2542,7 +2552,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       )
                     }
                   />
-                ) : painelVerde === 'conta' ? (
+                ) : painelVerde === 'conta' && !ehColaborador ? (
                   <PainelEscuro
                     tour="painel-grupos"
                     titulo="Conta AVLE"
@@ -2586,7 +2596,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           titulo={<span className="nome-do-grupo">{g.nome}</span>}
                           subtitulo={`#${g.id} · ${ocupadasDoGrupo(g)}/${g.quantidadeMaxCotas} cotas`}
                           selo={vencidasDoGrupo(g) > 0 ? `${vencidasDoGrupo(g)} vencida${vencidasDoGrupo(g) === 1 ? '' : 's'}` : situacaoDoGrupo(g)}
-                          valor={real(faturamentoDoGrupo(g.id)?.faturado, 0)}
+                          valor={ehColaborador ? undefined : real(faturamentoDoGrupo(g.id)?.faturado, 0)}
                           ativo={emFoco?.id === g.id}
                           aoEscolher={() => setGrupoEmFoco(g.id)}
                         />
@@ -2634,7 +2644,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         </div>
 
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                          <BlocoDoDetalhe rotulo="Faturado" valor={real(fatEmFoco?.faturado)} aoClicar={() => abrirFicha(emFoco)} />
+                          {!ehColaborador && <BlocoDoDetalhe rotulo="Faturado" valor={real(fatEmFoco?.faturado)} aoClicar={() => abrirFicha(emFoco)} />}
                           <BlocoDoDetalhe
                             rotulo="Pagas no mês"
                             valor={fatEmFoco?.cotasPagasNoMes ?? 0}
@@ -2649,7 +2659,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           <BlocoDeAdicionar rotulo="Adicionar cliente" aoClicar={() => adicionarCliente(emFoco)} />
                         </div>
 
-                        {(() => {
+                        {!ehColaborador && (() => {
                           const faturado = Number(fatEmFoco?.faturado ?? 0);
                           const previsto = Number(fatEmFoco?.previsto ?? 0);
                           const pct = previsto > 0 ? Math.min(100, (faturado / previsto) * 100) : 0;
@@ -2702,7 +2712,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               );
             })()}
 
-            {abaLoja === 'conta' && (
+            {abaLoja === 'conta' && !ehColaborador && (
               <PaginaContaAvle
                 lojaId={usuario?.lojaId || usuario?.id}
                 podeSacar
@@ -2752,7 +2762,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       valor: `${cotasPreenchidas}/${cotasTotais}`,
                       nota: cotasTotais > 0 ? `${Math.round((cotasPreenchidas / cotasTotais) * 100)}% de ocupação` : 'sem cotas',
                     },
-                    {
+                    ...(ehColaborador ? [] : [{
                       rotulo: 'Produtos retirados',
                       valor: real(analytics?.valorProdutosRetirados),
                       // O aviso separa numero conferido de numero estimado
@@ -2764,10 +2774,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     },
                     {
                       rotulo: 'Upsell',
+                      tom: 'acento' as const,
                       valor: real(analytics?.valorUpsell),
-                      tom: 'acento',
                       nota: (analytics?.valorUpsell ?? 0) > 0 ? 'acima do plano' : 'depende do preço na retirada',
-                    },
+                    }]),
                   ]}
                 />
                   <div className="cartao-avle overflow-hidden">
@@ -3177,7 +3187,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           </span>
                         );
                       })()}
-                      {(() => {
+                      {!ehColaborador && (() => {
                         const fat = faturamentoDoGrupo(grupo.id);
                         const faturado = Number(fat?.faturado ?? 0);
                         const previsto = Number(fat?.previsto ?? 0);
@@ -3466,6 +3476,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
             {abaLoja === 'configuracoes' && (
               <div className="space-y-6 text-left max-w-xl animate-fadeIn">
+                {!ehColaborador && (
+                  <EquipeDaLoja lojaId={usuario?.lojaId || usuario?.id} mostrarAviso={mostrarAviso} />
+                )}
 
               <div className="cartao-avle p-6 md:p-8 space-y-6">
                 <div>
