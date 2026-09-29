@@ -59,6 +59,26 @@ export default function CobrancaAutomatica() {
   const [ensaio, setEnsaio] = useState<Ensaio | null>(null);
   const [ensaiando, setEnsaiando] = useState(false);
   const [erro, setErro] = useState('');
+  const [telefoneTeste, setTelefoneTeste] = useState('42984117768');
+  const [testando, setTestando] = useState(false);
+  const [resultadoTeste, setResultadoTeste] = useState<{ enviado: boolean; destino?: string; motivo?: string } | null>(null);
+
+  const testarWhatsapp = async () => {
+    setTestando(true);
+    setResultadoTeste(null);
+    try {
+      const r = await apiFetch('/api/cobranca/testar-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telefone: telefoneTeste }),
+      });
+      setResultadoTeste(r.ok ? await r.json() : { enviado: false, motivo: 'O servidor recusou o teste.' });
+    } catch {
+      setResultadoTeste({ enviado: false, motivo: 'Não foi possível falar com o servidor.' });
+    } finally {
+      setTestando(false);
+    }
+  };
 
   useEffect(() => {
     let ativo = true;
@@ -120,6 +140,28 @@ export default function CobrancaAutomatica() {
         <Linha rotulo="Lembrete por e-mail nos dias 1, 5 e 8"
           valor={!situacao.lembreteEmailAtivo ? 'Desligado' : situacao.lembreteEmailModoTeste ? 'Em teste' : 'Ligado'}
           bom={!situacao.lembreteEmailAtivo} variavel="AVLE_COBRANCA_ATIVA · AVLE_COBRANCA_MODO_TESTE" />
+      </div>
+
+      <div className="rounded-2xl bg-painel-papel p-4 space-y-3">
+        <div>
+          <p className="text-[13px] font-semibold text-painel-tinta">Testar a mensagem no WhatsApp</p>
+          <p className="text-[11px] text-stone-500">Manda a mensagem de cobrança, com dados de exemplo, para um número. Não cria cobrança.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <input value={telefoneTeste} onChange={(e) => setTelefoneTeste(e.target.value)} inputMode="tel"
+            placeholder="DDD e número" className="h-10 px-4 flex-1 min-w-[180px] bg-white ring-1 ring-painel-borda rounded-full text-[13px] text-painel-tinta focus:outline-none focus:ring-2 focus:ring-painel-acento/50" />
+          <button type="button" onClick={testarWhatsapp} disabled={testando || telefoneTeste.replace(/\D/g, '').length < 10}
+            className="h-10 px-5 rounded-full bg-painel-acento text-white text-[12px] font-semibold disabled:opacity-50 cursor-pointer">
+            {testando ? 'Enviando…' : 'Enviar teste'}
+          </button>
+        </div>
+        {resultadoTeste && (
+          <p className={`text-[12px] leading-relaxed break-words ${resultadoTeste.enviado ? 'text-emerald-700' : 'text-rose-700'}`}>
+            {resultadoTeste.enviado
+              ? `Enviada para ${resultadoTeste.destino}. Confira no WhatsApp desse número.`
+              : `Não saiu. ${resultadoTeste.motivo ?? ''}`}
+          </p>
+        )}
       </div>
 
       <div className="rounded-2xl bg-painel-papel p-4 space-y-3">
