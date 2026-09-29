@@ -964,6 +964,11 @@ function CriarSenhaDeSaque({
         dinheiro sem ela.
         {troca && ' Depois da troca, os saques ficam parados por 24 horas, por segurança.'}
       </p>
+      <ul className="mt-2 text-[11px] text-stone-400 leading-relaxed list-disc pl-4">
+        <li>Sem sequência (123456, 987654) nem número repetido (111222, 121212).</li>
+        <li>Sem números do CNPJ, do CPF ou do telefone.</li>
+        <li>Diferente da senha do painel e das últimas senhas de saque.</li>
+      </ul>
 
       <label className="block text-[12px] text-stone-400 mt-4 mb-1.5" htmlFor="senha-painel">Senha do painel</label>
       <input id="senha-painel" type="password" autoComplete="current-password" value={senhaDoPainel}
