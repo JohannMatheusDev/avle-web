@@ -966,11 +966,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       texto: 'Aqui você paga as parcelas, acompanha os seus planos e vê os sorteios. Leva menos de um minuto para conhecer.',
     },
     {
-      alvo: 'pagar-parcela',
-      titulo: 'Pagar a parcela',
-      texto: 'Este botão leva direto ao Pix ou ao boleto da parcela do mês. Ela vence todo 5º dia útil.',
-    },
-    {
       alvo: 'navegacao',
       titulo: 'O menu',
       texto: 'Seus planos, o histórico do que você já pagou, o regulamento da loja e o suporte.',
@@ -983,7 +978,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     {
       alvo: 'cartao-plano',
       titulo: 'O detalhe do plano',
-      texto: 'Toque no plano para ver quanto você já pagou, as parcelas e o sorteio.',
+      texto: 'Toque no plano para pagar a parcela do mês, que vence todo 5º dia útil, e ver quanto você já pagou, as parcelas e o sorteio.',
     },
     {
       alvo: 'secao-extrato',
@@ -1188,39 +1183,6 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 </div>
               </div>
             ))}
-
-            {/* Atalho de pagamento para quem tem mais de um plano e por isso nao
-                cai direto dentro de um deles. Fica antes das listas porque e a
-                unica coisa que a cliente precisa achar sem procurar. */}
-            {nivelVisao !== 'dashboard' && clubesAtivos.length > 0 && (
-              <div className="mb-6 space-y-3">
-                {clubesAtivos.map((clube, i) => (
-                  <div
-                    key={clube.cotaId}
-                    data-tour={i === 0 ? 'pagar-parcela' : undefined}
-                    className="cartao-avle-destaque p-5 flex flex-wrap items-center justify-between gap-4"
-                  >
-                    <div className="min-w-0">
-                      <span className="block text-[9px] font-black uppercase tracking-widest text-stone-400 mb-1">
-                        Parcela deste mês
-                      </span>
-                      <span className="block text-3xl font-bold font-mono leading-none">
-                        R$ {((Number(clube.grupo?.valorParcela) || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                      <span className="block text-[11px] text-stone-400 mt-1.5 truncate">
-                        {clube.grupo?.nome || 'Meu plano'}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleMudarClubeEmExibicao(clube)}
-                      className="bg-[#BD6B42] text-white px-6 py-4 rounded-full text-sm font-bold uppercase tracking-wider hover:brightness-110 active:brightness-95 transition-all cursor-pointer shadow-md w-full sm:w-auto"
-                    >
-                      Pagar parcela
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
 
             {nivelVisao === 'lojas' && !isClienteAmarrado && (
               <div className="space-y-6 text-left">
