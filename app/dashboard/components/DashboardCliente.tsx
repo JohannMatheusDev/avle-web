@@ -621,10 +621,29 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     const cotaId = pelaApi ? Number(pelaApi.cotaId) : Number(pendente);
     const cota = clubesAtivos.find((c: any) => c.cotaId === cotaId);
 
-    // Cota que sumiu (a loja desfez a participação) ou que já tem saldo: não
-    // há mais primeira parcela para cobrar.
-    if (!cota || Number(cota.saldoPoupanca) > 0) {
+    // Cota que sumiu (a loja desfez a participação): não há mais o que cobrar.
+    if (!cota) {
       encerrarPrimeiraParcelaPendente();
+      return;
+    }
+
+    // Pagou: a trava sai e ela vai para a lista dos grupos de que faz parte,
+    // e não fica presa dentro do grupo. Dali ela toca no grupo para abrir o
+    // plano, como faz em qualquer outra visita.
+    if (Number(cota.saldoPoupanca) > 0) {
+      encerrarPrimeiraParcelaPendente();
+      setClubeAtualSelecionado(null);
+      setGrupoSelecionado(null);
+      setAbaAtiva('inicio');
+      setAbaGrupos('meus');
+      const loja = lojas.find((l: any) => l.id === cota.loja?.id) ?? cota.loja;
+      if (loja?.id) entrarNaLoja(loja);
+      else setNivelVisao('grupos');
+      mostrarAviso(
+        'Pagamento confirmado',
+        `Você já faz parte do ${cota.grupo?.nome || 'grupo'}. Toque nele em Meus planos para ver o seu plano.`,
+        false,
+      );
       return;
     }
 
