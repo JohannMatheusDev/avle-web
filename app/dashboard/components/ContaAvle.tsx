@@ -75,7 +75,7 @@ const NOME_DO_TIPO: Record<string, string> = {
 
 const SITUACAO_DO_SAQUE: Record<string, { rotulo: string; classe: string }> = {
   SOLICITANDO: { rotulo: 'Enviando', classe: 'bg-painel-papel text-stone-500' },
-  AGUARDANDO_APROVACAO: { rotulo: 'Aprovar no app do Asaas', classe: 'bg-amber-50 text-amber-800' },
+  AGUARDANDO_APROVACAO: { rotulo: 'Aguardando aprovação', classe: 'bg-amber-50 text-amber-800' },
   PENDENTE: { rotulo: 'Em andamento', classe: 'bg-amber-50 text-amber-800' },
   EM_PROCESSAMENTO: { rotulo: 'No banco', classe: 'bg-amber-50 text-amber-800' },
   CONCLUIDO: { rotulo: 'Concluído', classe: 'bg-emerald-50 text-emerald-700' },
@@ -510,7 +510,7 @@ export function PaginaContaAvle({
             <button
               type="button"
               onClick={() => setModalSaque(true)}
-              disabled={saldo == null || saldo <= 0 || resumo.saqueEmAndamento || !resumo.tipoChavePix}
+              disabled={saldo == null || saldo <= 0 || resumo.saqueEmAndamento}
               className="h-11 px-6 rounded-full bg-painel-acento text-white text-[13px] font-semibold shadow-[0_10px_20px_-12px_rgba(189,107,66,0.9)] hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
             >
               {resumo.saqueEmAndamento ? 'Saque em andamento' : 'Sacar via Pix'}
@@ -539,7 +539,7 @@ export function PaginaContaAvle({
             <CartaoDeSaques
               saldo={saldo}
               saques={painel.saques}
-              aoSacar={podeSacar && saldo != null && saldo > 0 && !resumo.saqueEmAndamento && resumo.tipoChavePix
+              aoSacar={podeSacar && saldo != null && saldo > 0 && !resumo.saqueEmAndamento
                 ? () => setModalSaque(true) : undefined}
             />
           </div>
@@ -559,7 +559,7 @@ export function PaginaContaAvle({
             <Icone nome="link" className="w-4 h-4" />
           </span>
           <div className="min-w-0">
-            <span className="block text-[13px] font-medium text-painel-tinta">Os saques vão para</span>
+            <span className="block text-[13px] font-medium text-painel-tinta">Chave Pix padrão dos saques</span>
             <span className="block text-[12px] text-stone-500 truncate">
               {chavePix && resumo.tipoChavePix
                 ? `${NOME_DO_TIPO[resumo.tipoChavePix] ?? resumo.tipoChavePix} · ${chavePix}`
@@ -718,7 +718,7 @@ export function PaginaContaAvle({
             recarregar();
             carregarSaques();
             carregarExtrato(0);
-            mostrarAviso('Saque pedido', 'O dinheiro sai para a sua chave Pix. Acompanhe o andamento na lista de saques.', false);
+            mostrarAviso('Saque pedido', 'O dinheiro sai para a chave Pix escolhida. Acompanhe o andamento na lista de saques.', false);
           }}
         />
       )}
@@ -822,6 +822,26 @@ function ConectarConta({
   );
 }
 
+type SenhaDeSaque = { definida: boolean; bloqueadaAte: string | null; liberaEm: string | null };
+
+const TIPOS_DE_CHAVE: { id: string; rotulo: string; exemplo: string; teclado: 'numeric' | 'email' | 'text' | 'tel' }[] = [
+  { id: 'CPF', rotulo: 'CPF', exemplo: '000.000.000-00', teclado: 'numeric' },
+  { id: 'CNPJ', rotulo: 'CNPJ', exemplo: '00.000.000/0000-00', teclado: 'numeric' },
+  { id: 'PHONE', rotulo: 'Celular', exemplo: '(42) 99999-0000', teclado: 'tel' },
+  { id: 'EMAIL', rotulo: 'E-mail', exemplo: 'nome@exemplo.com', teclado: 'email' },
+  { id: 'EVP', rotulo: 'Aleatória', exemplo: '123e4567-e89b-12d3-a456-426614174000', teclado: 'text' },
+];
+
+const quando = (iso: string) =>
+  new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+const campo = 'w-full h-12 px-5 bg-painel-papel ring-1 ring-painel-borda rounded-full text-painel-tinta focus:outline-none focus:ring-2 focus:ring-painel-acento/50';
+
+/**
+ * O saque. Vai para qualquer chave Pix - a da loja vem marcada - e se confirma
+ * com a senha de saque, que é separada da senha do painel. Sem ela criada, o
+ * modal começa por criá-la.
+ */
 function ModalDeSaque({
   lojaId,
   saldo,
@@ -837,13 +857,175 @@ function ModalDeSaque({
   aoFechar: () => void;
   aoConcluir: () => void;
 }) {
+  const [situacao, setSituacao] = useState<SenhaDeSaque | null>(null);
+  const [criando, setCriando] = useState(false);
+
+  const carregarSituacao = useCallback(async () => {
+    try {
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/senha-saque`);
+      setSituacao(res.ok ? await res.json() : { definida: false, bloqueadaAte: null, liberaEm: null });
+    } catch {
+      setSituacao({ definida: false, bloqueadaAte: null, liberaEm: null });
+    }
+  }, [lojaId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- leitura inicial da senha de saque
+    carregarSituacao();
+  }, [carregarSituacao]);
+
+  const mostrarCriacao = criando || (situacao !== null && !situacao.definida);
+
+  return (
+    <div className="fixed inset-0 z-[90] bg-painel-tinta/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="titulo-saque">
+      <div className="bg-white w-full sm:max-w-md rounded-t-[28px] sm:rounded-[28px] p-6 shadow-2xl animate-avle-subir max-h-[92vh] overflow-y-auto">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 id="titulo-saque" style={{ fontWeight: 600 }} className="text-[20px] text-painel-tinta">
+              {mostrarCriacao ? (situacao?.definida ? 'Trocar a senha de saque' : 'Crie a senha de saque') : 'Sacar via Pix'}
+            </h3>
+            <p className="text-[12px] text-stone-400 mt-1">Disponível: {real(saldo)}</p>
+          </div>
+          <button type="button" onClick={aoFechar} aria-label="Fechar" className="w-9 h-9 rounded-full bg-painel-papel text-stone-500 hover:text-painel-tinta flex items-center justify-center cursor-pointer">
+            ✕
+          </button>
+        </div>
+
+        {situacao === null ? (
+          <p className="text-[13px] text-stone-400 mt-6">Carregando…</p>
+        ) : mostrarCriacao ? (
+          <CriarSenhaDeSaque
+            lojaId={lojaId}
+            troca={situacao.definida}
+            aoVoltar={situacao.definida ? () => setCriando(false) : undefined}
+            aoCriar={(nova) => { setSituacao(nova); setCriando(false); }}
+          />
+        ) : (
+          <FormularioDeSaque
+            lojaId={lojaId}
+            saldo={saldo}
+            chavePix={chavePix}
+            tipoChavePix={tipoChavePix}
+            situacao={situacao}
+            aoTrocarSenha={() => setCriando(true)}
+            aoErroDeSenha={carregarSituacao}
+            aoConcluir={aoConcluir}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CriarSenhaDeSaque({
+  lojaId,
+  troca,
+  aoVoltar,
+  aoCriar,
+}: {
+  lojaId: number | undefined;
+  troca: boolean;
+  aoVoltar?: () => void;
+  aoCriar: (situacao: SenhaDeSaque) => void;
+}) {
+  const [senhaDoPainel, setSenhaDoPainel] = useState('');
+  const [nova, setNova] = useState('');
+  const [repetida, setRepetida] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState('');
+
+  const seisNumeros = /^\d{6}$/.test(nova);
+  const valido = senhaDoPainel.length > 0 && seisNumeros && nova === repetida;
+
+  const salvar = async () => {
+    setEnviando(true);
+    setErro('');
+    try {
+      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/senha-saque`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senhaDoPainel, novaSenha: nova }),
+      });
+      if (!res.ok) throw new Error(await lerErro(res, 'Não foi possível salvar a senha de saque.'));
+      aoCriar(await res.json());
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Não foi possível salvar a senha de saque.');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const soNumeros = (v: string) => v.replace(/\D/g, '').slice(0, 6);
+
+  return (
+    <>
+      <p className="text-[12px] text-stone-500 leading-relaxed mt-4">
+        São 6 números, só para sacar, diferentes da senha do painel. Quem abrir o painel da loja não consegue tirar
+        dinheiro sem ela.
+        {troca && ' Depois da troca, os saques ficam parados por 24 horas, por segurança.'}
+      </p>
+
+      <label className="block text-[12px] text-stone-400 mt-4 mb-1.5" htmlFor="senha-painel">Senha do painel</label>
+      <input id="senha-painel" type="password" autoComplete="current-password" value={senhaDoPainel}
+        onChange={(e) => setSenhaDoPainel(e.target.value)} className={`${campo} text-[13px]`} />
+
+      <label className="block text-[12px] text-stone-400 mt-4 mb-1.5" htmlFor="nova-senha-saque">Nova senha de saque (6 números)</label>
+      <input id="nova-senha-saque" type="password" inputMode="numeric" autoComplete="new-password" value={nova}
+        onChange={(e) => setNova(soNumeros(e.target.value))} className={`${campo} text-[16px] tracking-[0.4em] tabular-nums`} />
+
+      <label className="block text-[12px] text-stone-400 mt-4 mb-1.5" htmlFor="repetir-senha-saque">Repita a senha de saque</label>
+      <input id="repetir-senha-saque" type="password" inputMode="numeric" autoComplete="new-password" value={repetida}
+        onChange={(e) => setRepetida(soNumeros(e.target.value))} className={`${campo} text-[16px] tracking-[0.4em] tabular-nums`} />
+      {repetida.length === 6 && nova !== repetida && <p className="text-[11px] text-rose-600 mt-1.5">As duas senhas não são iguais.</p>}
+
+      {erro && <p className="text-[12px] text-rose-600 mt-3 leading-snug">{erro}</p>}
+
+      <button type="button" onClick={salvar} disabled={!valido || enviando}
+        className="mt-5 w-full h-12 rounded-full bg-painel-tinta text-white text-[14px] font-semibold hover:bg-avle-verde disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer">
+        {enviando ? 'Salvando…' : troca ? 'Trocar senha de saque' : 'Criar senha de saque'}
+      </button>
+      {aoVoltar && (
+        <button type="button" onClick={aoVoltar} className="mt-2 w-full h-10 text-[12px] font-semibold text-stone-500 hover:text-painel-tinta cursor-pointer">
+          Voltar ao saque
+        </button>
+      )}
+    </>
+  );
+}
+
+function FormularioDeSaque({
+  lojaId,
+  saldo,
+  chavePix,
+  tipoChavePix,
+  situacao,
+  aoTrocarSenha,
+  aoErroDeSenha,
+  aoConcluir,
+}: {
+  lojaId: number | undefined;
+  saldo: number;
+  chavePix: string;
+  tipoChavePix: string;
+  situacao: SenhaDeSaque;
+  aoTrocarSenha: () => void;
+  aoErroDeSenha: () => void;
+  aoConcluir: () => void;
+}) {
+  const temChaveDaLoja = !!chavePix && !!tipoChavePix;
+  const [destino, setDestino] = useState<'loja' | 'outra'>(temChaveDaLoja ? 'loja' : 'outra');
+  const [tipo, setTipo] = useState('CPF');
+  const [chave, setChave] = useState('');
   const [valor, setValor] = useState('');
   const [senha, setSenha] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
 
   const numero = Number(valor.replace(/\./g, '').replace(',', '.'));
-  const valido = Number.isFinite(numero) && numero > 0 && numero <= saldo && senha.length > 0;
+  const chaveOk = destino === 'loja' || chave.trim().length > 0;
+  const travada = situacao.bloqueadaAte ?? situacao.liberaEm;
+  const valido = Number.isFinite(numero) && numero > 0 && numero <= saldo && chaveOk && /^\d{6}$/.test(senha) && !travada;
+  const tipoEscolhido = TIPOS_DE_CHAVE.find((t) => t.id === tipo)!;
 
   const sacar = async () => {
     setEnviando(true);
@@ -852,9 +1034,18 @@ function ModalDeSaque({
       const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/saque`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ valor: numero.toFixed(2), senha }),
+        body: JSON.stringify({
+          valor: numero.toFixed(2),
+          senhaSaque: senha,
+          ...(destino === 'outra' ? { chavePix: chave.trim(), tipoChavePix: tipo } : {}),
+        }),
       });
-      if (!res.ok) throw new Error(await lerErro(res, 'Não foi possível pedir o saque.'));
+      if (!res.ok) {
+        const mensagem = await lerErro(res, 'Não foi possível pedir o saque.');
+        // Senha errada muda as tentativas restantes, ou trava: relê a situação.
+        if (/senha de saque/i.test(mensagem)) { setSenha(''); aoErroDeSenha(); }
+        throw new Error(mensagem);
+      }
       aoConcluir();
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível pedir o saque.');
@@ -864,70 +1055,125 @@ function ModalDeSaque({
   };
 
   return (
-    <div className="fixed inset-0 z-[90] bg-painel-tinta/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="titulo-saque">
-      <div className="bg-white w-full sm:max-w-md rounded-t-[28px] sm:rounded-[28px] p-6 shadow-2xl animate-avle-subir">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 id="titulo-saque" style={{ fontWeight: 600 }} className="text-[20px] text-painel-tinta">Sacar via Pix</h3>
-            <p className="text-[12px] text-stone-400 mt-1">Disponível: {real(saldo)}</p>
-          </div>
-          <button type="button" onClick={aoFechar} aria-label="Fechar" className="w-9 h-9 rounded-full bg-painel-papel text-stone-500 hover:text-painel-tinta flex items-center justify-center cursor-pointer">
-            ✕
-          </button>
-        </div>
+    <>
+      {travada && (
+        <p className="rounded-[16px] bg-amber-50 text-amber-800 text-[12px] leading-relaxed p-3 mt-4">
+          {situacao.bloqueadaAte
+            ? `A senha de saque está travada por excesso de tentativas. Tente de novo ${quando(situacao.bloqueadaAte)}.`
+            : `A senha de saque foi trocada há pouco. Por segurança, o saque volta a funcionar ${quando(situacao.liberaEm!)}.`}
+        </p>
+      )}
 
-        <label className="block text-[12px] text-stone-400 mt-5 mb-1.5" htmlFor="valor-saque">Valor</label>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[14px] text-stone-400">R$</span>
-            <input
-              id="valor-saque"
-              inputMode="decimal"
-              value={valor}
-              onChange={(e) => setValor(e.target.value.replace(/[^\d,.]/g, ''))}
-              placeholder="0,00"
-              className="w-full h-12 pl-12 pr-5 bg-painel-papel ring-1 ring-painel-borda rounded-full text-[16px] font-semibold tabular-nums text-painel-tinta focus:outline-none focus:ring-2 focus:ring-painel-acento/50"
-            />
-          </div>
+      <label className="block text-[12px] text-stone-400 mt-5 mb-1.5" htmlFor="valor-saque">Valor</label>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[14px] text-stone-400">R$</span>
+          <input
+            id="valor-saque"
+            inputMode="decimal"
+            value={valor}
+            onChange={(e) => setValor(e.target.value.replace(/[^\d,.]/g, ''))}
+            placeholder="0,00"
+            className={`${campo} pl-12 text-[16px] font-semibold tabular-nums`}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setValor(saldo.toFixed(2).replace('.', ','))}
+          className="h-12 px-4 rounded-full border border-painel-borda text-[12px] font-semibold text-painel-tinta hover:border-painel-tinta/30 cursor-pointer"
+        >
+          Tudo
+        </button>
+      </div>
+      {numero > saldo && <p className="text-[11px] text-rose-600 mt-1.5">O valor passa do saldo disponível.</p>}
+
+      <span className="block text-[12px] text-stone-400 mt-4 mb-1.5">Para onde vai</span>
+      <div className="grid grid-cols-2 gap-2">
+        {([
+          { id: 'loja', rotulo: 'Chave da loja', desligado: !temChaveDaLoja },
+          { id: 'outra', rotulo: 'Outra chave Pix', desligado: false },
+        ] as const).map((o) => (
           <button
+            key={o.id}
             type="button"
-            onClick={() => setValor(saldo.toFixed(2).replace('.', ','))}
-            className="h-12 px-4 rounded-full border border-painel-borda text-[12px] font-semibold text-painel-tinta hover:border-painel-tinta/30 cursor-pointer"
+            disabled={o.desligado}
+            onClick={() => setDestino(o.id)}
+            aria-pressed={destino === o.id}
+            className={`h-11 rounded-full text-[13px] font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+              destino === o.id ? 'bg-painel-tinta text-white' : 'bg-painel-papel text-painel-tinta ring-1 ring-painel-borda'
+            }`}
           >
-            Tudo
+            {o.rotulo}
           </button>
-        </div>
-        {numero > saldo && <p className="text-[11px] text-rose-600 mt-1.5">O valor passa do saldo disponível.</p>}
+        ))}
+      </div>
 
-        <div className="rounded-[18px] bg-painel-papel p-4 mt-4">
-          <span className="block text-[11px] text-stone-400">Vai para a chave Pix da loja</span>
+      {destino === 'loja' ? (
+        <div className="rounded-[18px] bg-painel-papel p-4 mt-3">
+          <span className="block text-[11px] text-stone-400">Chave cadastrada nas Configurações</span>
           <span className="block text-[13px] font-semibold text-painel-tinta mt-0.5 break-all">
             {NOME_DO_TIPO[tipoChavePix] ?? tipoChavePix} · {chavePix}
           </span>
         </div>
+      ) : (
+        <div className="mt-3 space-y-2">
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Tipo da chave Pix">
+            {TIPOS_DE_CHAVE.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="radio"
+                aria-checked={tipo === t.id}
+                onClick={() => { setTipo(t.id); setChave(''); }}
+                className={`h-9 px-3.5 rounded-full text-[12px] font-semibold transition-colors cursor-pointer ${
+                  tipo === t.id ? 'bg-painel-acento text-white' : 'bg-painel-papel text-stone-500 hover:text-painel-tinta'
+                }`}
+              >
+                {t.rotulo}
+              </button>
+            ))}
+          </div>
+          <input
+            aria-label={`Chave Pix (${tipoEscolhido.rotulo})`}
+            inputMode={tipoEscolhido.teclado}
+            autoCapitalize="none"
+            autoCorrect="off"
+            value={chave}
+            onChange={(e) => setChave(e.target.value)}
+            placeholder={tipoEscolhido.exemplo}
+            className={`${campo} text-[14px]`}
+          />
+          <p className="text-[11px] text-stone-400 leading-relaxed">
+            Confira a chave com cuidado: Pix enviado não volta sozinho. A loja recebe um aviso de todo saque para outra chave.
+          </p>
+        </div>
+      )}
 
-        <label className="block text-[12px] text-stone-400 mt-4 mb-1.5" htmlFor="senha-saque">Confirme com a senha do painel</label>
-        <input
-          id="senha-saque"
-          type="password"
-          autoComplete="current-password"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
-          className="w-full h-12 px-5 bg-painel-papel ring-1 ring-painel-borda rounded-full text-[13px] text-painel-tinta focus:outline-none focus:ring-2 focus:ring-painel-acento/50"
-        />
+      <label className="block text-[12px] text-stone-400 mt-4 mb-1.5" htmlFor="senha-saque">Senha de saque (6 números)</label>
+      <input
+        id="senha-saque"
+        type="password"
+        inputMode="numeric"
+        autoComplete="off"
+        value={senha}
+        onChange={(e) => setSenha(e.target.value.replace(/\D/g, '').slice(0, 6))}
+        className={`${campo} text-[16px] tracking-[0.4em] tabular-nums`}
+      />
+      <button type="button" onClick={aoTrocarSenha} className="mt-1.5 text-[11px] font-semibold text-painel-acento hover:underline cursor-pointer">
+        Esqueci ou quero trocar a senha de saque
+      </button>
 
-        {erro && <p className="text-[12px] text-rose-600 mt-3 leading-snug">{erro}</p>}
+      {erro && <p className="text-[12px] text-rose-600 mt-3 leading-snug">{erro}</p>}
 
-        <button
-          type="button"
-          onClick={sacar}
-          disabled={!valido || enviando}
-          className="mt-5 w-full h-12 rounded-full bg-painel-acento text-white text-[14px] font-semibold shadow-[0_12px_24px_-14px_rgba(189,107,66,0.9)] hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-        >
-          {enviando ? 'Enviando ao Asaas…' : valido ? `Sacar ${real(numero)}` : 'Sacar'}
-        </button>
-      </div>
-    </div>
+      <button
+        type="button"
+        onClick={sacar}
+        disabled={!valido || enviando}
+        className="mt-5 w-full h-12 rounded-full bg-painel-acento text-white text-[14px] font-semibold shadow-[0_12px_24px_-14px_rgba(189,107,66,0.9)] hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+      >
+        {enviando ? 'Enviando ao Asaas…' : valido ? `Sacar ${real(numero)}` : 'Sacar'}
+      </button>
+    </>
   );
 }
 
