@@ -1534,57 +1534,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   </span>
                 </div>
 
-                {/* Pagar e o que a cliente vem fazer aqui, entao e a primeira
-                    coisa da tela. Antes o botao ficava no cabecalho de uma
-                    tabela la embaixo, depois de dois blocos de cartoes e dois
-                    graficos - no celular, quatro telas de rolagem abaixo. */}
-                {etapaAtual !== 4 ? (
-                  <div className="cartao-avle-destaque p-5 sm:p-6">
-                    <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
-                      <div>
-                        <span className="block text-[9px] font-black uppercase tracking-widest text-stone-400 mb-1.5">
-                          Parcela deste mês
-                        </span>
-                        <span className="text-4xl font-bold font-mono leading-none block">
-                          R$ {(valorMensalidade).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <span className="block text-[9px] font-black uppercase tracking-widest text-stone-400 mb-1.5">
-                          Vence em
-                        </span>
-                        <span className="text-xl font-bold font-mono leading-none block">
-                          {dataVencimentoCota || '--/--'}
-                        </span>
-                        <span
-                          className={`block text-[10px] font-bold mt-1 ${
-                            diasRestantesVencimento < 0
-                              ? 'text-rose-400'
-                              : diasRestantesVencimento <= 3
-                                ? 'text-amber-400'
-                                : 'text-stone-400'
-                          }`}
-                        >
-                          {diasRestantesVencimento < 0
-                            ? `${Math.abs(diasRestantesVencimento)} dia${Math.abs(diasRestantesVencimento) === 1 ? '' : 's'} em atraso`
-                            : diasRestantesVencimento === 0
-                              ? 'vence hoje'
-                              : `faltam ${diasRestantesVencimento} dia${diasRestantesVencimento === 1 ? '' : 's'}`}
-                        </span>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => setModalCheckoutAberto(true)}
-                      className="w-full bg-[#BD6B42] text-white py-4 rounded-full text-sm font-bold uppercase tracking-wider hover:brightness-110 active:brightness-95 transition-all cursor-pointer shadow-md"
-                    >
-                      Pagar parcela
-                    </button>
-                    <p className="text-[10px] text-stone-400 text-center mt-2.5">
-                      Pix ou cartão · o comprovante entra no seu histórico
-                    </p>
-                  </div>
-                ) : (
+                {etapaAtual === 4 && (
                   <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center">
                     <span className="block text-[9px] font-black uppercase tracking-widest text-emerald-700 mb-1">
                       Plano quitado
