@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Faz o botão voltar do navegador andar pelas seções do painel.
@@ -22,9 +22,22 @@ import { useEffect, useRef } from 'react';
  * strings, nunca o objeto inteiro do grupo. `aplicar` recebe de volta
  * exatamente o que foi guardado e recoloca a tela naquele ponto.
  */
+/**
+ * O refresh também volta para onde a pessoa estava. O `history.state`
+ * sobrevive ao recarregar a página, mas o painel nascia no Início e gravava
+ * o Início por cima: quem estava em Clientes, ou na ficha de um grupo, e
+ * atualizava a página perdia o lugar.
+ *
+ * Agora o que estava salvo é reaplicado ao montar. A seção volta na hora; o
+ * que depende de lista vinda do servidor (a ficha do grupo, a loja aberta, o
+ * plano da cliente) volta quando `pronto` ficar verdadeiro - antes disso não
+ * há de onde tirar o grupo pelo id. Enquanto espera, nada é gravado no
+ * histórico, para um segundo refresh não perder o lugar de novo.
+ */
 export function useHistoricoDoPainel<T extends Record<string, unknown>>(
   estado: T,
   aplicar: (estado: T) => void,
+  pronto = true,
 ) {
   const chave = JSON.stringify(estado);
 
@@ -36,12 +49,38 @@ export function useHistoricoDoPainel<T extends Record<string, unknown>>(
 
   const jaRegistrouOPrimeiro = useRef(false);
 
+  // O que estava na tela antes do refresh, lido uma vez, antes de qualquer
+  // escrita no histórico.
+  const [salvo] = useState<T | null>(() =>
+    typeof window !== 'undefined' ? ((window.history.state?.painel as T | undefined) ?? null) : null);
+  const restaurado = useRef(false);
+
+  useEffect(() => {
+    if (restaurado.current || !salvo) return;
+    aplicarRef.current(salvo);
+    if (pronto) {
+      restaurado.current = true;
+      return;
+    }
+    // Se a lista nunca chegar (servidor fora do ar), o histórico não pode
+    // ficar parado para sempre: depois de alguns segundos, segue sem ela.
+    const desiste = setTimeout(() => { restaurado.current = true; }, 8000);
+    return () => clearTimeout(desiste);
+  }, [pronto, salvo]);
+
   useEffect(() => {
     const atual = window.history.state?.painel;
     // Igual ao que já está no histórico: é o próprio popstate acabando de ser
     // aplicado. Empurrar aqui criaria uma entrada duplicada e o segundo toque
     // em voltar pareceria não fazer nada.
-    if (atual && JSON.stringify(atual) === chave) return;
+    if (atual && JSON.stringify(atual) === chave) {
+      jaRegistrouOPrimeiro.current = true;
+      return;
+    }
+
+    // Ainda a caminho do que estava salvo: gravar agora trocaria o lugar
+    // salvo pela tela intermediária.
+    if (salvo && !restaurado.current) return;
 
     const novo = { ...window.history.state, painel: JSON.parse(chave) };
 
@@ -55,7 +94,7 @@ export function useHistoricoDoPainel<T extends Record<string, unknown>>(
     }
 
     window.history.pushState(novo, '');
-  }, [chave]);
+  }, [chave, salvo]);
 
   useEffect(() => {
     const aoVoltar = (evento: PopStateEvent) => {
