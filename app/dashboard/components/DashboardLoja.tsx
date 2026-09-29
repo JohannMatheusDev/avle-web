@@ -146,6 +146,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [qtdParcelasManual, setQtdParcelasManual] = useState('1');
   const [processandoPagamentoManual, setProcessandoPagamentoManual] = useState(false);
 
+  // Grupo de teste com pagamento: sai com o nome digitado.
+  const [excluirComPagamento, setExcluirComPagamento] = useState<{ grupoId: number; nome: string; motivo: string } | null>(null);
+  const [nomeParaExcluir, setNomeParaExcluir] = useState('');
+  const [excluindoComPagamento, setExcluindoComPagamento] = useState(false);
   const [modalExclusao, setModalExclusao] = useState<{
     aberto: boolean;
     tipo: 'grupo' | 'participante';
@@ -993,6 +997,14 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
       const res = await apiFetch(`${API_URL}/api/grupos/${grupoId}/completo?ensaio=true`, { method: 'DELETE' });
       relato = await res.json().catch(() => null);
       if (!res.ok) {
+        // Teve pagamento: a loja ainda pode apagar o grupo de teste, digitando
+        // o nome dele para confirmar.
+        if (res.status === 409 && relato?.motivo) {
+          const grupo = listaGrupos.find((g) => g.id === grupoId);
+          setExcluirComPagamento({ grupoId, nome: relato?.grupoNome || grupo?.nome || '', motivo: relato.motivo });
+          setNomeParaExcluir('');
+          return;
+        }
         mostrarAviso('Este grupo não pode ser excluído', relato?.motivo || relato?.erro || 'Não foi possível conferir o grupo.', true);
         return;
       }
@@ -1012,6 +1024,28 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         : `Saem junto ${cotas} cota${cotas === 1 ? '' : 's'}, ${relato?.parcelas ?? 0} parcela${Number(relato?.parcelas) === 1 ? '' : 's'} em aberto`
           + ` e ${noAsaas} cobrança${noAsaas === 1 ? '' : 's'} no Asaas, que a cliente deixa de ver. Nenhuma parcela foi paga neste grupo. Esta ação não pode ser desfeita.`,
     });
+  };
+
+  const excluirGrupoComPagamento = async () => {
+    if (!excluirComPagamento) return;
+    const { grupoId, nome } = excluirComPagamento;
+    setExcluindoComPagamento(true);
+    try {
+      const q = `ensaio=false&forcar=true&mesmoComPagamento=true&confirmacaoNome=${encodeURIComponent(nomeParaExcluir)}`;
+      const res = await apiFetch(`${API_URL}/api/grupos/${grupoId}/completo?${q}`, { method: 'DELETE' });
+      const corpo = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(corpo?.motivo || corpo?.erro || 'O grupo não foi excluído.');
+      mostrarAviso('Grupo excluído', `O grupo ${nome} foi excluído.`, false);
+      if (grupoSelecionado?.id === grupoId) setGrupoSelecionado(null);
+      carregarGruposDoBanco();
+      carregarDadosFinanceiros();
+      carregarAnalytics();
+    } catch (err: any) {
+      mostrarAviso('Erro ao excluir', err.message, true);
+    } finally {
+      setExcluindoComPagamento(false);
+      setExcluirComPagamento(null);
+    }
   };
 
   const confirmarExclusao = async () => {
@@ -4136,6 +4170,39 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 className="flex-1 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {processandoFilaId !== null ? 'Convocando...' : 'Confirmar convocação'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {excluirComPagamento && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
+            <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Excluir o grupo {excluirComPagamento.nome}</h3>
+            <p className="text-[12px] text-stone-600 leading-relaxed">{excluirComPagamento.motivo}</p>
+            <p className="text-[12px] text-stone-600 leading-relaxed">
+              Se for um grupo de teste, dá para excluir mesmo assim. Ele some do painel e das clientes. O pagamento continua
+              registrado no Asaas, mas sai do AVLE e deixa de contar no faturamento. Digite o nome do grupo para confirmar.
+            </p>
+            <input
+              value={nomeParaExcluir}
+              onChange={(e) => setNomeParaExcluir(e.target.value)}
+              placeholder={excluirComPagamento.nome}
+              className="w-full h-11 px-4 bg-painel-papel ring-1 ring-painel-borda rounded-full text-[13px] text-painel-tinta focus:outline-none focus:ring-2 focus:ring-rose-400/60"
+            />
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => setExcluirComPagamento(null)}
+                className="flex-1 py-2.5 border rounded-full text-stone-500 font-semibold text-[12px] hover:bg-stone-50 cursor-pointer">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={excluindoComPagamento || nomeParaExcluir.trim().toLowerCase() !== excluirComPagamento.nome.trim().toLowerCase()}
+                onClick={excluirGrupoComPagamento}
+                className="flex-1 py-2.5 bg-rose-700 text-white font-semibold rounded-full text-[12px] hover:bg-rose-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {excluindoComPagamento ? 'Excluindo…' : 'Excluir mesmo assim'}
               </button>
             </div>
           </div>
