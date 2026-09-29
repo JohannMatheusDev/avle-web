@@ -148,6 +148,18 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     return apenasNumeros.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/g, "$1.$2.$3/$4-$5");
   };
 
+  // O vencimento da cota aberta, que o servidor calcula pulando o que já foi
+  // pago: quem pagou outubro na entrada vê novembro, e não "vence em 07/10".
+  // Sem essa informação, vale o calendário geral de antes.
+  const vencimentoDaCota = clubeAtualSelecionado?.proximaParcelaVencimento
+    ? new Date(`${clubeAtualSelecionado.proximaParcelaVencimento}T12:00:00`)
+    : null;
+  const vencimentoExibido = vencimentoDaCota ? formatarData(vencimentoDaCota) : dataVencimentoCota;
+  const diasExibidos = vencimentoDaCota ? diasAte(vencimentoDaCota) : diasRestantesVencimento;
+  const cicloAtualPago = clubeAtualSelecionado?.cicloAtualPago === true;
+  const mesDaProxima = vencimentoDaCota ? vencimentoDaCota.toLocaleDateString('pt-BR', { month: 'long' }) : '';
+  const mesDoCicloPago = proximoVencimento().toLocaleDateString('pt-BR', { month: 'long' });
+
   useEffect(() => {
     const venc = proximoVencimento();
     const dias = diasAte(venc);
@@ -1489,7 +1501,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                   onClick={() => setNivelVisao('grupos')}
                   className="text-[11px] font-bold text-stone-500 hover:text-[#0B1E14] uppercase tracking-wider flex items-center gap-1 transition-colors bg-white border border-[#E6E2D8] px-4 py-2 rounded-full cursor-pointer shadow-xs w-fit"
                 >
-                  ← Voltar para os clubes
+                  ← Voltar para os grupos
                 </button>
 
                 <div className="border-b border-[#DFD9CE] pb-5">
@@ -1507,13 +1519,28 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                     ficava fora da tela do celular. Abre Pix, cartão ou quitar. */}
                 {etapaAtual !== 4 && (
                   <div>
+                    {/* Pagou a parcela do ciclo (a entrada, por exemplo): ela
+                        precisa ler que este mês está resolvido, para não achar
+                        que paga duas vezes. Pagar agora é adiantar a próxima. */}
+                    {cicloAtualPago && (
+                      <div className="mb-3 rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-center">
+                        <p className="text-[13px] font-bold text-emerald-800">
+                          ✓ A parcela de {mesDoCicloPago} já está paga
+                        </p>
+                        <p className="text-[11px] text-emerald-700 mt-0.5">
+                          A próxima{mesDaProxima ? `, de ${mesDaProxima},` : ''} vence em {vencimentoExibido}. Não precisa pagar nada agora.
+                        </p>
+                      </div>
+                    )}
                     <button
                       type="button"
                       data-tour="pagar-parcela"
                       onClick={() => setModalCheckoutAberto(true)}
-                      className="w-full bg-[#BD6B42] text-white py-4 rounded-full text-sm font-bold uppercase tracking-wider hover:brightness-110 active:brightness-95 transition-all cursor-pointer shadow-md"
+                      className={cicloAtualPago
+                        ? 'w-full bg-white text-[#BD6B42] border-2 border-[#BD6B42] py-3.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-[#BD6B42]/5 transition-all cursor-pointer'
+                        : 'w-full bg-[#BD6B42] text-white py-4 rounded-full text-sm font-bold uppercase tracking-wider hover:brightness-110 active:brightness-95 transition-all cursor-pointer shadow-md'}
                     >
-                      Pagar parcela · R$ {(valorMensalidade).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {cicloAtualPago ? `Adiantar a parcela de ${mesDaProxima}` : 'Pagar parcela'} · R$ {(valorMensalidade).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </button>
                     <p className="text-[10px] text-stone-400 text-center mt-2">
                       Pix, cartão ou quitar o plano de uma vez · o comprovante entra no seu histórico
@@ -1535,20 +1562,20 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                 {/* ── Datas fixas ── */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className={`flex items-center justify-between px-5 py-3.5 rounded-xl border ${
-                    diasRestantesVencimento <= 3
+                    diasExibidos <= 3
                       ? 'bg-amber-50 border-amber-200'
                       : 'bg-white border-[#E6E2D8]'
                   }`}>
                     <div>
                       <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Próximo vencimento</p>
-                      <p className={`text-base font-black font-mono mt-0.5 ${diasRestantesVencimento <= 3 ? 'text-amber-700' : 'text-[#0B1E14]'}`}>
-                        {dataVencimentoCota || '--/--'}
+                      <p className={`text-base font-black font-mono mt-0.5 ${diasExibidos <= 3 ? 'text-amber-700' : 'text-[#0B1E14]'}`}>
+                        {vencimentoExibido || '--/--'}
                       </p>
                       <p className="text-[10px] text-stone-400 mt-0.5">5º dia útil do mês · feriados excluídos</p>
                     </div>
                     <div className="text-right flex-shrink-0 ml-4">
-                      <span className={`text-2xl font-black font-mono ${diasRestantesVencimento <= 3 ? 'text-amber-600' : 'text-[#BD6B42]'}`}>
-                        {diasRestantesVencimento}d
+                      <span className={`text-2xl font-black font-mono ${diasExibidos <= 3 ? 'text-amber-600' : 'text-[#BD6B42]'}`}>
+                        {diasExibidos}d
                       </span>
                       <p className="text-[9px] text-stone-400 uppercase tracking-wider">restantes</p>
                     </div>
