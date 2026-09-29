@@ -657,7 +657,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
       else setNivelVisao('grupos');
       mostrarAviso(
         'Pagamento confirmado',
-        `Você já faz parte do ${cota.grupo?.nome || 'grupo'}. Toque nele em Meus planos para ver o seu plano.`,
+        `Você já faz parte do ${cota.grupo?.nome || 'grupo'}. Toque nele em Meus grupos para ver o seu plano.`,
         false,
       );
       return;
@@ -911,7 +911,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   const isClienteAmarrado = !!lojaBloqueadaId;
 
   const secoesDaCliente: ItemDeNavegacao[] = [
-    { id: 'inicio',  rotulo: isClienteAmarrado ? 'Meus planos' : 'Rede de lojas', icone: isClienteAmarrado ? 'planos' : 'lojas' },
+    { id: 'inicio',  rotulo: isClienteAmarrado ? 'Meus grupos' : 'Rede de lojas', icone: isClienteAmarrado ? 'planos' : 'lojas' },
     { id: 'extrato', rotulo: 'Histórico',   icone: 'historico' },
     { id: 'regras',  rotulo: 'Regulamento', icone: 'regras' },
     { id: 'ajuda',   rotulo: 'Suporte',     icone: 'ajuda' },
@@ -986,8 +986,8 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     },
     {
       alvo: 'abas-planos',
-      titulo: 'Seus planos e os grupos com vaga',
-      texto: 'Em "Meus planos" ficam os grupos de que você participa. Em "Grupos disponíveis", os da loja que ainda têm vaga para entrar.',
+      titulo: 'Os seus grupos e os que têm vaga',
+      texto: 'Em "Meus grupos" ficam os grupos de que você participa. Em "Grupos disponíveis", os da loja que ainda têm vaga para entrar.',
     },
     {
       alvo: 'cartao-plano',
@@ -1383,7 +1383,7 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                           abaAtual === 'meus' ? 'bg-[#0B1E14] text-white shadow' : 'text-stone-500 hover:text-[#0B1E14]'
                         }`}
                       >
-                        Meus planos{meusGrupos.length > 0 ? ` · ${meusGrupos.length}` : ''}
+                        Meus grupos{meusGrupos.length > 0 ? ` · ${meusGrupos.length}` : ''}
                       </button>
                       <button
                         type="button"
