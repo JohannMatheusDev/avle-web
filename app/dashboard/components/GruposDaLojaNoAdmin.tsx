@@ -35,6 +35,8 @@ export default function GruposDaLojaNoAdmin({ lojaId }: { lojaId: number }) {
   // Grupo com dinheiro recebido não pode ser apagado: o caminho é encerrar.
   const [encerrando, setEncerrando] = useState<{ grupo: Grupo; relato: RelatoDoEncerramento; motivo: string } | null>(null);
   const [enviandoEncerramento, setEnviandoEncerramento] = useState(false);
+  // Grupo de teste com Pix de verdade: sai mesmo assim, com o nome digitado.
+  const [nomeDigitado, setNomeDigitado] = useState('');
 
   const carregar = useCallback(async () => {
     try {
@@ -120,6 +122,28 @@ export default function GruposDaLojaNoAdmin({ lojaId }: { lojaId: number }) {
     }
   };
 
+  const excluirMesmoAssim = async () => {
+    if (!encerrando) return;
+    setEnviandoEncerramento(true);
+    try {
+      const q = `ensaio=false&forcar=true&mesmoComPagamento=true&confirmacaoNome=${encodeURIComponent(nomeDigitado)}`;
+      const res = await apiFetch(`${API_URL}/api/grupos/${encerrando.grupo.id}/completo?${q}`, { method: 'DELETE' });
+      const relato: Relato = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAviso({ texto: relato.motivo || relato.erro || 'O grupo não foi excluído.', erro: true });
+      } else {
+        setAviso({ texto: `O grupo ${encerrando.grupo.nome} foi excluído.`, erro: false });
+        carregar();
+      }
+    } catch {
+      setAviso({ texto: 'Não foi possível falar com o servidor.', erro: true });
+    } finally {
+      setEnviandoEncerramento(false);
+      setEncerrando(null);
+      setNomeDigitado('');
+    }
+  };
+
   const r = conferindo?.relato;
 
   return (
@@ -173,13 +197,35 @@ export default function GruposDaLojaNoAdmin({ lojaId }: { lojaId: number }) {
               pago continua registrado.
             </p>
             <div className="flex gap-2 pt-1">
-              <button type="button" onClick={() => setEncerrando(null)}
+              <button type="button" onClick={() => { setEncerrando(null); setNomeDigitado(''); }}
                 className="flex-1 py-2.5 border rounded-full text-stone-500 font-semibold text-[12px] hover:bg-stone-50 cursor-pointer">
                 Cancelar
               </button>
               <button type="button" disabled={enviandoEncerramento} onClick={encerrar}
                 className="flex-1 py-2.5 bg-painel-tinta text-white font-semibold rounded-full text-[12px] hover:bg-avle-verde disabled:opacity-50 cursor-pointer">
                 {enviandoEncerramento ? 'Encerrando…' : 'Encerrar o grupo'}
+              </button>
+            </div>
+
+            <div className="border-t border-painel-borda pt-4 space-y-2">
+              <p className="text-[12px] font-semibold text-rose-700">É um grupo de teste? Excluir mesmo assim</p>
+              <p className="text-[11px] text-stone-500 leading-relaxed">
+                O grupo some para a loja e para as clientes. O pagamento continua registrado no Asaas, mas sai do AVLE e deixa
+                de contar no faturamento da loja. Digite o nome do grupo para confirmar.
+              </p>
+              <input
+                value={nomeDigitado}
+                onChange={(e) => setNomeDigitado(e.target.value)}
+                placeholder={encerrando.grupo.nome}
+                className="w-full h-11 px-4 bg-painel-papel ring-1 ring-painel-borda rounded-full text-[13px] text-painel-tinta focus:outline-none focus:ring-2 focus:ring-rose-400/60"
+              />
+              <button
+                type="button"
+                disabled={enviandoEncerramento || nomeDigitado.trim().toLowerCase() !== encerrando.grupo.nome.trim().toLowerCase()}
+                onClick={excluirMesmoAssim}
+                className="w-full py-2.5 bg-rose-700 text-white font-semibold rounded-full text-[12px] hover:bg-rose-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {enviandoEncerramento ? 'Excluindo…' : 'Excluir mesmo assim'}
               </button>
             </div>
           </div>
