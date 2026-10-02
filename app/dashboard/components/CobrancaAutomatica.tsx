@@ -21,6 +21,19 @@ type Situacao = {
   vencimento: string;
   lembreteEmailAtivo: boolean;
   lembreteEmailModoTeste: boolean;
+  avisoMensalAtivo?: boolean;
+};
+
+type Aviso = {
+  sairiam?: number;
+  enviados?: number;
+  falhas?: number;
+  semCelular?: number;
+  jaAvisadas?: number;
+  foraPorque?: Record<string, number>;
+  amostra?: string[];
+  problemas?: string[];
+  motivo?: string;
 };
 
 type Ensaio = {
@@ -62,6 +75,24 @@ export default function CobrancaAutomatica() {
   const [telefoneTeste, setTelefoneTeste] = useState('42984117768');
   const [testando, setTestando] = useState(false);
   const [resultadoTeste, setResultadoTeste] = useState<{ enviado: boolean; destino?: string; motivo?: string } | null>(null);
+
+  const [aviso, setAviso] = useState<Aviso | null>(null);
+  const [avisoOcupado, setAvisoOcupado] = useState(false);
+
+  const chamarAviso = async (acao: 'ensaiar' | 'enviar') => {
+    if (acao === 'enviar' && !window.confirm(
+      `Mandar agora o aviso do mês pelo WhatsApp para ${aviso?.sairiam ?? 'todas as'} cliente(s) que ainda não pagaram?`,
+    )) return;
+    setAvisoOcupado(true);
+    try {
+      const r = await apiFetch(`/api/cobranca/aviso-do-mes/${acao}`, { method: 'POST' });
+      setAviso(r.ok ? await r.json() : { motivo: 'O servidor recusou o pedido.' });
+    } catch {
+      setAviso({ motivo: 'Não foi possível falar com o servidor.' });
+    } finally {
+      setAvisoOcupado(false);
+    }
+  };
 
   const testarWhatsapp = async () => {
     setTestando(true);
@@ -161,6 +192,66 @@ export default function CobrancaAutomatica() {
               ? `Enviada para ${resultadoTeste.destino}. Confira no WhatsApp desse número.`
               : `Não saiu. ${resultadoTeste.motivo ?? ''}`}
           </p>
+        )}
+      </div>
+
+      <div className="rounded-2xl bg-painel-papel p-4 space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold text-painel-tinta">Aviso do mês, sem cobrança</p>
+            <p className="text-[11px] text-stone-500 max-w-md leading-relaxed">
+              Lembra pelo WhatsApp quem ainda não pagou a parcela de {mes(situacao.proximaCompetencia)}, com o endereço do
+              painel. Não emite nada no Asaas. Sai sozinho de hora em hora, das 9h às 18h, até o vencimento, uma vez por cliente.
+            </p>
+            <p className="text-[11px] text-stone-400 font-mono mt-1">AVLE_AVISO_MENSAL_ATIVO</p>
+          </div>
+          <span className={`text-[12px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${situacao.avisoMensalAtivo ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>
+            {situacao.avisoMensalAtivo ? 'Ligado' : 'Desligado'}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => chamarAviso('ensaiar')} disabled={avisoOcupado}
+            className="h-10 px-5 rounded-full bg-painel-tinta text-white text-[12px] font-semibold hover:bg-avle-verde disabled:opacity-50 cursor-pointer">
+            {avisoOcupado ? 'Aguarde…' : 'Ver quem recebe'}
+          </button>
+          {situacao.avisoMensalAtivo && (
+            <button type="button" onClick={() => chamarAviso('enviar')} disabled={avisoOcupado}
+              className="h-10 px-5 rounded-full bg-painel-acento text-white text-[12px] font-semibold disabled:opacity-50 cursor-pointer">
+              Enviar agora
+            </button>
+          )}
+        </div>
+        {aviso && (
+          <div className="space-y-2 text-[12px] text-stone-600">
+            {aviso.motivo ? (
+              <p className="text-amber-800">{aviso.motivo}</p>
+            ) : (
+              <>
+                <p className="text-painel-tinta">
+                  {aviso.enviados !== undefined
+                    ? <><strong>{aviso.enviados}</strong> aviso(s) enviado(s){aviso.falhas ? `, ${aviso.falhas} não saíram` : ''}.</>
+                    : <><strong>{aviso.sairiam ?? 0}</strong> cliente(s) receberiam agora.</>}
+                  {' '}Já avisadas este mês: {aviso.jaAvisadas ?? 0}. Sem celular: {aviso.semCelular ?? 0}.
+                </p>
+                {aviso.foraPorque && Object.keys(aviso.foraPorque).length > 0 && (
+                  <ul className="space-y-0.5">
+                    {Object.entries(aviso.foraPorque).map(([m, n]) => <li key={m}>{n} · {m}</li>)}
+                  </ul>
+                )}
+                {aviso.problemas && aviso.problemas.length > 0 && (
+                  <ul className="space-y-0.5 text-rose-700 break-words">
+                    {aviso.problemas.map((p) => <li key={p}>{p}</li>)}
+                  </ul>
+                )}
+                {aviso.amostra && aviso.amostra.length > 0 && (
+                  <details>
+                    <summary className="font-semibold text-stone-500 cursor-pointer">Quem recebe</summary>
+                    <ul className="mt-1 space-y-0.5">{aviso.amostra.map((a) => <li key={a}>{a}</li>)}</ul>
+                  </details>
+                )}
+              </>
+            )}
+          </div>
         )}
       </div>
 
