@@ -1683,7 +1683,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const termoBuscaCliente = buscaClienteGrupo.trim().toLowerCase();
   const clientesDisponiveisFiltrados = clientesDisponiveis.filter((c) => {
     if (!termoBuscaCliente) return true;
-    return `${c.nome || ''} ${c.email || ''} ${c.cpf || ''}`.toLowerCase().includes(termoBuscaCliente);
+    const digitos = termoBuscaCliente.replace(/\D/g, '');
+    return `${c.nome || ''} ${c.email || ''} ${c.cpf || ''}`.toLowerCase().includes(termoBuscaCliente)
+      || (digitos.length >= 3 && `${c.cpf || ''} ${c.telefone || ''}`.replace(/\D/g, '').includes(digitos));
   });
   // Trava a seleção na quantidade de vagas para o operador não montar um envio
   // que o servidor recusaria pela metade.
@@ -2778,8 +2780,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
               const termo = normalizar(buscaCliente);
+              // CPF e telefone se acham pelos números, com ou sem ponto, traço
+              // e parênteses: "(42) 98411" e "4298411" encontram a mesma cliente.
+              const digitos = buscaCliente.replace(/\D/g, '');
               const clientesFiltrados = termo
-                ? clientesAtivos.filter((c) => normalizar(String(c.nome ?? '')).includes(termo))
+                ? clientesAtivos.filter((c) =>
+                    normalizar(String(c.nome ?? '')).includes(termo)
+                    || normalizar(String(c.email ?? '')).includes(termo)
+                    || (digitos.length >= 3 && (
+                      String(c.cpf ?? '').replace(/\D/g, '').includes(digitos)
+                      || String(c.telefone ?? '').replace(/\D/g, '').includes(digitos)
+                    )))
                 : clientesAtivos;
 
               const totalPaginas = Math.max(1, Math.ceil(clientesFiltrados.length / CLIENTES_POR_PAGINA));
@@ -2844,7 +2855,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                             <div className="relative">
                               <input
                                 type="search"
-                                placeholder="buscar por nome"
+                                placeholder="buscar por nome, CPF ou telefone"
                                 value={buscaCliente}
                                 onChange={(e) => {
                                   setBuscaCliente(e.target.value);
@@ -4351,7 +4362,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 type="text"
                 value={buscaClienteGrupo}
                 onChange={(e) => setBuscaClienteGrupo(e.target.value)}
-                placeholder="Buscar por nome, e-mail ou CPF"
+                placeholder="Buscar por nome, e-mail, CPF ou telefone"
                 className="w-full h-[40px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm focus:outline-none focus:border-[#BD6B42]"
               />
 
