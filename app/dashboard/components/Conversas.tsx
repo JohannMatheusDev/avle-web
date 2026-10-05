@@ -23,10 +23,13 @@ type Resumo = {
   janelaAberta: boolean;
 };
 
+type Midia = { tipo: 'image' | 'audio' | 'video' | 'document' | 'sticker'; mime?: string; nome?: string };
+
 type Mensagem = {
   id: number;
   direcao: 'ENTRADA' | 'SAIDA';
   texto?: string;
+  midia?: Midia;
   status?: string;
   erro?: string;
   autor?: string;
@@ -54,6 +57,49 @@ const hora = (iso?: string) => {
 const telefoneLegivel = (t: string) => (t.length === 11 ? `(${t.slice(0, 2)}) ${t.slice(2, 7)}-${t.slice(7)}` : t);
 
 const SITUACAO: Record<string, string> = { sent: 'Enviada', delivered: 'Entregue', read: 'Lida', failed: 'Não entregue' };
+
+/**
+ * O arquivo que a cliente mandou. Vem pelo servidor, com a sessão, e vira um
+ * endereço local do navegador - a Meta só entrega o arquivo com o token dela.
+ */
+function ArquivoDaMensagem({ telefone, mensagemId, midia }: { telefone: string; mensagemId: number; midia: Midia }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [falhou, setFalhou] = useState(false);
+
+  useEffect(() => {
+    let ativo = true;
+    let criada: string | null = null;
+    apiFetch(`/api/conversas/${telefone}/midia/${mensagemId}`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error();
+        criada = URL.createObjectURL(await r.blob());
+        if (ativo) setUrl(criada);
+      })
+      .catch(() => { if (ativo) setFalhou(true); });
+    return () => { ativo = false; if (criada) URL.revokeObjectURL(criada); };
+  }, [telefone, mensagemId]);
+
+  if (falhou) return <span className="block text-[11px] italic opacity-70">O arquivo não abriu. A Meta guarda por até 30 dias.</span>;
+  if (!url) return <span className="block text-[11px] opacity-60">Carregando o arquivo…</span>;
+
+  if (midia.tipo === 'image' || midia.tipo === 'sticker') {
+    return (
+      <a href={url} target="_blank" rel="noreferrer" className="block">
+        {/* eslint-disable-next-line @next/next/no-img-element -- endereço local do navegador, fora do otimizador */}
+        <img src={url} alt={midia.tipo === 'sticker' ? 'Figurinha' : 'Foto enviada pela cliente'}
+          className={`rounded-xl ${midia.tipo === 'sticker' ? 'w-28' : 'max-h-72 w-auto'} object-contain`} />
+      </a>
+    );
+  }
+  if (midia.tipo === 'audio') return <audio controls src={url} className="max-w-full" />;
+  if (midia.tipo === 'video') return <video controls src={url} className="rounded-xl max-h-72 max-w-full" />;
+  return (
+    <a href={url} download={midia.nome || 'documento'}
+      className="inline-flex items-center gap-2 underline underline-offset-2 font-semibold">
+      Baixar {midia.nome || 'documento'}
+    </a>
+  );
+}
 
 export default function Conversas({ ehAdmin, aoContarNaoLidas }: { ehAdmin: boolean; aoContarNaoLidas?: (n: number) => void }) {
   const [lista, setLista] = useState<Resumo[] | null>(null);
@@ -210,7 +256,13 @@ export default function Conversas({ ehAdmin, aoContarNaoLidas }: { ehAdmin: bool
                 <div key={m.id} className={`flex ${m.direcao === 'SAIDA' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed whitespace-pre-wrap break-words ${
                     m.direcao === 'SAIDA' ? 'bg-painel-tinta text-white rounded-br-md' : 'bg-white text-painel-tinta ring-1 ring-painel-borda rounded-bl-md'}`}>
-                    {m.texto}
+                    {m.midia && (
+                      <span className="block mb-1">
+                        <ArquivoDaMensagem telefone={aberta.telefone} mensagemId={m.id} midia={m.midia} />
+                      </span>
+                    )}
+                    {/* Sem legenda, o nome do tipo ("Foto", "Áudio") já está no arquivo. */}
+                    {!(m.midia && ['Foto', 'Áudio', 'Vídeo', 'Figurinha'].includes(m.texto ?? '')) && m.texto}
                     <span className={`block text-[10px] mt-1 ${m.direcao === 'SAIDA' ? 'text-white/60' : 'text-stone-400'}`}>
                       {m.autor ? `${m.autor} · ` : ''}{hora(m.quando)}
                       {m.direcao === 'SAIDA' && m.status ? ` · ${SITUACAO[m.status] ?? m.status}` : ''}
