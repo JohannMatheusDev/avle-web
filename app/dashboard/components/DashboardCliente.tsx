@@ -2294,6 +2294,9 @@ function CheckoutForm({
   // nao da para mandar a pessoa fechar e voltar depois: a saida dela dali e
   // pedir a cobranca de novo.
   const [tentativaDePix, setTentativaDePix] = useState(0);
+  // O motivo que o servidor deu, quando ele explica - a loja que ainda não
+  // conectou a conta do Asaas, por exemplo. Sem motivo, vale o texto genérico.
+  const [motivoSemPix, setMotivoSemPix] = useState('');
 
   const [numeroCartao, setNumeroCartao] = useState('');
   const [nomeImpresso, setNomeImpresso] = useState('');
@@ -2317,12 +2320,16 @@ function CheckoutForm({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ valor: valorCobrado, cotaId }),
     })
-      .then((res) => {
-        if (!res.ok) throw new Error();
+      .then(async (res) => {
+        if (res.status === 409) {
+          const corpo = await res.json().catch(() => ({}));
+          throw new Error(corpo.error || '');
+        }
+        if (!res.ok) throw new Error('');
         return res.json();
       })
-      .then((data) => setDadosPix(data))
-      .catch(() => {})
+      .then((data) => { setMotivoSemPix(''); setDadosPix(data); })
+      .catch((e: Error) => setMotivoSemPix(e.message || ''))
       .finally(() => setCarregandoPix(false));
   }, [valorCobrado, cotaId, metodo, tentativaDePix]);
 
@@ -2505,9 +2512,10 @@ function CheckoutForm({
           ) : (
             <div className="p-5 bg-stone-50 border border-dashed border-[#DFD9CE] rounded-2xl text-center space-y-3">
               <span className="block font-semibold text-rose-500 text-xs leading-relaxed">
-                {obrigatorio
-                  ? 'Não foi possível preparar o Pix agora. Tente de novo em instantes.'
-                  : 'Não foi possível preparar o Pix agora. Feche e tente de novo em instantes.'}
+                {motivoSemPix
+                  || (obrigatorio
+                    ? 'Não foi possível preparar o Pix agora. Tente de novo em instantes.'
+                    : 'Não foi possível preparar o Pix agora. Feche e tente de novo em instantes.')}
               </span>
               <button
                 type="button"

@@ -278,7 +278,7 @@ export default function CobrancaAutomatica() {
                     { r: 'Sairiam', v: ensaio.seriamEmitidas ?? 0 },
                     { r: 'Ficam de fora', v: ensaio.puladas ?? 0 },
                     { r: 'Sem celular válido', v: ensaio.semCelularValido ?? 0 },
-                    { r: 'Loja sem carteira', v: ensaio.semRepasseAutomatico ?? 0 },
+                    { r: 'Loja sem conta Asaas', v: ensaio.semRepasseAutomatico ?? 0 },
                   ].map((b) => (
                     <div key={b.r} className="rounded-xl bg-white p-3">
                       <span className="block text-[11px] text-stone-400">{b.r}</span>
@@ -296,8 +296,8 @@ export default function CobrancaAutomatica() {
                 )}
                 {(ensaio.semRepasseAutomatico ?? 0) > 0 && (
                   <p className="text-[12px] text-amber-800">
-                    Atenção: {ensaio.semRepasseAutomatico} cobrança(s) de loja sem carteira sairiam sem split, e o valor
-                    inteiro ficaria na conta da AVLE.
+                    Atenção: {ensaio.semRepasseAutomatico} parcela(s) ficam de fora porque a loja ainda não conectou a
+                    conta do Asaas dela.
                   </p>
                 )}
                 {ensaio.amostra && ensaio.amostra.length > 0 && (

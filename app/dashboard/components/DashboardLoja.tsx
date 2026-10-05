@@ -10,6 +10,7 @@ import EquipeDaLoja from './EquipeDaLoja';
 import EmailDaConta from './EmailDaConta';
 import PedidosDaEquipe from './PedidosDaEquipe';
 import Conversas from './Conversas';
+import ContaAsaasDaLoja from './ContaAsaasDaLoja';
 import {
   Avatar, BarraSuperior, BotaoDaConta, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
   TrilhoDeNavegacao,
@@ -1608,7 +1609,6 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           conta: dadosLoja.conta,
           contaDigito: dadosLoja.contaDigito,
           tipoConta: dadosLoja.tipoConta,
-          asaasWalletId: dadosLoja.asaasWalletId,
         }),
       });
       if (!res.ok) throw new Error(await lerMensagemErro(res));
@@ -3541,6 +3541,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             {abaLoja === 'configuracoes' && (
               <div className="space-y-6 text-left max-w-xl animate-fadeIn">
                 {!ehColaborador && (
+                  <ContaAsaasDaLoja lojaId={usuario?.lojaId || usuario?.id} mostrarAviso={mostrarAviso} />
+                )}
+                {!ehColaborador && (
                   <EmailDaConta lojaId={usuario?.lojaId || usuario?.id} emailAtual={usuario?.email} mostrarAviso={mostrarAviso} />
                 )}
                 {!ehColaborador && (
@@ -3674,22 +3677,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     <div className="border-t border-[#DFD9CE] pt-5 space-y-4">
                       <div>
                         <h4 className="text-[11px] font-bold text-[#0B1E14] uppercase tracking-wider">Recebimento</h4>
-                        <p className="text-[10px] text-stone-400 mt-0.5">Para onde vão os 90% de cada parcela paga pelas suas clientes.</p>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 tracking-wider">Wallet ID do Asaas</label>
-                        <input
-                          type="text"
-                          value={dadosLoja.asaasWalletId ?? ''}
-                          onChange={(e) => alterarCampoDaLoja('asaasWalletId', e.target.value)}
-                          placeholder="00000000-0000-0000-0000-000000000000"
-                          className="w-full border border-[#DFD9CE] rounded-xl px-3.5 py-2.5 font-mono focus:outline-none focus:border-[#BD6B42] transition-colors"
-                        />
-                        <p className="text-[10px] text-stone-400 mt-1.5 leading-relaxed">
-                          Está na sua conta do Asaas, em Configurações · Integrações. Sem ele, o sistema não
-                          consegue separar a sua parte do pagamento. <strong className="text-stone-500">Confira antes de salvar:
-                          um número errado manda o dinheiro para outro lugar.</strong>
+                        <p className="text-[10px] text-stone-400 mt-0.5">
+                          As parcelas caem na sua conta do Asaas, conectada no cartão Conta do Asaas, acima.
                         </p>
                       </div>
 
