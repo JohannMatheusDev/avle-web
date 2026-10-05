@@ -201,7 +201,7 @@ export default function CobrancaAutomatica() {
             <p className="text-[13px] font-semibold text-painel-tinta">Aviso do mês, sem cobrança</p>
             <p className="text-[11px] text-stone-500 max-w-md leading-relaxed">
               Lembra pelo WhatsApp quem ainda não pagou a parcela de {mes(situacao.proximaCompetencia)}, com o endereço do
-              painel. Não emite nada no Asaas. Sai sozinho de hora em hora, das 9h às 18h, em dia útil, até o vencimento, uma vez por cliente.
+              painel. Não emite nada no Asaas. Sai sozinho no 1º, no 3º e no 5º dia útil (o vencimento), das 9h às 18h, uma vez por etapa, enquanto a cliente não pagar.
             </p>
             <p className="text-[11px] text-stone-400 font-mono mt-1">AVLE_AVISO_MENSAL_ATIVO</p>
           </div>
