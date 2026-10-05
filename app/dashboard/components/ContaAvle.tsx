@@ -14,10 +14,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { Icone } from './Casca';
 import FluxoDeSaque from './FluxoDeSaque';
-import { SeletorDePeriodo, real, variacao } from './Indicadores';
+import ContaAsaasDaLoja from './ContaAsaasDaLoja';
+import { real, variacao } from './Indicadores';
+import type { DadosDoPainel } from './PainelDaConta';
+import { Badge, Button, Card, Icon, Segmented, Select } from '@/design-system';
 import {
-  CartaoDeSaques, ColmeiaDeGrupos, DadosDoPainel, DiaQueMaisEntra, GraficoDeMovimento, NumerosDoTopo, ResumoDaSemana,
-} from './PainelDaConta';
+  ArcoDoDinheiro, BarrasDoPeriodo, CurvaDosDias, FaixaDeNumeros, Leque, ListaDeMovimentos, type Movimento,
+} from './ContaAvleVisual';
+import s from './ContaAvle.module.css';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -49,7 +53,7 @@ type Ativacao = {
   erro?: string;
 };
 
-type Lancamento = {
+export type Lancamento = {
   id: string;
   data: string;
   valor: number;
@@ -59,7 +63,7 @@ type Lancamento = {
   descricao?: string;
 };
 
-type Saque = {
+export type Saque = {
   id: number;
   valor: number;
   chavePix: string;
@@ -68,6 +72,11 @@ type Saque = {
   motivoFalha?: string | null;
   comprovanteUrl?: string | null;
   criadoEm: string;
+};
+
+const TOM_DO_SAQUE: Record<string, 'positive' | 'negative' | 'warning' | 'neutral'> = {
+  CONCLUIDO: 'positive', FALHOU: 'negative', CANCELADO: 'neutral',
+  SOLICITANDO: 'warning', AGUARDANDO_APROVACAO: 'warning', PENDENTE: 'warning', EM_PROCESSAMENTO: 'warning',
 };
 
 const NOME_DO_TIPO: Record<string, string> = {
@@ -313,14 +322,13 @@ export function PaginaContaAvle({
   podeSacar,
   aoIrParaConfiguracoes,
   mostrarAviso,
-  podeAbrirSubconta = false,
 }: {
   lojaId: number | undefined;
   /** Só a própria loja saca; o admin vê a página sem o botão. */
   podeSacar: boolean;
   aoIrParaConfiguracoes?: () => void;
   mostrarAviso: (titulo: string, texto: string, erro: boolean) => void;
-  /** Só o admin abre a conta no Asaas pela ficha da loja. */
+  /** Não é mais usado: o AVLE não abre conta no Asaas para a loja. Fica para quem ainda passa. */
   podeAbrirSubconta?: boolean;
 }) {
   const { resumo, erro, carregando, recarregar } = useResumoDaConta(lojaId);
@@ -332,22 +340,9 @@ export function PaginaContaAvle({
   const [modalSaque, setModalSaque] = useState(false);
   const [semanasDoPainel, setSemanasDoPainel] = useState<'4' | '12' | '26'>('12');
   const [painel, setPainel] = useState<DadosDoPainel | null>(null);
-  const [grupos, setGrupos] = useState<{ nome: string; faturado: number }[]>([]);
   const [exportando, setExportando] = useState(false);
 
   const conectada = !!resumo?.conectada;
-
-  const abrirSubconta = async () => {
-    try {
-      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/abrir-subconta`, { method: 'POST' });
-      if (!res.ok) throw new Error(await lerErro(res, 'Não foi possível abrir a conta no Asaas.'));
-      const r = await res.json();
-      mostrarAviso(r.situacao === 'ABERTA' || r.situacao === 'JA_EXISTIA' ? 'Conta no Asaas' : 'Ainda não deu', r.mensagem, !(r.situacao === 'ABERTA' || r.situacao === 'JA_EXISTIA'));
-      recarregar();
-    } catch (e) {
-      mostrarAviso('Erro', e instanceof Error ? e.message : 'Não foi possível abrir a conta no Asaas.', true);
-    }
-  };
 
   // Planilha pelo fetch, e não por link direto: a sessão viaja no cookie, e
   // um <a href> para outra origem sairia sem ela.
@@ -417,22 +412,6 @@ export function PaginaContaAvle({
     return () => { ativo = false; };
   }, [conectada, lojaId, semanasDoPainel]);
 
-  // O faturado por grupo vem do analytics da loja, o mesmo da tela inicial.
-  useEffect(() => {
-    if (!lojaId) return;
-    let ativo = true;
-    apiFetch(`${API_URL}/api/analytics/loja/${lojaId}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((dados) => {
-        if (!ativo || !Array.isArray(dados?.faturamentoPorGrupo)) return;
-        setGrupos(dados.faturamentoPorGrupo.map((g: { nome: string; faturado?: number; total?: number }) => ({
-          nome: g.nome, faturado: Number(g.faturado ?? g.total ?? 0),
-        })));
-      })
-      .catch(() => {});
-    return () => { ativo = false; };
-  }, [lojaId]);
-
   if (!resumo) {
     return (
       <div className="cartao-avle p-8 text-center text-[13px] text-stone-400">
@@ -441,277 +420,46 @@ export function PaginaContaAvle({
     );
   }
 
+  // Sem a conta do Asaas da loja conectada não há saldo nem extrato: o que a
+  // página tem a dizer é como conectar.
   if (!conectada) {
     return (
-      <div className="space-y-4">
-        <FaixaDeAtivacao
-          resumo={resumo}
-          aoIrParaConfiguracoes={aoIrParaConfiguracoes}
-          aoAbrirSubconta={podeAbrirSubconta ? abrirSubconta : undefined}
-        />
-        <ConectarConta
-          lojaId={lojaId}
-          aoConectar={recarregar}
-          mostrarAviso={mostrarAviso}
-          resumo={resumo}
-          jaTemContaNoAsaas={resumo.ativacao?.situacao === 'SEM_CHAVE'}
-        />
+      <div className="space-y-4 max-w-xl">
+        <FaixaDeAtivacao resumo={resumo} aoIrParaConfiguracoes={aoIrParaConfiguracoes} />
+        <ContaAsaasDaLoja lojaId={lojaId} mostrarAviso={mostrarAviso} aoConectar={recarregar} />
       </div>
     );
   }
 
-  const chavePix = resumo.chavePix;
   const saldo = resumo.saldo ?? null;
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <>
       <FaixaDeAtivacao resumo={resumo} aoIrParaConfiguracoes={aoIrParaConfiguracoes} />
-
-      {/* A cabeça da página: os números soltos, como na referência, e as
-          ações do lado. */}
-      <div className="flex flex-col-reverse gap-6">
-        <div className="min-w-0">
-          <NumerosDoTopo
-            itens={[
-              {
-                rotulo: 'Saldo disponível',
-                valor: saldo != null ? real(saldo) : '—',
-                nota: saldo != null ? 'na conta do Asaas' : (resumo.erroSaldo || 'indisponível agora'),
-              },
-              {
-                rotulo: 'Recebido no mês',
-                valor: real(resumo.recebidoNoMes),
-                variacao: variacao([Number(resumo.recebidoMesAnterior ?? 0), Number(resumo.recebidoNoMes)]),
-                nota: 'vs mês anterior',
-              },
-              {
-                rotulo: 'A receber no mês',
-                valor: real(resumo.aReceberNoMes),
-                nota: `${resumo.parcelasEmAberto} parcela${resumo.parcelasEmAberto === 1 ? '' : 's'} em aberto`,
-              },
-              {
-                rotulo: 'Taxa AVLE no mês',
-                valor: real(resumo.taxaAvleNoMes),
-                variacao: variacao([Number(resumo.taxaAvleMesAnterior ?? 0), Number(resumo.taxaAvleNoMes)]),
-                nota: '10% retidos',
-              },
-            ]}
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          <button
-            type="button"
-            onClick={() => exportar()}
-            disabled={exportando}
-            className="h-11 px-5 rounded-full bg-white ring-1 ring-painel-borda text-[13px] font-semibold text-painel-tinta hover:ring-painel-tinta/30 disabled:opacity-50 transition-colors cursor-pointer"
-          >
-            {exportando ? 'Gerando…' : 'Exportar planilha'}
-          </button>
-          {podeSacar && (
-            <button
-              type="button"
-              onClick={() => setModalSaque(true)}
-              disabled={saldo == null || saldo <= 0 || resumo.saqueEmAndamento}
-              className="h-11 px-6 rounded-full bg-painel-acento text-white text-[13px] font-semibold shadow-[0_10px_20px_-12px_rgba(189,107,66,0.9)] hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-            >
-              {resumo.saqueEmAndamento ? 'Saque em andamento' : 'Sacar via Pix'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {painel ? (
-        <>
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)] gap-4">
-            <GraficoDeMovimento
-              semanas={painel.semanas}
-              controle={
-                <SeletorDePeriodo
-                  valor={semanasDoPainel}
-                  aoEscolher={setSemanasDoPainel}
-                  opcoes={[
-                    { id: '4', rotulo: '4 semanas' },
-                    { id: '12', rotulo: '12 semanas' },
-                    { id: '26', rotulo: '6 meses' },
-                  ]}
-                />
-              }
-            />
-            <CartaoDeSaques
-              saldo={saldo}
-              saques={painel.saques}
-              aoSacar={podeSacar && saldo != null && saldo > 0 && !resumo.saqueEmAndamento
-                ? () => setModalSaque(true) : undefined}
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            <ColmeiaDeGrupos grupos={grupos} />
-            <DiaQueMaisEntra porDia={painel.porDiaDaSemana} />
-            <ResumoDaSemana dados={painel.resumoDaSemana} aoBaixar={() => exportar(7)} />
-          </div>
-        </>
-      ) : (
-        <div className="cartao-avle p-8 text-center text-[13px] text-stone-400">Carregando os gráficos da conta…</div>
-      )}
-
-      <div className="cartao-avle p-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="w-10 h-10 rounded-full bg-painel-papel ring-1 ring-painel-borda text-painel-acento flex items-center justify-center flex-shrink-0">
-            <Icone nome="link" className="w-4 h-4" />
-          </span>
-          <div className="min-w-0">
-            <span className="block text-[13px] font-medium text-painel-tinta">Chave Pix padrão dos saques</span>
-            <span className="block text-[12px] text-stone-500 truncate">
-              {chavePix && resumo.tipoChavePix
-                ? `${NOME_DO_TIPO[resumo.tipoChavePix] ?? resumo.tipoChavePix} · ${chavePix}`
-                : 'Nenhuma chave Pix válida cadastrada ainda.'}
-            </span>
-          </div>
-        </div>
-        {aoIrParaConfiguracoes && (
-          <button
-            type="button"
-            onClick={aoIrParaConfiguracoes}
-            className="h-10 px-4 rounded-full border border-painel-borda text-[12px] font-semibold text-painel-tinta hover:border-painel-tinta/30 transition-colors cursor-pointer"
-          >
-            {chavePix ? 'Alterar em Configurações' : 'Cadastrar chave Pix'}
-          </button>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-4">
-        <div className="cartao-avle overflow-hidden">
-          <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-painel-borda/70">
-            <div>
-              <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Extrato</h3>
-              <p className="text-[11px] text-stone-400">tudo o que entrou e saiu da conta da loja</p>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => exportar()}
-              disabled={exportando}
-              className="h-10 px-4 rounded-full border border-painel-borda text-[12px] font-semibold text-painel-tinta hover:border-painel-tinta/30 disabled:opacity-50 transition-colors cursor-pointer"
-            >
-              {exportando ? 'Gerando…' : 'Exportar planilha'}
-            </button>
-            <div className="flex gap-1 bg-painel-papel rounded-full p-1">
-              {([7, 30, 90] as const).map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setDias(d)}
-                  aria-pressed={dias === d}
-                  className={`h-8 px-3.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                    dias === d ? 'bg-painel-tinta text-white' : 'text-stone-500 hover:text-painel-tinta'
-                  }`}
-                >
-                  {d} dias
-                </button>
-              ))}
-            </div>
-            </div>
-          </div>
-
-          {erroExtrato ? (
-            <p className="px-5 py-10 text-center text-[12px] text-rose-600">{erroExtrato}</p>
-          ) : !extrato ? (
-            <p className="px-5 py-10 text-center text-[12px] text-stone-400">Carregando o extrato…</p>
-          ) : extrato.lancamentos.length === 0 ? (
-            <p className="px-5 py-10 text-center text-[12px] text-stone-400">Nenhuma movimentação nos últimos {dias} dias.</p>
-          ) : (
-            <ul className="divide-y divide-painel-borda/60">
-              {extrato.lancamentos.map((l) => {
-                const entrada = Number(l.valor) >= 0;
-                return (
-                  <li key={l.id} className="px-5 py-3.5 flex items-center gap-3">
-                    <span className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-[15px] font-semibold ${
-                      entrada ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'
-                    }`}>
-                      {entrada ? '+' : '−'}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[13px] font-medium text-painel-tinta truncate">{l.titulo}</span>
-                      <span className="block text-[11px] text-stone-400 truncate">
-                        {l.data ? new Date(`${l.data}T12:00:00`).toLocaleDateString('pt-BR') : ''}
-                        {l.descricao ? ` · ${l.descricao}` : ''}
-                      </span>
-                    </span>
-                    <span className="text-right flex-shrink-0">
-                      <span className={`block text-[13px] font-semibold tabular-nums ${entrada ? 'text-emerald-700' : 'text-rose-600'}`}>
-                        {entrada ? '+' : '−'} {real(Math.abs(Number(l.valor)))}
-                      </span>
-                      {l.saldoDepois != null && (
-                        <span className="block text-[10px] text-stone-400 tabular-nums">saldo {real(l.saldoDepois)}</span>
-                      )}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {extrato?.temMais && (
-            <div className="px-5 py-4 border-t border-painel-borda/70 text-center">
-              <button
-                type="button"
-                onClick={() => carregarExtrato(extrato.lancamentos.length)}
-                disabled={carregandoExtrato}
-                className="h-10 px-5 rounded-full border border-painel-borda text-[12px] font-semibold text-painel-tinta disabled:opacity-50 cursor-pointer"
-              >
-                {carregandoExtrato ? 'Carregando…' : 'Carregar mais'}
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="cartao-avle overflow-hidden self-start">
-          <div className="px-5 py-4 border-b border-painel-borda/70">
-            <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Saques</h3>
-            <p className="text-[11px] text-stone-400">os últimos pedidos pela Conta AVLE</p>
-          </div>
-          {saques.length === 0 ? (
-            <p className="px-5 py-10 text-center text-[12px] text-stone-400">Nenhum saque pedido ainda.</p>
-          ) : (
-            <ul className="divide-y divide-painel-borda/60">
-              {saques.map((s) => {
-                const situacao = SITUACAO_DO_SAQUE[s.status] ?? { rotulo: s.status, classe: 'bg-painel-papel text-stone-500' };
-                return (
-                  <li key={s.id} className="px-5 py-3.5">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[14px] font-semibold tabular-nums text-painel-tinta">{real(s.valor)}</span>
-                      <span className={`h-6 px-2.5 rounded-full text-[10px] font-semibold flex items-center ${situacao.classe}`}>
-                        {situacao.rotulo}
-                      </span>
-                    </div>
-                    <span className="block text-[11px] text-stone-400 mt-1">
-                      {new Date(s.criadoEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                      {' · '}{NOME_DO_TIPO[s.tipoChavePix] ?? s.tipoChavePix} {s.chavePix}
-                    </span>
-                    {s.motivoFalha && <span className="block text-[11px] text-rose-600 mt-1">{s.motivoFalha}</span>}
-                    {s.comprovanteUrl && (
-                      <a
-                        href={s.comprovanteUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-painel-acento mt-1.5 hover:underline"
-                      >
-                        Ver comprovante
-                        <Icone nome="seta" className="w-3 h-3" />
-                      </a>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </div>
+      <TelaDaContaAvle
+        resumo={resumo}
+        painel={painel}
+        extrato={extrato}
+        erroExtrato={erroExtrato}
+        carregandoExtrato={carregandoExtrato}
+        saques={saques}
+        dias={dias}
+        aoMudarDias={setDias}
+        semanasDoPainel={semanasDoPainel}
+        aoMudarSemanas={setSemanasDoPainel}
+        podeSacar={podeSacar}
+        exportando={exportando}
+        aoExportar={() => exportar()}
+        aoSacar={() => setModalSaque(true)}
+        aoIrParaConfiguracoes={aoIrParaConfiguracoes}
+        aoCarregarMais={() => extrato && carregarExtrato(extrato.lancamentos.length)}
+      />
 
       {modalSaque && saldo != null && (
         <FluxoDeSaque
           lojaId={lojaId}
           saldo={saldo}
-          chavePix={chavePix || ''}
+          chavePix={resumo.chavePix || ''}
           tipoChavePix={resumo.tipoChavePix || ''}
           aoFechar={() => setModalSaque(false)}
           aoConcluir={() => {
@@ -722,103 +470,201 @@ export function PaginaContaAvle({
           }}
         />
       )}
-    </div>
+    </>
   );
 }
 
-function ConectarConta({
-  lojaId,
-  aoConectar,
-  mostrarAviso,
-  resumo,
-  jaTemContaNoAsaas,
+/**
+ * A Conta AVLE desenhada, sem buscar nada: recebe os dados prontos. A página
+ * busca e passa; a prévia visual passa números de exemplo.
+ */
+export function TelaDaContaAvle({
+  resumo, painel, extrato, erroExtrato, carregandoExtrato, saques, dias, aoMudarDias, semanasDoPainel, aoMudarSemanas,
+  podeSacar, exportando, aoExportar, aoSacar, aoIrParaConfiguracoes, aoCarregarMais,
 }: {
-  lojaId: number | undefined;
-  aoConectar: () => void;
-  mostrarAviso: (titulo: string, texto: string, erro: boolean) => void;
   resumo: ResumoDaConta;
-  jaTemContaNoAsaas: boolean;
+  painel: DadosDoPainel | null;
+  extrato: { lancamentos: Lancamento[]; temMais: boolean } | null;
+  erroExtrato?: string;
+  carregandoExtrato?: boolean;
+  saques: Saque[];
+  dias: 7 | 30 | 90;
+  aoMudarDias: (d: 7 | 30 | 90) => void;
+  semanasDoPainel: '4' | '12' | '26';
+  aoMudarSemanas: (s: '4' | '12' | '26') => void;
+  podeSacar: boolean;
+  exportando?: boolean;
+  aoExportar: () => void;
+  aoSacar: () => void;
+  aoIrParaConfiguracoes?: () => void;
+  aoCarregarMais: () => void;
 }) {
-  const [chave, setChave] = useState('');
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState('');
+  const [abaDeMovimentos, setAbaDeMovimentos] = useState<'extrato' | 'saques'>('extrato');
+  const chavePix = resumo.chavePix;
+  const saldo = resumo.saldo ?? null;
+  const semanas = painel?.semanas ?? [];
+  const entrou = semanas.reduce((t, x) => t + Number(x.entradas || 0), 0);
+  const saiu = semanas.reduce((t, x) => t + Number(x.saidas || 0), 0);
+  const podeSacarAgora = podeSacar && saldo != null && saldo > 0 && !resumo.saqueEmAndamento;
 
-  const conectar = async () => {
-    setEnviando(true);
-    setErro('');
-    try {
-      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/conectar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chave }),
+  const agora = new Date();
+  const hora = agora.getHours();
+  const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+  const dataLonga = agora.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const movimentos: Movimento[] = abaDeMovimentos === 'extrato'
+    ? (extrato?.lancamentos ?? []).map((l) => ({
+        id: l.id, data: l.data, titulo: l.titulo, subtitulo: l.descricao, valor: Number(l.valor),
+      }))
+    : saques.map((q) => {
+        const situacao = SITUACAO_DO_SAQUE[q.status];
+        return {
+          id: `saque-${q.id}`,
+          data: q.criadoEm,
+          titulo: 'Saque via Pix',
+          subtitulo: `${NOME_DO_TIPO[q.tipoChavePix] ?? q.tipoChavePix} ${q.chavePix}${q.motivoFalha ? ` · ${q.motivoFalha}` : ''}`,
+          valor: -Number(q.valor),
+          situacao: <Badge tone={TOM_DO_SAQUE[q.status] ?? 'neutral'}>{situacao?.rotulo ?? q.status}</Badge>,
+        };
       });
-      if (!res.ok) throw new Error(await lerErro(res, 'Não foi possível conectar a conta.'));
-      setChave('');
-      mostrarAviso('Conta conectada', 'A Conta AVLE já mostra o saldo e o extrato da loja.', false);
-      aoConectar();
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Não foi possível conectar a conta.');
-    } finally {
-      setEnviando(false);
-    }
-  };
+
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4 animate-fadeIn">
-      <div className="cartao-avle-destaque p-7 flex flex-col justify-between min-h-[280px]">
-        <div>
-          <span className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center">
-            <Icone nome="carteira" />
-          </span>
-          <h3 style={{ fontWeight: 600 }} className="text-[24px] mt-5 leading-tight">
-            {jaTemContaNoAsaas ? 'Conecte a conta do Asaas da loja' : 'Já tem conta própria no Asaas?'}
-          </h3>
-          <p className="text-[13px] text-white/65 mt-2 leading-relaxed">
-            Os 90% de cada parcela caem na conta da loja no Asaas. Conectando, a Conta AVLE mostra o saldo, o extrato e
-            deixa sacar por Pix sem sair do painel.
-          </p>
-        </div>
-        <div className="grid grid-cols-3 gap-2 mt-6">
-          {[
-            { r: 'Recebido no mês', v: resumo.recebidoNoMes },
-            { r: 'A receber', v: resumo.aReceberNoMes },
-            { r: 'Taxa AVLE', v: resumo.taxaAvleNoMes },
-          ].map((b) => (
-            <div key={b.r} className="rounded-[16px] bg-white/[0.07] p-3">
-              <span className="block text-[10px] text-white/50">{b.r}</span>
-              <span className="block text-[14px] font-semibold tabular-nums mt-1">{real(b.v)}</span>
+      <div className="avle-ds">
+        <div className={s.pagina}>
+          <header className={s.cabeca}>
+            <div>
+              <h1 className={s.saudacao}>{saudacao}{resumo.nomeLoja ? `, ${resumo.nomeLoja}` : ''}</h1>
+              <div className={s.data}>{dataLonga.charAt(0).toUpperCase() + dataLonga.slice(1)}</div>
             </div>
-          ))}
+            <div className={s.acoes}>
+              {podeSacar && (
+                <button type="button" className={`${s.acaoGrande} ${s.acaoPrincipal}`} onClick={aoSacar} disabled={!podeSacarAgora}>
+                  <span className={s.acaoIcone}><Icon name="arrow-up-from-line" size={18} /></span>
+                  {resumo.saqueEmAndamento ? 'Saque em andamento' : 'Sacar via Pix'}
+                </button>
+              )}
+              <button type="button" className={s.acaoGrande} onClick={aoExportar} disabled={exportando}>
+                <span className={s.acaoIcone}><Icon name="download" size={18} /></span>
+                {exportando ? 'Gerando…' : 'Extrato'}
+              </button>
+              {aoIrParaConfiguracoes && (
+                <button type="button" className={s.acaoGrande} onClick={aoIrParaConfiguracoes}>
+                  <span className={s.acaoIcone}><Icon name="key-round" size={18} /></span>
+                  Chave Pix
+                </button>
+              )}
+            </div>
+          </header>
+
+          <Leque
+            esquerda={[
+              { nome: 'Asaas', marca: 'conta' },
+              { nome: 'Chave', resto: 'Pix', marca: chavePix && resumo.tipoChavePix ? (NOME_DO_TIPO[resumo.tipoChavePix] ?? resumo.tipoChavePix) : 'sem chave' },
+            ]}
+            direita={[
+              { nome: 'A receber', marca: real(resumo.aReceberNoMes) },
+              { nome: 'Taxa', resto: 'AVLE', marca: '10%' },
+            ]}
+            saldo={saldo}
+            saldoNota={saldo != null ? 'na conta do Asaas da loja' : (resumo.erroSaldo || 'indisponível agora')}
+            rotuloEsquerda="Conta conectada"
+            rotuloDireita={<>Saques<small>{painel ? `${painel.saques.concluidos.quantidade} concluídos` : ''}</small></>}
+          />
+
+          <section className={s.mesa}>
+            <FaixaDeNumeros
+              itens={[
+                {
+                  rotulo: 'Taxa AVLE no mês',
+                  valor: Number(resumo.taxaAvleNoMes),
+                  variacao: variacao([Number(resumo.taxaAvleMesAnterior ?? 0), Number(resumo.taxaAvleNoMes)]),
+                  nota: '10% de cada parcela',
+                  // A taxa acompanha o que entra: 10% de cada parcela.
+                  serie: semanas.map((x) => Number(x.entradas || 0) * 0.1),
+                },
+                {
+                  rotulo: 'Recebido no mês',
+                  valor: Number(resumo.recebidoNoMes),
+                  variacao: variacao([Number(resumo.recebidoMesAnterior ?? 0), Number(resumo.recebidoNoMes)]),
+                  nota: 'vs mês anterior',
+                  serie: semanas.map((x) => Number(x.entradas || 0)),
+                },
+                { rotulo: 'Sacado no período', valor: saiu, nota: `nas últimas ${semanas.length || '—'} semanas`, serie: semanas.map((x) => Number(x.saidas || 0)) },
+                {
+                  rotulo: 'A receber no mês',
+                  valor: Number(resumo.aReceberNoMes),
+                  nota: `${resumo.parcelasEmAberto} parcela${resumo.parcelasEmAberto === 1 ? '' : 's'} em aberto`,
+                },
+              ]}
+            />
+
+            <div className={s.grade}>
+              <Card
+                className={s.recebido}
+                title="Entradas"
+                actions={
+                  <Segmented
+                    size="sm"
+                    value={semanasDoPainel}
+                    onChange={(v) => aoMudarSemanas(v as '4' | '12' | '26')}
+                    options={[{ value: '4', label: '4 sem.' }, { value: '12', label: '12 sem.' }, { value: '26', label: '6 meses' }]}
+                  />
+                }
+              >
+                {painel ? <BarrasDoPeriodo semanas={semanas} /> : <p className={s.pequeno}>Carregando…</p>}
+              </Card>
+
+              <Card className={s.paraOnde} title="Para onde foi">
+                {painel ? <ArcoDoDinheiro entrou={entrou} saiu={saiu} /> : <p className={s.pequeno}>Carregando…</p>}
+              </Card>
+
+              <Card className={s.curva} title="Dia que mais entra">
+                {painel ? <CurvaDosDias porDia={painel.porDiaDaSemana} /> : <p className={s.pequeno}>Carregando…</p>}
+              </Card>
+
+              <Card
+                className={s.movimentos}
+                title="Movimentações"
+                actions={
+                  <>
+                    <Segmented
+                      size="sm"
+                      value={abaDeMovimentos}
+                      onChange={(v) => setAbaDeMovimentos(v as 'extrato' | 'saques')}
+                      options={[{ value: 'extrato', label: 'Extrato' }, { value: 'saques', label: 'Saques' }]}
+                    />
+                    {abaDeMovimentos === 'extrato' && (
+                      <Select
+                        size="sm"
+                        value={String(dias)}
+                        onChange={(e) => aoMudarDias(Number(e.target.value) as 7 | 30 | 90)}
+                        options={[{ value: '7', label: '7 dias' }, { value: '30', label: '30 dias' }, { value: '90', label: '90 dias' }]}
+                      />
+                    )}
+                  </>
+                }
+              >
+                {abaDeMovimentos === 'extrato' && erroExtrato ? (
+                  <p className={`${s.vazio} ${s.erro}`}>{erroExtrato}</p>
+                ) : abaDeMovimentos === 'extrato' && !extrato ? (
+                  <p className={s.vazio}>Carregando o extrato…</p>
+                ) : (
+                  <ListaDeMovimentos
+                    itens={movimentos}
+                    vazio={abaDeMovimentos === 'extrato' ? `Nenhuma movimentação nos últimos ${dias} dias.` : 'Nenhum saque pedido ainda.'}
+                  />
+                )}
+                {abaDeMovimentos === 'extrato' && extrato?.temMais && (
+                  <Button variant="ghost" size="sm" onClick={aoCarregarMais} disabled={carregandoExtrato}>
+                    {carregandoExtrato ? 'Carregando…' : 'Carregar mais'}
+                  </Button>
+                )}
+              </Card>
+            </div>
+          </section>
         </div>
       </div>
-
-      <div className="cartao-avle p-7">
-        <ol className="space-y-3 text-[13px] text-stone-500 leading-relaxed">
-          <li><strong className="text-painel-tinta">1.</strong> Entre no Asaas com a conta da loja.</li>
-          <li><strong className="text-painel-tinta">2.</strong> Abra <strong className="text-painel-tinta">Integrações → Chave de API</strong> e gere uma chave.</li>
-          <li><strong className="text-painel-tinta">3.</strong> Cole abaixo. Ela fica guardada cifrada, e só é aceita se for da mesma conta que recebe os 90%.</li>
-        </ol>
-        <label className="block text-[12px] text-stone-400 mt-6 mb-1.5" htmlFor="chave-asaas">Chave de API do Asaas</label>
-        <input
-          id="chave-asaas"
-          type="password"
-          autoComplete="off"
-          value={chave}
-          onChange={(e) => setChave(e.target.value)}
-          placeholder="$aact_…"
-          className="w-full h-12 px-5 bg-painel-papel ring-1 ring-painel-borda rounded-full text-[13px] text-painel-tinta focus:outline-none focus:ring-2 focus:ring-painel-acento/50"
-        />
-        {erro && <p className="text-[12px] text-rose-600 mt-2 leading-snug">{erro}</p>}
-        <button
-          type="button"
-          onClick={conectar}
-          disabled={enviando || !chave.trim()}
-          className="mt-4 h-11 px-6 rounded-full bg-painel-tinta text-white text-[13px] font-semibold hover:bg-avle-verde disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-        >
-          {enviando ? 'Conferindo com o Asaas…' : 'Conectar conta'}
-        </button>
-      </div>
-    </div>
   );
 }
 
