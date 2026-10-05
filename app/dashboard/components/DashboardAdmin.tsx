@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import EnvioDeCobrancasWhatsapp from './EnvioDeCobrancasWhatsapp';
 import GruposDaLojaNoAdmin from './GruposDaLojaNoAdmin';
 import CobrancaAutomatica from './CobrancaAutomatica';
+import MesDoPagamento from './MesDoPagamento';
 import PainelDeAvisosFlutuante from './PainelDeAvisosFlutuante';
 import {
   Avatar, BarraSuperior, BotaoDaConta, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
@@ -816,6 +817,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
             {abaExibida === 'cobranca' && !lojaSelecionada && (
               <div>
                 <CobrancaAutomatica />
+                <MesDoPagamento />
                 <div className="mb-5">
                   <h2 className="text-xl font-bold text-[#0B1E14]">Cobrança do mês</h2>
                   <p className="text-xs text-stone-400 mt-1 max-w-2xl leading-relaxed">
