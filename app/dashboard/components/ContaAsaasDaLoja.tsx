@@ -13,9 +13,12 @@ import { API_URL, apiFetch } from '../../lib/api';
 export default function ContaAsaasDaLoja({
   lojaId,
   mostrarAviso,
+  aoConectar,
 }: {
   lojaId: number | undefined;
   mostrarAviso: (titulo: string, texto: string, erro: boolean) => void;
+  /** Depois de conectar, quem mostra o saldo recarrega. */
+  aoConectar?: () => void;
 }) {
   const [situacao, setSituacao] = useState<{ conectada: boolean; walletId?: string } | null>(null);
   const [walletId, setWalletId] = useState('');
@@ -45,6 +48,7 @@ export default function ContaAsaasDaLoja({
       setApiKey('');
       setWalletId('');
       setTrocando(false);
+      aoConectar?.();
       mostrarAviso(
         'Conta do Asaas conectada',
         dados.webhook?.configurado
