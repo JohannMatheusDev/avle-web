@@ -104,45 +104,66 @@
   left: 50%;
   bottom: 0;
   width: 16rem;
+  border: 0;
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   background: var(--surface-card);
-  box-shadow: var(--shadow-card);
+  /* Profundidade: o brilho fino na borda de cima, o contorno quase invisível
+     e a sombra longa, tingida de verde-tinta. É a única sombra externa fora
+     de diálogo, de propósito: é ela que separa um cartão do outro no leque. */
+  box-shadow: var(--shadow-pill), var(--shadow-pop);
   padding: var(--space-5) var(--space-5) 0;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-2);
-  transition: transform var(--dur-slow) var(--ease-out);
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  font: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    transform var(--dur-slow) var(--ease-out),
+    height var(--dur-slow) var(--ease-out),
+    width var(--dur-slow) var(--ease-out),
+    background var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
 }
+.cartao:focus-visible { outline: none; box-shadow: var(--focus-ring), var(--shadow-pop); }
+
+/* As vagas: duas de cada lado e a do meio, que sobe na frente. O pedaço que
+   aparece de cada cartão de trás é onde fica o texto. */
+.pM2 { height: 9rem; transform: translateX(-34rem); z-index: 1; }
+.pM1 { height: 11rem; transform: translateX(-24rem); z-index: 2; }
+.p0 { height: 15rem; width: 22rem; transform: translateX(-11rem); z-index: 4; cursor: default; }
+.p1 { height: 11rem; transform: translateX(6rem); z-index: 3; padding-left: 5.75rem; }
+.p2 { height: 9rem; transform: translateX(16rem); z-index: 2; padding-left: 6.75rem; }
+.pM1 { padding-right: 3.5rem; }
+.pM2 { padding-right: 10.5rem; }
+
+/* Passar o mouse levanta o cartão de trás: é o convite para escolher. */
+.cartaoEsq:hover, .cartaoDir:hover { background: var(--surface-raised); }
+.pM2:hover { transform: translateX(-34rem) translateY(-0.75rem); }
+.pM1:hover { transform: translateX(-24rem) translateY(-0.75rem); }
+.p1:hover { transform: translateX(6rem) translateY(-0.75rem); }
+.p2:hover { transform: translateX(16rem) translateY(-0.75rem); }
+
+.cartaoTras { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.cartaoLinha { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); min-width: 0; }
 .cartaoNome { font-size: var(--text-md); color: var(--text-primary); white-space: nowrap; }
 .cartaoNome span { color: var(--text-tertiary); }
-.cartaoMarca { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--text-secondary); white-space: nowrap; }
-
-/* Posições: do mais baixo e afastado ao do meio, que sobe na frente. */
-.c1 { height: 9rem; transform: translateX(-34rem); z-index: 1; }
-.c2 { height: 11rem; transform: translateX(-24rem); z-index: 2; }
-.c3 { height: 15rem; width: 22rem; transform: translateX(-11rem); z-index: 4; }
-.c4 { height: 11rem; transform: translateX(6rem); z-index: 3; }
-.c5 { height: 9rem; transform: translateX(16rem); z-index: 2; }
-/* Do lado esquerdo o cartão da frente cobre a ponta direita; do direito, a
-   esquerda. O texto fica no pedaço que aparece. */
-.c1, .c2 { justify-content: flex-start; }
-.c4 { padding-left: 5.75rem; justify-content: flex-start; }
-.c5 { padding-left: 6.75rem; justify-content: flex-start; }
+.cartaoMarca { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cartaoDetalhe { font-size: var(--text-xs); color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .cartaoDestaque {
   background: var(--primary);
   color: var(--text-on-primary);
-  flex-direction: column;
-  justify-content: flex-start;
   gap: var(--space-3);
+  box-shadow: var(--shadow-card), var(--shadow-pop);
 }
 .cartaoDestaque .cartaoNome { color: var(--text-on-primary); }
 .cartaoDestaque .cartaoNome span { color: var(--text-on-primary); opacity: .55; }
 .cartaoDestaqueTopo { display: flex; width: 100%; justify-content: space-between; align-items: center; }
-.cartaoSaldo { font-size: var(--text-h1); font-weight: var(--weight-semibold); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
-.cartaoSaldo span { opacity: .5; font-weight: var(--weight-regular); }
-.cartaoNota { font-size: var(--text-xs); opacity: .6; }
+.cartaoValor { font-size: var(--text-h1); font-weight: var(--weight-semibold); letter-spacing: -0.02em; line-height: 1.05; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.apagado { opacity: .5; font-weight: var(--weight-regular); }
+.cartaoNota { font-size: var(--text-xs); opacity: .65; }
 
 /* ── A mesa bege que sobe por cima do leque ─────────────── */
 
@@ -187,7 +208,7 @@
 
 /* ── Barras listradas, entradas em cima e saques espelhados ── */
 
-.barrasTotal { text-align: center; }
+.barrasTotal { text-align: center; margin-bottom: var(--space-8); }
 .barrasTotal p { font-size: var(--text-lg); color: var(--text-secondary); margin: 0 0 var(--space-2); }
 
 .barras {
@@ -291,8 +312,10 @@
 /* ── Telas menores ──────────────────────────────────────── */
 
 @media (max-width: 1280px) {
-  .c1 { transform: translateX(-30rem); }
-  .c5 { transform: translateX(14rem); }
+  .pM2, .pM2:hover { transform: translateX(-30rem); }
+  .p2, .p2:hover { transform: translateX(14rem); }
+  .pM2 { padding-right: 6.5rem; }
+  .p2 { padding-left: 8.75rem; }
   .lequeRotulo { display: none; }
 }
 @media (min-width: 1281px) {
@@ -306,20 +329,23 @@
   .paraOnde { grid-column: span 5; }
   .curva { grid-column: span 7; }
   .movimentos { grid-column: span 12; }
-  .c1, .c5 { display: none; }
-  .c2 { transform: translateX(-21rem); }
-  .c4 { transform: translateX(5rem); padding-left: 6.75rem; }
+  .pM2, .p2 { display: none; }
+  .pM1 { transform: translateX(-21rem); padding-right: var(--space-5); }
+  .pM1:hover { transform: translateX(-21rem) translateY(-0.75rem); }
+  .p1 { transform: translateX(5rem); padding-left: 6.75rem; }
+  .p1:hover { transform: translateX(5rem) translateY(-0.75rem); }
 }
 
 @media (max-width: 720px) {
   .saudacao { font-size: var(--text-h3); }
   .leque { height: 12rem; margin-bottom: -4rem; }
-  /* No celular os cartões do lado só espiam atrás do saldo. */
-  .c2 { transform: translateX(-10.5rem); width: 9rem; height: 9rem; }
-  .c4 { transform: translateX(1.5rem); width: 9rem; height: 9rem; }
-  .c3 { width: 15rem; height: 12rem; transform: translateX(-7.5rem); }
-  .c2 > *, .c4 > * { display: none; }
-  .cartaoSaldo { font-size: var(--text-h2); }
+  /* No celular os cartões do lado só espiam atrás do do meio; um toque
+     neles traz para a frente. */
+  .pM1, .pM1:hover { transform: translateX(-10.5rem); width: 9rem; height: 9rem; }
+  .p1, .p1:hover { transform: translateX(1.5rem); width: 9rem; height: 9rem; }
+  .p0 { width: 15rem; height: 12rem; transform: translateX(-7.5rem); }
+  .pM1 > *, .p1 > * { display: none; }
+  .cartaoValor { font-size: var(--text-h2); }
   .mesa { padding: var(--space-4); border-radius: var(--radius-xl); }
   .numeros { grid-template-columns: minmax(0, 1fr); }
   .numero { border-left: 0; padding-left: 0; padding-right: 0; border-top: 1px solid var(--border-default); padding-top: var(--space-3); }

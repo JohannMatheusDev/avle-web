@@ -8,7 +8,7 @@
  * `.avle-ds`; o que é desenho próprio da página está em ContaAvle.module.css.
  */
 
-import { useId, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { Delta, ListRow, Logo, Money, Sparkline, Tag } from '@/design-system';
 import s from './ContaAvle.module.css';
 
@@ -19,46 +19,98 @@ const reais = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 
 
 // ── O leque ─────────────────────────────────────────────────────────────────
 
-export type CartaoDoLeque = { nome: string; resto?: string; marca?: ReactNode };
+export type CartaoDoLeque = {
+  id: string;
+  /** O nome, com a segunda palavra apagada: "Chave Pix". */
+  nome: string;
+  resto?: string;
+  /** No canto do cartão de trás: o tipo, o número curto. */
+  marca?: ReactNode;
+  /** A linha de baixo do cartão de trás. */
+  detalhe?: ReactNode;
+  /** O que o cartão mostra quando vem para o meio. */
+  valor: ReactNode;
+  nota?: ReactNode;
+};
 
+const POSICAO = [s.pM2, s.pM1, s.p0, s.p1, s.p2];
+
+/**
+ * Os cartões em leque. O do meio é o escolhido, em verde-tinta e com o
+ * conteúdo grande; os outros esperam atrás, e um clique (ou as setas do
+ * teclado) traz qualquer um para o meio.
+ */
 export function Leque({
-  esquerda, direita, saldo, saldoNota, rotuloEsquerda, rotuloDireita,
+  cartoes, inicial, rotuloEsquerda, rotuloDireita,
 }: {
-  /** Dois cartões de cada lado do cartão do saldo, do mais afastado ao mais perto. */
-  esquerda: [CartaoDoLeque, CartaoDoLeque];
-  direita: [CartaoDoLeque, CartaoDoLeque];
-  saldo: number | null;
-  saldoNota: string;
+  cartoes: CartaoDoLeque[];
+  inicial: number;
   rotuloEsquerda?: ReactNode;
   rotuloDireita?: ReactNode;
 }) {
-  const cartao = (c: CartaoDoLeque, classe: string) => (
-    <div className={`${s.cartao} ${classe}`} aria-hidden="true">
-      <span className={s.cartaoNome}>{c.nome}{c.resto && <span> {c.resto}</span>}</span>
-      {c.marca && <span className={s.cartaoMarca}>{c.marca}</span>}
-    </div>
-  );
-  const [inteiro, centavos] = saldo != null ? reais(saldo).split(',') : ['—', ''];
+  const [ativo, setAtivo] = useState(inicial);
+  const n = cartoes.length;
+  // O leque gira em roda: passou da ponta, volta pela outra, e sempre há
+  // cartão dos dois lados do escolhido.
+  const escolher = (i: number) => setAtivo(((i % n) + n) % n);
+  const meio = Math.floor(n / 2);
+
   return (
-    <div className={s.leque}>
+    <div
+      className={s.leque}
+      role="tablist"
+      aria-label="Cartões da conta"
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft') { e.preventDefault(); escolher(ativo - 1); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); escolher(ativo + 1); }
+      }}
+    >
       {rotuloEsquerda && <div className={`${s.lequeRotulo} ${s.lequeRotuloEsq}`}>{rotuloEsquerda}</div>}
       {rotuloDireita && <div className={`${s.lequeRotulo} ${s.lequeRotuloDir}`}>{rotuloDireita}</div>}
-      {cartao(esquerda[0], s.c1)}
-      {cartao(esquerda[1], s.c2)}
-      <div className={`${s.cartao} ${s.cartaoDestaque} ${s.c3}`}>
-        <div className={s.cartaoDestaqueTopo}>
-          <span className={s.cartaoNome}>Saldo <span>disponível</span></span>
-          <Logo variant="tree" tone="cream" height={28} />
-        </div>
-        <span className={s.cartaoSaldo}>
-          <span>R$ </span>{inteiro}{centavos && <span>,{centavos}</span>}
-        </span>
-        <span className={s.cartaoNota}>{saldoNota}</span>
-      </div>
-      {cartao(direita[0], s.c4)}
-      {cartao(direita[1], s.c5)}
+      {cartoes.map((c, i) => {
+        const vaga = ((i - ativo + n + meio) % n) - meio;
+        if (Math.abs(vaga) > 2) return null;
+        const noMeio = vaga === 0;
+        return (
+          <button
+            key={c.id}
+            type="button"
+            role="tab"
+            aria-selected={noMeio}
+            tabIndex={noMeio ? 0 : -1}
+            onClick={() => escolher(i)}
+            className={`${s.cartao} ${POSICAO[vaga + 2]} ${noMeio ? s.cartaoDestaque : ''} ${vaga < 0 ? s.cartaoEsq : vaga > 0 ? s.cartaoDir : ''}`}
+          >
+            {noMeio ? (
+              <>
+                <span className={s.cartaoDestaqueTopo}>
+                  <span className={s.cartaoNome}>{c.nome}{c.resto && <span> {c.resto}</span>}</span>
+                  <Logo variant="tree" tone="cream" height={28} />
+                </span>
+                <span className={s.cartaoValor}>{c.valor}</span>
+                {c.nota && <span className={s.cartaoNota}>{c.nota}</span>}
+              </>
+            ) : (
+              <span className={s.cartaoTras}>
+                <span className={s.cartaoLinha}>
+                  <span className={s.cartaoNome}>{c.nome}{c.resto && <span> {c.resto}</span>}</span>
+                  {c.marca && <span className={s.cartaoMarca}>{c.marca}</span>}
+                </span>
+                {c.detalhe && <span className={s.cartaoDetalhe}>{c.detalhe}</span>}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
+}
+
+/** O dinheiro do cartão do meio: "R$" e centavos apagados. */
+export function ValorDoCartao({ valor }: { valor: number | null }) {
+  if (valor == null) return <>—</>;
+  const [inteiro, centavos] = reais(valor).split(',');
+  return <><span className={s.apagado}>R$ </span>{inteiro}<span className={s.apagado}>,{centavos}</span></>;
 }
 
 // ── A faixa de números ──────────────────────────────────────────────────────

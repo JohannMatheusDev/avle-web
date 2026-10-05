@@ -19,7 +19,7 @@ import { real, variacao } from './Indicadores';
 import type { DadosDoPainel } from './PainelDaConta';
 import { Badge, Button, Card, Icon, Segmented, Select } from '@/design-system';
 import {
-  ArcoDoDinheiro, BarrasDoPeriodo, CurvaDosDias, FaixaDeNumeros, Leque, ListaDeMovimentos, type Movimento,
+  ArcoDoDinheiro, BarrasDoPeriodo, CurvaDosDias, FaixaDeNumeros, Leque, ListaDeMovimentos, ValorDoCartao, type Movimento,
 } from './ContaAvleVisual';
 import s from './ContaAvle.module.css';
 
@@ -341,6 +341,7 @@ export function PaginaContaAvle({
   const [semanasDoPainel, setSemanasDoPainel] = useState<'4' | '12' | '26'>('12');
   const [painel, setPainel] = useState<DadosDoPainel | null>(null);
   const [exportando, setExportando] = useState(false);
+  const [carteira, setCarteira] = useState<string | null>(null);
 
   const conectada = !!resumo?.conectada;
 
@@ -412,6 +413,17 @@ export function PaginaContaAvle({
     return () => { ativo = false; };
   }, [conectada, lojaId, semanasDoPainel]);
 
+  // O Wallet ID da conta conectada, para o cartão da conta no leque.
+  useEffect(() => {
+    if (!conectada || !lojaId) return;
+    let ativo = true;
+    apiFetch(`${API_URL}/api/lojas/${lojaId}/conta-asaas`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (ativo && d?.walletId) setCarteira(d.walletId); })
+      .catch(() => {});
+    return () => { ativo = false; };
+  }, [conectada, lojaId]);
+
   if (!resumo) {
     return (
       <div className="cartao-avle p-8 text-center text-[13px] text-stone-400">
@@ -453,6 +465,7 @@ export function PaginaContaAvle({
         aoSacar={() => setModalSaque(true)}
         aoIrParaConfiguracoes={aoIrParaConfiguracoes}
         aoCarregarMais={() => extrato && carregarExtrato(extrato.lancamentos.length)}
+        carteira={carteira}
       />
 
       {modalSaque && saldo != null && (
@@ -480,9 +493,11 @@ export function PaginaContaAvle({
  */
 export function TelaDaContaAvle({
   resumo, painel, extrato, erroExtrato, carregandoExtrato, saques, dias, aoMudarDias, semanasDoPainel, aoMudarSemanas,
-  podeSacar, exportando, aoExportar, aoSacar, aoIrParaConfiguracoes, aoCarregarMais,
+  podeSacar, exportando, aoExportar, aoSacar, aoIrParaConfiguracoes, aoCarregarMais, carteira,
 }: {
   resumo: ResumoDaConta;
+  /** O Wallet ID da conta do Asaas conectada, para o cartão da conta. */
+  carteira?: string | null;
   painel: DadosDoPainel | null;
   extrato: { lancamentos: Lancamento[]; temMais: boolean } | null;
   erroExtrato?: string;
@@ -558,18 +573,55 @@ export function TelaDaContaAvle({
           </header>
 
           <Leque
-            esquerda={[
-              { nome: 'Asaas', marca: 'conta' },
-              { nome: 'Chave', resto: 'Pix', marca: chavePix && resumo.tipoChavePix ? (NOME_DO_TIPO[resumo.tipoChavePix] ?? resumo.tipoChavePix) : 'sem chave' },
+            inicial={2}
+            cartoes={[
+              {
+                id: 'asaas',
+                nome: 'Conta',
+                resto: 'Asaas',
+                marca: carteira ? `•••• ${carteira.slice(-4)}` : 'conectada',
+                detalhe: 'as parcelas caem aqui',
+                valor: carteira ? `•••• ${carteira.slice(-4)}` : 'Conectada',
+                nota: carteira ? `Carteira ${carteira} · as parcelas das clientes caem nesta conta` : 'As parcelas das clientes caem nesta conta',
+              },
+              {
+                id: 'pix',
+                nome: 'Chave',
+                resto: 'Pix',
+                marca: chavePix && resumo.tipoChavePix ? (NOME_DO_TIPO[resumo.tipoChavePix] ?? resumo.tipoChavePix) : 'sem chave',
+                detalhe: chavePix ? `${chavePix.slice(0, 6)}…` : 'cadastre nas Configurações',
+                valor: chavePix ? (NOME_DO_TIPO[resumo.tipoChavePix ?? ''] ?? 'Pix') : 'Sem chave',
+                nota: chavePix ? `${chavePix} · para onde vão os saques` : 'Cadastre a chave Pix nas Configurações para sacar',
+              },
+              {
+                id: 'saldo',
+                nome: 'Saldo',
+                resto: 'disponível',
+                marca: saldo != null ? real(saldo) : '—',
+                detalhe: 'para sacar agora',
+                valor: <ValorDoCartao valor={saldo} />,
+                nota: saldo != null ? 'na conta do Asaas da loja' : (resumo.erroSaldo || 'indisponível agora'),
+              },
+              {
+                id: 'receber',
+                nome: 'A receber',
+                marca: real(resumo.aReceberNoMes),
+                detalhe: `${resumo.parcelasEmAberto} parcela${resumo.parcelasEmAberto === 1 ? '' : 's'} em aberto`,
+                valor: <ValorDoCartao valor={Number(resumo.aReceberNoMes)} />,
+                nota: `${resumo.parcelasEmAberto} parcela${resumo.parcelasEmAberto === 1 ? '' : 's'} do mês ainda em aberto`,
+              },
+              {
+                id: 'taxa',
+                nome: 'Taxa',
+                resto: 'AVLE',
+                marca: '10%',
+                detalhe: `${real(resumo.taxaAvleNoMes)} no mês`,
+                valor: <ValorDoCartao valor={Number(resumo.taxaAvleNoMes)} />,
+                nota: '10% de cada parcela paga, retidos no split',
+              },
             ]}
-            direita={[
-              { nome: 'A receber', marca: real(resumo.aReceberNoMes) },
-              { nome: 'Taxa', resto: 'AVLE', marca: '10%' },
-            ]}
-            saldo={saldo}
-            saldoNota={saldo != null ? 'na conta do Asaas da loja' : (resumo.erroSaldo || 'indisponível agora')}
             rotuloEsquerda="Conta conectada"
-            rotuloDireita={<>Saques<small>{painel ? `${painel.saques.concluidos.quantidade} concluídos` : ''}</small></>}
+            rotuloDireita={painel ? <>Saques<small>{painel.saques.concluidos.quantidade} concluído{painel.saques.concluidos.quantidade === 1 ? '' : 's'}</small></> : undefined}
           />
 
           <section className={s.mesa}>

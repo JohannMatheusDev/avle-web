@@ -70,6 +70,7 @@ export default function PreviaContaAvle() {
         aoSacar={() => {}}
         aoIrParaConfiguracoes={() => {}}
         aoCarregarMais={() => {}}
+        carteira="fcaa2b9b-9a1e-4c55-8f0e-2d4b7c1e4f2a"
       />
     </div>
   );
