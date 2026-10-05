@@ -24,7 +24,7 @@ import { useEffect, useRef, useState } from 'react';
 type NomeDeIcone =
   | 'inicio' | 'clientes' | 'aprovacoes' | 'fila' | 'grupos' | 'sorteios'
   | 'configuracoes' | 'historico' | 'regras' | 'ajuda' | 'perfil' | 'lojas'
-  | 'financeiro' | 'cobranca' | 'planos' | 'sair'
+  | 'financeiro' | 'cobranca' | 'planos' | 'sair' | 'conversas'
   | 'link' | 'voltar' | 'seta' | 'calendario' | 'alerta' | 'relogio' | 'mais' | 'atualizar' | 'carteira';
 
 export type ItemDeNavegacao = {
@@ -43,6 +43,7 @@ const DESENHOS: Record<NomeDeIcone, React.ReactNode> = {
   inicio: <><path d="M3.5 10.8 12 3.5l8.5 7.3" /><path d="M5.8 9.6V20h12.4V9.6" /><path d="M10 20v-5h4v5" /></>,
   clientes: <><circle cx="9.2" cy="8.4" r="3.2" /><path d="M3.4 19.6c0-3.1 2.6-5.2 5.8-5.2s5.8 2.1 5.8 5.2" /><path d="M16.4 6.1a3 3 0 0 1 .6 5.9" /><path d="M17.6 14.8c2 .6 3.4 2.3 3.4 4.4" /></>,
   aprovacoes: <><circle cx="12" cy="12" r="8.4" /><path d="m8.3 12.2 2.6 2.6 4.8-5.4" /></>,
+  conversas: <><path d="M20 11.5a7.5 7.5 0 0 1-11 6.6L4.5 19.5l1.4-4.2A7.5 7.5 0 1 1 20 11.5Z" /><path d="M9 11.5h.01M12.5 11.5h.01M16 11.5h.01" /></>,
   fila: <><circle cx="12" cy="12" r="8.4" /><path d="M12 7.3V12l3.2 2" /></>,
   grupos: <><rect x="3.6" y="3.6" width="7" height="7" rx="2" /><rect x="13.4" y="3.6" width="7" height="7" rx="2" /><rect x="3.6" y="13.4" width="7" height="7" rx="2" /><rect x="13.4" y="13.4" width="7" height="7" rx="2" /></>,
   sorteios: <><rect x="3.4" y="8.6" width="17.2" height="11.8" rx="2" /><path d="M3.4 13.2h17.2M12 8.6v11.8" /><path d="M12 8.6c-2.6 0-4.4-.9-4.4-2.6S9 3.6 12 8.6zM12 8.6c2.6 0 4.4-.9 4.4-2.6S15 3.6 12 8.6z" /></>,

@@ -9,6 +9,7 @@ import ListaDeAvisos from './ListaDeAvisos';
 import EquipeDaLoja from './EquipeDaLoja';
 import EmailDaConta from './EmailDaConta';
 import PedidosDaEquipe from './PedidosDaEquipe';
+import Conversas from './Conversas';
 import {
   Avatar, BarraSuperior, BotaoDaConta, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
   TrilhoDeNavegacao,
@@ -94,7 +95,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   // rotas para ele; aqui a tela só deixa de oferecer o que ele não pode abrir.
   const ehColaborador = String(usuario?.tipoUsuario || '').toUpperCase() === 'COLABORADOR';
   
-  const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'fila' | 'grupos' | 'sorteios' | 'configuracoes' | 'conta'>('geral');
+  const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'conversas' | 'fila' | 'grupos' | 'sorteios' | 'configuracoes' | 'conta'>('geral');
   // O painel verde da tela inicial mostra os grupos, quem esta devendo ou o
   // resumo da Conta AVLE.
   const [painelVerde, setPainelVerde] = useState<'grupos' | 'inadimplentes' | 'conta'>('grupos');
@@ -256,6 +257,20 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     return () => window.removeEventListener('avle:aguardando-aprovacao', aoPedir);
   }, []);
   const [pedidosPendentes, setPedidosPendentes] = useState(0);
+  const [conversasNaoLidas, setConversasNaoLidas] = useState(0);
+
+  // O selo de Conversas acende sozinho quando uma cliente responde no WhatsApp.
+  useEffect(() => {
+    const contar = () => {
+      apiFetch(`${API_URL}/api/conversas/nao-lidas`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d) setConversasNaoLidas(Number(d.naoLidas) || 0); })
+        .catch(() => {});
+    };
+    contar();
+    const t = setInterval(contar, 30000);
+    return () => clearInterval(t);
+  }, []);
   // O número no menu de Aprovações conta também os pedidos da equipe, e
   // precisa aparecer sem a loja abrir a aba.
   useEffect(() => {
@@ -1684,6 +1699,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     { id: 'geral',      rotulo: 'Início',             icone: 'inicio' },
     { id: 'clientes',   rotulo: 'Clientes',           icone: 'clientes' },
     { id: 'aprovacoes', rotulo: 'Aprovações',         icone: 'aprovacoes', contador: aguardandoCredito.length + (ehColaborador ? 0 : pedidosPendentes), urgente: true, rotuloCurto: 'Aprovar' },
+    { id: 'conversas',  rotulo: 'Conversas',          icone: 'conversas',  contador: conversasNaoLidas, urgente: true },
     { id: 'fila',       rotulo: 'Fila de espera',     icone: 'fila',       contador: filaEspera.length, rotuloCurto: 'Fila' },
     { id: 'grupos',     rotulo: 'Grupos',             icone: 'grupos' },
     { id: 'sorteios',   rotulo: 'Sorteios / Entrega', icone: 'sorteios', rotuloCurto: 'Sorteios' },
@@ -3088,6 +3104,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                       </div>
                   </div>
               </div>
+            )}
+
+            {abaLoja === 'conversas' && (
+              <Conversas ehAdmin={false} aoContarNaoLidas={setConversasNaoLidas} />
             )}
 
             {abaLoja === 'fila' && (() => {

@@ -5,6 +5,7 @@ import EnvioDeCobrancasWhatsapp from './EnvioDeCobrancasWhatsapp';
 import GruposDaLojaNoAdmin from './GruposDaLojaNoAdmin';
 import CobrancaAutomatica from './CobrancaAutomatica';
 import MesDoPagamento from './MesDoPagamento';
+import Conversas from './Conversas';
 import PainelDeAvisosFlutuante from './PainelDeAvisosFlutuante';
 import {
   Avatar, BarraSuperior, BotaoDaConta, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
@@ -24,7 +25,21 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function DashboardAdmin({ usuario }: { usuario: any }) {
   const router = useRouter();
-  const [abaExibida, setAbaExibida] = useState<'geral' | 'lojas' | 'financeiro' | 'cobranca' | 'conta'>('geral');
+  const [abaExibida, setAbaExibida] = useState<'geral' | 'lojas' | 'financeiro' | 'cobranca' | 'conversas' | 'conta'>('geral');
+  const [conversasNaoLidas, setConversasNaoLidas] = useState(0);
+
+  // O selo de Conversas acende sozinho quando uma cliente responde no WhatsApp.
+  useEffect(() => {
+    const contar = () => {
+      apiFetch('/api/conversas/nao-lidas')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d) setConversasNaoLidas(Number(d.naoLidas) || 0); })
+        .catch(() => {});
+    };
+    contar();
+    const t = setInterval(contar, 30000);
+    return () => clearInterval(t);
+  }, []);
 
   const [lojaSelecionada, setLojaSelecionada] = useState<any | null>(null);
   // Painel escuro da tela inicial: o recorte das lojas e qual esta no detalhe.
@@ -177,6 +192,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
     { id: 'lojas',      rotulo: 'Lojas',           icone: 'lojas', contador: listaLojas.length },
     { id: 'financeiro', rotulo: 'Financeiro',      icone: 'financeiro' },
     { id: 'cobranca',   rotulo: 'Cobrança do mês', icone: 'cobranca', rotuloCurto: 'Cobrança' },
+    { id: 'conversas',  rotulo: 'Conversas',       icone: 'conversas', contador: conversasNaoLidas, urgente: true },
   ];
 
   const irParaSecao = (id: string) => {
@@ -812,6 +828,10 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   if (loja) setLojaSelecionada(loja);
                 }}
               />
+            )}
+
+            {abaExibida === 'conversas' && !lojaSelecionada && (
+              <Conversas ehAdmin aoContarNaoLidas={setConversasNaoLidas} />
             )}
 
             {abaExibida === 'cobranca' && !lojaSelecionada && (
