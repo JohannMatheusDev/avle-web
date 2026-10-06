@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { apiFetch } from '../../lib/api';
 
-type Linha = { cotaId: number; nome: string; telefone?: string; email?: string; temCelular: boolean; valor?: number };
+type Linha = { cotaId: number; nome: string; telefone?: string; email?: string; temCelular: boolean; valor?: number; reserva?: boolean };
 type Grupo = { grupoId: number; grupo: string; loja?: string; cotas: Linha[] };
 
 export default function EntradasSemPagamento() {
@@ -61,9 +61,9 @@ export default function EntradasSemPagamento() {
         <div className="min-w-0">
           <h3 style={{ fontWeight: 600 }} className="text-[16px] text-painel-tinta">Entraram e não pagaram a entrada</h3>
           <p className="text-[12px] text-stone-500 mt-1 max-w-xl leading-relaxed">
-            Quem clicou para entrar num grupo e fechou o Pix sem pagar. Elas não entram no sorteio. Marque os grupos e
-            mande o lembrete pelo WhatsApp. Ninguém sai do grupo por aqui. Antes, confira os pagamentos no Asaas, logo
-            acima, para não lembrar quem já pagou.
+            Quem está num grupo e nunca pagou nada, nem a primeira parcela. Elas não entram no sorteio. Marque os
+            grupos e mande o lembrete pelo WhatsApp. Ninguém sai do grupo por aqui. Antes, confira os pagamentos no
+            Asaas, logo acima, para não lembrar quem já pagou.
           </p>
         </div>
         <button type="button" onClick={carregar} disabled={ocupado}
@@ -85,7 +85,7 @@ export default function EntradasSemPagamento() {
           <ul className="text-[12px] text-stone-600 space-y-0.5 pl-6">
             {g.cotas.map((c) => (
               <li key={c.cotaId}>
-                {c.nome} <span className="text-stone-400">· {c.telefone || 'sem telefone'}{!c.temCelular ? ' (não recebe WhatsApp)' : ''}</span>
+                {c.nome} <span className="text-stone-400">· {c.telefone || 'sem telefone'}{!c.temCelular ? ' (não recebe WhatsApp)' : ''}{c.reserva ? ' · vaga reservada' : ''}</span>
               </li>
             ))}
           </ul>
