@@ -5,6 +5,7 @@ import EnvioDeCobrancasWhatsapp from './EnvioDeCobrancasWhatsapp';
 import GruposDaLojaNoAdmin from './GruposDaLojaNoAdmin';
 import CobrancaAutomatica from './CobrancaAutomatica';
 import MesDoPagamento from './MesDoPagamento';
+import ConferirPagamentos from './ConferirPagamentos';
 import Conversas from './Conversas';
 import PainelDeAvisosFlutuante from './PainelDeAvisosFlutuante';
 import {
@@ -837,6 +838,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
             {abaExibida === 'cobranca' && !lojaSelecionada && (
               <div>
                 <CobrancaAutomatica />
+                <ConferirPagamentos />
                 <MesDoPagamento />
                 <div className="mb-5">
                   <h2 className="text-xl font-bold text-[#0B1E14]">Cobrança do mês</h2>
