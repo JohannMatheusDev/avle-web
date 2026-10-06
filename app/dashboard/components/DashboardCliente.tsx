@@ -719,6 +719,18 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     const userId = usuario?.id;
     if (!userId) return;
 
+    // Antes de reler, o servidor pergunta ao Asaas se a cobrança foi paga e dá
+    // a baixa. Sem isto, "Já paguei" só relia o saldo: se o aviso do Asaas não
+    // tivesse chegado, a cliente pagava e continuava vendo a parcela em aberto.
+    const cotaId = clubeAtualSelecionado?.cotaId;
+    if (cotaId) {
+      try {
+        await apiFetch(`${API_URL}/api/pagamentos/conferir/${cotaId}`, { method: 'POST' });
+      } catch {
+        // Sem a conferência, vale o que já estiver gravado.
+      }
+    }
+
     try {
       const res = await apiFetch(`${API_URL}/api/usuarios/${userId}/clubes-ativos`);
       if (!res.ok) return;
@@ -2332,6 +2344,15 @@ function CheckoutForm({
       .catch((e: Error) => setMotivoSemPix(e.message || ''))
       .finally(() => setCarregandoPix(false));
   }, [valorCobrado, cotaId, metodo, tentativaDePix]);
+
+  // Com o Pix na tela, confere sozinho de tempos em tempos: a cliente paga no
+  // app do banco e, ao voltar, a parcela já aparece paga sem ela apertar nada.
+  useEffect(() => {
+    if (metodo !== 'pix' || !dadosPix?.payload) return;
+    const relogio = setInterval(() => { onSuccess(); }, 10_000);
+    return () => clearInterval(relogio);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onSuccess muda a cada render do pai
+  }, [metodo, dadosPix?.payload]);
 
   const handlePagamentoCartao = async (e: React.FormEvent) => {
     e.preventDefault();

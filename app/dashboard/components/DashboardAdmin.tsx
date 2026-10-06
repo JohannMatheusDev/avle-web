@@ -6,6 +6,7 @@ import GruposDaLojaNoAdmin from './GruposDaLojaNoAdmin';
 import CobrancaAutomatica from './CobrancaAutomatica';
 import MesDoPagamento from './MesDoPagamento';
 import ConferirPagamentos from './ConferirPagamentos';
+import EntradasSemPagamento from './EntradasSemPagamento';
 import Conversas from './Conversas';
 import PainelDeAvisosFlutuante from './PainelDeAvisosFlutuante';
 import {
@@ -839,6 +840,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               <div>
                 <CobrancaAutomatica />
                 <ConferirPagamentos />
+                <EntradasSemPagamento />
                 <MesDoPagamento />
                 <div className="mb-5">
                   <h2 className="text-xl font-bold text-[#0B1E14]">Cobrança do mês</h2>
