@@ -684,6 +684,19 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     setModalCheckoutAberto(true);
   }, [clubesAtivos, usuario?.id]);
 
+  // Abre o plano de uma cota direto, a partir do cartão da contemplação: ser
+  // sorteada não encerra o plano, e a cliente continua pagando até o fim do
+  // grupo. Sem este atalho ela via só o cartão e achava que tinha acabado.
+  const abrirPlanoDaCota = (cotaId: number) => {
+    const cota = clubesAtivos.find((c: any) => c.cotaId === cotaId);
+    if (!cota) return;
+    setClubeAtualSelecionado(cota);
+    setGrupoSelecionado(cota.grupo);
+    setLojaSelecionada(cota.loja);
+    setSaldoPoupanca(Number(cota.saldoPoupanca) || 0);
+    setNivelVisao('dashboard');
+  };
+
   // Quem confirma o Pix é o banco, e ele avisa o servidor, não a tela. Sem
   // esta consulta de tempos em tempos a cliente pagaria e continuaria olhando
   // o QR Code, sem entender que já podia seguir.
@@ -1197,6 +1210,30 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                       Escolher meu produto
                     </button>
                   )}
+
+                  {/* Sorteada continua pagando até o fim do grupo: o cartão diz isso e
+                      leva direto ao plano, para ela não achar que acabou. */}
+                  {(() => {
+                    const cota = clubesAtivos.find((c: any) => c.cotaId === card.cotaId);
+                    if (!cota) return null;
+                    const total = Number(cota.grupo?.valorParcela || 0) * Number(cota.grupo?.duracaoMeses || 0);
+                    const falta = total - Number(cota.saldoPoupanca || 0);
+                    if (total <= 0 || falta <= 0.009) return null;
+                    return (
+                      <div className="rounded-2xl bg-[#F5F2EB] border border-[#DFD9CE] p-4 space-y-3">
+                        <p className="text-[12px] text-[#0B1E14] leading-relaxed">
+                          <strong>As parcelas continuam até o fim do grupo.</strong> Faltam R$ {falta.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} para quitar o plano.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => abrirPlanoDaCota(card.cotaId)}
+                          className="w-full py-3 bg-[#BD6B42] text-white font-bold rounded-full text-[11px] uppercase tracking-wider hover:bg-[#A95A33] transition-all cursor-pointer shadow-sm"
+                        >
+                          Pagar parcela
+                        </button>
+                      </div>
+                    );
+                  })()}
 
                   {/* O código de auditoria e o que permite conferir o sorteio por
                       fora do sistema, sem depender da palavra da loja. */}
