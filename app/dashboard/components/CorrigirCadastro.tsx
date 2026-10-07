@@ -39,6 +39,24 @@ export default function CorrigirCadastro() {
     }
   };
 
+  // As clientes com CPF inválido: o Asaas recusa a cobrança delas, e o Pix não sai.
+  const verCpfsInvalidos = async () => {
+    setOcupado(true);
+    setAviso('');
+    try {
+      const r = await apiFetch('/api/admin/clientes/cpf-invalido');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.erro || 'Não deu para buscar.');
+      setLista(d);
+      setEditando(null);
+      setAviso(d.length ? `${d.length} cliente(s) com CPF inválido: o Pix delas não sai até corrigir.` : 'Nenhuma cliente com CPF inválido.');
+    } catch (e) {
+      setAviso(e instanceof Error ? e.message : 'Não deu para buscar.');
+    } finally {
+      setOcupado(false);
+    }
+  };
+
   const abrir = (c: Cliente) => {
     setEditando(c);
     setValores({ nome: c.nome ?? '', cpf: c.cpf ?? '', email: c.email ?? '', telefone: c.telefone ?? '' });
@@ -86,6 +104,10 @@ export default function CorrigirCadastro() {
         <button type="button" onClick={buscar} disabled={ocupado || busca.trim().length < 3}
           className="h-10 px-5 rounded-full bg-painel-tinta text-white text-[12px] font-semibold hover:bg-avle-verde disabled:opacity-50 cursor-pointer">
           Buscar
+        </button>
+        <button type="button" onClick={verCpfsInvalidos} disabled={ocupado}
+          className="h-10 px-5 rounded-full border border-painel-borda text-[12px] font-semibold text-painel-tinta hover:bg-stone-50 disabled:opacity-50 cursor-pointer">
+          Ver CPFs inválidos
         </button>
       </div>
 
