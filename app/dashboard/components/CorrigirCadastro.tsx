@@ -4,13 +4,23 @@
  * Corrige o cadastro de uma cliente: nome, CPF, e-mail e telefone. Busca pelo
  * nome, CPF, telefone ou e-mail, mostra o que está gravado e, ao salvar, o
  * antes e o depois. O servidor confere o CPF e se algum dado já é de outra
- * conta.
+ * conta. Mostra também a situação de cada cota dela e reativa a que foi
+ * cancelada por engano.
  */
 
 import { useState } from 'react';
 import { apiFetch } from '../../lib/api';
 
-type Cliente = { id: number; nome: string; cpf?: string; email?: string; telefone?: string; tipo?: string; grupos: string[] };
+type CotaDaCliente = { cotaId: number; grupo: string; loja?: string; status: string; vagaMantida?: boolean };
+type Cliente = { id: number; nome: string; cpf?: string; email?: string; telefone?: string; tipo?: string; grupos: string[]; cotas?: CotaDaCliente[] };
+
+const SITUACAO: Record<string, string> = {
+  ATIVA: 'ativa',
+  AGUARDANDO_PAGAMENTO: 'reservada, falta pagar a entrada',
+  CANCELADA: 'cancelada: não aparece no painel dela',
+  REJEITADA: 'recusada: não aparece no painel dela',
+  PENDENTE_AVALIACAO: 'em avaliação',
+};
 type Campos = { nome: string; cpf: string; email: string; telefone: string };
 
 const campo = 'w-full h-10 px-4 bg-white ring-1 ring-painel-borda rounded-full text-[13px] text-painel-tinta focus:outline-none focus:ring-2 focus:ring-painel-acento/50';
@@ -52,6 +62,24 @@ export default function CorrigirCadastro() {
       setAviso(d.length ? `${d.length} cliente(s) com CPF inválido: o Pix delas não sai até corrigir.` : 'Nenhuma cliente com CPF inválido.');
     } catch (e) {
       setAviso(e instanceof Error ? e.message : 'Não deu para buscar.');
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  // Devolve ao grupo a cota cancelada por engano, com o saldo e o histórico.
+  const reativar = async (cliente: Cliente, cota: CotaDaCliente) => {
+    if (!window.confirm(`Reativar a cota de ${cliente.nome} no grupo ${cota.grupo}? Ela volta a ver o grupo no painel e a ser cobrada.`)) return;
+    setOcupado(true);
+    setAviso('');
+    try {
+      const r = await apiFetch(`/api/admin/cotas/${cota.cotaId}/reativar`, { method: 'POST' });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.erro || 'Não deu para reativar.');
+      setLista((l) => l?.map((c) => (c.id === cliente.id ? { ...c, cotas: d.cotas } : c)) ?? null);
+      setAviso(d.mensagem);
+    } catch (e) {
+      setAviso(e instanceof Error ? e.message : 'Não deu para reativar.');
     } finally {
       setOcupado(false);
     }
@@ -119,7 +147,31 @@ export default function CorrigirCadastro() {
               <div className="min-w-0 text-[12px] text-stone-500">
                 <p className="text-[13px] font-semibold text-painel-tinta">{c.nome}</p>
                 <p>CPF {c.cpf || '—'} · {c.telefone || 'sem telefone'} · {c.email || 'sem e-mail'}</p>
-                <p className="text-stone-400">{c.grupos.length ? c.grupos.join(', ') : 'sem grupo'}</p>
+                {c.cotas ? (
+                  c.cotas.length === 0 ? <p className="text-stone-400">sem grupo</p> : (
+                    <ul className="mt-1 space-y-1">
+                      {c.cotas.map((cota) => {
+                        const fora = cota.status === 'CANCELADA' || cota.status === 'REJEITADA';
+                        return (
+                          <li key={cota.cotaId} className="flex flex-wrap items-center gap-2">
+                            <span className="text-painel-tinta">{cota.grupo}{cota.loja ? ` · ${cota.loja}` : ''}</span>
+                            <span className={fora ? 'text-rose-700 font-semibold' : 'text-stone-400'}>
+                              ({SITUACAO[cota.status] ?? cota.status.toLowerCase()})
+                            </span>
+                            {fora && (
+                              <button type="button" onClick={() => reativar(c, cota)} disabled={ocupado}
+                                className="h-7 px-3 rounded-full bg-painel-tinta text-white text-[11px] font-semibold hover:bg-avle-verde disabled:opacity-50 cursor-pointer">
+                                Reativar
+                              </button>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )
+                ) : (
+                  <p className="text-stone-400">{c.grupos.length ? c.grupos.join(', ') : 'sem grupo'}</p>
+                )}
               </div>
               <button type="button" onClick={() => abrir(c)}
                 className="h-9 px-4 rounded-full border border-painel-borda text-[12px] font-semibold text-painel-tinta hover:bg-stone-50 cursor-pointer">
