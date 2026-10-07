@@ -1,5 +1,6 @@
 'use client';
 
+import RegrasDaSenha from './components/RegrasDaSenha';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -809,6 +810,7 @@ function Autenticacao() {
                       <input type={mostrarNovaSenha ? 'text' : 'password'} placeholder="••••••••" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} className="w-full px-4 py-3 border rounded-2xl bg-stone-50 text-sm h-[46px] focus:outline-none focus:border-[#0B1E14]" required disabled={carregando} />
                       <button type="button" onClick={() => setMostrarNovaSenha(!mostrarNovaSenha)} className="absolute right-4 top-3 text-stone-400 font-bold hover:text-stone-700 cursor-pointer">Ver</button>
                     </div>
+                    <RegrasDaSenha senha={novaSenha} />
                   </div>
                   <div className="space-y-2 mt-4">
                   <button type="submit" disabled={codigoOtp.length !== 6 || !novaSenhaForte || carregando} className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-full text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 transition-all">

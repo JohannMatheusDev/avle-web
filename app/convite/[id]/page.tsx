@@ -1,5 +1,6 @@
 'use client';
 
+import RegrasDaSenha from '../../components/RegrasDaSenha';
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import gsap from 'gsap';
@@ -821,6 +822,7 @@ export default function CadastroConvite() {
                       Ver
                     </button>
                   </div>
+                  <RegrasDaSenha senha={novaSenha} />
                 </div>
               </div>
               <div className="space-y-2 mt-4">
