@@ -1328,7 +1328,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
                    // entrar. Misturadas, o plano dela ficava perdido no meio de
                    // uma vitrine que so interessa a quem esta procurando grupo.
                    const meusGrupos = gruposDaLoja.filter(temCota);
-                   const gruposParaEntrar = gruposDaLoja.filter((g) => !temCota(g) && grupoDisponivel(g));
+                   // Grupo que já teve sorteio não recebe ninguém pelo link: aparece só
+                   // para quem já participa, em Meus grupos.
+                   const gruposParaEntrar = gruposDaLoja.filter((g) => !temCota(g) && !g.jaComecou && grupoDisponivel(g));
                    const gruposVisiveis = [...meusGrupos, ...gruposParaEntrar];
 
                    const abaAtual = abaGrupos ?? (meusGrupos.length > 0 ? 'meus' : 'disponiveis');
