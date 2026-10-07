@@ -1042,6 +1042,36 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     });
   };
 
+  // O link de pagamento da próxima parcela, mandado pelo WhatsApp da
+  // cliente. A aba abre já no clique, antes da resposta do servidor: aberta
+  // depois de esperar a rede, o navegador do celular a bloqueia como pop-up.
+  const [enviandoLinkId, setEnviandoLinkId] = useState<number | null>(null);
+  const handleEnviarLinkDePagamento = async (cotaId: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const janela = window.open('', '_blank');
+    setEnviandoLinkId(cotaId);
+    try {
+      const res = await apiFetch(`${API_URL}/api/pagamentos/link/${cotaId}`, { method: 'POST' });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || d.erro || 'Não foi possível gerar o link de pagamento.');
+      const telefone = String(d.telefone || '');
+      if (!telefone) {
+        janela?.close();
+        mostrarAviso('Cliente sem telefone', `O link foi gerado, mas a cliente não tem telefone no cadastro. Link: ${d.link}`, true);
+        return;
+      }
+      const destino = telefone.length <= 11 ? `55${telefone}` : telefone;
+      const url = `https://wa.me/${destino}?text=${encodeURIComponent(d.mensagem)}`;
+      if (janela) janela.location.href = url;
+      else window.location.href = url;
+    } catch (err) {
+      janela?.close();
+      mostrarAviso('Link de pagamento', err instanceof Error ? err.message : 'Não foi possível falar com o servidor.', true);
+    } finally {
+      setEnviandoLinkId(null);
+    }
+  };
+
   // Antes de perguntar, o servidor faz um ensaio e diz o que vai sair: grupo
   // de teste com participantes sai inteiro, com as cobrancas do Asaas; grupo
   // com parcela paga nao sai, e o motivo aparece em vez da confirmacao.
@@ -2197,6 +2227,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                               />
                             </td>
                             <td className="py-3.5 px-5 text-center">
+                              <button
+                                type="button"
+                                onClick={(e) => handleEnviarLinkDePagamento(part.id, e)}
+                                disabled={enviandoLinkId === part.id}
+                                title="Gera o link da próxima parcela e abre o WhatsApp da cliente"
+                                className="block mx-auto mb-1.5 px-2.5 py-1 bg-[#0B1E14] text-white font-bold rounded-lg text-[10px] uppercase whitespace-nowrap hover:bg-opacity-90 transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+                              >
+                                {enviandoLinkId === part.id ? 'Gerando...' : 'Enviar pagamento'}
+                              </button>
                               <button
                                 type="button"
                                 onClick={(e) => handleRemoverParticipanteDoGrupo(part.id, e)}
