@@ -444,17 +444,15 @@ export default function CadastroConvite() {
     setMensagem({ tipo: '', texto: '' });
     setCarregando(true);
 
-    const isTelefone = !identificadorLogin.includes('@');
-
-    if (!isLoginEmailValido && !isTelefone) {
-      setMensagem({ tipo: 'erro', texto: 'Por favor, insira um e-mail ou telefone válido.' });
+    if (!loginValido) {
+      setMensagem({ tipo: 'erro', texto: 'Informe um e-mail, telefone ou CPF válido.' });
       setCarregando(false);
       return;
     }
 
-    const payload = isTelefone 
-        ? { telefone: identificadorLogin.replace(/\D/g, '') } 
-        : { email: identificadorLogin.trim() };
+    // O servidor descobre se é e-mail, telefone ou CPF: mandar como telefone
+    // fazia o CPF ser procurado só entre os telefones.
+    const payload = { identificador: identificadorLogin.trim() };
 
     try {
       const resposta = await apiFetch(`${API_URL}/api/auth/esqueceu-senha`, {
@@ -491,10 +489,7 @@ export default function CadastroConvite() {
       return;
     }
 
-    const isTelefone = !identificadorLogin.includes('@');
-    const payload = isTelefone 
-        ? { telefone: identificadorLogin.replace(/\D/g, ''), codigo: codigoOtp, novaSenha } 
-        : { email: identificadorLogin.trim(), codigo: codigoOtp, novaSenha };
+    const payload = { identificador: identificadorLogin.trim(), codigo: codigoOtp, novaSenha };
 
     try {
       const resposta = await apiFetch(`${API_URL}/api/auth/redefinir-senha`, {
@@ -735,7 +730,7 @@ export default function CadastroConvite() {
                   </div>
                 )}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail ou telefone com DDD</label>
+                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail, telefone ou CPF</label>
                   <input
                     type="text"
                     placeholder="E-mail, telefone ou CPF"
@@ -866,7 +861,7 @@ export default function CadastroConvite() {
                     <div>
                       <div className="flex justify-between items-center mb-1">
                         <label className="block text-[10px] font-bold uppercase text-stone-500">
-                          E-mail ou telefone com DDD *
+                          E-mail, telefone ou CPF *
                         </label>
                         {identificadorLogin.length > 0 && (
                           <span className={`text-[10px] font-bold ${loginValido ? 'text-emerald-600' : 'text-rose-500'}`}>

@@ -961,7 +961,7 @@ function Autenticacao() {
                   {isLogin && (
                       <div>
                         <div className="flex justify-between items-center mb-1">
-                          <label className="block text-[10px] font-bold uppercase text-stone-500">E-mail ou telefone com DDD *</label>
+                          <label className="block text-[10px] font-bold uppercase text-stone-500">E-mail, telefone ou CPF *</label>
                         </div>
                         <input type="text" placeholder="E-mail, telefone ou CPF" value={identificadorLogin} onChange={handleIdentificadorChange} className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]" required disabled={carregando} />
                       </div>
