@@ -14,6 +14,19 @@ import { apiFetch } from '../../lib/api';
 type CotaDaCliente = { cotaId: number; grupo: string; loja?: string; status: string; vagaMantida?: boolean };
 type Cliente = { id: number; nome: string; cpf?: string; email?: string; telefone?: string; tipo?: string; grupos: string[]; cotas?: CotaDaCliente[] };
 
+type CobrancaNoAsaas = {
+  id: string; value: number; status: string; billingType?: string; dueDate?: string; paymentDate?: string;
+  description?: string; conta: string; contaLojaId: number; noAvle: string[]; pagaSemBaixa: boolean;
+};
+type NoAsaas = { clienteId: number; cobrancas: CobrancaNoAsaas[]; cotas: CotaDaCliente[]; falhas?: string[] };
+
+const STATUS_ASAAS: Record<string, string> = {
+  PENDING: 'aguardando', OVERDUE: 'vencida', RECEIVED: 'paga', CONFIRMED: 'paga', RECEIVED_IN_CASH: 'paga em dinheiro',
+  REFUNDED: 'estornada', REFUND_REQUESTED: 'estorno pedido',
+};
+const reais = (v: number) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const data = (d?: string) => (d ? d.split('-').reverse().join('/') : '—');
+
 const SITUACAO: Record<string, string> = {
   ATIVA: 'ativa',
   AGUARDANDO_PAGAMENTO: 'reservada, falta pagar a entrada',
@@ -32,6 +45,8 @@ export default function CorrigirCadastro() {
   const [valores, setValores] = useState<Campos>({ nome: '', cpf: '', email: '', telefone: '' });
   const [aviso, setAviso] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const [noAsaas, setNoAsaas] = useState<NoAsaas | null>(null);
+  const [cotaDaBaixa, setCotaDaBaixa] = useState<Record<string, number>>({});
 
   const buscar = async () => {
     setOcupado(true);
@@ -80,6 +95,48 @@ export default function CorrigirCadastro() {
       setAviso(d.mensagem);
     } catch (e) {
       setAviso(e instanceof Error ? e.message : 'Não deu para reativar.');
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  // O que o Asaas tem desta cliente, em todas as contas, ao lado do AVLE.
+  const verNoAsaas = async (c: Cliente) => {
+    setOcupado(true);
+    setAviso('');
+    try {
+      const r = await apiFetch(`/api/admin/clientes/${c.id}/asaas`);
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.erro || 'Não deu para consultar o Asaas.');
+      setNoAsaas({ clienteId: c.id, ...d });
+      const semBaixa = (d.cobrancas as CobrancaNoAsaas[]).filter((x) => x.pagaSemBaixa).length;
+      setAviso(semBaixa ? `${semBaixa} cobrança(s) paga(s) no Asaas sem baixa no AVLE.` : 'Nenhuma cobrança paga sem baixa.');
+    } catch (e) {
+      setAviso(e instanceof Error ? e.message : 'Não deu para consultar o Asaas.');
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const darBaixa = async (cob: CobrancaNoAsaas) => {
+    if (!noAsaas) return;
+    if (!window.confirm(`Dar baixa na cobrança de ${reais(cob.value)} (${cob.conta}, paga em ${data(cob.paymentDate)})?`)) return;
+    setOcupado(true);
+    setAviso('');
+    try {
+      const r = await apiFetch(`/api/admin/clientes/${noAsaas.clienteId}/asaas/baixar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId: cob.id, contaLojaId: cob.contaLojaId, cotaId: cotaDaBaixa[cob.id] }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.erro || 'Não deu para dar baixa.');
+      setAviso(d.mensagem);
+      const cliente = lista?.find((c) => c.id === noAsaas.clienteId);
+      if (cliente) await verNoAsaas(cliente);
+      setAviso(d.mensagem);
+    } catch (e) {
+      setAviso(e instanceof Error ? e.message : 'Não deu para dar baixa.');
     } finally {
       setOcupado(false);
     }
@@ -173,10 +230,61 @@ export default function CorrigirCadastro() {
                   <p className="text-stone-400">{c.grupos.length ? c.grupos.join(', ') : 'sem grupo'}</p>
                 )}
               </div>
-              <button type="button" onClick={() => abrir(c)}
-                className="h-9 px-4 rounded-full border border-painel-borda text-[12px] font-semibold text-painel-tinta hover:bg-stone-50 cursor-pointer">
-                Corrigir
-              </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => verNoAsaas(c)} disabled={ocupado}
+                  className="h-9 px-4 rounded-full border border-painel-borda text-[12px] font-semibold text-painel-tinta hover:bg-stone-50 disabled:opacity-50 cursor-pointer">
+                  Cobranças no Asaas
+                </button>
+                <button type="button" onClick={() => abrir(c)}
+                  className="h-9 px-4 rounded-full border border-painel-borda text-[12px] font-semibold text-painel-tinta hover:bg-stone-50 cursor-pointer">
+                  Corrigir
+                </button>
+              </div>
+              {noAsaas?.clienteId === c.id && (
+                <div className="w-full rounded-2xl bg-painel-papel p-3 text-[12px]">
+                  {noAsaas.falhas?.map((f) => <p key={f} className="text-rose-700">Não consultou {f}</p>)}
+                  {noAsaas.cobrancas.length === 0 ? (
+                    <p className="text-stone-400">Nenhuma cobrança no Asaas para o CPF dela.</p>
+                  ) : (
+                    <ul className="divide-y divide-painel-borda">
+                      {noAsaas.cobrancas.map((cob) => (
+                        <li key={cob.id} className={`py-2 flex flex-wrap items-center justify-between gap-2 ${cob.pagaSemBaixa ? 'text-rose-800' : 'text-stone-500'}`}>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-painel-tinta">
+                              {reais(cob.value)} · {STATUS_ASAAS[cob.status] ?? cob.status.toLowerCase()} · conta {cob.conta}
+                            </p>
+                            <p>
+                              vence {data(cob.dueDate)}{cob.paymentDate ? ` · paga em ${data(cob.paymentDate)}` : ''}
+                              {cob.billingType ? ` · ${cob.billingType}` : ''}
+                            </p>
+                            <p className="text-stone-400">
+                              No AVLE: {cob.noAvle.length ? cob.noAvle.join(', ').toLowerCase() : 'não existe (nasceu fora do AVLE)'}
+                            </p>
+                          </div>
+                          {cob.pagaSemBaixa && (
+                            <div className="flex flex-wrap items-center gap-2">
+                              {cob.noAvle.length === 0 && (
+                                <select value={cotaDaBaixa[cob.id] ?? ''} onChange={(e) => setCotaDaBaixa((m) => ({ ...m, [cob.id]: Number(e.target.value) }))}
+                                  className="h-8 px-2 rounded-full bg-white ring-1 ring-painel-borda text-[12px]">
+                                  <option value="">Qual grupo?</option>
+                                  {noAsaas.cotas.map((cota) => (
+                                    <option key={cota.cotaId} value={cota.cotaId}>{cota.grupo}{cota.loja ? ` · ${cota.loja}` : ''}</option>
+                                  ))}
+                                </select>
+                              )}
+                              <button type="button" onClick={() => darBaixa(cob)}
+                                disabled={ocupado || (cob.noAvle.length === 0 && !cotaDaBaixa[cob.id])}
+                                className="h-8 px-3 rounded-full bg-painel-tinta text-white text-[11px] font-semibold hover:bg-avle-verde disabled:opacity-50 cursor-pointer">
+                                Dar baixa
+                              </button>
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
