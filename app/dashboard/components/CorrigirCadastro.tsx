@@ -16,7 +16,7 @@ type Cliente = { id: number; nome: string; cpf?: string; email?: string; telefon
 
 type CobrancaNoAsaas = {
   id: string; value: number; status: string; billingType?: string; dueDate?: string; paymentDate?: string;
-  description?: string; conta: string; contaLojaId: number; noAvle: string[]; pagaSemBaixa: boolean;
+  description?: string; conta: string; contaLojaId: number; noAvle: string[]; pagaSemBaixa: boolean; temBaixa?: boolean;
 };
 type NoAsaas = { clienteId: number; cobrancas: CobrancaNoAsaas[]; cotas: CotaDaCliente[]; falhas?: string[] };
 
@@ -142,6 +142,30 @@ export default function CorrigirCadastro() {
     }
   };
 
+  // Tira a parcela creditada a mais: a baixa numa cobrança que já estava contada.
+  const desfazerBaixa = async (cob: CobrancaNoAsaas) => {
+    if (!noAsaas) return;
+    if (!window.confirm(`Desfazer a baixa da cobrança de ${reais(cob.value)}? A parcela sai do saldo (${cob.noAvle.join(', ').toLowerCase()}).`)) return;
+    setOcupado(true);
+    setAviso('');
+    try {
+      const r = await apiFetch(`/api/admin/clientes/${noAsaas.clienteId}/asaas/desfazer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId: cob.id }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.erro || 'Não deu para desfazer.');
+      const cliente = lista?.find((c) => c.id === noAsaas.clienteId);
+      if (cliente) await verNoAsaas(cliente);
+      setAviso(d.mensagem);
+    } catch (e) {
+      setAviso(e instanceof Error ? e.message : 'Não deu para desfazer.');
+    } finally {
+      setOcupado(false);
+    }
+  };
+
   const abrir = (c: Cliente) => {
     setEditando(c);
     setValores({ nome: c.nome ?? '', cpf: c.cpf ?? '', email: c.email ?? '', telefone: c.telefone ?? '' });
@@ -261,6 +285,12 @@ export default function CorrigirCadastro() {
                               No AVLE: {cob.noAvle.length ? cob.noAvle.join(', ').toLowerCase() : 'não existe (nasceu fora do AVLE)'}
                             </p>
                           </div>
+                          {cob.temBaixa && (
+                            <button type="button" onClick={() => desfazerBaixa(cob)} disabled={ocupado}
+                              className="h-8 px-3 rounded-full border border-painel-borda text-[11px] font-semibold text-stone-500 hover:bg-white disabled:opacity-50 cursor-pointer">
+                              Desfazer baixa
+                            </button>
+                          )}
                           {cob.pagaSemBaixa && (
                             <div className="flex flex-wrap items-center gap-2">
                               {cob.noAvle.length === 0 && (
