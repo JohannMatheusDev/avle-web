@@ -50,7 +50,11 @@ async function erroDe(r: Response, padrao: string) {
   return d?.erro || d?.mensagem || padrao;
 }
 
-export default function DashboardAfiliado({ usuario }: { usuario: Usuario }) {
+export default function DashboardAfiliado({ usuario, aoAbrirPainelDaCliente }: {
+  usuario: Usuario;
+  /** A afiliada também é cliente: volta para o painel que ela mostra a quem indica. */
+  aoAbrirPainelDaCliente?: () => void;
+}) {
   const router = useRouter();
   const [secao, setSecao] = useState('inicio');
   const [painel, setPainel] = useState<Painel | null>(null);
@@ -108,7 +112,14 @@ export default function DashboardAfiliado({ usuario }: { usuario: Usuario }) {
   return (
     <div className={`avle-ds ${s.pagina}`}>
       <TopNav role="Afiliada" items={SECOES} value={secao} onChange={setSecao}
-        end={<Button variant="ghost" size="sm" onClick={sair}>Sair</Button>} />
+        end={
+          <>
+            {aoAbrirPainelDaCliente && (
+              <Button variant="secondary" size="sm" onClick={aoAbrirPainelDaCliente}>Painel da cliente</Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={sair}>Sair</Button>
+          </>
+        } />
       <main className="kit-main">
         {erro && (
           <Card>

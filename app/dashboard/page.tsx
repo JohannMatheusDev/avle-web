@@ -7,11 +7,13 @@ import DashboardLoja from './components/DashboardLoja';
 import DashboardCliente from './components/DashboardCliente';
 import DashboardAfiliado from './components/DashboardAfiliado';
 import BoasVindasTermos from './components/BoasVindasTermos';
+import { escolherPainel, painelEscolhido, type Painel } from '../lib/painelDaAfiliada';
 
 export default function DashboardPage() {
   const router = useRouter();
   const [usuario, setUsuario] = useState<any>(null);
   const [carregando, setCarregando] = useState(true);
+  const [painel, setPainel] = useState<Painel>('cliente');
 
   useEffect(() => {
     
@@ -24,6 +26,7 @@ export default function DashboardPage() {
 
     try {
       setUsuario(JSON.parse(usuarioSalvo));
+      setPainel(painelEscolhido());
     } catch (error) {
       localStorage.removeItem('@avle:usuario');
       router.push('/');
@@ -45,6 +48,12 @@ export default function DashboardPage() {
 
   const tipo = usuario?.tipoUsuario?.toUpperCase();
 
+  const trocarDePainel = (p: Painel) => {
+    escolherPainel(p);
+    setPainel(p);
+    window.scrollTo(0, 0);
+  };
+
   // As boas-vindas ficam por cima do painel que a pessoa ja veria, e nao no
   // lugar dele. Assim o aceite nao depende de acertar uma tela intermediaria
   // para cada tipo de usuario, e quem ja aceitou nao ve nada.
@@ -52,9 +61,9 @@ export default function DashboardPage() {
   // So a cliente recebe. Os termos falam de pagar parcela e concorrer a
   // contemplacao; na loja, a tela travava o painel pedindo aceite de
   // compromissos que nao sao dela.
-  const comBoasVindas = (painel: React.ReactNode) => (
+  const comBoasVindas = (conteudo: React.ReactNode) => (
     <>
-      {painel}
+      {conteudo}
       <BoasVindasTermos nome={usuario?.nome} />
     </>
   );
@@ -68,10 +77,21 @@ export default function DashboardPage() {
     case 'COLABORADOR':
       return <DashboardLoja usuario={usuario} />;
     
+    // A afiliada também é cliente e alterna entre os dois painéis: o da
+    // cliente é por onde ela mostra como o clube funciona.
     case 'CLIENTE':
-      return comBoasVindas(<DashboardCliente usuario={usuario} />);
+      if (usuario.afiliada && painel === 'afiliada') {
+        return <DashboardAfiliado usuario={usuario} aoAbrirPainelDaCliente={() => trocarDePainel('cliente')} />;
+      }
+      return comBoasVindas(
+        <DashboardCliente
+          usuario={usuario}
+          aoAbrirPainelDaAfiliada={usuario.afiliada ? () => trocarDePainel('afiliada') : undefined}
+        />,
+      );
 
-    // Quem divulga uma loja: só o painel da afiliada.
+    // Sessão guardada antes de a afiliada virar cliente. O próximo login já
+    // chega como CLIENTE.
     case 'AFILIADO':
       return <DashboardAfiliado usuario={usuario} />;
     

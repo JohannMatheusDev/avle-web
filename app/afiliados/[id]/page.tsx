@@ -4,6 +4,10 @@
  * A porta da afiliada: o link que a loja divulga para quem quer indicar a loja
  * e ganhar comissão. Abre no cadastro, com os termos, e tem a entrada para quem
  * já é afiliada. O [id] é o mesmo do convite da cliente: "12-nome-da-loja".
+ *
+ * A afiliada também é cliente. Quem já tem conta não se cadastra de novo (e-mail
+ * e CPF são únicos): entra com a conta dela e completa só a chave Pix e os
+ * termos. Entrando por aqui, o painel que abre é o de afiliada.
  */
 
 import { useEffect, useState } from 'react';
@@ -12,12 +16,16 @@ import { Button, Card, Checkbox, Input, Logo } from '@/design-system';
 import RegrasDaSenha from '../../components/RegrasDaSenha';
 import { apiFetch } from '../../lib/api';
 import { cpfValido, senhaForte, somenteDigitos, telefoneValido } from '../../lib/validacao';
+import { escolherPainel, marcarComoAfiliada } from '../../lib/painelDaAfiliada';
 import TermosDoAfiliado from '../TermosDoAfiliado';
 import s from '../Afiliados.module.css';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
-type Modo = 'cadastro' | 'entrar' | 'codigo';
+// Respostas do cadastro quando o e-mail, o CPF ou o telefone já têm conta.
+const JA_TEM_CONTA = /já está em uso|já existe uma conta/i;
+
+type Modo = 'cadastro' | 'entrar' | 'codigo' | 'completar';
 type Aviso = { erro: boolean; texto: string } | null;
 
 // O servidor responde erro como texto puro ou como { erro } / { mensagem }.
@@ -98,7 +106,17 @@ export default function CadastroDeAfiliada() {
           aceitouTermos: true,
         }),
       });
-      if (!r.ok) throw new Error(await motivo(r, 'Não foi possível concluir o cadastro.'));
+      if (!r.ok) {
+        const texto = await motivo(r, 'Não foi possível concluir o cadastro.');
+        if (JA_TEM_CONTA.test(texto)) {
+          setModo('entrar');
+          setIdentificador(email.trim());
+          setSenha('');
+          setAviso({ erro: false, texto: 'Você já tem conta na AVLE. Entre com ela: depois falta só a chave Pix para virar afiliada.' });
+          return;
+        }
+        throw new Error(texto);
+      }
       const d = await r.json().catch(() => ({}));
       if (d.verificacaoPendente) {
         setEmailDoCodigo(d.email || email.trim());
@@ -161,9 +179,38 @@ export default function CadastroDeAfiliada() {
       if (!r.ok) throw new Error(await motivo(r, 'E-mail, CPF ou senha incorretos.'));
       const usuario = await r.json();
       localStorage.setItem('@avle:usuario', JSON.stringify(usuario));
+      const tipo = String(usuario.tipoUsuario || '').toUpperCase();
+      if (tipo === 'CLIENTE' && !usuario.afiliada) {
+        setSenha('');
+        setModo('completar');
+        setAviso({ erro: false, texto: `Falta pouco: informe a chave Pix e aceite os termos para divulgar a ${loja}.` });
+        return;
+      }
+      if (usuario.afiliada || tipo === 'AFILIADO') escolherPainel('afiliada');
       router.push('/dashboard');
     } catch (erro) {
       setAviso({ erro: true, texto: erro instanceof Error ? erro.message : 'Não foi possível entrar.' });
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const completar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEnviando(true);
+    setAviso(null);
+    try {
+      const r = await apiFetch(`${API_URL}/api/afiliados/tornar-se`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lojaId, chavePix: chavePix.trim(), aceitouTermos: aceitou }),
+      });
+      if (!r.ok) throw new Error(await motivo(r, 'Não foi possível concluir. Tente de novo.'));
+      marcarComoAfiliada();
+      escolherPainel('afiliada');
+      router.push('/dashboard');
+    } catch (erro) {
+      setAviso({ erro: true, texto: erro instanceof Error ? erro.message : 'Não foi possível concluir. Tente de novo.' });
     } finally {
       setEnviando(false);
     }
@@ -192,7 +239,11 @@ export default function CadastroDeAfiliada() {
             <div>
               <p className={s.selo}>Afiliadas · {loja}</p>
               <h1 className={s.chamada}>
-                {modo === 'entrar' ? 'Entrar no seu painel' : `Divulgue a ${loja} e ganhe por cliente que pagar`}
+                {modo === 'entrar'
+                  ? 'Entrar no seu painel'
+                  : modo === 'completar'
+                    ? 'Complete para virar afiliada'
+                    : `Divulgue a ${loja} e ganhe por cliente que pagar`}
               </h1>
               {modo === 'cadastro' && (
                 <p className={s.apoio}>
@@ -225,7 +276,7 @@ export default function CadastroDeAfiliada() {
                 <Button type="submit" block disabled={enviando || !cadastroValido}>
                   {enviando ? 'Enviando…' : 'Quero ser afiliada'}
                 </Button>
-                <button type="button" className={s.trocar} onClick={() => trocar('entrar')}>Já sou afiliada, quero entrar</button>
+                <button type="button" className={s.trocar} onClick={() => trocar('entrar')}>Já tenho conta na AVLE, quero entrar</button>
               </form>
             )}
 
@@ -246,7 +297,21 @@ export default function CadastroDeAfiliada() {
                   {enviando ? 'Entrando…' : 'Entrar'}
                 </Button>
                 <button type="button" className={s.trocar} onClick={() => router.push('/')}>Esqueci a senha</button>
-                <button type="button" className={s.trocar} onClick={() => trocar('cadastro')}>Ainda não sou afiliada</button>
+                <button type="button" className={s.trocar} onClick={() => trocar('cadastro')}>Ainda não tenho conta na AVLE</button>
+              </form>
+            )}
+
+            {modo === 'completar' && (
+              <form className={s.formulario} onSubmit={completar}>
+                <Input label="Chave Pix para receber" hint="CPF, celular, e-mail ou chave aleatória" value={chavePix}
+                  onChange={(e) => setChavePix(e.target.value)} />
+                <div className={s.termos}>
+                  <TermosDoAfiliado loja={loja} />
+                </div>
+                <Checkbox label="Li e aceito os termos de afiliada" checked={aceitou} onChange={setAceitou} />
+                <Button type="submit" block disabled={enviando || !chavePix.trim() || !aceitou}>
+                  {enviando ? 'Enviando…' : 'Quero ser afiliada'}
+                </Button>
               </form>
             )}
           </Card>
