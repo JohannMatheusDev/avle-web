@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import DashboardAdmin from './components/DashboardAdmin';
 import DashboardLoja from './components/DashboardLoja';
 import DashboardCliente from './components/DashboardCliente';
+import DashboardAfiliado from './components/DashboardAfiliado';
 import BoasVindasTermos from './components/BoasVindasTermos';
 
 export default function DashboardPage() {
@@ -69,6 +70,10 @@ export default function DashboardPage() {
     
     case 'CLIENTE':
       return comBoasVindas(<DashboardCliente usuario={usuario} />);
+
+    // Quem divulga uma loja: só o painel da afiliada.
+    case 'AFILIADO':
+      return <DashboardAfiliado usuario={usuario} />;
     
     default:
       console.error("Tipo de usuário inválido:", tipo);

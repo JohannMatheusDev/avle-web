@@ -13,6 +13,7 @@ import {
 } from './lib/validacao';
 import TelaCarregamento from './dashboard/components/TelaCarregamento';
 import { apiFetch } from './lib/api';
+import { codigoDaIndicacao } from './lib/indicacao';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -334,6 +335,8 @@ function Autenticacao() {
               contaAsaas: tipoUsuario === 'LOJA' ? contaAsaas : null,
               asaasApiKey: tipoUsuario === 'LOJA' && contaAsaas === 'PROPRIA' ? chaveAsaasInput.trim() : null,
               lojaId: tipoUsuario === 'CLIENTE' && conviteLojaId ? Number(conviteLojaId) : null,
+              // Veio pelo link de uma afiliada desta loja: a cliente fica indicada por ela.
+              codigoAfiliado: tipoUsuario === 'CLIENTE' && conviteLojaId ? codigoDaIndicacao(Number(conviteLojaId)) ?? null : null,
             };
         }
 

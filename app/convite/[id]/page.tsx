@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import gsap from 'gsap';
 import { apiFetch } from '../../lib/api';
+import { codigoDaIndicacao } from '../../lib/indicacao';
 import TelaCarregamento from '../../dashboard/components/TelaCarregamento';
 import {
   cpfValido,
@@ -273,7 +274,9 @@ export default function CadastroConvite() {
               senha,
               tipoUsuario: 'CLIENTE',
               telefone: telefoneCadastroLimpo !== '' ? telefoneCadastroLimpo : null,
-              lojaId: lojaIdNum
+              lojaId: lojaIdNum,
+              // Veio pelo link de uma afiliada desta loja: a cliente fica indicada por ela.
+              codigoAfiliado: codigoDaIndicacao(lojaIdNum) ?? null,
             };
         }
 
