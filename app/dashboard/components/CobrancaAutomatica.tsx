@@ -255,6 +255,8 @@ export default function CobrancaAutomatica() {
         )}
       </div>
 
+      <LembreteDoSorteio />
+
       <div className="rounded-2xl bg-painel-papel p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -313,6 +315,113 @@ export default function CobrancaAutomatica() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+type Lembrete = {
+  ensaio?: boolean;
+  sairiam?: number;
+  enviados?: number;
+  falhas?: number;
+  porLoja?: Record<string, number>;
+  foraPorque?: Record<string, number>;
+  lista?: string[];
+  problemas?: string[];
+  erro?: string;
+};
+
+/** Amanhã, no formato do campo de data. */
+function amanha() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * O lembrete da véspera do sorteio: avisa quem não pagou a parcela do mês que
+ * o sorteio é amanhã e que só participa quem estiver com ela paga. Nunca sai
+ * sozinho, e o botão de enviar só aparece depois de conferida a lista.
+ */
+function LembreteDoSorteio() {
+  const [dia, setDia] = useState(amanha);
+  const [resultado, setResultado] = useState<Lembrete | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+
+  const chamar = async (enviar: boolean) => {
+    if (enviar && !window.confirm(
+      `Mandar agora o lembrete do sorteio de ${data(dia)} pelo WhatsApp para ${resultado?.sairiam ?? 0} cliente(s)? Depois de enviado, não tem como desfazer.`,
+    )) return;
+    setOcupado(true);
+    try {
+      const r = await apiFetch(`/api/cobranca/lembrete-do-sorteio?diaDoSorteio=${dia}&enviar=${enviar}`, { method: 'POST' });
+      const corpo = await r.json().catch(() => ({}));
+      setResultado(r.ok ? corpo : { erro: corpo.erro || 'O servidor recusou o pedido.' });
+    } catch {
+      setResultado({ erro: 'Não foi possível falar com o servidor.' });
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl bg-painel-papel p-4 space-y-3">
+      <div className="min-w-0">
+        <p className="text-[13px] font-semibold text-painel-tinta">Lembrete da véspera do sorteio</p>
+        <p className="text-[11px] text-stone-500 max-w-md leading-relaxed">
+          Avisa pelo WhatsApp quem ainda não pagou a parcela do mês que o sorteio é no dia escolhido e que só participa
+          quem estiver com ela paga. Cada cliente recebe uma vez por mês. Confira a lista antes de enviar.
+        </p>
+        <p className="text-[11px] text-stone-400 font-mono mt-1">modelo lembrete_sorteio_vespera</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <input type="date" value={dia} onChange={(e) => { setDia(e.target.value); setResultado(null); }}
+          className="h-10 px-4 bg-white ring-1 ring-painel-borda rounded-full text-[13px] text-painel-tinta focus:outline-none focus:ring-2 focus:ring-painel-acento/50" />
+        <button type="button" onClick={() => chamar(false)} disabled={ocupado || !dia}
+          className="h-10 px-5 rounded-full bg-painel-tinta text-white text-[12px] font-semibold hover:bg-avle-verde disabled:opacity-50 cursor-pointer">
+          {ocupado ? 'Aguarde…' : 'Ver quem recebe'}
+        </button>
+        {resultado?.ensaio && (resultado.sairiam ?? 0) > 0 && (
+          <button type="button" onClick={() => chamar(true)} disabled={ocupado}
+            className="h-10 px-5 rounded-full bg-painel-acento text-white text-[12px] font-semibold disabled:opacity-50 cursor-pointer">
+            Enviar para {resultado.sairiam}
+          </button>
+        )}
+      </div>
+      {resultado && (
+        <div className="space-y-2 text-[12px] text-stone-600">
+          {resultado.erro ? (
+            <p className="text-rose-700">{resultado.erro}</p>
+          ) : (
+            <>
+              <p className="text-painel-tinta">
+                {resultado.enviados !== undefined
+                  ? <><strong>{resultado.enviados}</strong> lembrete(s) enviado(s){resultado.falhas ? `, ${resultado.falhas} não saíram` : ''}.</>
+                  : <><strong>{resultado.sairiam ?? 0}</strong> cliente(s) receberiam.</>}
+                {resultado.porLoja && Object.keys(resultado.porLoja).length > 0 && (
+                  <> {Object.entries(resultado.porLoja).map(([l, n]) => `${l}: ${n}`).join(' · ')}</>
+                )}
+              </p>
+              {resultado.foraPorque && Object.keys(resultado.foraPorque).length > 0 && (
+                <ul className="space-y-0.5">
+                  {Object.entries(resultado.foraPorque).map(([m, n]) => <li key={m}>{n} · {m}</li>)}
+                </ul>
+              )}
+              {resultado.problemas && resultado.problemas.length > 0 && (
+                <ul className="space-y-0.5 text-rose-700 break-words">
+                  {resultado.problemas.map((p) => <li key={p}>{p}</li>)}
+                </ul>
+              )}
+              {resultado.lista && resultado.lista.length > 0 && (
+                <details>
+                  <summary className="font-semibold text-stone-500 cursor-pointer">Quem recebe</summary>
+                  <ul className="mt-1 space-y-0.5">{resultado.lista.map((a, i) => <li key={i}>{a}</li>)}</ul>
+                </details>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
