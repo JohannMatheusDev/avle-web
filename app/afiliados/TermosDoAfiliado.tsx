@@ -12,8 +12,9 @@ export default function TermosDoAfiliado({ loja }: { loja: string }) {
       <h4>1. O seu link</h4>
       <p>
         Depois do cadastro, você recebe um link de indicação ligado à {loja}. Quem se cadastra na AVLE por esse link
-        fica marcada como indicada por você. A primeira indicação é a que vale: se a pessoa já tinha conta, ou entrou
-        pelo link de outra pessoa, ela não conta para você.
+        fica marcada como indicada por você. Quem já tem conta na AVLE também conta, desde que ainda não participe de
+        nenhum grupo da {loja}. A primeira indicação é a que vale: quem já entrou pelo link de outra pessoa não conta
+        para você.
       </p>
       <h4>2. Quando a comissão existe</h4>
       <p>
