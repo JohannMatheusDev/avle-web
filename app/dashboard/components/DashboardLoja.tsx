@@ -10,6 +10,7 @@ import EquipeDaLoja from './EquipeDaLoja';
 import EmailDaConta from './EmailDaConta';
 import PedidosDaEquipe from './PedidosDaEquipe';
 import Conversas from './Conversas';
+import AfiliadosDaLoja from './AfiliadosDaLoja';
 import ContaAsaasDaLoja from './ContaAsaasDaLoja';
 import {
   Avatar, BarraSuperior, BotaoDaConta, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
@@ -96,7 +97,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   // rotas para ele; aqui a tela só deixa de oferecer o que ele não pode abrir.
   const ehColaborador = String(usuario?.tipoUsuario || '').toUpperCase() === 'COLABORADOR';
   
-  const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'conversas' | 'fila' | 'grupos' | 'sorteios' | 'configuracoes' | 'conta'>('geral');
+  const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'conversas' | 'fila' | 'grupos' | 'sorteios' | 'afiliados' | 'configuracoes' | 'conta'>('geral');
   // O painel verde da tela inicial mostra os grupos, quem esta devendo ou o
   // resumo da Conta AVLE.
   const [painelVerde, setPainelVerde] = useState<'grupos' | 'inadimplentes' | 'conta'>('grupos');
@@ -1735,6 +1736,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     { id: 'fila',       rotulo: 'Fila de espera',     icone: 'fila',       contador: filaEspera.length, rotuloCurto: 'Fila' },
     { id: 'grupos',     rotulo: 'Grupos',             icone: 'grupos' },
     { id: 'sorteios',   rotulo: 'Sorteios / Entrega', icone: 'sorteios', rotuloCurto: 'Sorteios' },
+    { id: 'afiliados',  rotulo: 'Afiliadas',          icone: 'link' },
   ];
   const configuracoesDaLoja: ItemDeNavegacao = { id: 'configuracoes', rotulo: 'Configurações', icone: 'configuracoes', rotuloCurto: 'Ajustes' };
 
@@ -3158,6 +3160,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
             {abaLoja === 'conversas' && (
               <Conversas ehAdmin={false} aoContarNaoLidas={setConversasNaoLidas} />
+            )}
+
+            {abaLoja === 'afiliados' && (
+              <AfiliadosDaLoja lojaId={Number(usuario?.lojaId || usuario?.id)} nomeLoja={nomeLojaReal || usuario?.lojaNome || 'loja'} ehColaborador={ehColaborador} />
             )}
 
             {abaLoja === 'fila' && (() => {

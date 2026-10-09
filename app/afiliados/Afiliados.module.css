@@ -1,0 +1,130 @@
+/* As telas da afiliada: o cadastro pelo link da loja e o painel. Só tokens do
+   design system; o resto vem dos componentes. */
+
+.pagina {
+  min-height: 100vh;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+
+.entrada {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4) var(--space-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chamada {
+  font-size: var(--text-h2);
+  line-height: var(--leading-tight);
+  font-weight: var(--weight-semibold);
+  margin: 0;
+}
+
+.apoio {
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.termos {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+  color: var(--text-secondary);
+}
+
+.termos h4 {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+}
+
+.termos p {
+  margin: 0;
+}
+
+.aviso {
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.avisoErro {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.trocar {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-decoration: underline;
+  cursor: pointer;
+  align-self: center;
+}
+
+/* Painel */
+
+.link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.linkTexto {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  word-break: break-all;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+}
+
+.vazio {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+.secao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
