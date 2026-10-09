@@ -315,6 +315,16 @@ export default function CadastroConvite() {
         if (isLogin) {
           const dadosUsuario = await resposta.json();
           localStorage.setItem('@avle:usuario', JSON.stringify(dadosUsuario));
+          // Já tinha conta e veio pelo link de uma afiliada: a indicação vale
+          // se ela ainda não participa desta loja (o servidor confere).
+          const codigoAfiliado = codigoDaIndicacao(lojaIdNum);
+          if (codigoAfiliado) {
+            await apiFetch(`${API_URL}/api/afiliados/indicar`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ codigo: codigoAfiliado }),
+            }).catch(() => undefined);
+          }
           router.push('/dashboard');
           return;
         } else {

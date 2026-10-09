@@ -947,6 +947,17 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   // Variável que diz se o painel deve ser isolado
   const isClienteAmarrado = !!lojaBloqueadaId;
 
+  // As lojas em que ela tem clube, mais a que está aberta agora.
+  const lojasDaCliente = lojas.filter(
+    (l: any) => l.id === lojaEmFoco?.id || l.id === lojaBloqueadaId || clubesAtivos.some((c: any) => c.loja?.id === l.id),
+  );
+  const trocarDeLoja = (l: any) => {
+    setLojaBloqueadaId(l.id);
+    setLojaEmFoco(l);
+    setAbaGrupos(null);
+    buscarGruposDaLoja(l.id);
+  };
+
   const secoesDaCliente: ItemDeNavegacao[] = [
     { id: 'inicio',  rotulo: isClienteAmarrado ? 'Meus grupos' : 'Rede de lojas', icone: isClienteAmarrado ? 'planos' : 'lojas' },
     { id: 'extrato', rotulo: 'Histórico',   icone: 'historico' },
@@ -1327,6 +1338,29 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
 
             {nivelVisao === 'grupos' && lojaEmFoco && (
               <div className="space-y-6 text-left animate-fadeIn">
+
+                {/* A cliente de mais de uma loja - por exemplo, quem já tinha
+                    clubes e abriu o link de outra loja - troca entre as lojas
+                    dela aqui, sem ficar presa na loja do último link. */}
+                {isClienteAmarrado && lojasDaCliente.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Suas lojas</span>
+                    {lojasDaCliente.map((l: any) => (
+                      <button
+                        key={l.id}
+                        type="button"
+                        onClick={() => trocarDeLoja(l)}
+                        className={`px-4 py-2 rounded-full text-[11px] font-bold transition-colors cursor-pointer border ${
+                          l.id === lojaEmFoco.id
+                            ? 'bg-[#0B1E14] text-white border-[#0B1E14]'
+                            : 'bg-white text-stone-600 border-[#E6E2D8] hover:text-[#0B1E14]'
+                        }`}
+                      >
+                        {l.nomeComercial || l.nome || 'Loja'}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 
                 {/* O Botão some automaticamente se a loja for fechada via convite */}
                 {!isClienteAmarrado && (
