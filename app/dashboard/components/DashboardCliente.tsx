@@ -16,7 +16,11 @@ import { PassoDoTour, useTour } from './Tour';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
-export default function DashboardCliente({ usuario: usuarioInicial }: { usuario: any }) {
+export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPainelDaAfiliada }: {
+  usuario: any;
+  /** Só para quem também é afiliada: leva ao painel do link e das comissões. */
+  aoAbrirPainelDaAfiliada?: () => void;
+}) {
   const router = useRouter();
 
   const [usuario, setUsuario] = useState(usuarioInicial);
@@ -963,6 +967,9 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
     { id: 'extrato', rotulo: 'Histórico',   icone: 'historico' },
     { id: 'regras',  rotulo: 'Regulamento', icone: 'regras' },
     { id: 'ajuda',   rotulo: 'Suporte',     icone: 'ajuda' },
+    ...(aoAbrirPainelDaAfiliada
+      ? [{ id: 'afiliada', rotulo: 'Painel de afiliada', rotuloCurto: 'Afiliada', icone: 'link' } satisfies ItemDeNavegacao]
+      : []),
   ];
   const perfilDaCliente: ItemDeNavegacao = { id: 'perfil', rotulo: 'Meu perfil', icone: 'perfil' };
 
@@ -970,6 +977,10 @@ export default function DashboardCliente({ usuario: usuarioInicial }: { usuario:
   // presa a uma loja não tem rede de lojas para ver, e cair na lista vazia
   // parecia que o plano dela tinha sumido.
   const irParaSecao = (id: string) => {
+    if (id === 'afiliada') {
+      aoAbrirPainelDaAfiliada?.();
+      return;
+    }
     setAbaAtiva(id as any);
     if (id === 'inicio') {
       setNivelVisao(isClienteAmarrado || lojaEmFoco ? 'grupos' : 'lojas');
