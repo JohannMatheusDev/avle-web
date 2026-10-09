@@ -188,8 +188,9 @@ export default function CadastroDeAfiliada() {
         ) : !loja ? (
           <p className={s.apoio}>Carregando…</p>
         ) : (
-          <>
+          <Card className={s.cartao}>
             <div>
+              <p className={s.selo}>Afiliadas · {loja}</p>
               <h1 className={s.chamada}>
                 {modo === 'entrar' ? 'Entrar no seu painel' : `Divulgue a ${loja} e ganhe por cliente que pagar`}
               </h1>
@@ -248,7 +249,7 @@ export default function CadastroDeAfiliada() {
                 <button type="button" className={s.trocar} onClick={() => trocar('cadastro')}>Ainda não sou afiliada</button>
               </form>
             )}
-          </>
+          </Card>
         )}
       </div>
     </div>

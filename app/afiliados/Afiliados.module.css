@@ -20,11 +20,28 @@
 .marca {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+}
+
+/* O cadastro e a entrada num cartão só, como a entrada do site. */
+.cartao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-8) var(--space-6);
+}
+
+.selo {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
 .chamada {
-  font-size: var(--text-h2);
+  font-size: var(--text-h3);
   line-height: var(--leading-tight);
   font-weight: var(--weight-semibold);
   margin: 0;
