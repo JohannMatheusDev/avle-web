@@ -35,6 +35,9 @@ export interface CardContemplacao {
   motivoReprovacaoCredito: string | null;
   produtoEscolhido: string | null;
   termoAssinado: boolean;
+  // Sem o endereço o servidor recusa liberar o produto. A tela avisa antes,
+  // em vez de a cliente e a loja descobrirem pelo erro.
+  cadastroCompleto?: boolean;
   aguardandoEncerramento: boolean;
   concluido: boolean;
   // Situacao financeira da cota. A loja decide liberar a retirada olhando o

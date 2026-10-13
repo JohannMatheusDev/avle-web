@@ -9,6 +9,7 @@ import CorrigirCadastro from './CorrigirCadastro';
 import AfiliadosAdmin from './AfiliadosAdmin';
 import ConferirPagamentos from './ConferirPagamentos';
 import EntradasSemPagamento from './EntradasSemPagamento';
+import CadastrosIncompletos from './CadastrosIncompletos';
 import Conversas from './Conversas';
 import PainelDeAvisosFlutuante from './PainelDeAvisosFlutuante';
 import {
@@ -842,6 +843,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               <div>
                 <CobrancaAutomatica />
                 <ConferirPagamentos />
+                <CadastrosIncompletos caminho="/api/admin/cadastros-incompletos" mostrarLoja nomeDeQuemFala="AVLE" />
                 <EntradasSemPagamento />
                 <MesDoPagamento />
                 <CorrigirCadastro />

@@ -1,21 +1,12 @@
 'use client';
 
-import RegrasDaSenha from '../../components/RegrasDaSenha';
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import gsap from 'gsap';
 import { apiFetch } from '../../lib/api';
-import { codigoDaIndicacao } from '../../lib/indicacao';
-import { entrarComSenha } from '../../lib/entrarComSenha';
 import TelaCarregamento from '../../dashboard/components/TelaCarregamento';
-import {
-  cpfValido,
-  identificadorLoginValido,
-  requisitosSenha,
-  senhaForte as avaliarSenhaForte,
-  somenteDigitos,
-  telefoneValido,
-} from '../../lib/validacao';
+import EntradaPorCodigo from '../../components/EntradaPorCodigo';
+import TextoDosTermos from '../../components/TextoDosTermos';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -50,59 +41,14 @@ export default function CadastroConvite() {
   // loja existir - cadastro enviado ali ficava sem loja.
   const [carregandoLoja, setCarregandoLoja] = useState(true);
 
-  const [isLogin, setIsLogin] = useState(false);
-  const [isVerificando, setIsVerificando] = useState(false);
-  const [carregando, setCarregando] = useState(false);
-  const [statusConexao, setStatusConexao] = useState('CONECTANDO...');
 
-  const [isEsqueceuSenha, setIsEsqueceuSenha] = useState(false);
-  const [isResetandoSenha, setIsResetandoSenha] = useState(false);
-  const [novaSenha, setNovaSenha] = useState('');
-  const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false);
-
-  const [identificadorLogin, setIdentificadorLogin] = useState(''); 
-  const [emailCadastro, setEmailCadastro] = useState('');
-  const [telefoneCadastro, setTelefoneCadastro] = useState('');
-  const [senha, setSenha] = useState('');
-  const [nome, setNome] = useState('');
-  const [cpf, setCpf] = useState('');
-  const [codigoOtp, setCodigoOtp] = useState('');
-  const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
+  // Quem chega pelo link da loja quase sempre ainda não tem conta: o convite
+  // abre no cadastro, e quem já tem troca para entrar.
+  const [aba, setAba] = useState<'cadastrar' | 'entrar'>('cadastrar');
 
   const [aceitouTermos, setAceitouTermos] = useState(false);
   const [modalTermosAberto, setModalTermosAberto] = useState(false);
-  const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [emailVerificacao, setEmailVerificacao] = useState('');
-  const [reenviandoCodigo, setReenviandoCodigo] = useState(false);
 
-  // O e-mail e a senha de quem acabou de se cadastrar (ou tentou entrar com a
-  // conta ainda sem o código confirmado). É com eles que a pessoa entra sozinha
-  // depois, sem digitar nada de novo. Ficam só na memória da página.
-  const credenciais = useRef<{ identificador: string; senha: string } | null>(null);
-
-  const entrarDepoisDoCadastro = async () => {
-    const c = credenciais.current;
-    setIsVerificando(false);
-    setIsLogin(true);
-    if (!c) {
-      if (emailVerificacao) setIdentificadorLogin(emailVerificacao);
-      setMensagem({ tipo: 'sucesso', texto: 'Conta ativada! Entre com a sua senha.' });
-      setCarregando(false);
-      return;
-    }
-    setCarregando(true);
-    setMensagem({ tipo: 'sucesso', texto: 'Conta criada! Entrando…' });
-    if (await entrarComSenha(c.identificador, c.senha)) {
-      credenciais.current = null;
-      router.push('/dashboard');
-      return;
-    }
-    // Não entrou sozinha: a tela de entrar abre com o que ela já digitou.
-    setIdentificadorLogin(c.identificador);
-    setSenha(c.senha);
-    setMensagem({ tipo: 'sucesso', texto: 'Sua conta foi criada. Confira os dados e toque em Entrar.' });
-    setCarregando(false);
-  };
 
   useEffect(() => {
     // Mesma chave da home: quem ja viu a abertura nesta visita nao ve de novo
@@ -209,356 +155,6 @@ export default function CadastroConvite() {
     return () => ctx.revert();
   }, [lojaValida, mostrandoIntro, carregandoLoja]);
 
-  const aplicarMascaraTelefone = (valor: string) => {
-    const v = valor.replace(/\D/g, '');
-    if (v.length <= 2) return v;
-    if (v.length <= 6) return `(${v.slice(0, 2)}) ${v.slice(2)}`;
-    if (v.length <= 10) return `(${v.slice(0, 2)}) ${v.slice(2, 6)}-${v.slice(6)}`;
-    return `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7, 11)}`;
-  };
-
-  const aplicarMascaraCpf = (valor: string) => {
-    const apenasNumeros = valor.replace(/\D/g, '');
-    return apenasNumeros
-      .slice(0, 11)
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-  };
-
-  // Sem mascara, pelo mesmo motivo da tela principal: telefone e CPF comecam os
-  // dois com digito e tem os mesmos onze, entao mascarar como telefone tornava
-  // impossivel digitar um CPF.
-  const handleIdentificadorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setIdentificadorLogin(e.target.value);
-  };
-
-  const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  const isLoginEmailValido = regexEmail.test(identificadorLogin.trim());
-  const loginValido = identificadorLoginValido(identificadorLogin);
-
-  const emailCadastroValido = regexEmail.test(emailCadastro.trim());
-  const emailCadastroPreenchido = emailCadastro.trim().length > 0;
-  // Mesma regra do cadastro principal: e-mail obrigatorio, porque e por ele que
-  // chegam o codigo de acesso e a recuperacao de senha.
-  const emailCadastroValidoOuVazio = emailCadastroValido;
-
-  const { temMaiuscula, temNumero, temCaracterEspecial } = requisitosSenha(senha);
-  const senhaForte = avaliarSenhaForte(senha);
-  const novaSenhaForte = avaliarSenhaForte(novaSenha);
-
-  // Antes bastava ter 11 dígitos, então 999.999.999-99 era aceito. Agora os
-  // dígitos verificadores são conferidos, aqui e também no servidor.
-  const tamanhoDocumentoValido = cpfValido(cpf);
-  // O telefone deixou de ser opcional no cadastro: e para ele que vai o código
-  // de verificação, então sem número válido não ha como confirmar a conta.
-  const telefoneCadastroValido = telefoneValido(telefoneCadastro);
-
-  const formularioValido = isLogin
-    ? loginValido && senha.length > 0
-    : emailCadastroValidoOuVazio &&
-      senhaForte &&
-      nome.trim() !== '' &&
-      tamanhoDocumentoValido &&
-      telefoneCadastroValido &&
-      aceitouTermos;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMensagem({ tipo: '', texto: '' });
-    setStatusConexao('CONECTANDO...');
-    setCarregando(true);
-
-    if (!lojaIdNum) {
-      setMensagem({ tipo: 'erro', texto: 'Falha na identificação da loja. Recarregue a página.' });
-      setCarregando(false);
-      return;
-    }
-
-    if (!formularioValido) {
-      setMensagem({ tipo: 'erro', texto: 'Por favor, preencha todos os campos obrigatórios corretamente e aceite os termos!' });
-      setCarregando(false);
-      return;
-    }
-
-    const maxTentativas = 4;
-
-    for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-      try {
-        const endpoint = isLogin ? `${API_URL}/api/auth/login` : `${API_URL}/api/usuarios/cadastro`;
-
-        let bodyPayload: any = {};
-
-        if (isLogin) {
-            bodyPayload = { identificador: identificadorLogin.trim(), senha };
-        } else {
-            const telefoneCadastroLimpo = telefoneCadastro.replace(/\D/g, '');
-            bodyPayload = {
-              nome,
-              email: emailCadastro.trim() !== '' ? emailCadastro : null,
-              cpf,
-              senha,
-              tipoUsuario: 'CLIENTE',
-              telefone: telefoneCadastroLimpo !== '' ? telefoneCadastroLimpo : null,
-              lojaId: lojaIdNum,
-              // Veio pelo link de uma afiliada desta loja: a cliente fica indicada por ela.
-              codigoAfiliado: codigoDaIndicacao(lojaIdNum) ?? null,
-            };
-        }
-
-        const resposta = await apiFetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(bodyPayload),
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        if (resposta.status === 403) {
-          const detalhe = await resposta.json().catch(() => null);
-          if (detalhe?.email) setEmailVerificacao(detalhe.email);
-          // Confirmado o código, ela entra com o que acabou de digitar.
-          if (isLogin) credenciais.current = { identificador: identificadorLogin.trim(), senha };
-          setMensagem({
-            tipo: 'erro',
-            texto: detalhe?.emailMascarado
-              ? `Confirme o código enviado para ${detalhe.emailMascarado}.`
-              : 'Sua conta ainda não foi verificada.',
-          });
-          setIsVerificando(true);
-          setCarregando(false);
-          return;
-        }
-
-        if (resposta.status >= 400 && resposta.status < 500) {
-          const textoErro = await resposta.text();
-          throw new Error(textoErro || (isLogin ? 'E-mail, telefone ou senha incorretos!' : 'Erro ao realizar cadastro.'));
-        }
-
-        if (!resposta.ok) {
-          throw new Error('SERVER_STARTING');
-        }
-
-        if (isLogin) {
-          const dadosUsuario = await resposta.json();
-          localStorage.setItem('@avle:usuario', JSON.stringify(dadosUsuario));
-          // Já tinha conta e veio pelo link de uma afiliada: a indicação vale
-          // se ela ainda não participa desta loja (o servidor confere).
-          const codigoAfiliado = codigoDaIndicacao(lojaIdNum);
-          if (codigoAfiliado) {
-            await apiFetch(`${API_URL}/api/afiliados/indicar`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ codigo: codigoAfiliado }),
-            }).catch(() => undefined);
-          }
-          router.push('/dashboard');
-          return;
-        } else {
-          const retorno = await resposta.json().catch(() => null);
-          credenciais.current = { identificador: emailCadastro.trim(), senha };
-
-          if (retorno?.verificacaoPendente) {
-            // O código sai por e-mail, e nao por mensagem: e o unico canal que
-            // entrega de verdade. Guardamos o endereco porque os campos do
-            // formulario sao limpos logo abaixo.
-            setEmailVerificacao(retorno.email || emailCadastro.trim());
-            setMensagem({
-              tipo: 'sucesso',
-              texto: `Cadastro realizado! Enviamos um código para ${retorno.emailMascarado || 'o seu e-mail'}.`,
-            });
-            setIsVerificando(true);
-          }
-
-          setNome(''); setCpf(''); setEmailCadastro(''); setTelefoneCadastro('');
-          setSenha(''); setAceitouTermos(false);
-          // Sem código para confirmar, ela já entra.
-          if (!retorno?.verificacaoPendente) {
-            await entrarDepoisDoCadastro();
-            return;
-          }
-          setCarregando(false);
-          return;
-        }
-      } catch (erro: any) {
-        clearTimeout(timeoutId);
-        const msg = erro.message || '';
-
-        if (msg !== 'SERVER_STARTING' && !msg.includes('Failed to fetch') && !msg.includes('NetworkError') && erro.name !== 'TypeError' && erro.name !== 'AbortError') {
-          setMensagem({ tipo: 'erro', texto: msg });
-          setCarregando(false);
-          return;
-        }
-
-        if (tentativa < maxTentativas) {
-          setStatusConexao('ACORDANDO SERVIDOR SEGURO...');
-          await new Promise((resolve) => setTimeout(resolve, 3000)); 
-          continue;
-        }
-
-        setMensagem({
-          tipo: 'erro',
-          texto: 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.',
-        });
-        setCarregando(false);
-      }
-    }
-  };
-
-  const identificarContaEmVerificacao = (codigo?: string) => {
-    const base: Record<string, string> = {};
-    if (codigo !== undefined) base.codigo = codigo;
-
-    if (emailVerificacao) {
-      return { ...base, email: emailVerificacao.trim() };
-    }
-    if (identificadorLogin.includes('@')) {
-      return { ...base, email: identificadorLogin.trim() };
-    }
-    return { ...base, telefone: somenteDigitos(identificadorLogin) };
-  };
-
-  const handleReenviarCodigo = async () => {
-    setReenviandoCodigo(true);
-    setMensagem({ tipo: '', texto: '' });
-    try {
-      const resposta = await apiFetch(`${API_URL}/api/usuarios/reenviar-codigo`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(identificarContaEmVerificacao()),
-      });
-
-      const retorno = await resposta.json().catch(() => null);
-      if (!resposta.ok) {
-        throw new Error(retorno?.erro || 'Não foi possível reenviar o código agora.');
-      }
-
-      setMensagem({
-        tipo: 'sucesso',
-        texto: `Novo código enviado para ${retorno?.emailMascarado || 'o seu e-mail'}.`,
-      });
-    } catch (erro) {
-      setMensagem({
-        tipo: 'erro',
-        texto: erro instanceof Error ? erro.message : 'Falha ao reenviar o código.',
-      });
-    } finally {
-      setReenviandoCodigo(false);
-    }
-  };
-
-  const handleConfirmarCodigo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMensagem({ tipo: '', texto: '' });
-    setCarregando(true);
-
-    // Quem acabou de se cadastrar nunca preencheu o campo de login, então o
-    // telefone guardado no cadastro e quem identifica a conta aqui.
-    const payload = identificarContaEmVerificacao(codigoOtp);
-
-    try {
-      const resposta = await apiFetch(`${API_URL}/api/usuarios/verificar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!resposta.ok) {
-        const textoErro = await resposta.text();
-        throw new Error(textoErro || 'Código de verificação incorreto ou expirado.');
-      }
-
-      setCodigoOtp('');
-      await entrarDepoisDoCadastro();
-    } catch (erro: any) {
-      setMensagem({ tipo: 'erro', texto: erro.message });
-    } finally {
-      setCarregando(false);
-    }
-  };
-
-  const handleSolicitarRecuperacao = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMensagem({ tipo: '', texto: '' });
-    setCarregando(true);
-
-    if (!loginValido) {
-      setMensagem({ tipo: 'erro', texto: 'Informe um e-mail, telefone ou CPF válido.' });
-      setCarregando(false);
-      return;
-    }
-
-    // O servidor descobre se é e-mail, telefone ou CPF: mandar como telefone
-    // fazia o CPF ser procurado só entre os telefones.
-    const payload = { identificador: identificadorLogin.trim() };
-
-    try {
-      const resposta = await apiFetch(`${API_URL}/api/auth/esqueceu-senha`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!resposta.ok) throw new Error('Dados não localizados no ecossistema AVLE.');
-
-      setMensagem({ tipo: 'sucesso', texto: 'Código de redefinição enviado!' });
-
-      setTimeout(() => {
-        setIsEsqueceuSenha(false);
-        setIsResetandoSenha(true);
-        setCodigoOtp('');
-        setMensagem({ tipo: '', texto: '' });
-      }, 1500);
-    } catch (erro: any) {
-      setMensagem({ tipo: 'erro', texto: erro.message });
-    } finally {
-      setCarregando(false);
-    }
-  };
-
-  const handleSalvarNovaSenha = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMensagem({ tipo: '', texto: '' });
-    setCarregando(true);
-
-    if (codigoOtp.length !== 6 || !novaSenhaForte) {
-      setMensagem({ tipo: 'erro', texto: 'O código precisa ter 6 dígitos e a nova senha precisa ser forte.' });
-      setCarregando(false);
-      return;
-    }
-
-    const payload = { identificador: identificadorLogin.trim(), codigo: codigoOtp, novaSenha };
-
-    try {
-      const resposta = await apiFetch(`${API_URL}/api/auth/redefinir-senha`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!resposta.ok) throw new Error('Código incorreto, expirado ou já utilizado.');
-
-      setMensagem({ tipo: 'sucesso', texto: 'Sua senha foi redefinida com sucesso! Faça seu login.' });
-
-      setTimeout(() => {
-        setIsResetandoSenha(false);
-        setIsLogin(true);
-        setSenha('');
-        setNovaSenha('');
-        setCodigoOtp('');
-        setMensagem({ tipo: '', texto: '' });
-      }, 2000);
-    } catch (erro: any) {
-      setMensagem({ tipo: 'erro', texto: erro.message });
-    } finally {
-      setCarregando(false);
-    }
-  };
 
   // Antes de o navegador dizer se a abertura ja foi vista, so o fundo. E um
   // quadro, e nao uma espera: sem ele o formulario apareceria por um instante
@@ -650,518 +246,94 @@ export default function CadastroConvite() {
           </div>
         </div>
 
-        <div className="w-full p-2 md:w-1/2 md:p-4 flex flex-col justify-between transition-all duration-500 overflow-y-auto max-h-[85vh]">
-          {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
-            <div className="flex gap-1 p-1 m-3 rounded-full bg-[#F3F3F0]">
+        <div className="w-full p-2 md:w-1/2 md:p-4 flex flex-col transition-all duration-500 overflow-y-auto max-h-[85vh]">
+          <div className="flex gap-1 p-1 m-3 rounded-full bg-[#F3F3F0]">
+            {([
+              { id: 'cadastrar', rotulo: 'Criar conta' },
+              { id: 'entrar', rotulo: 'Já tenho conta' },
+            ] as const).map((opcao) => (
               <button
+                key={opcao.id}
                 type="button"
-                onClick={() => {
-                  setIsLogin(true);
-                  setMensagem({ tipo: '', texto: '' });
-                  setAceitouTermos(false);
-                }}
+                onClick={() => setAba(opcao.id)}
                 className={`flex-1 py-3 font-bold text-[11px] uppercase tracking-wider rounded-full transition-all duration-200 cursor-pointer ${
-                  isLogin ? 'text-white bg-[#0B1E14] shadow-sm' : 'text-stone-500 hover:text-[#0B1E14]'
+                  aba === opcao.id ? 'text-white bg-[#0B1E14] shadow-sm' : 'text-stone-500 hover:text-[#0B1E14]'
                 }`}
               >
-                Acessar conta
+                {opcao.rotulo}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(false);
-                  setMensagem({ tipo: '', texto: '' });
-                  setAceitouTermos(false);
-                }}
-                className={`flex-1 py-3 font-bold text-[11px] uppercase tracking-wider rounded-full transition-all duration-200 cursor-pointer ${
-                  !isLogin ? 'text-white bg-[#0B1E14] shadow-sm' : 'text-stone-500 hover:text-[#0B1E14]'
-                }`}
-              >
-                Nova conta
-              </button>
-            </div>
-          )}
+            ))}
+          </div>
 
-          {isVerificando && (
-            <form onSubmit={handleConfirmarCodigo} className="p-6 flex-1 flex flex-col justify-between space-y-4 text-left">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Verificação de conta</h3>
-                  <p className="text-xs text-stone-400 mt-1">
-                    Insira o código verificador enviado por e-mail para: <br />
-                    <strong className="text-[#BD6B42] font-semibold">
-                      {emailVerificacao || identificadorLogin}
-                    </strong>
-                  </p>
-                </div>
-                {mensagem.texto && (
-                  <div
-                    className={`p-3 rounded-xl text-xs font-bold border ${
-                      mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
-                    }`}
-                  >
-                    {mensagem.texto}
-                  </div>
-                )}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Código de confirmação (6 dígitos)
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    placeholder="000000"
-                    value={codigoOtp}
-                    onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))}
-                    className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-2xl bg-stone-50 h-[42px] text-sm focus:outline-none focus:border-[#0B1E14]"
-                    required
-                    disabled={carregando}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2 mt-4">
-                <button
-                  type="submit"
-                  disabled={codigoOtp.length !== 6 || carregando}
-                  className={`w-full py-3.5 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all shadow-md ${
-                    codigoOtp.length === 6 && !carregando
-                      ? 'bg-[#BD6B42] hover:scale-[1.01] cursor-pointer'
-                      : 'bg-stone-300 cursor-not-allowed shadow-none opacity-50'
-                  }`}
-                >
-                  {carregando ? 'PROCESSANDO...' : 'Confirmar e ativar conta'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleReenviarCodigo}
-                  disabled={reenviandoCodigo || carregando}
-                  className="w-full text-[#BD6B42] hover:underline text-center font-bold text-xs py-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
-                >
-                  {reenviandoCodigo ? 'Reenviando...' : 'Não recebi o código. Reenviar'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsVerificando(false)}
-                  className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-1 cursor-pointer"
-                >
-                  Cancelar e voltar
-                </button>
-              </div>
-            </form>
-          )}
-
-          {isEsqueceuSenha && (
-            <form onSubmit={handleSolicitarRecuperacao} className="p-6 flex-1 flex flex-col justify-between space-y-6 text-left">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Recuperação de acesso</h3>
-                  <p className="text-xs text-stone-400 mt-1">
-                    Informe seu e-mail ou telefone cadastrado. Enviaremos um código token para criar uma nova senha.
-                  </p>
-                </div>
-                {mensagem.texto && (
-                  <div
-                    className={`p-3 rounded-xl text-xs font-bold ${
-                      mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
-                    }`}
-                  >
-                    {mensagem.texto}
-                  </div>
-                )}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">E-mail, telefone ou CPF</label>
-                  <input
-                    type="text"
-                    placeholder="E-mail, telefone ou CPF"
-                    value={identificadorLogin}
-                    onChange={handleIdentificadorChange}
-                    className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-sm bg-stone-50 h-[46px]"
-                    required
-                    disabled={carregando}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2 mt-4">
-                <button
-                  type="submit"
-                  disabled={carregando}
-                  className="w-full py-3.5 bg-[#0B1E14] text-white font-bold rounded-full text-xs uppercase tracking-wider cursor-pointer hover:scale-[1.01] disabled:opacity-55"
-                >
-                  {carregando ? 'ENVIANDO...' : 'Enviar código verificador'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsEsqueceuSenha(false)}
-                  className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-1 cursor-pointer"
-                >
-                  Voltar ao login
-                </button>
-              </div>
-            </form>
-          )}
-
-          {isResetandoSenha && (
-            <form onSubmit={handleSalvarNovaSenha} className="p-6 flex-1 flex flex-col justify-between space-y-4 text-left">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Criar nova senha</h3>
-                  <p className="text-xs text-stone-400 mt-1">Insira o token de 6 dígitos recebido.</p>
-                </div>
-                {mensagem.texto && (
-                  <div
-                    className={`p-3 rounded-xl text-xs font-bold ${
-                      mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
-                    }`}
-                  >
-                    {mensagem.texto}
-                  </div>
-                )}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Token (6 dígitos)
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    placeholder="000000"
-                    value={codigoOtp}
-                    onChange={(e) => setCodigoOtp(e.target.value.replace(/\D/g, ''))}
-                    className="w-full text-center font-mono font-bold tracking-[0.3em] px-4 py-2 border rounded-2xl bg-stone-50 h-[42px] text-sm focus:outline-none focus:border-[#0B1E14]"
-                    required
-                    disabled={carregando}
-                  />
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-[10px] font-bold uppercase text-stone-500">Nova senha</label>
-                    {novaSenha.length > 0 && (
-                      <span className={`text-[10px] font-bold ${novaSenhaForte ? 'text-emerald-600' : 'text-stone-400'}`}>
-                        {novaSenhaForte ? 'Forte' : 'Fraca'}
-                      </span>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={mostrarNovaSenha ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={novaSenha}
-                      onChange={(e) => setNovaSenha(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-2xl bg-stone-50 text-sm h-[42px] focus:outline-none focus:border-[#0B1E14]"
-                      required
-                      disabled={carregando}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setMostrarNovaSenha(!mostrarNovaSenha)}
-                      className="absolute right-3 top-2.5 text-stone-400 font-bold hover:text-stone-700 cursor-pointer"
-                    >
-                      Ver
-                    </button>
-                  </div>
-                  <RegrasDaSenha senha={novaSenha} />
-                </div>
-              </div>
-              <div className="space-y-2 mt-4">
-                <button
-                  type="submit"
-                  disabled={codigoOtp.length !== 6 || !novaSenhaForte || carregando}
-                  className="w-full py-3.5 bg-[#BD6B42] text-white font-bold rounded-full text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50 hover:scale-[1.01] transition-all"
-                >
-                  {carregando ? 'PROCESSANDO...' : 'Redefinir e gravar senha'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsResetandoSenha(false)}
-                  className="w-full text-stone-400 text-center font-bold text-xs py-1 cursor-pointer"
-                >
-                  Desistir
-                </button>
-              </div>
-            </form>
-          )}
-
-          {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && (
-            <form onSubmit={handleSubmit} className="p-6 flex-1 flex flex-col justify-between text-left space-y-4">
-              <div className="space-y-4">
-                {mensagem.texto && (
-                  <div
-                    className={`p-3.5 rounded-xl text-xs font-bold text-center border ${
-                      mensagem.tipo === 'sucesso'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
-                    }`}
-                  >
-                    {mensagem.texto}
-                  </div>
-                )}
-                
-                {isLogin && (
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="block text-[10px] font-bold uppercase text-stone-500">
-                          E-mail, telefone ou CPF *
-                        </label>
-                        {identificadorLogin.length > 0 && (
-                          <span className={`text-[10px] font-bold ${loginValido ? 'text-emerald-600' : 'text-rose-500'}`}>
-                            {loginValido ? '✓ Válido' : '✗ Inválido'}
-                          </span>
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="E-mail, telefone ou CPF"
-                        value={identificadorLogin}
-                        onChange={handleIdentificadorChange}
-                        className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
-                        required
-                        disabled={carregando}
-                      />
-                    </div>
-                )}
-
-                {!isLogin && (
-                  <div className="space-y-4 animate-fade-in">
-                    
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                        Nome completo *
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ex.: João Silva"
-                        value={nome}
-                        onChange={(e) => setNome(e.target.value)}
-                        className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
-                        required
-                        disabled={carregando}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                       <div>
-                         <div className="flex justify-between items-center mb-1">
-                           <label className="block text-[10px] font-bold uppercase text-stone-500">
-                             CPF *
-                           </label>
-                         </div>
-                         <input
-                           type="text"
-                           maxLength={14}
-                           placeholder="000.000.000-00"
-                           value={cpf}
-                           onChange={(e) => setCpf(aplicarMascaraCpf(e.target.value))}
-                           className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
-                           required
-                           disabled={carregando}
-                         />
-                       </div>
-
-                       <div>
-                         <div className="flex justify-between items-center mb-1">
-                           <label className="block text-[10px] font-bold uppercase text-stone-500">
-                             E-mail *
-                           </label>
-                         </div>
-                         <input
-                           type="email"
-                           placeholder="seu@email.com"
-                           value={emailCadastro}
-                           onChange={(e) => setEmailCadastro(e.target.value)}
-                           className="w-full px-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px]"
-                           required
-                           disabled={carregando}
-                         />
-                       </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                        Telefone / WhatsApp *
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="(42) 98765-4321"
-                        value={telefoneCadastro}
-                        onChange={(e) => setTelefoneCadastro(aplicarMascaraTelefone(e.target.value))}
-                        className={`w-full px-4 py-3 rounded-2xl border focus:outline-none focus:ring-2 focus:ring-[#0B1E14]/5 text-sm bg-stone-50 h-[46px] ${ telefoneCadastro.length > 0 && !telefoneCadastroValido ?'border-rose-300 focus:border-rose-400'
-                            : 'border-stone-200 focus:border-[#0B1E14]'
-                        }`}
-                        required
-                        disabled={carregando}
-                      />
-                      <p className="text-[10px] text-stone-400 mt-1 leading-relaxed">
-                        {telefoneCadastro.length > 0 && !telefoneCadastroValido
-                          ? 'Informe um número real, com DDD válido.'
-                          : 'Enviaremos um código de verificação para este número.'}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-[10px] font-bold uppercase text-stone-500">Senha de acesso *</label>
-                    {isLogin && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsEsqueceuSenha(true);
-                          setMensagem({ tipo: '', texto: '' });
-                        }}
-                        className="text-[10px] text-[#BD6B42] hover:underline font-bold cursor-pointer"
-                        disabled={carregando}
-                      >
-                        Esqueceu a senha?
-                      </button>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={mostrarSenha ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={senha}
-                      onChange={(e) => setSenha(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-2xl bg-stone-50 focus:outline-none focus:border-[#0B1E14] text-sm h-[42px]"
-                      required
-                      disabled={carregando}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setMostrarSenha(!mostrarSenha)}
-                      className="absolute right-3 top-2.5 text-stone-400 font-bold hover:text-stone-700 cursor-pointer"
-                      disabled={carregando}
-                    >
-                      Ver
-                    </button>
-                  </div>
-
-                  {!isLogin && senha.length > 0 && (
-                    <div className="mt-2.5 p-3 bg-stone-50 border border-stone-200/60 rounded-xl space-y-1.5 text-[11px] font-medium animate-fade-in text-left">
-                      <p className="text-[10px] font-bold uppercase text-stone-400 mb-1">Estrutura da senha:</p>
-                      <div
-                        className={`flex items-center space-x-1.5 transition-colors ${
-                          senha.length >= 8 ? 'text-emerald-600 font-bold' : 'text-stone-400'
-                        }`}
-                      >
-                        <span>{senha.length >= 8 ? '✓' : '○'}</span>
-                        <span>Mínimo de 8 caracteres</span>
-                      </div>
-                      <div
-                        className={`flex items-center space-x-1.5 transition-colors ${
-                          temMaiuscula ? 'text-emerald-600 font-bold' : 'text-stone-400'
-                        }`}
-                      >
-                        <span>{temMaiuscula ? '✓' : '○'}</span>
-                        <span>Pelo menos uma letra maiúscula</span>
-                      </div>
-                      <div
-                        className={`flex items-center space-x-1.5 transition-colors ${
-                          temNumero ? 'text-emerald-600 font-bold' : 'text-stone-400'
-                        }`}
-                      >
-                        <span>{temNumero ? '✓' : '○'}</span>
-                        <span>Pelo menos um número</span>
-                      </div>
-                      <div
-                        className={`flex items-center space-x-1.5 transition-colors ${
-                          temCaracterEspecial ? 'text-emerald-600 font-bold' : 'text-stone-400'
-                        }`}
-                      >
-                        <span>{temCaracterEspecial ? '✓' : '○'}</span>
-                        <span>Pelo menos um caractere especial (!@#$...)</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {!isLogin && (
-                  <div className="flex items-start space-x-3 p-3 bg-stone-50 border border-stone-200/60 rounded-xl mt-2 animate-fade-in">
-                    <input
-                      type="checkbox"
-                      id="termos-loja"
-                      checked={aceitouTermos}
-                      onChange={(e) => setAceitouTermos(e.target.checked)}
-                      className="mt-0.5 w-4 h-4 accent-[#0B1E14] cursor-pointer"
-                      disabled={carregando}
-                    />
-                    <label htmlFor="termos-loja" className="text-[10px] text-stone-500 leading-relaxed cursor-pointer select-none">
-                      Declaro que li e concordo com os{' '}
-                      <button 
-                        type="button" 
-                        onClick={(e) => { e.preventDefault(); setModalTermosAberto(true); }} 
-                        className="text-[#BD6B42] font-bold underline hover:text-[#0B1E14] transition-colors cursor-pointer"
-                      >
-                        termos de uso e o contrato da loja
-                      </button>{' '}
-                      hospedada na plataforma AVLE.
-                    </label>
-                  </div>
-                )}
-
-              </div>
-
-              <button
-                type="submit"
-                disabled={!formularioValido || carregando}
-                className="w-full mt-6 py-3.5 bg-[#0B1E14] text-white font-bold rounded-full tracking-wide uppercase transition-all disabled:opacity-50 cursor-pointer text-xs shadow-md hover:bg-[#08170f]"
-              >
-                {carregando ? statusConexao : isLogin ? 'Entrar no sistema' : 'Finalizar cadastro'}
-              </button>
-            </form>
-          )}
+          <div className="p-6 pt-3">
+            <EntradaPorCodigo
+              key={aba}
+              lojaId={lojaIdNum}
+              inicio={aba}
+              aceitouTermos={aceitouTermos}
+              aoMudarAceite={setAceitouTermos}
+              aoVerTermos={() => setModalTermosAberto(true)}
+              textoDosTermos="termos de uso da AVLE e o regulamento da loja"
+            />
+          </div>
         </div>
       </div>
-      
+
+      {/* Os termos da AVLE e o regulamento da loja juntos, porque a caixinha
+          do cadastro aceita os dois. Antes o modal mostrava só o PDF da loja,
+          e a cliente aceitava termos da AVLE que nunca tinha visto. */}
       {modalTermosAberto && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fadeIn text-left">
-          <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-[60] animate-fadeIn text-left">
+          <div className="bg-white border border-[#DFD9CE] sm:rounded-2xl rounded-t-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl">
             <div className="flex justify-between items-center p-5 border-b border-stone-100">
               <div>
-                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Contrato de adesão</h3>
+                <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Termos e regulamento</h3>
                 <p className="text-[10px] text-stone-400 mt-0.5">Loja: {lojaNome}</p>
               </div>
-              <button 
-                type="button" 
-                onClick={() => setModalTermosAberto(false)} 
+              <button
+                type="button"
+                onClick={() => setModalTermosAberto(false)}
+                aria-label="Fechar"
                 className="text-stone-400 hover:text-stone-700 font-bold text-sm cursor-pointer px-2"
               >
                 X
               </button>
             </div>
-            
-            <div className="p-0 overflow-hidden flex-1 bg-stone-50/30 flex flex-col">
+
+            <div className="overflow-y-auto flex-1 bg-stone-50/30">
+              <div className="p-5 text-sm text-stone-600 leading-relaxed">
+                <p className="text-[10px] uppercase tracking-wider font-bold text-stone-500 mb-3">Termos de uso da AVLE</p>
+                <TextoDosTermos />
+              </div>
               {lojaIdNum && (
-                <iframe
-                   src={`${API_URL}/api/lojas/${lojaIdNum}/regras`}
-                   className="w-full h-[50vh] sm:h-[60vh] border-none"
-                   title="Contrato da loja"
-                />
+                <div className="border-t border-stone-100">
+                  <p className="px-5 pt-4 text-[10px] uppercase tracking-wider font-bold text-stone-500">Regulamento da loja</p>
+                  <iframe
+                    src={`${API_URL}/api/lojas/${lojaIdNum}/regras`}
+                    className="w-full h-[50vh] border-none"
+                    title="Regulamento da loja"
+                  />
+                </div>
               )}
             </div>
 
-            <div className="p-4 border-t border-stone-100 flex justify-end bg-stone-50 rounded-b-2xl gap-3">
-              <button 
-                type="button" 
-                onClick={() => setModalTermosAberto(false)} 
+            <div className="p-4 border-t border-stone-100 flex justify-end bg-stone-50 sm:rounded-b-2xl gap-3">
+              <button
+                type="button"
+                onClick={() => setModalTermosAberto(false)}
                 className="px-6 py-2.5 border border-stone-200 text-stone-600 font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer hover:bg-stone-100 transition-all shadow-sm"
               >
                 Fechar
               </button>
-              <button 
-                type="button" 
-                onClick={() => { 
-                  setModalTermosAberto(false); 
-                  setAceitouTermos(true); 
-                }} 
+              <button
+                type="button"
+                onClick={() => {
+                  setModalTermosAberto(false);
+                  setAceitouTermos(true);
+                }}
                 className="px-6 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase tracking-wider cursor-pointer hover:bg-opacity-90 transition-all shadow-sm"
               >
-                Li e aceito as condições
+                Li e aceito
               </button>
             </div>
           </div>

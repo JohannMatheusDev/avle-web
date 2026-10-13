@@ -15,6 +15,8 @@ import TelaCarregamento from './dashboard/components/TelaCarregamento';
 import { apiFetch } from './lib/api';
 import { codigoDaIndicacao } from './lib/indicacao';
 import { entrarComSenha } from './lib/entrarComSenha';
+import EntradaPorCodigo from './components/EntradaPorCodigo';
+import TextoDosTermos from './components/TextoDosTermos';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -108,6 +110,10 @@ function Autenticacao() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
   const [lembrarSenha, setLembrarSenha] = useState(false);
+
+  // A cliente entra pelo código no celular; senha ficou para a loja, a equipe
+  // e a AVLE. Quem precisa da senha toca em "Sou loja ou equipe".
+  const [entrarComSenhaAberto, setEntrarComSenhaAberto] = useState(false);
 
   // O e-mail e a senha de quem acabou de se cadastrar (ou tentou entrar com a
   // conta ainda sem o código confirmado). É com eles que a pessoa entra sozinha
@@ -671,6 +677,39 @@ function Autenticacao() {
     }
   };
 
+  const seletorDoTipo = (
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-stone-400 mb-1.5 tracking-wider">Tipo de conta *</label>
+                        
+                        <div className="relative flex p-1 bg-stone-100 rounded-2xl border border-stone-200/80 overflow-hidden">
+                          <div 
+                            className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#0B1E14] rounded-xl shadow-md transition-transform duration-500 ease-in-out transform-gpu ${
+                              tipoUsuario === 'CLIENTE' ? 'translate-x-0' : 'translate-x-full'
+                            }`} 
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => { setTipoUsuario('CLIENTE'); setCpf(''); setTelefoneCadastro(''); setEmailCadastro(''); setAceitouTermos(false); setMensagem({ tipo: '', texto: '' }); }} 
+                            className={`relative z-10 flex-1 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-500 cursor-pointer ${tipoUsuario === 'CLIENTE' ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`} 
+                            disabled={carregando}
+                          >
+                            Sou cliente
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={() => { setTipoUsuario('LOJA'); setCpf(''); setTelefoneCadastro(''); setEmailCadastro(''); setAceitouTermos(false); setMensagem({ tipo: '', texto: '' }); }} 
+                            className={`relative z-10 flex-1 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-500 cursor-pointer ${tipoUsuario === 'LOJA' ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`} 
+                            disabled={carregando}
+                          >
+                            Sou loja
+                          </button>
+                        </div>
+                      </div>
+  );
+
+  // Entrada da cliente: cadastro ou acesso por código, sem senha.
+  const clientePorCodigo = isLogin ? !entrarComSenhaAberto : tipoUsuario === 'CLIENTE';
+
   return (
     <div className="min-h-screen fundo-painel flex flex-col lg:flex-row font-sans overflow-hidden">
       
@@ -853,7 +892,36 @@ function Autenticacao() {
               </form>
             )}
 
-            {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && !isLoginPorCodigo && (
+            {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && !isLoginPorCodigo && clientePorCodigo && (
+              <div className="flex flex-col space-y-4">
+                {!isLogin && seletorDoTipo}
+                <EntradaPorCodigo
+                  key={isLogin ? 'entrar' : 'cadastrar'}
+                  inicio={isLogin ? 'entrar' : 'cadastrar'}
+                  lojaId={(() => {
+                    // Quem veio de um convite e caiu aqui continua ligada à loja dele.
+                    if (typeof window === 'undefined') return null;
+                    const salvo = sessionStorage.getItem('@avle:convite_loja_id');
+                    return salvo && !isNaN(Number(salvo)) ? Number(salvo) : null;
+                  })()}
+                  aceitouTermos={aceitouTermos}
+                  aoMudarAceite={setAceitouTermos}
+                  aoVerTermos={() => setModalTermosAberto(true)}
+                  textoDosTermos="termos de uso da AVLE"
+                  rodape={isLogin ? (
+                    <button
+                      type="button"
+                      onClick={() => { setEntrarComSenhaAberto(true); setMensagem({ tipo: '', texto: '' }); }}
+                      className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-[11px] py-1 cursor-pointer"
+                    >
+                      Sou loja ou equipe: entrar com senha
+                    </button>
+                  ) : null}
+                />
+              </div>
+            )}
+
+            {!isVerificando && !isEsqueceuSenha && !isResetandoSenha && !isLoginPorCodigo && !clientePorCodigo && (
               <form onSubmit={handleSubmit} className="flex flex-col text-left space-y-4">
                   {mensagem.texto && (
                     <div className={`p-3.5 rounded-xl text-xs font-bold text-center border ${mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
@@ -863,33 +931,7 @@ function Autenticacao() {
                   
                   {!isLogin && (
                     <div className="space-y-4">
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase text-stone-400 mb-1.5 tracking-wider">Tipo de conta *</label>
-                        
-                        <div className="relative flex p-1 bg-stone-100 rounded-2xl border border-stone-200/80 overflow-hidden">
-                          <div 
-                            className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#0B1E14] rounded-xl shadow-md transition-transform duration-500 ease-in-out transform-gpu ${
-                              tipoUsuario === 'CLIENTE' ? 'translate-x-0' : 'translate-x-full'
-                            }`} 
-                          />
-                          <button 
-                            type="button" 
-                            onClick={() => { setTipoUsuario('CLIENTE'); setCpf(''); setTelefoneCadastro(''); setEmailCadastro(''); setAceitouTermos(false); setMensagem({ tipo: '', texto: '' }); }} 
-                            className={`relative z-10 flex-1 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-500 cursor-pointer ${tipoUsuario === 'CLIENTE' ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`} 
-                            disabled={carregando}
-                          >
-                            Sou cliente
-                          </button>
-                          <button 
-                            type="button" 
-                            onClick={() => { setTipoUsuario('LOJA'); setCpf(''); setTelefoneCadastro(''); setEmailCadastro(''); setAceitouTermos(false); setMensagem({ tipo: '', texto: '' }); }} 
-                            className={`relative z-10 flex-1 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-500 cursor-pointer ${tipoUsuario === 'LOJA' ? 'text-white' : 'text-stone-500 hover:text-stone-800'}`} 
-                            disabled={carregando}
-                          >
-                            Sou loja
-                          </button>
-                        </div>
-                      </div>
+                      {seletorDoTipo}
 
                       <div>
                         <div className="flex justify-between items-center mb-1">
@@ -1079,6 +1121,15 @@ function Autenticacao() {
                 <button type="submit" disabled={!formularioValido || carregando} className="w-full mt-6 py-4 bg-[#0B1E14] text-white font-bold rounded-full tracking-wide uppercase transition-all disabled:opacity-50 cursor-pointer text-xs shadow-md hover:bg-[#08170f]">
                   {carregando ? statusConexao : isLogin ? 'Entrar no sistema' : 'Finalizar cadastro'}
                 </button>
+                {isLogin && (
+                  <button
+                    type="button"
+                    onClick={() => { setEntrarComSenhaAberto(false); setMensagem({ tipo: '', texto: '' }); }}
+                    className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-[11px] py-1 cursor-pointer"
+                  >
+                    Sou cliente: entrar com código no celular
+                  </button>
+                )}
               </form>
             )}
           </div>
@@ -1089,15 +1140,23 @@ function Autenticacao() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fadeIn text-left">
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
             <div className="flex justify-between items-center p-5 border-b border-stone-100">
-              <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">Contrato de parceria</h3>
+              <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">
+                {tipoUsuario === 'LOJA' && !isLogin ? 'Contrato de parceria' : 'Termos de uso'}
+              </h3>
               <button type="button" onClick={() => setModalTermosAberto(false)} className="text-stone-400 font-bold px-2 cursor-pointer">X</button>
             </div>
+            {tipoUsuario !== 'LOJA' || isLogin ? (
+              <div className="p-6 overflow-y-auto flex-1 text-sm text-stone-600 leading-relaxed bg-stone-50/30">
+                <TextoDosTermos />
+              </div>
+            ) : (
             <div className="p-6 overflow-y-auto flex-1 text-xs text-stone-600 space-y-4 leading-relaxed bg-stone-50/30">
               <p className="font-bold text-stone-800">1. DO OBJETO</p>
               <p>Este documento estabelece as condições gerais para a utilização da AVLE pela LOJA PARCEIRA.</p>
               <p className="font-bold text-stone-800 mt-4">2. DO REPASSE E SPLIT DE PAGAMENTOS</p>
               <p>Fica acordado que a plataforma AVLE reterá automaticamente o percentual de 10% sobre cada transação.</p>
             </div>
+            )}
             <div className="p-4 border-t flex justify-end gap-3 bg-stone-50 rounded-b-2xl">
               <button type="button" onClick={() => setModalTermosAberto(false)} className="px-6 py-2.5 border text-stone-600 font-bold rounded-xl text-[10px] uppercase cursor-pointer">Fechar</button>
               <button type="button" onClick={() => { setModalTermosAberto(false); setAceitouTermos(true); }} className="px-6 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase cursor-pointer">Aceitar</button>
