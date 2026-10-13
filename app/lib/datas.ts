@@ -98,6 +98,14 @@ export function proximoVencimento(): Date {
   return venc;
 }
 
+// ── Vencimento do mês corrente (5º dia útil), mesmo que já tenha passado ────
+// A parcela do mês vale até o fim do mês: depois do 5º dia útil ela está
+// vencida, e não vira a do mês seguinte. A de novembro só abre em 1º de novembro.
+export function vencimentoDoMesAtual(): Date {
+  const hoje = new Date();
+  return enesimoDialUtil(hoje.getFullYear(), hoje.getMonth() + 1, 5);
+}
+
 // ── Próximo sorteio (dia 10 de cada mês) ─────────────────────────────────────
 export function proximoSorteio(): Date {
   const hoje = new Date();
