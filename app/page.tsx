@@ -1,7 +1,7 @@
 'use client';
 
 import RegrasDaSenha from './components/RegrasDaSenha';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   cpfValido,
@@ -14,6 +14,7 @@ import {
 import TelaCarregamento from './dashboard/components/TelaCarregamento';
 import { apiFetch } from './lib/api';
 import { codigoDaIndicacao } from './lib/indicacao';
+import { entrarComSenha } from './lib/entrarComSenha';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -107,6 +108,35 @@ function Autenticacao() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
   const [lembrarSenha, setLembrarSenha] = useState(false);
+
+  // O e-mail e a senha de quem acabou de se cadastrar (ou tentou entrar com a
+  // conta ainda sem o código confirmado). É com eles que a pessoa entra sozinha
+  // depois, sem digitar nada de novo. Ficam só na memória da página.
+  const credenciais = useRef<{ identificador: string; senha: string } | null>(null);
+
+  const entrarDepoisDoCadastro = async () => {
+    const c = credenciais.current;
+    setIsVerificando(false);
+    setIsLogin(true);
+    if (!c) {
+      if (emailVerificacao) setIdentificadorLogin(emailVerificacao);
+      setMensagem({ tipo: 'sucesso', texto: 'Conta ativada! Entre com a sua senha.' });
+      setCarregando(false);
+      return;
+    }
+    setCarregando(true);
+    setMensagem({ tipo: 'sucesso', texto: 'Conta criada! Entrando…' });
+    if (await entrarComSenha(c.identificador, c.senha)) {
+      credenciais.current = null;
+      router.push('/dashboard');
+      return;
+    }
+    // Não entrou sozinha: a tela de entrar abre com o que ela já digitou.
+    setIdentificadorLogin(c.identificador);
+    setSenha(c.senha);
+    setMensagem({ tipo: 'sucesso', texto: 'Sua conta foi criada. Confira os dados e toque em Entrar.' });
+    setCarregando(false);
+  };
 
   // "Lembrar de mim" guarda apenas o e-mail ou telefone usado para entrar, nunca
   // a senha: preenche o campo na próxima visita sem deixar credencial gravada no
@@ -352,6 +382,8 @@ function Autenticacao() {
         if (resposta.status === 403) {
           const detalhe = await resposta.json().catch(() => null);
           if (detalhe?.email) setEmailVerificacao(detalhe.email);
+          // Confirmado o código, ela entra com o que acabou de digitar.
+          if (isLogin) credenciais.current = { identificador: identificadorLogin.trim(), senha };
           setMensagem({
             tipo: 'erro',
             texto: detalhe?.emailMascarado
@@ -389,6 +421,7 @@ function Autenticacao() {
         } else {
           const retorno = await resposta.json().catch(() => null);
           sessionStorage.removeItem('@avle:convite_loja_id');
+          credenciais.current = { identificador: emailCadastro.trim(), senha };
 
           if (retorno?.verificacaoPendente) {
             // O número fica guardado porque os campos são limpos logo abaixo e a
@@ -399,16 +432,15 @@ function Autenticacao() {
               texto: `Cadastro realizado! Enviamos um código para ${retorno.emailMascarado || 'o seu e-mail'}.`,
             });
             setIsVerificando(true);
-          } else {
-            setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso!' });
-            setTimeout(() => {
-              setIsLogin(true);
-              setMensagem({ tipo: '', texto: '' });
-            }, 1500);
           }
 
           setNome(''); setCpf(''); setRazaoSocial(''); setNomeSugerido(''); setEmailCadastro(''); setTelefoneCadastro(''); setCep('');
           setFaturamento(''); setChaveAsaasInput(''); setContaAsaas('AVLE'); setSenha(''); setAceitouTermos(false);
+          // Sem código para confirmar, ela já entra.
+          if (!retorno?.verificacaoPendente) {
+            await entrarDepoisDoCadastro();
+            return;
+          }
           setCarregando(false);
           return;
         }
@@ -495,11 +527,8 @@ function Autenticacao() {
         throw new Error(textoErro || 'Código de verificação incorreto ou expirado.');
       }
 
-      setMensagem({ tipo: 'sucesso', texto: 'Conta ativada com sucesso! Faça seu login agora.' });
-      setIsVerificando(false);
-      setIsLogin(true);
-      setSenha('');
       setCodigoOtp('');
+      await entrarDepoisDoCadastro();
     } catch (erro: any) {
       setMensagem({ tipo: 'erro', texto: erro.message });
     } finally {
