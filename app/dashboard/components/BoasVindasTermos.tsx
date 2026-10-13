@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
+import TextoDosTermos from '../../components/TextoDosTermos';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -84,24 +85,7 @@ export default function BoasVindasTermos({ nome }: { nome?: string }) {
         </div>
 
         <div className="px-6 py-5 overflow-y-auto text-sm text-stone-600 space-y-4 leading-relaxed">
-          <p>
-            A AVLE organiza clubes de compra coletiva junto com lojas parceiras. Ao participar, você
-            contribui mensalmente e concorre à contemplação para retirar o seu produto na loja.
-          </p>
-
-          <div className="bg-[#F8F6F2] border border-[#DFD9CE] rounded-2xl p-4 space-y-3">
-            <p className="text-[10px] uppercase tracking-wider font-bold text-stone-500">O que você aceita</p>
-            <ul className="space-y-2 text-xs">
-              <li>• Pagar a parcela do seu grupo até o <strong>quinto dia útil</strong> de cada mês.</li>
-              <li>• Receber avisos de cobrança por e-mail e WhatsApp, com o Pix e o boleto.</li>
-              <li>• Que a contemplação segue sorteio auditável, e a retirada depende das parcelas em dia.</li>
-              <li>• Que os seus dados são usados para emitir as cobranças e falar com você sobre o plano.</li>
-            </ul>
-          </div>
-
-          <p className="text-xs text-stone-400">
-            O regulamento completo do seu grupo é apresentado pela loja no momento da adesão.
-          </p>
+          <TextoDosTermos />
 
           <label className="flex items-start gap-3 pt-1 cursor-pointer">
             <input

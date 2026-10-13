@@ -32,6 +32,8 @@ import { grupoDisponivel, grupoEncerrado, vagasDoGrupo } from '../../lib/grupos'
 import { apiFetch, encerrarSessao } from '../../lib/api';
 import { useHistoricoDoPainel } from '../../lib/historico';
 import { useAvisos } from '../../lib/avisos';
+import CadastrosIncompletos from './CadastrosIncompletos';
+import ContratoDaCliente from '../../components/ContratoDaCliente';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -2881,6 +2883,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                     }]),
                   ]}
                 />
+                <CadastrosIncompletos
+                  caminho={`/api/usuarios/lojas/${usuario?.lojaId || usuario?.id}/cadastros-incompletos`}
+                  nomeDeQuemFala={nomeLojaReal || 'sua loja'}
+                />
                   <div className="cartao-avle overflow-hidden">
                       <div className="px-5 py-4 border-b border-[#DFD9CE] bg-stone-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                           <div>
@@ -4639,6 +4645,13 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                             </p>
                           )}
                         </div>
+
+                        {f.id && (
+                          <div className="border-t border-[#DFD9CE] pt-4">
+                            <Titulo>Contrato</Titulo>
+                            <ContratoDaCliente usuarioId={Number(f.id)} />
+                          </div>
+                        )}
 
                         {!f.temCota ? (
                           <p className="text-xs text-stone-400 italic border-t border-[#DFD9CE] pt-4">

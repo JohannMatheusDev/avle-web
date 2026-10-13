@@ -13,6 +13,8 @@ import {
   CabecalhoDoPainel, Icone, Identidade, ItemDeNavegacao, PilulasDeSecao, TrilhoDeNavegacao,
 } from './Casca';
 import { PassoDoTour, useTour } from './Tour';
+import CompletarCadastro from './CompletarCadastro';
+import ContratoDaCliente from '../../components/ContratoDaCliente';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -48,6 +50,13 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
   // corre atras depois". Fica guardada no navegador porque fechar a aba no
   // meio do Pix nao pode virar uma cota sem pagamento nenhum.
   const [cotaAguardandoPrimeiraParcela, setCotaAguardandoPrimeiraParcela] = useState<number | null>(null);
+
+  // O endereço ficou fora do cadastro e é pedido depois do pagamento. Nulo até
+  // o perfil chegar do servidor: sem saber, a tela não cobra nada.
+  const [cadastroCompleto, setCadastroCompleto] = useState<boolean | null>(
+    typeof usuarioInicial?.cadastroCompleto === 'boolean' ? usuarioInicial.cadastroCompleto : null,
+  );
+  const [completarCadastro, setCompletarCadastro] = useState<{ aberto: boolean; titulo?: string }>({ aberto: false });
 
   const [nivelVisao, setNivelVisao] = useState<'lojas' | 'grupos' | 'dashboard'>('lojas');
 
@@ -366,6 +375,7 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
             setFotoPerfil(data.fotoPerfil || null);
             const documento = data.cpf || data.cpfCnpj || data.cpf_cnpj || data.documento || '';
             setCpfInput(documento ? aplicarMascaraCpfCnpj(documento) : '');
+            if (typeof data.cadastroCompleto === 'boolean') setCadastroCompleto(data.cadastroCompleto);
             
             if (data.lojaId) setLojaBloqueadaId(data.lojaId);
           }
@@ -673,6 +683,15 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
       const loja = lojas.find((l: any) => l.id === cota.loja?.id) ?? cota.loja;
       if (loja?.id) entrarNaLoja(loja);
       else setNivelVisao('grupos');
+      // Pagou e ainda falta o endereço: é a hora de pedir, com ela ainda na
+      // tela. Depois disso o pedido fica num aviso fixo no início.
+      if (cadastroCompleto === false) {
+        setCompletarCadastro({
+          aberto: true,
+          titulo: `Pagamento confirmado! Você já faz parte do ${cota.grupo?.nome || 'grupo'}.`,
+        });
+        return;
+      }
       mostrarAviso(
         'Pagamento confirmado',
         `Você já faz parte do ${cota.grupo?.nome || 'grupo'}. Toque nele em Meus grupos para ver o seu plano.`,
@@ -1140,6 +1159,24 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
         {abaAtiva === 'inicio' && (
           <div className="animate-fadeIn">
 
+            {cadastroCompleto === false && clubesAtivos.some((c: any) => Number(c.saldoPoupanca) > 0) && (
+              <div className="mb-6 rounded-2xl border border-[#BD6B42]/30 bg-[#BD6B42]/5 p-4 flex flex-col sm:flex-row sm:items-center gap-3 text-left">
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-[#0B1E14]">Complete o seu cadastro</p>
+                  <p className="text-[11px] text-stone-600 mt-0.5 leading-relaxed">
+                    Falta o seu endereço. Sem ele, a loja não consegue liberar o produto quando você for contemplada.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCompletarCadastro({ aberto: true })}
+                  className="px-5 py-3 bg-[#BD6B42] text-white font-bold rounded-full text-[11px] uppercase tracking-wider cursor-pointer whitespace-nowrap"
+                >
+                  Completar agora
+                </button>
+              </div>
+            )}
+
             {/* Ser sorteada e a coisa mais importante que acontece com a cliente,
                 então o card vem antes de tudo na aba inicial. */}
             {cardsContemplacao.map((card) => (
@@ -1225,7 +1262,22 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
                     )}
                   </div>
 
-                  {card.acaoDoCliente === 'ESCOLHER_PRODUTO' && (
+                  {card.acaoDoCliente === 'ESCOLHER_PRODUTO' && card.cadastroCompleto === false && (
+                    <div className="p-4 rounded-xl border border-[#BD6B42]/30 bg-[#BD6B42]/5 space-y-3">
+                      <p className="text-[11px] text-stone-700 leading-relaxed">
+                        Para escolher e retirar o produto, complete o seu cadastro com o endereço.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setCompletarCadastro({ aberto: true })}
+                        className="w-full py-3 bg-[#BD6B42] text-white font-bold rounded-full text-[11px] uppercase tracking-wider cursor-pointer"
+                      >
+                        Completar cadastro
+                      </button>
+                    </div>
+                  )}
+
+                  {card.acaoDoCliente === 'ESCOLHER_PRODUTO' && card.cadastroCompleto !== false && (
                     <button
                       type="button"
                       onClick={() => { setModalProduto({ aberto: true, cotaId: card.cotaId }); setProdutoEscolhido(''); }}
@@ -1868,6 +1920,15 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
 
         {abaAtiva === 'regras' && (
           <div className="cartao-avle p-6 space-y-4 text-xs text-stone-600 leading-relaxed animate-fadeIn text-left max-w-2xl">
+            {usuario?.id && (
+              <div className="pb-4 border-b border-stone-100 space-y-3">
+                <div>
+                  <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Meu contrato</h3>
+                  <p className="text-stone-400 mt-1">O termo de adesão de cada grupo em que você entrou, com os seus dados.</p>
+                </div>
+                <ContratoDaCliente usuarioId={usuario.id} />
+              </div>
+            )}
             <div>
               <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Regulamento AVLE</h3>
               <p className="text-stone-400 mt-1">Confira as diretrizes da comunidade estruturada de compras programadas de móveis e decorações.</p>
@@ -2145,6 +2206,20 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
         )}
       </main>
 
+      {completarCadastro.aberto && usuario?.id && (
+        <CompletarCadastro
+          usuarioId={usuario.id}
+          titulo={completarCadastro.titulo}
+          aoFechar={() => setCompletarCadastro({ aberto: false })}
+          aoConcluir={() => {
+            setCadastroCompleto(true);
+            setCompletarCadastro({ aberto: false });
+            buscarContemplacoes();
+            mostrarAviso('Cadastro completo', 'Pronto! Quando você for contemplada, a loja já tem tudo para liberar o seu produto.', false);
+          }}
+        />
+      )}
+
       {modalAdesao.aberto && modalAdesao.grupo && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80] animate-fadeIn text-left">
             <div className="cartao-avle w-full max-w-md shadow-2xl overflow-hidden">
@@ -2178,18 +2253,22 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
                         <p className="text-[11px] text-white/70 mt-1 leading-relaxed">
                             O seu painel do grupo libera assim que o pagamento for confirmado.
                         </p>
+                        <p className="text-[11px] text-white/70 mt-1 leading-relaxed">
+                            A parcela é paga mês a mês, por Pix ou boleto: não consome o limite do seu cartão de crédito.
+                        </p>
                     </div>
 
                     <div className="flex items-start gap-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
                         <span className="text-blue-500 mt-0.5 text-xs font-bold">INFO</span>
                         <p className="text-[10px] text-stone-600 leading-relaxed">
                             Antes de confirmar a sua participação, é obrigatória a leitura do{' '}
-                            <button onClick={() => window.open(`${API_URL}/api/lojas/${lojaEmFoco?.id}/regras`, '_blank')} className="text-blue-600 font-bold underline cursor-pointer">regulamento operacional da loja</button>. Ao entrar no grupo, você concorda legalmente com todos os termos estabelecidos pelo estabelecimento.
+                            <button onClick={() => window.open(`${API_URL}/api/lojas/${lojaEmFoco?.id}/regras`, '_blank')} className="text-blue-600 font-bold underline cursor-pointer">regulamento operacional da loja</button>. Ao tocar em entrar, você aceita o termo de adesão deste grupo, que fica guardado com os seus dados na aba Regulamento.
                         </p>
                     </div>
                 </div>
+                {/* Sem "Cancelar": quem tocou em entrar no grupo segue direto para o
+                    pagamento. A saída aqui era onde a entrada se perdia. */}
                 <div className="p-5 border-t border-stone-100 bg-stone-50 flex gap-3">
-                    <button onClick={() => setModalAdesao({ aberto: false, grupo: null })} disabled={entrandoNoGrupo} className="flex-1 py-3 border border-stone-200 text-stone-500 font-bold rounded-full text-[10px] uppercase hover:bg-stone-100 transition-colors cursor-pointer">Cancelar</button>
                     <button onClick={confirmarAdesaoNoGrupo} disabled={entrandoNoGrupo} className="flex-1 py-3 bg-[#0B1E14] text-white font-bold rounded-full shadow-sm text-[10px] uppercase hover:bg-opacity-90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-wait">{entrandoNoGrupo ? 'Entrando…' : 'Entrar e pagar a 1ª parcela'}</button>
                 </div>
             </div>
