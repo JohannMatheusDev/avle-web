@@ -2349,15 +2349,6 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
                 >
                   Já paguei · conferir agora
                 </button>
-                {/* Saída honesta: sem ela, quem não vai pagar hoje ficaria
-                    presa na tela sem nem conseguir sair da conta. */}
-                <button
-                  type="button"
-                  onClick={async () => { await encerrarSessao(); router.push('/'); }}
-                  className="block w-full text-[10px] font-bold text-stone-400 uppercase tracking-wider hover:text-stone-600 cursor-pointer"
-                >
-                  Sair da conta e pagar depois
-                </button>
               </div>
             )}
           </div>

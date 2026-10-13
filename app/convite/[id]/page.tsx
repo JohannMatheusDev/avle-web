@@ -6,6 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import gsap from 'gsap';
 import { apiFetch } from '../../lib/api';
 import { codigoDaIndicacao } from '../../lib/indicacao';
+import { entrarComSenha } from '../../lib/entrarComSenha';
 import TelaCarregamento from '../../dashboard/components/TelaCarregamento';
 import {
   cpfValido,
@@ -73,6 +74,35 @@ export default function CadastroConvite() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [emailVerificacao, setEmailVerificacao] = useState('');
   const [reenviandoCodigo, setReenviandoCodigo] = useState(false);
+
+  // O e-mail e a senha de quem acabou de se cadastrar (ou tentou entrar com a
+  // conta ainda sem o código confirmado). É com eles que a pessoa entra sozinha
+  // depois, sem digitar nada de novo. Ficam só na memória da página.
+  const credenciais = useRef<{ identificador: string; senha: string } | null>(null);
+
+  const entrarDepoisDoCadastro = async () => {
+    const c = credenciais.current;
+    setIsVerificando(false);
+    setIsLogin(true);
+    if (!c) {
+      if (emailVerificacao) setIdentificadorLogin(emailVerificacao);
+      setMensagem({ tipo: 'sucesso', texto: 'Conta ativada! Entre com a sua senha.' });
+      setCarregando(false);
+      return;
+    }
+    setCarregando(true);
+    setMensagem({ tipo: 'sucesso', texto: 'Conta criada! Entrando…' });
+    if (await entrarComSenha(c.identificador, c.senha)) {
+      credenciais.current = null;
+      router.push('/dashboard');
+      return;
+    }
+    // Não entrou sozinha: a tela de entrar abre com o que ela já digitou.
+    setIdentificadorLogin(c.identificador);
+    setSenha(c.senha);
+    setMensagem({ tipo: 'sucesso', texto: 'Sua conta foi criada. Confira os dados e toque em Entrar.' });
+    setCarregando(false);
+  };
 
   useEffect(() => {
     // Mesma chave da home: quem ja viu a abertura nesta visita nao ve de novo
@@ -292,6 +322,8 @@ export default function CadastroConvite() {
         if (resposta.status === 403) {
           const detalhe = await resposta.json().catch(() => null);
           if (detalhe?.email) setEmailVerificacao(detalhe.email);
+          // Confirmado o código, ela entra com o que acabou de digitar.
+          if (isLogin) credenciais.current = { identificador: identificadorLogin.trim(), senha };
           setMensagem({
             tipo: 'erro',
             texto: detalhe?.emailMascarado
@@ -329,6 +361,7 @@ export default function CadastroConvite() {
           return;
         } else {
           const retorno = await resposta.json().catch(() => null);
+          credenciais.current = { identificador: emailCadastro.trim(), senha };
 
           if (retorno?.verificacaoPendente) {
             // O código sai por e-mail, e nao por mensagem: e o unico canal que
@@ -340,16 +373,15 @@ export default function CadastroConvite() {
               texto: `Cadastro realizado! Enviamos um código para ${retorno.emailMascarado || 'o seu e-mail'}.`,
             });
             setIsVerificando(true);
-          } else {
-            setMensagem({ tipo: 'sucesso', texto: 'Conta cadastrada com sucesso! Faça o seu login.' });
-            setTimeout(() => {
-              setIsLogin(true);
-              setMensagem({ tipo: '', texto: '' });
-            }, 2000);
           }
 
           setNome(''); setCpf(''); setEmailCadastro(''); setTelefoneCadastro('');
           setSenha(''); setAceitouTermos(false);
+          // Sem código para confirmar, ela já entra.
+          if (!retorno?.verificacaoPendente) {
+            await entrarDepoisDoCadastro();
+            return;
+          }
           setCarregando(false);
           return;
         }
@@ -441,11 +473,8 @@ export default function CadastroConvite() {
         throw new Error(textoErro || 'Código de verificação incorreto ou expirado.');
       }
 
-      setMensagem({ tipo: 'sucesso', texto: 'Conta ativada com sucesso! Faça seu login agora.' });
-      setIsVerificando(false);
-      setIsLogin(true);
-      setSenha('');
       setCodigoOtp('');
+      await entrarDepoisDoCadastro();
     } catch (erro: any) {
       setMensagem({ tipo: 'erro', texto: erro.message });
     } finally {
