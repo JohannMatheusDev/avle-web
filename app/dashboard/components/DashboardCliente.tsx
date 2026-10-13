@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { CardContemplacao, EtapaTrilha, mensagemDeErro } from '../../lib/contemplacao';
 import { aplicarMascaraCep } from '../../lib/validacao';
 import { SENHA_PADRAO_INICIAL } from '../../lib/constantes';
-import { proximoVencimento, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
+import { vencimentoDoMesAtual, proximoSorteio, formatarData, diasAte } from '../../lib/datas';
 import { grupoDisponivel } from '../../lib/grupos';
 import { useRouter } from 'next/navigation';
 import { apiFetch, encerrarSessao } from '../../lib/api';
@@ -162,10 +162,12 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
   const diasExibidos = vencimentoDaCota ? diasAte(vencimentoDaCota) : diasRestantesVencimento;
   const cicloAtualPago = clubeAtualSelecionado?.cicloAtualPago === true;
   const mesDaProxima = vencimentoDaCota ? vencimentoDaCota.toLocaleDateString('pt-BR', { month: 'long' }) : '';
-  const mesDoCicloPago = proximoVencimento().toLocaleDateString('pt-BR', { month: 'long' });
+  // O ciclo é o mês corrente até o último dia dele.
+  const mesDoCicloPago = new Date().toLocaleDateString('pt-BR', { month: 'long' });
+  const parcelaVencida = !cicloAtualPago && diasExibidos < 0;
 
   useEffect(() => {
-    const venc = proximoVencimento();
+    const venc = vencimentoDoMesAtual();
     const dias = diasAte(venc);
     setDiasRestantesVencimento(dias);
     setDataVencimentoCota(formatarData(venc));
@@ -1615,19 +1617,24 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
                     ficava fora da tela do celular. Abre Pix, cartão ou quitar. */}
                 {etapaAtual !== 4 && (
                   <div>
-                    {/* Pagou a parcela do ciclo (a entrada, por exemplo): ela
-                        precisa ler que este mês está resolvido, para não achar
-                        que paga duas vezes. Pagar agora é adiantar a próxima. */}
+                    {/* Pagou a parcela do mês: ela precisa ler que o mês está
+                        resolvido. A do mês seguinte só abre no dia 1º, e pela
+                        tela não se adianta: quem quer adiantar pede à loja,
+                        que gera a cobrança. */}
                     {cicloAtualPago && (
-                      <div className="mb-3 rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-center">
+                      <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-center">
                         <p className="text-[13px] font-bold text-emerald-800">
                           ✓ A parcela de {mesDoCicloPago} já está paga
                         </p>
                         <p className="text-[11px] text-emerald-700 mt-0.5">
-                          A próxima{mesDaProxima ? `, de ${mesDaProxima},` : ''} vence em {vencimentoExibido}. Não precisa pagar nada agora.
+                          A próxima{mesDaProxima ? `, de ${mesDaProxima},` : ''} fica disponível no dia 1º e vence em {vencimentoExibido}. Não precisa pagar nada agora.
+                        </p>
+                        <p className="text-[10px] text-emerald-700/80 mt-1.5">
+                          Quer adiantar parcelas ou quitar o plano? Fale com a loja.
                         </p>
                       </div>
                     )}
+                    {!cicloAtualPago && (<>
                     <button
                       type="button"
                       data-tour="pagar-parcela"
@@ -1636,11 +1643,12 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
                         ? 'w-full bg-white text-[#BD6B42] border-2 border-[#BD6B42] py-3.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-[#BD6B42]/5 transition-all cursor-pointer'
                         : 'w-full bg-[#BD6B42] text-white py-4 rounded-full text-sm font-bold uppercase tracking-wider hover:brightness-110 active:brightness-95 transition-all cursor-pointer shadow-md'}
                     >
-                      {cicloAtualPago ? `Adiantar a parcela de ${mesDaProxima}` : 'Pagar parcela'} · R$ {(valorMensalidade).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      Pagar parcela{parcelaVencida ? ` de ${mesDoCicloPago}` : ''} · R$ {(valorMensalidade).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </button>
                     <p className="text-[10px] text-stone-400 text-center mt-2">
                       Pix, cartão ou quitar o plano de uma vez · o comprovante entra no seu histórico
                     </p>
+                    </>)}
                   </div>
                 )}
 
@@ -1663,17 +1671,25 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
                       : 'bg-white border-[#E6E2D8]'
                   }`}>
                     <div>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Próximo vencimento</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">
+                        {parcelaVencida ? `Parcela de ${mesDoCicloPago} vencida em` : 'Próximo vencimento'}
+                      </p>
                       <p className={`text-base font-black font-mono mt-0.5 ${diasExibidos <= 3 ? 'text-amber-700' : 'text-[#0B1E14]'}`}>
                         {vencimentoExibido || '--/--'}
                       </p>
                       <p className="text-[10px] text-stone-400 mt-0.5">5º dia útil do mês · feriados excluídos</p>
                     </div>
                     <div className="text-right flex-shrink-0 ml-4">
-                      <span className={`text-2xl font-black font-mono ${diasExibidos <= 3 ? 'text-amber-600' : 'text-[#BD6B42]'}`}>
-                        {diasExibidos}d
-                      </span>
-                      <p className="text-[9px] text-stone-400 uppercase tracking-wider">restantes</p>
+                      {parcelaVencida ? (
+                        <p className="text-[11px] font-bold text-amber-700 leading-snug">Pague para<br />ficar em dia</p>
+                      ) : (
+                        <>
+                          <span className={`text-2xl font-black font-mono ${diasExibidos <= 3 ? 'text-amber-600' : 'text-[#BD6B42]'}`}>
+                            {diasExibidos}d
+                          </span>
+                          <p className="text-[9px] text-stone-400 uppercase tracking-wider">restantes</p>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center justify-between px-5 py-3.5 rounded-xl border bg-white border-[#E6E2D8]">
