@@ -201,7 +201,9 @@ export default function EntradaPorCodigo({
     setCodigo('');
     setEsperaReenvio(60);
     setEtapa('codigo');
-    setMensagem({ tipo: 'sucesso', texto: aviso || `Enviamos um código para ${onde.trim()}.` });
+    // O subtítulo da tela já diz para onde foi; a caixa só aparece quando há
+    // algo a mais a dizer, como "você já tem conta".
+    setMensagem(aviso ? { tipo: 'sucesso', texto: aviso } : { tipo: '', texto: '' });
   };
 
   const entrar = async (e: React.FormEvent) => {
@@ -399,11 +401,10 @@ export default function EntradaPorCodigo({
           <button
             type="button"
             onClick={(e) => { e.preventDefault(); aoVerTermos(); }}
-            className="text-[#BD6B42] font-bold underline cursor-pointer"
+            className="inline text-left text-[#BD6B42] font-bold underline cursor-pointer"
           >
-            {textoDosTermos}
+            {textoDosTermos}.
           </button>
-          .
         </label>
       </div>
 
