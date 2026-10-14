@@ -23,7 +23,10 @@ type Linha = {
 };
 type Resultado = {
   loja: string; contaConectada: boolean; conferidaEm: string;
-  resumo: { cobrancas: number; pagasNoAsaas: number; comProblema: number; graves: number; pagasNaContaDaAvle: number };
+  resumo: {
+    cobrancas: number; pagasNoAsaas: number; comProblema: number; graves: number; pagasNaContaDaAvle: number;
+    semLeitura: number; devidoALojaPelaAvle: number; repasseParadoNaLoja: number; comissaoNaoRepassada: number;
+  };
   cobrancas: Linha[];
   semRegistroNoAvle: { conferido: boolean; motivo?: string; cobrancas?: { paymentId: string; status: string; valor: number; vencimento: string; descricao?: string }[] };
 };
@@ -146,6 +149,27 @@ export default function AuditoriaDoSplit() {
               </div>
             ))}
           </div>
+
+          {/* Os dois números que dizem o que precisa voltar para o dono. */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {[
+              { rotulo: 'A AVLE deve à loja', ajuda: 'parte da loja presa na AVLE por repasse que falhou', valor: resultado.resumo.devidoALojaPelaAvle },
+              { rotulo: 'Comissão não repassada', ajuda: 'parte da AVLE que ficou com a loja', valor: resultado.resumo.comissaoNaoRepassada },
+              { rotulo: 'Repasse parado na loja', ajuda: 'repasse da conta da loja que falhou', valor: resultado.resumo.repasseParadoNaLoja },
+            ].map((c) => (
+              <div key={c.rotulo} className={`rounded-2xl p-3 ${Number(c.valor) > 0 ? 'bg-rose-50' : 'bg-painel-papel'}`}>
+                <p className="text-[10px] uppercase tracking-wider text-stone-500 font-semibold">{c.rotulo}</p>
+                <p className={`text-[20px] font-semibold ${Number(c.valor) > 0 ? 'text-rose-700' : 'text-painel-tinta'}`}>{reais(c.valor)}</p>
+                <p className="text-[10px] text-stone-500">{c.ajuda}</p>
+              </div>
+            ))}
+          </div>
+
+          {resultado.resumo.semLeitura > 0 && (
+            <p className="text-[12px] text-amber-800 bg-amber-50 rounded-xl p-3">
+              {resultado.resumo.semLeitura} cobrança(s) não puderam ser lidas no Asaas. Espere alguns minutos e confira de novo.
+            </p>
+          )}
 
           {!resultado.contaConectada && (
             <p className="text-[12px] text-amber-800 bg-amber-50 rounded-xl p-3">
