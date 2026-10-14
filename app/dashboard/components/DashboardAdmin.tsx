@@ -17,6 +17,9 @@ import AuditoriaDoSplit from './AuditoriaDoSplit';
 import Conversas from './Conversas';
 import PainelDeAvisosFlutuante from './PainelDeAvisosFlutuante';
 import {
+  ContratosDasLojas, RelatorioDeClientes, RelatorioDeReceita, TaxasDasLojas, periodoInicial, type Periodo,
+} from './RelatoriosDoAdmin';
+import {
   Avatar, BarraSuperior, BotaoDaConta, BotaoRedondo, CabecalhoDaPagina, ItemDeNavegacao,
   TrilhoDeNavegacao,
 } from './Casca';
@@ -34,7 +37,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function DashboardAdmin({ usuario }: { usuario: any }) {
   const router = useRouter();
-  const [abaExibida, setAbaExibida] = useState<'geral' | 'lojas' | 'financeiro' | 'cobranca' | 'conversas' | 'conta'>('geral');
+  const [abaExibida, setAbaExibida] = useState<'geral' | 'lojas' | 'financeiro' | 'cobranca' | 'conversas' | 'conta' | 'clientes' | 'receita'>('geral');
+  // Dentro de Lojas: a lista, os contratos de todas e as taxas de todas.
+  const [subAbaLojas, setSubAbaLojas] = useState<'lista' | 'contratos' | 'taxas'>('lista');
+  // O período dos relatórios é um só: trocar em Clientes vale para Receita.
+  const [periodo, setPeriodo] = useState<Periodo>(periodoInicial);
+  const [abaDaReceita, setAbaDaReceita] = useState<'lojas' | 'periodo' | 'pagamentos'>('lojas');
   const [conversasNaoLidas, setConversasNaoLidas] = useState(0);
 
   // O selo de Conversas acende sozinho quando uma cliente responde no WhatsApp.
@@ -56,14 +64,6 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
   const [lojaEmFoco, setLojaEmFoco] = useState<number | null>(null);
   const [limiteInput, setLimiteInput] = useState<number>(1);
 
-  const [metricas, setMetricas] = useState<any>({
-    totalClientes: 0,
-    totalLojas: 0,
-    totalTransacionado: 0,
-    faturamentoPlataforma: 0,
-    totalAReceber: 0,
-  });
-
   const [listaLojas, setListaLojas] = useState<any[]>([]);
 
   // Split consolidado: separa a taxa ja recolhida pelo Asaas da que ficou a
@@ -76,32 +76,35 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
   const [carregando, setCarregando] = useState(true);
   const [processandoStatus, setProcessandoStatus] = useState(false);
 
-  const carregarDadosDoBanco = async () => {
-    setCarregando(true);
-
-    try {
-      const resMetricas = await apiFetch(`${API_URL}/api/financeiro/admin/dashboard`);
-      if (resMetricas.ok) {
-        const data = await resMetricas.json();
-        setMetricas(data);
-      }
-    } catch (erro) {
-    }
-
+  // As buscas saem juntas, e nao uma depois da outra: o painel esperava a soma
+  // dos tempos. A rota /financeiro/admin/dashboard saiu - ela lia todas as
+  // transacoes duas vezes para numeros que a tela nao mostrava - e o split
+  // vem dentro da visao geral, que ja o calculava.
+  const carregarVisao = async () => {
     try {
       const resVisao = await apiFetch(`${API_URL}/api/admin/visao-geral`);
-      if (resVisao.ok) setVisaoGeral(await resVisao.json());
+      if (!resVisao.ok) return;
+      const v = await resVisao.json();
+      setVisaoGeral(v);
+      if (v?.split) {
+        setSplit(v.split);
+      } else {
+        // Servidor anterior a esta versao: o split ainda vem pela rota propria.
+        const resSplit = await apiFetch(`${API_URL}/api/financeiro/admin/split`);
+        if (resSplit.ok) setSplit(await resSplit.json());
+      }
     } catch (erro) {
       // A tela segue com o que ja tiver; os blocos tratam ausencia de dado.
     }
+  };
 
-    try {
-      const resSplit = await apiFetch(`${API_URL}/api/financeiro/admin/split`);
-      if (resSplit.ok) setSplit(await resSplit.json());
-    } catch (erro) {
-      // O painel continua util sem o consolidado; os cards apenas nao aparecem.
-    }
+  const carregarDadosDoBanco = async () => {
+    setCarregando(true);
+    await Promise.all([carregarVisao(), carregarLojas()]);
+    setCarregando(false);
+  };
 
+  const carregarLojas = async () => {
     try {
       const resLojas = await apiFetch(`${API_URL}/api/lojas/listar-todas`);
       if (resLojas.ok) {
@@ -132,8 +135,6 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
       }
     } catch (erro) {
       setListaLojas([]);
-    } finally {
-      setCarregando(false);
     }
   };
 
@@ -191,8 +192,15 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
     }
   };
 
-  const totalTransacionado = Number(metricas?.totalTransacionado) || 0;
-  const totalClientes = Number(metricas?.totalClientes) || 0;
+  const abrirLojaPorId = (id: number) => {
+    const loja = listaLojas.find((l) => l.id === id);
+    if (loja) setLojaSelecionada(loja);
+  };
+
+  const abrirReceita = (aba: 'lojas' | 'periodo' | 'pagamentos') => {
+    setAbaDaReceita(aba);
+    irParaSecao('receita');
+  };
 
   // A contagem de lojas mora no próprio item da navegação: era a única
   // informação que a barra lateral antiga carregava além do nome da seção.
@@ -286,7 +294,9 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
         <CabecalhoDaPagina
           titulo={lojaSelecionada
             ? lojaSelecionada.nomeComercial
-            : secoesDoAdmin.find((s) => s.id === abaExibida)?.rotulo ?? (abaExibida === 'conta' ? 'Conta AVLE' : abaExibida)}
+            : secoesDoAdmin.find((s) => s.id === abaExibida)?.rotulo
+              ?? ({ conta: 'Conta AVLE', clientes: 'Clientes', receita: 'Receita e faturamento' } as Record<string, string>)[abaExibida]
+              ?? abaExibida}
           descricao={`Painel administrativo · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`}
           aoVoltar={
             lojaSelecionada
@@ -563,6 +573,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   <CartaoIndicador
                     titulo="Volume transacionado"
                     icone="financeiro"
+                    aoClicar={() => abrirReceita('periodo')}
                     tom="acento"
                     valor={dinheiro(v?.faturamentoBruto)}
                     nota={<span className="text-[11px] text-stone-400">somando todas as lojas</span>}
@@ -573,6 +584,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   <CartaoIndicador
                     titulo="Clientes"
                     icone="clientes"
+                    aoClicar={() => irParaSecao('clientes')}
                     valor={v?.totalClientes ?? 0}
                     nota={
                       <span className="text-[11px] text-stone-400">
@@ -594,6 +606,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                   <CartaoIndicador
                     titulo="Quem entrou na AVLE"
                     icone="lojas"
+                    aoClicar={() => irParaSecao('clientes')}
                     tom="positivo"
                     valor={v?.totalPessoas ?? 0}
                     unidade="pessoas"
@@ -607,7 +620,8 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
 
                   <CartaoIndicador
                     titulo={`Receita AVLE · ${v?.percentualAvle ?? 10}%`}
-                    canto={<BotaoDeCanto rotulo="Ver financeiro" aoClicar={() => irParaSecao('financeiro')} />}
+                    aoClicar={() => abrirReceita('lojas')}
+                    canto={<BotaoDeCanto rotulo="Ver receita por loja" aoClicar={() => abrirReceita('lojas')} />}
                     valor={dinheiro(taxaTotal)}
                     nota={
                       <span className="text-[11px] text-stone-400">
@@ -749,6 +763,25 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
 
             {abaExibida === 'lojas' && (
               <div className="space-y-6 animate-fadeIn">
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { id: 'lista', rotulo: 'Lojas' },
+                    { id: 'contratos', rotulo: 'Contratos' },
+                    { id: 'taxas', rotulo: 'Taxas' },
+                  ] as const).map((s) => (
+                    <button key={s.id} type="button" onClick={() => setSubAbaLojas(s.id)}
+                      className={`h-10 px-5 rounded-full text-[13px] font-semibold transition-colors cursor-pointer ${
+                        subAbaLojas === s.id ? 'bg-painel-tinta text-white' : 'bg-white text-painel-tinta ring-1 ring-painel-borda hover:ring-painel-tinta/30'
+                      }`}>
+                      {s.rotulo}
+                    </button>
+                  ))}
+                </div>
+
+                {subAbaLojas === 'contratos' && <ContratosDasLojas aoAbrirLoja={abrirLojaPorId} />}
+                {subAbaLojas === 'taxas' && <TaxasDasLojas lojas={listaLojas} aoSalvar={carregarLojas} />}
+
+                {subAbaLojas === 'lista' && (<>
                 <div>
                   <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Central de controle de lojas</h2>
                   <p className="text-xs text-stone-400 font-medium mt-0.5">
@@ -831,7 +864,21 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                     ))
                   )}
                 </div>
+                </>)}
               </div>
+            )}
+
+            {abaExibida === 'clientes' && !lojaSelecionada && (
+              <RelatorioDeClientes
+                periodo={periodo}
+                aoMudarPeriodo={setPeriodo}
+                aoAbrirLoja={abrirLojaPorId}
+                incompletos={<CadastrosIncompletos caminho="/api/admin/cadastros-incompletos" mostrarLoja nomeDeQuemFala="AVLE" />}
+              />
+            )}
+
+            {abaExibida === 'receita' && !lojaSelecionada && (
+              <RelatorioDeReceita periodo={periodo} aoMudarPeriodo={setPeriodo} aoAbrirLoja={abrirLojaPorId} abaInicial={abaDaReceita} />
             )}
 
             {abaExibida === 'conta' && !lojaSelecionada && (
@@ -882,13 +929,14 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
 
                 {split && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="cartao-avle p-5">
-                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Faturamento bruto</span>
+                    <button type="button" onClick={() => { setPeriodo({ tipo: 'tudo', de: '', ate: '' }); abrirReceita('periodo'); }}
+                      className="cartao-avle p-5 text-left cursor-pointer hover:ring-2 hover:ring-painel-acento/40 transition-shadow">
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Faturamento total</span>
                       <span className="text-2xl font-bold font-mono text-[#0B1E14] block mt-1">
                         R$ {Number(split.faturamentoBruto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
-                      <span className="text-[10px] text-stone-400">base de cálculo do split</span>
-                    </div>
+                      <span className="text-[10px] text-stone-400">base do split · <span className="text-painel-acento font-semibold">ver por mês e quem pagou</span></span>
+                    </button>
 
                     <div className="cartao-avle p-5">
                       <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">

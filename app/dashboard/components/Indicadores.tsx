@@ -96,6 +96,7 @@ export function CartaoIndicador({
   nota,
   children,
   tour,
+  aoClicar,
 }: {
   titulo: React.ReactNode;
   icone?: NomeDeIcone;
@@ -106,9 +107,21 @@ export function CartaoIndicador({
   nota?: React.ReactNode;
   children?: React.ReactNode;
   tour?: string;
+  // O cartão inteiro abre o detalhe. Os botões de dentro seguem fazendo o
+  // deles: o clique num botão não conta como clique no cartão.
+  aoClicar?: () => void;
 }) {
+  const clicavel = aoClicar
+    ? {
+        role: 'button' as const,
+        tabIndex: 0,
+        onClick: (e: React.MouseEvent) => { if (!(e.target as HTMLElement).closest('button')) aoClicar(); },
+        onKeyDown: (e: React.KeyboardEvent) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); aoClicar(); } },
+      }
+    : {};
   return (
-    <div data-tour={tour} className="cartao-avle p-5 flex flex-col min-h-[272px] overflow-hidden relative">
+    <div data-tour={tour} {...clicavel}
+      className={`cartao-avle p-5 flex flex-col min-h-[272px] overflow-hidden relative ${aoClicar ? 'cursor-pointer hover:ring-2 hover:ring-painel-acento/40 transition-shadow focus-visible:outline-2 focus-visible:outline-painel-acento' : ''}`}>
       <div className="flex items-start justify-between gap-3">
         <span className="text-[13px] font-medium text-painel-tinta leading-snug">{titulo}</span>
         {canto ?? (icone && (
