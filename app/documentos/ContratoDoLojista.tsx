@@ -11,6 +11,8 @@ export type DadosDoContrato = {
   razaoSocial: string;
   cnpj: string;
   enderecoSede?: string | null;
+  emailContato?: string | null;
+  telefoneContato?: string | null;
   percentualAvle: number;
   versao: string;
   exigido: boolean;

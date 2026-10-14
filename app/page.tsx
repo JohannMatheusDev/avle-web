@@ -98,9 +98,9 @@ function Autenticacao() {
 
   const [cep, setCep] = useState('');
   const [faturamento, setFaturamento] = useState('');
-  // Como a loja chega ao Asaas: a AVLE abre a conta dela (padrão) ou ela já
-  // tem conta e cola a chave de API, de onde sai a carteira do split.
-  const [contaAsaas, setContaAsaas] = useState<'AVLE' | 'PROPRIA'>('AVLE');
+  // A loja recebe na conta do Asaas dela e cola a chave de API, de onde sai a
+  // carteira do split. A AVLE não abre mais conta nem subconta para a loja.
+  const contaAsaas = 'PROPRIA';
   const [chaveAsaasInput, setChaveAsaasInput] = useState('');
   
   const [aceitouTermos, setAceitouTermos] = useState(false);
@@ -298,6 +298,7 @@ function Autenticacao() {
       tamanhoDocumentoValido &&
       cepValidoSeLoja &&
       faturamentoValidoSeLoja &&
+      (tipoUsuario === 'LOJA' ? chaveAsaasInput.trim().length > 0 : true) &&
       (tipoUsuario === 'LOJA' ? aceitouTermos : true);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -313,20 +314,10 @@ function Autenticacao() {
     }
 
     if (!isLogin && tipoUsuario === 'LOJA') {
-      // A AVLE abre a conta no Asaas com este e-mail, e é nele que o Asaas
-      // manda a ativação: sem ele a loja nunca receberia o convite.
-      if (contaAsaas === 'AVLE' && emailCadastro.trim() === '') {
-        setMensagem({
-          tipo: 'erro',
-          texto: 'Informe o e-mail da loja: é nele que o Asaas manda a ativação da conta que a AVLE vai abrir.',
-        });
-        setCarregando(false);
-        return;
-      }
       // A chave de API do Asaas começa com "$aact_". Colar o Wallet ID ou o
       // número da conta no lugar é o engano comum, e só seria descoberto no
       // servidor.
-      if (contaAsaas === 'PROPRIA' && !chaveAsaasInput.trim().startsWith('$aact_')) {
+      if (!chaveAsaasInput.trim().startsWith('$aact_')) {
         setMensagem({
           tipo: 'erro',
           texto: 'Cole a chave de API da conta do Asaas da loja. Ela começa com $aact_ e fica em Integrações → Chave de API, no Asaas.',
@@ -369,7 +360,7 @@ function Autenticacao() {
               cep: tipoUsuario === 'LOJA' ? cepLimpo : null,
               faturamento: tipoUsuario === 'LOJA' ? faturamentoNumerico : null,
               contaAsaas: tipoUsuario === 'LOJA' ? contaAsaas : null,
-              asaasApiKey: tipoUsuario === 'LOJA' && contaAsaas === 'PROPRIA' ? chaveAsaasInput.trim() : null,
+              asaasApiKey: tipoUsuario === 'LOJA' ? chaveAsaasInput.trim() : null,
               lojaId: tipoUsuario === 'CLIENTE' && conviteLojaId ? Number(conviteLojaId) : null,
               // Veio pelo link de uma afiliada desta loja: a cliente fica indicada por ela.
               codigoAfiliado: tipoUsuario === 'CLIENTE' && conviteLojaId ? codigoDaIndicacao(Number(conviteLojaId)) ?? null : null,
@@ -441,7 +432,7 @@ function Autenticacao() {
           }
 
           setNome(''); setCpf(''); setRazaoSocial(''); setNomeSugerido(''); setEmailCadastro(''); setTelefoneCadastro(''); setCep('');
-          setFaturamento(''); setChaveAsaasInput(''); setContaAsaas('AVLE'); setSenha(''); setAceitouTermos(false);
+          setFaturamento(''); setChaveAsaasInput(''); setSenha(''); setAceitouTermos(false);
           // Sem código para confirmar, ela já entra.
           if (!retorno?.verificacaoPendente) {
             await entrarDepoisDoCadastro();
@@ -987,47 +978,25 @@ function Autenticacao() {
                             </div>
                           </div>
                           <div className="pt-1 space-y-2">
-                            <p className="block text-[10px] font-bold uppercase text-stone-500">Conta para receber a sua parte *</p>
-                            {/* Duas escolhas em cartão, e não um select: a
-                                diferença entre elas é o que a loja precisa
-                                entender, e cabe numa linha de explicação. */}
-                            {([
-                              { id: 'AVLE', titulo: 'A AVLE abre minha conta no Asaas', texto: 'Quando a AVLE aprovar a loja, o Asaas manda um e-mail para você ativar a conta e enviar os documentos.' },
-                              { id: 'PROPRIA', titulo: 'Já tenho conta no Asaas', texto: 'Cole a chave de API da sua conta. A carteira que recebe a sua parte é descoberta por ela.' },
-                            ] as const).map((opcao) => (
-                              <button
-                                key={opcao.id}
-                                type="button"
-                                onClick={() => setContaAsaas(opcao.id)}
-                                aria-pressed={contaAsaas === opcao.id}
+                            <p className="block text-[10px] font-bold uppercase text-stone-500">Chave de API da sua conta do Asaas *</p>
+                            {/* A parcela da cliente cai na conta do Asaas da loja,
+                                e a AVLE recebe só a comissão pelo split. A AVLE não
+                                abre conta para a loja: sem a chave, não há onde a
+                                cobrança nascer. */}
+                            <div>
+                              <input
+                                type="password"
+                                autoComplete="off"
+                                value={chaveAsaasInput}
+                                onChange={(e) => setChaveAsaasInput(e.target.value)}
+                                placeholder="$aact_…"
+                                className="w-full px-3 py-2 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono"
                                 disabled={carregando}
-                                className={`w-full text-left rounded-2xl border p-3 flex gap-3 transition-colors cursor-pointer ${
-                                  contaAsaas === opcao.id ? 'border-[#0B1E14] bg-white' : 'border-stone-200 bg-white/60 hover:border-stone-300'
-                                }`}
-                              >
-                                <span className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 ${contaAsaas === opcao.id ? 'border-[#0B1E14] bg-[#0B1E14] shadow-[inset_0_0_0_2px_white]' : 'border-stone-300'}`} />
-                                <span>
-                                  <span className="block text-xs font-bold text-[#0B1E14]">{opcao.titulo}</span>
-                                  <span className="block text-[10px] text-stone-500 mt-0.5 leading-relaxed">{opcao.texto}</span>
-                                </span>
-                              </button>
-                            ))}
-                            {contaAsaas === 'PROPRIA' && (
-                              <div>
-                                <input
-                                  type="password"
-                                  autoComplete="off"
-                                  value={chaveAsaasInput}
-                                  onChange={(e) => setChaveAsaasInput(e.target.value)}
-                                  placeholder="$aact_…"
-                                  className="w-full px-3 py-2 rounded-2xl border border-stone-200 focus:outline-none focus:border-[#0B1E14] text-xs bg-white h-[42px] font-mono"
-                                  disabled={carregando}
-                                />
-                                <p className="text-[10px] text-stone-500 mt-1.5 leading-relaxed">
-                                  No Asaas, abra <strong>Integrações → Chave de API</strong> e gere uma chave. Ela fica guardada cifrada.
-                                </p>
-                              </div>
-                            )}
+                              />
+                              <p className="text-[10px] text-stone-500 mt-1.5 leading-relaxed">
+                                As parcelas das suas clientes caem direto na sua conta do Asaas. No Asaas, abra <strong>Integrações → Chave de API</strong> e gere uma chave. Ela fica guardada cifrada, e a carteira que recebe a sua parte é descoberta por ela.
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
