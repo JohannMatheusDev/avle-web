@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../lib/api';
+import DocumentoJuridico from '../documentos/DocumentoJuridico';
+import { aberturaDoTermoDeAdesao, clausulasDoTermoDeAdesao, formatarPercentual } from '../documentos/preencher';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
-type Contrato = {
+export type Contrato = {
+  /** Termo mostrado antes de entrar no grupo, ainda sem aceite. */
+  previa?: boolean;
   cotaId: number;
   status: string | null;
   versao: string | null;
@@ -17,8 +21,12 @@ type Contrato = {
     endereco: string | null; cadastroCompleto: boolean;
     dataAceiteTermos: string | null; versaoTermos: string | null;
   };
-  loja?: { nome: string; documento: string | null; telefone: string | null; endereco: string | null; temRegulamento: boolean; lojaId: number };
-  grupo?: { nome: string; valorParcela: number | null; duracaoMeses: number | null; valorTotal: number | null; dataInicio: string | null; dataTermino: string | null };
+  loja?: { nome: string; razaoSocial?: string | null; documento: string | null; telefone: string | null; endereco: string | null; temRegulamento: boolean; lojaId: number };
+  grupo?: {
+    nome: string; valorParcela: number | null; duracaoMeses: number | null; valorTotal: number | null;
+    dataInicio: string | null; dataTermino: string | null;
+    participantes?: number | null; percentualAvle?: number | null; comissaoPorParcela?: number | null;
+  };
 };
 
 const reais = (v: number | null | undefined) =>
@@ -98,7 +106,11 @@ export default function ContratoDaCliente({ usuarioId }: { usuarioId: number }) 
             </span>
             <span className="text-stone-400 text-xs font-bold">{aberto === c.cotaId ? 'Fechar' : 'Ver'}</span>
           </button>
-          {aberto === c.cotaId && <TextoDoContrato contrato={c} />}
+          {aberto === c.cotaId && (c.versao === 'termo-adesao-1'
+            ? <TermoDeAdesao contrato={c} />
+            // Quem aderiu antes do Termo oficial aceitou o texto anterior, e é
+            // esse texto que continua aparecendo para ela.
+            : <TextoDoContrato contrato={c} />)}
         </div>
       ))}
     </div>
@@ -180,6 +192,97 @@ function TextoDoContrato({ contrato: c }: { contrato: Contrato }) {
           regulamento da loja.
         </p>
       )}
+
+      <button
+        type="button"
+        onClick={() => window.print()}
+        className="mt-4 px-4 py-2 border border-stone-200 text-stone-600 font-bold rounded-xl text-[10px] uppercase tracking-wider cursor-pointer hover:bg-stone-100 print:hidden"
+      >
+        Imprimir ou salvar em PDF
+      </button>
+    </article>
+  );
+}
+
+/** Uma tabela do Termo (identificação e Quadro Resumo): campo à esquerda, valor à direita. */
+function Tabela({ titulo, linhas }: { titulo: string; linhas: [string, React.ReactNode][] }) {
+  return (
+    <div className="mt-4">
+      <p className="text-[11px] font-bold text-[#0B1E14] uppercase tracking-wide mb-1">{titulo}</p>
+      <table className="w-full text-[12px] border border-stone-200">
+        <tbody>
+          {linhas.map(([campo, valor]) => (
+            <tr key={campo} className="border-b border-stone-100">
+              <td className="py-1.5 px-2 text-stone-500 w-2/5 align-top">{campo}</td>
+              <td className="py-1.5 px-2 text-stone-800">{valor || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/**
+ * O Termo de Adesão oficial (versão termo-adesao-1): a identificação da
+ * participante e o Quadro Resumo montados com os dados da cota, e as
+ * cláusulas como no documento, com a remuneração da AVLE do grupo dela.
+ */
+export function TermoDeAdesao({ contrato: c }: { contrato: Contrato }) {
+  const g = c.grupo;
+  const percentual = Number(g?.percentualAvle ?? 10);
+  const comissao = g?.comissaoPorParcela != null ? Number(g.comissaoPorParcela) : null;
+  const daLoja = g?.valorParcela != null && comissao != null ? Number(g.valorParcela) - comissao : null;
+  const [titulo, abertura] = aberturaDoTermoDeAdesao().split('\n');
+
+  return (
+    <article className="px-5 pb-5 pt-2 text-[12px] text-stone-700 leading-relaxed border-t border-stone-100 print:text-black">
+      <h4 className="text-sm font-serif font-bold text-[#0B1E14] text-center mt-3">{titulo}</h4>
+      <p className="mt-2">{abertura}</p>
+
+      <Tabela titulo="Identificação do participante" linhas={[
+        ['Nome', c.cliente?.nome],
+        ['CPF', cpfVisivel(c.cliente?.cpf)],
+        ['Data de nascimento', 'Não informada'],
+        ['Endereço', c.cliente?.endereco || 'A completar no cadastro'],
+        ['E-mail', c.cliente?.email],
+        ['Telefone', c.cliente?.telefone],
+      ]} />
+
+      <Tabela titulo="Quadro resumo da adesão" linhas={[
+        ['AVLE', 'AVLE LTDA · CNPJ 69.285.276/0001-60'],
+        ['Lojista e fornecedor', [c.loja?.razaoSocial || c.loja?.nome, c.loja?.documento ? `CNPJ ${c.loja.documento}` : null].filter(Boolean).join(' · ')],
+        ['Grupo', g?.nome],
+        ['Número de participantes', g?.participantes != null ? String(g.participantes) : null],
+        ['Duração', g?.duracaoMeses != null ? `${g.duracaoMeses} meses` : null],
+        ['Valor mensal total', reais(g?.valorParcela)],
+        ['Remuneração AVLE', `${formatarPercentual(percentual)} do pagamento${comissao != null ? ` (${reais(comissao)} por parcela)` : ''}, já incluídos no valor total`],
+        ['Parcela destinada ao lojista', `${formatarPercentual(Math.round((100 - percentual) * 100) / 100)} do pagamento${daLoja != null ? ` (${reais(daLoja)} por parcela)` : ''}`],
+        ['Valor total da compra planejada', reais(g?.valorTotal)],
+        ['Data de vencimento', 'Até o quinto dia útil de cada mês'],
+        ['Seleções', '[PERIODICIDADE E MÉTODO A CONFIRMAR]'],
+        ['Prazo de utilização', '[SUGESTÃO: 6 MESES - A CONFIRMAR]'],
+      ]} />
+
+      <div className="mt-4">
+        <DocumentoJuridico texto={clausulasDoTermoDeAdesao(percentual)} semTitulo />
+      </div>
+
+      <div className="mt-6 pt-4 border-t border-stone-100 text-[11px] text-stone-600">
+        <p className="font-bold text-[#0B1E14] uppercase tracking-wide text-[10px] mb-1">Registro do aceite</p>
+        {c.assinado ? (
+          <p>
+            Aceito eletronicamente em {data(c.dataAssinatura, true)}
+            {c.ipAssinatura ? `, a partir do endereço de rede ${c.ipAssinatura}` : ''}, versão {c.versao}, conforme a
+            cláusula 9.3. Regulamento Geral e Política de Privacidade aceitos em {data(c.cliente?.dataAceiteTermos, true)}
+            {c.cliente?.versaoTermos ? ` (versão ${c.cliente.versaoTermos})` : ''}.
+          </p>
+        ) : c.previa ? (
+          <p>O aceite é registrado quando você toca em entrar no grupo, com data, hora, endereço de rede e a versão {c.versao} deste Termo.</p>
+        ) : (
+          <p>Sem aceite eletrônico registrado.</p>
+        )}
+      </div>
 
       <button
         type="button"

@@ -6,6 +6,7 @@ import DashboardAdmin from './components/DashboardAdmin';
 import DashboardLoja from './components/DashboardLoja';
 import DashboardCliente from './components/DashboardCliente';
 import DashboardAfiliado from './components/DashboardAfiliado';
+import AceiteDoContratoPendente from './components/AceiteDoContratoPendente';
 import BoasVindasTermos from './components/BoasVindasTermos';
 import { escolherPainel, painelEscolhido, type Painel } from '../lib/painelDaAfiliada';
 
@@ -75,6 +76,15 @@ export default function DashboardPage() {
     case 'LOJA':
     // O colaborador usa o painel da loja, sem o que é só da loja mãe.
     case 'COLABORADOR':
+      // Loja cadastrada pela AVLE só opera depois de aceitar o contrato.
+      if (usuario.contratoPendente) {
+        return (
+          <AceiteDoContratoPendente
+            usuario={usuario}
+            aoAceitar={() => setUsuario({ ...usuario, contratoPendente: false })}
+          />
+        );
+      }
       return <DashboardLoja usuario={usuario} />;
     
     // A afiliada também é cliente e alterna entre os dois painéis: o da

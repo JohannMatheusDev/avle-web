@@ -907,7 +907,7 @@ function Autenticacao() {
                   aceitouTermos={aceitouTermos}
                   aoMudarAceite={setAceitouTermos}
                   aoVerTermos={() => setModalTermosAberto(true)}
-                  textoDosTermos="termos de uso da AVLE"
+                  textoDosTermos="Regulamento Geral e a Política de Privacidade da AVLE"
                   rodape={isLogin ? (
                     <button
                       type="button"
@@ -1141,7 +1141,7 @@ function Autenticacao() {
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
             <div className="flex justify-between items-center p-5 border-b border-stone-100">
               <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">
-                {tipoUsuario === 'LOJA' && !isLogin ? 'Contrato de parceria' : 'Termos de uso'}
+                {tipoUsuario === 'LOJA' && !isLogin ? 'Contrato de parceria' : 'Regulamento e Privacidade'}
               </h3>
               <button type="button" onClick={() => setModalTermosAberto(false)} className="text-stone-400 font-bold px-2 cursor-pointer">X</button>
             </div>

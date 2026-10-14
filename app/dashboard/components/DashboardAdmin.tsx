@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import EnvioDeCobrancasWhatsapp from './EnvioDeCobrancasWhatsapp';
 import GruposDaLojaNoAdmin from './GruposDaLojaNoAdmin';
 import ComissaoDaLoja from './ComissaoDaLoja';
+import CadastroDeLojaPeloAdmin from './CadastroDeLojaPeloAdmin';
+import ContratoDaLojaNoPainel from './ContratoDaLojaNoPainel';
 import CobrancaAutomatica from './CobrancaAutomatica';
 import MesDoPagamento from './MesDoPagamento';
 import CorrigirCadastro from './CorrigirCadastro';
@@ -452,6 +454,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               </p>
             </div>
 
+            <ContratoDaLojaNoPainel lojaId={lojaSelecionada.id} ehAdmin />
             <ComissaoDaLoja lojaId={lojaSelecionada.id} podeEditar />
             <GruposDaLojaNoAdmin lojaId={lojaSelecionada.id} />
 
@@ -752,6 +755,8 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                     Selecione uma loja parceira para carregar seu dashboard corporativo individual.
                   </p>
                 </div>
+
+                <CadastroDeLojaPeloAdmin aoCadastrar={carregarDadosDoBanco} />
 
                 <div className="grid grid-cols-1 gap-4">
                   {carregando ? (
