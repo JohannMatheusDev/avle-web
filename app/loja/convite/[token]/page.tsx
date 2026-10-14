@@ -41,7 +41,13 @@ export default function ConviteDoLojista() {
           const r = await apiFetch(`/api/lojas/convite-lojista/${encodeURIComponent(token)}`);
           const d = await r.json().catch(() => null);
           if (!ativo) return;
-          if (r.ok) { setDados(d); return; }
+          if (r.ok) {
+            setDados(d);
+            // O contato que a AVLE informou no cadastro já vem preenchido.
+            if (d?.emailContato) setEmail((atual) => atual || d.emailContato);
+            if (d?.telefoneContato) setTelefone((atual) => atual || mascaraTelefone(String(d.telefoneContato)));
+            return;
+          }
           if (r.status < 500 || tentativa === 4) { setErroDoLink(d?.erro || 'Este link de convite não vale mais.'); return; }
         } catch {
           if (tentativa === 4) { if (ativo) setErroDoLink('Não conseguimos falar com o servidor. Tente de novo em instantes.'); return; }

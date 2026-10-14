@@ -23,6 +23,12 @@ export default function CadastroDeLojaPeloAdmin({ aoCadastrar }: { aoCadastrar?:
   const [enderecoSede, setEnderecoSede] = useState('');
   const [telefone, setTelefone] = useState('');
   const [percentual, setPercentual] = useState('');
+  // O que o cadastro da tela inicial pede da loja, para a loja chegar pelo
+  // link já completa: só falta o lojista criar a senha e aceitar.
+  const [email, setEmail] = useState('');
+  const [cep, setCep] = useState('');
+  const [faturamento, setFaturamento] = useState('');
+  const [chaveAsaas, setChaveAsaas] = useState('');
   const [consultando, setConsultando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState('');
@@ -59,6 +65,8 @@ export default function CadastroDeLojaPeloAdmin({ aoCadastrar }: { aoCadastrar?:
         .map((p) => (p ? String(p).trim() : '')).filter(Boolean);
       setEnderecoSede(partes.join(', '));
       if (d.ddd_telefone_1) setTelefone((atual) => atual || String(d.ddd_telefone_1));
+      if (d.cep) setCep((atual) => atual || String(d.cep).replace(/^(\d{5})(\d{3})$/, '$1-$2'));
+      if (d.email) setEmail((atual) => atual || String(d.email).toLowerCase());
       setAviso('Dados da Receita preenchidos. Confira antes de salvar.');
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível consultar o CNPJ.');
@@ -69,7 +77,16 @@ export default function CadastroDeLojaPeloAdmin({ aoCadastrar }: { aoCadastrar?:
 
   const numeroPercentual = Number(percentual.replace(',', '.'));
   const percentualOk = numeroPercentual > 0 && numeroPercentual < 100;
-  const valido = cnpj.replace(/\D/g, '').length === 14 && razaoSocial.trim() && nomeComercial.trim() && enderecoSede.trim() && percentualOk;
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const valido = cnpj.replace(/\D/g, '').length === 14 && razaoSocial.trim() && nomeComercial.trim() && enderecoSede.trim()
+    && percentualOk && emailOk && cep.replace(/\D/g, '').length === 8 && faturamento.replace(/\D/g, '').length > 0
+    && chaveAsaas.trim().startsWith('$aact_');
+
+  const mascaraCep = (v: string) => v.replace(/\D/g, '').slice(0, 8).replace(/^(\d{5})(\d)/, '$1-$2');
+  const mascaraMoeda = (v: string) => {
+    const d = v.replace(/\D/g, '');
+    return d ? (Number(d) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
+  };
 
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +97,10 @@ export default function CadastroDeLojaPeloAdmin({ aoCadastrar }: { aoCadastrar?:
       const r = await apiFetch('/api/admin/lojas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cnpj, razaoSocial, nomeComercial, enderecoSede, telefone, percentual }),
+        body: JSON.stringify({
+          cnpj, razaoSocial, nomeComercial, enderecoSede, telefone, percentual, email: email.trim(), cep,
+          faturamento: (Number(faturamento.replace(/\D/g, '')) / 100).toFixed(2), chaveAsaas: chaveAsaas.trim(),
+        }),
       });
       const d = await r.json().catch(() => null);
       if (!r.ok) throw new Error(d?.erro || 'Não foi possível cadastrar a loja.');
@@ -107,6 +127,7 @@ export default function CadastroDeLojaPeloAdmin({ aoCadastrar }: { aoCadastrar?:
   const recomecar = () => {
     setConvite(null); setCnpj(''); setRazaoSocial(''); setNomeComercial(''); setEnderecoSede('');
     setTelefone(''); setPercentual(''); setAviso(''); setErro('');
+    setEmail(''); setCep(''); setFaturamento(''); setChaveAsaas('');
   };
 
   const campo = 'w-full h-10 px-3 rounded-xl border border-stone-200 bg-white text-[13px] focus:outline-none focus:border-[#0B1E14]';
@@ -202,6 +223,32 @@ export default function CadastroDeLojaPeloAdmin({ aoCadastrar }: { aoCadastrar?:
         <div className="sm:col-span-2">
           <label className={rotulo} htmlFor="cl-sede">Endereço da sede *</label>
           <input id="cl-sede" className={campo} value={enderecoSede} onChange={(e) => setEnderecoSede(e.target.value)} placeholder="Rua, número, bairro, cidade/UF, CEP" />
+        </div>
+        <div>
+          <label className={rotulo} htmlFor="cl-email">E-mail do lojista *</label>
+          <input id="cl-email" type="email" className={campo} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Vai preenchido no convite" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={rotulo} htmlFor="cl-cep">CEP *</label>
+            <input id="cl-cep" className={campo} value={cep} inputMode="numeric" onChange={(e) => setCep(mascaraCep(e.target.value))} placeholder="85010-000" />
+          </div>
+          <div>
+            <label className={rotulo} htmlFor="cl-faturamento">Faturamento *</label>
+            <input id="cl-faturamento" className={campo} value={faturamento} inputMode="numeric" onChange={(e) => setFaturamento(mascaraMoeda(e.target.value))} placeholder="R$ 10.000,00" />
+          </div>
+        </div>
+        <div className="sm:col-span-2">
+          <label className={rotulo} htmlFor="cl-chave">Chave de API da conta do Asaas da loja *</label>
+          <input id="cl-chave" type="password" autoComplete="off" className={`${campo} font-mono`} value={chaveAsaas}
+            onChange={(e) => setChaveAsaas(e.target.value)} placeholder="$aact_…" />
+          <p className="text-[10px] text-stone-500 mt-1 leading-relaxed">
+            As parcelas caem direto na conta do Asaas da loja, e a AVLE recebe só a comissão. A AVLE não abre conta para a
+            loja: peça ao lojista a chave de Integrações → Chave de API, no Asaas dele. Ela fica guardada cifrada.
+          </p>
+          {chaveAsaas.trim().length > 0 && !chaveAsaas.trim().startsWith('$aact_') && (
+            <p className="text-[10px] text-rose-600 mt-1">A chave de API começa com $aact_. Não é o Wallet ID nem o número da conta.</p>
+          )}
         </div>
       </div>
 
