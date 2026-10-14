@@ -987,13 +987,13 @@ function Autenticacao() {
                             </div>
                           </div>
                           <div className="pt-1 space-y-2">
-                            <p className="block text-[10px] font-bold uppercase text-stone-500">Conta para receber os 90% *</p>
+                            <p className="block text-[10px] font-bold uppercase text-stone-500">Conta para receber a sua parte *</p>
                             {/* Duas escolhas em cartão, e não um select: a
                                 diferença entre elas é o que a loja precisa
                                 entender, e cabe numa linha de explicação. */}
                             {([
                               { id: 'AVLE', titulo: 'A AVLE abre minha conta no Asaas', texto: 'Quando a AVLE aprovar a loja, o Asaas manda um e-mail para você ativar a conta e enviar os documentos.' },
-                              { id: 'PROPRIA', titulo: 'Já tenho conta no Asaas', texto: 'Cole a chave de API da sua conta. A carteira dos 90% é descoberta por ela.' },
+                              { id: 'PROPRIA', titulo: 'Já tenho conta no Asaas', texto: 'Cole a chave de API da sua conta. A carteira que recebe a sua parte é descoberta por ela.' },
                             ] as const).map((opcao) => (
                               <button
                                 key={opcao.id}
@@ -1154,7 +1154,7 @@ function Autenticacao() {
               <p className="font-bold text-stone-800">1. DO OBJETO</p>
               <p>Este documento estabelece as condições gerais para a utilização da AVLE pela LOJA PARCEIRA.</p>
               <p className="font-bold text-stone-800 mt-4">2. DO REPASSE E SPLIT DE PAGAMENTOS</p>
-              <p>Fica acordado que a plataforma AVLE reterá automaticamente o percentual de 10% sobre cada transação.</p>
+              <p>Fica acordado que a plataforma AVLE reterá automaticamente, em cada parcela, a comissão combinada com a loja e fixada no contrato dela.</p>
             </div>
             )}
             <div className="p-4 border-t flex justify-end gap-3 bg-stone-50 rounded-b-2xl">
