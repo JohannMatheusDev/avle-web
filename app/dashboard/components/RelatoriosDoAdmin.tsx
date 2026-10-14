@@ -278,8 +278,11 @@ export function RelatorioDeClientes({ periodo, aoMudarPeriodo, aoAbrirLoja, inco
   }, [dados, aba, busca, lojaFiltro]);
   const { visiveis, resto, mais } = useAosPoucos(lista);
 
-  const ganhando = [...(dados?.lojas ?? [])].filter((l) => l.saldo > 0).sort((a, b) => b.saldo - a.saldo).slice(0, 5);
-  const perdendo = [...(dados?.lojas ?? [])].filter((l) => l.sairam > 0).sort((a, b) => a.saldo - b.saldo || b.sairam - a.sairam).slice(0, 5);
+  // Quem mais trouxe clientes, pelas entradas; quem mais perdeu, pelas saídas.
+  // O saldo vai na nota: uma loja pode perder muitas e ainda crescer.
+  const ganhando = [...(dados?.lojas ?? [])].filter((l) => l.entraram > 0).sort((a, b) => b.entraram - a.entraram || b.saldo - a.saldo).slice(0, 5);
+  const perdendo = [...(dados?.lojas ?? [])].filter((l) => l.sairam > 0).sort((a, b) => b.sairam - a.sairam || a.saldo - b.saldo).slice(0, 5);
+  const saldo = (n: number) => (n > 0 ? `+${n}` : String(n));
 
   return (
     <div className="space-y-5 animate-fadeIn">
@@ -301,11 +304,11 @@ export function RelatorioDeClientes({ periodo, aoMudarPeriodo, aoAbrirLoja, inco
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <RankingDeLojas titulo="Lojas que mais colocaram clientes" vazio="Nenhuma loja cresceu neste período."
-              itens={ganhando.map((l) => ({ id: l.lojaId, nome: l.nome, valor: `+${l.saldo}`, nota: `${l.entraram} entraram · ${l.sairam} saíram` }))}
+            <RankingDeLojas titulo="Lojas que mais colocaram clientes" vazio="Nenhuma entrada neste período."
+              itens={ganhando.map((l) => ({ id: l.lojaId, nome: l.nome, valor: `+${l.entraram}`, nota: `saldo ${saldo(l.saldo)} · ${l.sairam} saíram` }))}
               aoAbrir={aoAbrirLoja} />
             <RankingDeLojas titulo="Lojas que mais perderam clientes" vazio="Nenhuma saída neste período." alerta
-              itens={perdendo.map((l) => ({ id: l.lojaId, nome: l.nome, valor: l.saldo > 0 ? `+${l.saldo}` : String(l.saldo), nota: `${l.sairam} saíram · churn ${Number(l.churn).toLocaleString('pt-BR')}%` }))}
+              itens={perdendo.map((l) => ({ id: l.lojaId, nome: l.nome, valor: `−${l.sairam}`, nota: `saldo ${saldo(l.saldo)} · churn ${Number(l.churn).toLocaleString('pt-BR')}%` }))}
               aoAbrir={aoAbrirLoja} />
           </div>
 
@@ -425,7 +428,7 @@ type LojaDaReceita = Valores & { lojaId: number; nome: string; percentualAvle?: 
 type Pagamento = { id: number; data: string; cliente: string; lojaId: number; loja: string; grupo: string; competencia?: string; valor: number; comissaoAvle: number; repasseLoja: number; forma: string };
 type DadosDeReceita = Valores & {
   lojas: LojaDaReceita[]; serie: { rotulo: string; recebido: number; comissaoAvle: number; repasseLoja: number }[];
-  pagamentos: Pagamento[]; totalDePagamentos: number;
+  listaDePagamentos: Pagamento[]; totalDePagamentos: number;
 };
 
 export function RelatorioDeReceita({ periodo, aoMudarPeriodo, aoAbrirLoja, abaInicial = 'lojas' }: {
@@ -442,7 +445,7 @@ export function RelatorioDeReceita({ periodo, aoMudarPeriodo, aoAbrirLoja, abaIn
 
   const pagamentos = useMemo(() => {
     const b = busca.trim().toLowerCase();
-    return (dados?.pagamentos ?? []).filter((p) => (lojaFiltro === 'todas' || p.lojaId === lojaFiltro) && (!b || p.cliente?.toLowerCase().includes(b)));
+    return (dados?.listaDePagamentos ?? []).filter((p) => (lojaFiltro === 'todas' || p.lojaId === lojaFiltro) && (!b || p.cliente?.toLowerCase().includes(b)));
   }, [dados, busca, lojaFiltro]);
   const { visiveis, resto, mais } = useAosPoucos(pagamentos);
   const somaFiltrada = pagamentos.reduce((s, p) => s + Number(p.valor), 0);
@@ -553,7 +556,7 @@ export function RelatorioDeReceita({ periodo, aoMudarPeriodo, aoAbrirLoja, abaIn
                   className="h-9 px-4 rounded-full bg-painel-tinta text-white text-[12px] font-semibold cursor-pointer">Baixar planilha</button>
                 <span className="w-full text-[11px] text-stone-500">
                   {pagamentos.length} pagamento(s) · {reais(somaFiltrada)}
-                  {dados.totalDePagamentos > dados.pagamentos.length && ` · mostrando os ${dados.pagamentos.length} mais recentes de ${dados.totalDePagamentos}; escolha um período menor para ver todos`}
+                  {dados.totalDePagamentos > dados.listaDePagamentos.length && ` · mostrando os ${dados.listaDePagamentos.length} mais recentes de ${dados.totalDePagamentos}; escolha um período menor para ver todos`}
                 </span>
               </div>
               {pagamentos.length === 0 ? (
@@ -571,7 +574,7 @@ export function RelatorioDeReceita({ periodo, aoMudarPeriodo, aoAbrirLoja, abaIn
                           <td className={`${td} tabular-nums text-stone-500 whitespace-nowrap`}>{data(p.data, true)}</td>
                           <td className={`${td} font-semibold text-painel-tinta`}>{p.cliente}</td>
                           <td className={td}><span className="block">{p.loja}</span><span className="block text-[10px] text-stone-400">{p.grupo}</span></td>
-                          <td className={`${td} tabular-nums text-stone-500`}>{p.competencia ?? '—'}</td>
+                          <td className={`${td} tabular-nums text-stone-500`}>{p.competencia ? rotuloDoPonto(p.competencia) : '—'}</td>
                           <td className={`${td} text-right tabular-nums font-semibold`}>{reais(p.valor)}</td>
                           <td className={`${td} text-right tabular-nums text-emerald-700`}>{reais(p.comissaoAvle)}</td>
                           <td className={`${td} text-[11px] ${p.forma === 'Baixa manual' ? 'text-amber-700' : 'text-stone-500'}`}>{p.forma}</td>
