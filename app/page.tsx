@@ -800,7 +800,7 @@ function Autenticacao() {
                     <p className="text-xs text-stone-400 mt-1">
                       {codigoEnviado
                         ? `Digite o código de 6 dígitos enviado para ${destinoCodigo || 'o seu contato cadastrado'}.`
-                        : 'Informe seu e-mail ou telefone e enviamos um código de acesso. Não precisa de senha.'}
+                        : 'Informe seu e-mail, telefone ou CPF e enviamos um código de acesso pelo WhatsApp. Não precisa de senha.'}
                     </p>
                   </div>
 
