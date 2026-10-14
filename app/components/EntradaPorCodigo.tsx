@@ -397,7 +397,7 @@ export default function EntradaPorCodigo({
           disabled={carregando}
         />
         <label htmlFor="aceite-termos" className="text-[11px] text-stone-600 leading-relaxed cursor-pointer select-none">
-          Li e concordo com os{' '}
+          Li e concordo com o{' '}
           <button
             type="button"
             onClick={(e) => { e.preventDefault(); aoVerTermos(); }}

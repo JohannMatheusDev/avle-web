@@ -34,6 +34,7 @@ import { useHistoricoDoPainel } from '../../lib/historico';
 import { useAvisos } from '../../lib/avisos';
 import CadastrosIncompletos from './CadastrosIncompletos';
 import ComissaoDaLoja, { comissaoPorParcela } from './ComissaoDaLoja';
+import ContratoDaLojaNoPainel from './ContratoDaLojaNoPainel';
 import ContratoDaCliente from '../../components/ContratoDaCliente';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
@@ -3620,6 +3621,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   <>
                     <ContaAsaasDaLoja lojaId={usuario?.lojaId || usuario?.id} mostrarAviso={mostrarAviso} />
                     <ComissaoDaLoja lojaId={usuario?.lojaId || usuario?.id} />
+                    <ContratoDaLojaNoPainel lojaId={usuario?.lojaId || usuario?.id} />
                   </>
                 )}
                 {!ehColaborador && (

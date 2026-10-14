@@ -95,7 +95,7 @@ export default function BoasVindasTermos({ nome }: { nome?: string }) {
               className="mt-0.5 h-5 w-5 shrink-0 accent-[#BD6B42] cursor-pointer"
             />
             <span className="text-xs text-stone-600">
-              Li e aceito os termos de uso da AVLE.
+              Li e aceito o Regulamento Geral e a Política de Privacidade da AVLE.
             </span>
           </label>
 

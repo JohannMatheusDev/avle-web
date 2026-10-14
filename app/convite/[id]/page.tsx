@@ -273,7 +273,7 @@ export default function CadastroConvite() {
               aceitouTermos={aceitouTermos}
               aoMudarAceite={setAceitouTermos}
               aoVerTermos={() => setModalTermosAberto(true)}
-              textoDosTermos="termos de uso da AVLE e o regulamento da loja"
+              textoDosTermos="Regulamento Geral e a Política de Privacidade da AVLE, e o regulamento da loja"
             />
           </div>
         </div>
@@ -302,7 +302,7 @@ export default function CadastroConvite() {
 
             <div className="overflow-y-auto flex-1 bg-stone-50/30">
               <div className="p-5 text-sm text-stone-600 leading-relaxed">
-                <p className="text-[10px] uppercase tracking-wider font-bold text-stone-500 mb-3">Termos de uso da AVLE</p>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-stone-500 mb-3">Regulamento Geral e Política de Privacidade da AVLE</p>
                 <TextoDosTermos />
               </div>
               {lojaIdNum && (

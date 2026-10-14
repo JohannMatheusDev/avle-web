@@ -14,7 +14,7 @@ import {
 } from './Casca';
 import { PassoDoTour, useTour } from './Tour';
 import CompletarCadastro from './CompletarCadastro';
-import ContratoDaCliente from '../../components/ContratoDaCliente';
+import ContratoDaCliente, { TermoDeAdesao, type Contrato } from '../../components/ContratoDaCliente';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -89,6 +89,20 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
   const [solicitandoAcesso, setSolicitandoAcesso] = useState(false);
 
   const [modalAdesao, setModalAdesao] = useState<{ aberto: boolean; grupo: any | null }>({ aberto: false, grupo: null });
+
+  // O Termo de Adesão do grupo, preenchido, para ela ler antes de tocar em
+  // entrar: o próprio Termo diz que ela leu os documentos antes do aceite.
+  const [termoDoGrupo, setTermoDoGrupo] = useState<{ carregando: boolean; contrato: Contrato | null; erro?: string } | null>(null);
+  const abrirTermoDoGrupo = async (grupoId: number) => {
+    setTermoDoGrupo({ carregando: true, contrato: null });
+    try {
+      const r = await apiFetch(`${API_URL}/api/contratos/grupo/${grupoId}/previa`);
+      if (!r.ok) throw new Error();
+      setTermoDoGrupo({ carregando: false, contrato: await r.json() });
+    } catch {
+      setTermoDoGrupo({ carregando: false, contrato: null, erro: 'Não foi possível abrir o Termo agora. Tente de novo.' });
+    }
+  };
 
   const [clubesAtivos, setClubesAtivos] = useState<any[]>([]);
   // O plano aberto e a loja em foco só voltam depois do refresh quando as
@@ -2220,6 +2234,25 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
         />
       )}
 
+      {termoDoGrupo && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-[90] text-left">
+          <div className="bg-white w-full max-w-2xl max-h-[92vh] sm:rounded-2xl rounded-t-3xl flex flex-col overflow-hidden shadow-2xl">
+            <div className="flex justify-between items-center px-5 py-4 border-b border-stone-100">
+              <h3 className="text-sm font-bold text-[#0B1E14] uppercase tracking-wide">Termo de Adesão</h3>
+              <button type="button" onClick={() => setTermoDoGrupo(null)} aria-label="Fechar" className="text-stone-400 font-bold px-2 cursor-pointer">X</button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {termoDoGrupo.carregando && <p className="p-5 text-xs text-stone-400">Carregando o Termo…</p>}
+              {termoDoGrupo.erro && <p className="p-5 text-xs text-rose-600">{termoDoGrupo.erro}</p>}
+              {termoDoGrupo.contrato && <TermoDeAdesao contrato={termoDoGrupo.contrato} />}
+            </div>
+            <div className="px-5 py-3 border-t border-stone-100 flex justify-end">
+              <button type="button" onClick={() => setTermoDoGrupo(null)} className="px-5 py-2.5 bg-[#0B1E14] text-white font-bold rounded-full text-[10px] uppercase tracking-wider cursor-pointer">Voltar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {modalAdesao.aberto && modalAdesao.grupo && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80] animate-fadeIn text-left">
             <div className="cartao-avle w-full max-w-md shadow-2xl overflow-hidden">
@@ -2262,7 +2295,8 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
                         <span className="text-blue-500 mt-0.5 text-xs font-bold">INFO</span>
                         <p className="text-[10px] text-stone-600 leading-relaxed">
                             Antes de confirmar a sua participação, é obrigatória a leitura do{' '}
-                            <button onClick={() => window.open(`${API_URL}/api/lojas/${lojaEmFoco?.id}/regras`, '_blank')} className="text-blue-600 font-bold underline cursor-pointer">regulamento operacional da loja</button>. Ao tocar em entrar, você aceita o termo de adesão deste grupo, que fica guardado com os seus dados na aba Regulamento.
+                            <button onClick={() => window.open(`${API_URL}/api/lojas/${lojaEmFoco?.id}/regras`, '_blank')} className="text-blue-600 font-bold underline cursor-pointer">regulamento operacional da loja</button>. Ao tocar em entrar, você aceita o{' '}
+                            <button type="button" onClick={() => abrirTermoDoGrupo(modalAdesao.grupo.id)} className="text-blue-600 font-bold underline cursor-pointer">Termo de Adesão deste grupo</button>, que fica guardado com os seus dados na aba Regulamento.
                         </p>
                     </div>
                 </div>

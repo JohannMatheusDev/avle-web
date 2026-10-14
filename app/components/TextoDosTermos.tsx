@@ -1,37 +1,50 @@
+'use client';
+
+import { useState } from 'react';
+import DocumentoJuridico from '../documentos/DocumentoJuridico';
+import { politicaDePrivacidade, regulamentoGeral } from '../documentos/preencher';
+
 /**
- * O texto dos termos de uso da AVLE, num lugar só.
+ * Os termos que a cliente aceita: o Regulamento Geral e a Política de
+ * Privacidade oficiais da AVLE, inteiros.
  *
  * Aparece em dois momentos: no cadastro, atrás da caixinha "li e aceito", e
- * nas boas-vindas de quem ainda não aceitou. Eram duas cópias, e a primeira
- * que mudasse deixaria a cliente aceitando no cadastro um texto diferente do
- * que o painel mostra depois.
+ * nas boas-vindas de quem ainda não aceitou esta versão. Antes era um resumo
+ * escrito para o app; o resumo dava a entender que era o termo, e o termo de
+ * verdade nunca era mostrado. O aviso do cartão fica por cima porque é a
+ * dúvida que mais aparece no balcão.
  */
 export default function TextoDosTermos() {
+  const [aberto, setAberto] = useState<'regulamento' | 'privacidade' | null>('regulamento');
+
   return (
-    <div className="space-y-4">
-      <p>
-        A AVLE organiza clubes de compra coletiva junto com lojas parceiras. Ao participar, você
-        contribui mensalmente e concorre à contemplação para retirar o seu produto na loja.
-      </p>
-
-      <div className="bg-[#F8F6F2] border border-[#DFD9CE] rounded-2xl p-4 space-y-3">
-        <p className="text-[10px] uppercase tracking-wider font-bold text-stone-500">O que você aceita</p>
-        <ul className="space-y-2 text-xs">
-          <li>• Pagar a parcela do seu grupo até o <strong>quinto dia útil</strong> de cada mês.</li>
-          <li>• Receber avisos de cobrança por e-mail e WhatsApp, com o Pix e o boleto.</li>
-          <li>• Que a contemplação segue sorteio auditável, e a retirada depende das parcelas em dia.</li>
-          <li>• Que a retirada do produto exige o cadastro completo, com o seu endereço.</li>
-          <li>• Que os seus dados são usados para emitir as cobranças e falar com você sobre o plano.</li>
-        </ul>
-      </div>
-
+    <div className="space-y-3">
       <p className="text-xs text-stone-500">
         A parcela é paga mês a mês, por Pix ou boleto: participar <strong>não consome o limite do seu cartão de crédito</strong>.
+        As condições do seu grupo (valor, duração e a remuneração da AVLE) ficam no Termo de Adesão, que você aceita ao entrar no grupo.
       </p>
 
-      <p className="text-xs text-stone-400">
-        O regulamento completo do seu grupo é apresentado pela loja no momento da adesão.
-      </p>
+      {([
+        { id: 'regulamento', titulo: 'Regulamento Geral', texto: regulamentoGeral },
+        { id: 'privacidade', titulo: 'Política de Privacidade', texto: politicaDePrivacidade },
+      ] as const).map((doc) => (
+        <div key={doc.id} className="border border-[#DFD9CE] rounded-2xl overflow-hidden bg-white">
+          <button
+            type="button"
+            onClick={() => setAberto(aberto === doc.id ? null : doc.id)}
+            aria-expanded={aberto === doc.id}
+            className="w-full flex items-center justify-between px-4 py-3 text-left cursor-pointer hover:bg-stone-50"
+          >
+            <span className="text-xs font-bold text-[#0B1E14]">{doc.titulo}</span>
+            <span className="text-[11px] text-stone-400 font-bold">{aberto === doc.id ? 'Fechar' : 'Ler'}</span>
+          </button>
+          {aberto === doc.id && (
+            <div className="px-4 pb-4 max-h-[50vh] overflow-y-auto border-t border-stone-100 pt-3">
+              <DocumentoJuridico texto={doc.texto()} />
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
