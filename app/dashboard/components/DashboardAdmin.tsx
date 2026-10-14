@@ -10,6 +10,7 @@ import AfiliadosAdmin from './AfiliadosAdmin';
 import ConferirPagamentos from './ConferirPagamentos';
 import EntradasSemPagamento from './EntradasSemPagamento';
 import CadastrosIncompletos from './CadastrosIncompletos';
+import AuditoriaDoSplit from './AuditoriaDoSplit';
 import Conversas from './Conversas';
 import PainelDeAvisosFlutuante from './PainelDeAvisosFlutuante';
 import {
@@ -862,6 +863,8 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
 
             {abaExibida === 'financeiro' && (
               <div className="space-y-6 animate-fadeIn">
+                <AuditoriaDoSplit />
+
                 <div>
                   <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Fluxo de caixa e split contábil</h2>
                   <p className="text-xs text-stone-400 font-medium">
