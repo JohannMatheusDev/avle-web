@@ -3,11 +3,12 @@
 // O servidor so manda o faturamento agrupado por mes. A semana e montada aqui
 // com o extrato que o painel ja carrega (/api/financeiro/lojas/{id}/transacoes),
 // e com a mesma regra do MetricasLojaService do avle-api: soma so o que entrou
-// de fato, pelo liquido da loja (90%), na data do pagamento. Se a regra mudar
-// la, tem que mudar aqui - senao a semana e o mes passam a discordar.
+// de fato, pelo liquido da loja (a parcela menos a comissao da AVLE do grupo),
+// na data do pagamento. O liquido vem pronto do servidor em cada linha
+// (valorLiquido): a comissao e negociada por loja e congelada por grupo, entao
+// nao ha mais um percentual unico que a tela possa aplicar sozinha.
 
 const SOMA_NO_FATURAMENTO = new Set(['PAGO', 'PAGO_PIX', 'BAIXA_MANUAL_LOJA', 'SALDO_ANTERIOR_A_PLATAFORMA']);
-const PARTE_DA_LOJA = 0.9;
 
 type LinhaDoExtrato = {
   dataTransacao?: string | null;
@@ -39,9 +40,7 @@ function entradas(extrato: unknown[]) {
     const quando = new Date(t.dataTransacao).getTime();
     if (Number.isNaN(quando)) continue;
 
-    const liquido = t.valorLiquido != null
-      ? Number(t.valorLiquido)
-      : (Number(t.valorBruto) || 0) * PARTE_DA_LOJA;
+    const liquido = Number(t.valorLiquido ?? 0);
     lista.push({ quando, liquido: Number.isFinite(liquido) ? liquido : 0 });
   }
   return lista;

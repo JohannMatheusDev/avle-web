@@ -3,7 +3,7 @@
 /**
  * A conta do Asaas da loja, nas Configurações. É nela que as cobranças das
  * clientes nascem: o dinheiro cai direto na conta da loja, a taxa do Asaas sai
- * de lá, e a AVLE recebe 10% do valor da parcela pelo split. A loja conecta com
+ * de lá, e a AVLE recebe a comissão combinada pelo split. A loja conecta com
  * a carteira (Wallet ID) e a chave de API; o servidor confere as duas no Asaas.
  */
 
@@ -72,8 +72,8 @@ export default function ContaAsaasDaLoja({
         <div>
           <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Conta do Asaas</h3>
           <p className="text-[12px] text-stone-500 mt-1 leading-relaxed">
-            As parcelas das suas clientes caem direto na sua conta do Asaas. A taxa do Asaas é descontada lá, e a AVLE
-            recebe 10% do valor de cada parcela.
+            As parcelas das suas clientes caem direto na sua conta do Asaas. A AVLE recebe a comissão combinada em
+            cada parcela, e a taxa do Asaas sai da parte da AVLE: você recebe sempre a parcela menos a comissão.
           </p>
         </div>
         {situacao && (

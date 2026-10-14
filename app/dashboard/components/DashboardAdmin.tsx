@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import EnvioDeCobrancasWhatsapp from './EnvioDeCobrancasWhatsapp';
 import GruposDaLojaNoAdmin from './GruposDaLojaNoAdmin';
+import ComissaoDaLoja from './ComissaoDaLoja';
 import CobrancaAutomatica from './CobrancaAutomatica';
 import MesDoPagamento from './MesDoPagamento';
 import CorrigirCadastro from './CorrigirCadastro';
@@ -451,6 +452,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               </p>
             </div>
 
+            <ComissaoDaLoja lojaId={lojaSelecionada.id} podeEditar />
             <GruposDaLojaNoAdmin lojaId={lojaSelecionada.id} />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -526,7 +528,7 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
               const dinheiro = (n: any) =>
                 `R$ ${(Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
-              // Quanto da taxa de 10% ja foi efetivamente recolhida. Enquanto o
+              // Quanto da comissao ja foi efetivamente recolhida. Enquanto o
               // pagamento nao passa pela plataforma, o split nao acontece e o
               // valor fica em aberto com a loja.
               const taxaTotal = Number(v?.taxaAvle) || 0;
@@ -868,7 +870,8 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                 <div>
                   <h2 className="text-xl font-bold tracking-tight text-[#0B1E14]">Fluxo de caixa e split contábil</h2>
                   <p className="text-xs text-stone-400 font-medium">
-                    Divisão de 10% para a AVLE e 90% para a loja, sobre cada entrada registrada.
+                    A comissão da AVLE de cada parcela, pelo percentual combinado com cada loja e guardado no grupo.
+                    {split?.percentualAvle != null && ` No período, a comissão média foi de ${Number(split.percentualAvle).toLocaleString('pt-BR')}%.`}
                   </p>
                 </div>
 
@@ -938,20 +941,20 @@ export default function DashboardAdmin({ usuario }: { usuario: any }) {
                       <tr className="bg-stone-50 text-stone-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#DFD9CE]">
                         <th className="py-4 px-5">Estabelecimento</th>
                         <th className="py-4 px-5 text-right">Faturamento bruto</th>
-                        <th className="py-4 px-5 text-right">AVLE (10%)</th>
-                        <th className="py-4 px-5 text-right">Loja (90%)</th>
+                        <th className="py-4 px-5 text-right">AVLE</th>
+                        <th className="py-4 px-5 text-right">Loja</th>
                         <th className="py-4 px-5 text-right">A receber</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#DFD9CE] text-stone-700 font-medium">
                       {listaLojas.map((loja, idx) => {
-                        // Prefere os numeros do consolidado, que separam a taxa ja
-                        // recolhida da pendente. Sem ele, cai no calculo antigo
-                        // sobre o volume bruto conhecido pela lista de lojas.
+                        // Os numeros do consolidado, que separam a taxa ja recolhida
+                        // da pendente. Sem ele nao ha como calcular aqui: a comissao
+                        // depende do percentual de cada grupo.
                         const doSplit = split?.lojas?.find((l: any) => l.lojaId === loja.id);
                         const bruto = Number(doSplit?.faturamentoBruto ?? loja.volumeBruto) || 0;
-                        const taxaApp = Number(doSplit?.taxaAvle ?? bruto * 0.10);
-                        const repasseLoja = Number(doSplit?.repasseLoja ?? bruto * 0.90);
+                        const taxaApp = Number(doSplit?.taxaAvle ?? 0);
+                        const repasseLoja = Number(doSplit?.repasseLoja ?? 0);
                         const aReceber = Number(doSplit?.taxaAReceber ?? 0);
 
                         return (

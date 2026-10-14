@@ -33,6 +33,7 @@ import { apiFetch, encerrarSessao } from '../../lib/api';
 import { useHistoricoDoPainel } from '../../lib/historico';
 import { useAvisos } from '../../lib/avisos';
 import CadastrosIncompletos from './CadastrosIncompletos';
+import ComissaoDaLoja, { comissaoPorParcela } from './ComissaoDaLoja';
 import ContratoDaCliente from '../../components/ContratoDaCliente';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
@@ -182,6 +183,19 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [historicoTransacoes, setHistoricoTransacoes] = useState<any[]>([]);
   const [taxaChurn, setTaxaChurn] = useState<number>(0);
   const [nomeLojaReal, setNomeLojaReal] = useState<string>('');
+
+  // O percentual da AVLE nos grupos novos desta loja, para a criação do grupo
+  // mostrar a comissão e o que a loja recebe antes de confirmar.
+  const [percentualAvleDaLoja, setPercentualAvleDaLoja] = useState<number | null>(null);
+  useEffect(() => {
+    if (!modalNovoGrupoAberto) return;
+    let ativo = true;
+    apiFetch(`/api/lojas/${usuario?.lojaId || usuario?.id}/comissao`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (ativo && d?.percentualAvle != null) setPercentualAvleDaLoja(Number(d.percentualAvle)); })
+      .catch(() => {});
+    return () => { ativo = false; };
+  }, [modalNovoGrupoAberto]);
 
   // Falhas de carregamento por seção, exibidas no topo do painel. Sem isso uma
   // API fora do ar aparece como "nenhum registro", que e indistinguível de vazio.
@@ -1834,7 +1848,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     {
       alvo: 'configuracoes',
       titulo: 'Configurações da loja',
-      texto: 'Nome, endereço, logotipo que aparece no convite, o regulamento e a conta que recebe os 90% de cada parcela.',
+      texto: 'Nome, endereço, logotipo que aparece no convite, o regulamento e a conta que recebe a sua parte de cada parcela.',
     },
     {
       secao: 'geral',
@@ -2369,7 +2383,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   {!ehColaborador && (() => {
                     // Semana sai do extrato; mes, 6 e 12 meses saem do
                     // faturamento mensal do servidor. Os dois seguem a mesma
-                    // regra (recebido, liquido de 90%, pela data do pagamento).
+                    // regra (recebido, liquido da comissao, pela data do pagamento).
                     const totais = mensal.map((m) => Number(m.total) || 0);
                     const soma = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
                     const semanas = faturamentoPorSemana(historicoTransacoes, 8);
@@ -3603,7 +3617,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             {abaLoja === 'configuracoes' && (
               <div className="space-y-6 text-left max-w-xl animate-fadeIn">
                 {!ehColaborador && (
-                  <ContaAsaasDaLoja lojaId={usuario?.lojaId || usuario?.id} mostrarAviso={mostrarAviso} />
+                  <>
+                    <ContaAsaasDaLoja lojaId={usuario?.lojaId || usuario?.id} mostrarAviso={mostrarAviso} />
+                    <ComissaoDaLoja lojaId={usuario?.lojaId || usuario?.id} />
+                  </>
                 )}
                 {!ehColaborador && (
                   <EmailDaConta lojaId={usuario?.lojaId || usuario?.id} emailAtual={usuario?.email} mostrarAviso={mostrarAviso} />
@@ -4072,6 +4089,19 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   </span>
                 </div>
               )}
+              {/* A comissão sai do percentual combinado e fica guardada no grupo
+                  ao criar: a loja vê aqui o que vai receber antes de confirmar. */}
+              {percentualAvleDaLoja != null && valorTotal && duracaoMeses && parseFloat(valorTotal) > 0 && parseInt(duracaoMeses) > 0 && (() => {
+                const parcela = parseFloat((parseFloat(valorTotal) / parseInt(duracaoMeses)).toFixed(2));
+                const comissao = comissaoPorParcela(parcela, percentualAvleDaLoja);
+                const real = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                return (
+                  <div className="bg-white border border-[#DFD9CE] rounded-xl px-4 py-3 text-[11px] text-stone-600 leading-relaxed">
+                    Comissão da AVLE ({percentualAvleDaLoja.toLocaleString('pt-BR')}%): <strong>{real(comissao)}</strong> por parcela.
+                    Você recebe <strong>{real(parcela - comissao)}</strong> por parcela paga.
+                  </div>
+                );
+              })()}
               <div className="flex space-x-2 pt-2 border-t w-full">
                 <button type="button" onClick={() => setModalNovoGrupoAberto(false)} className="flex-1 py-2.5 border rounded-full text-stone-500 font-bold transition-colors hover:bg-stone-50 cursor-pointer">Cancelar</button>
                 <button 
@@ -5117,7 +5147,7 @@ function DetalheDoFaturamento({
         <div className="flex justify-between items-start gap-4">
           <div>
             <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Faturamento total</h3>
-            <p className="text-[11px] text-stone-400 mt-0.5">Receita líquida recebida desde o início, já sem os 10% da plataforma.</p>
+            <p className="text-[11px] text-stone-400 mt-0.5">Receita líquida recebida desde o início, já sem a comissão da AVLE.</p>
           </div>
           <button type="button" onClick={aoFechar} aria-label="Fechar" className="text-stone-400 hover:text-stone-700 text-[15px] font-semibold cursor-pointer">
             ✕

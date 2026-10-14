@@ -3,7 +3,7 @@
 /**
  * Conta AVLE: o dinheiro da loja num lugar só.
  *
- * O saldo e o extrato vêm da conta da loja no Asaas, onde os 90% de cada
+ * O saldo e o extrato vêm da conta da loja no Asaas, onde a parte da loja de cada
  * parcela caem. O "a receber" vem do sistema, das parcelas do mês ainda em
  * aberto. O saque manda o saldo para a chave Pix cadastrada nas
  * Configurações - o destino não se escolhe aqui, de propósito: é a trava que
@@ -26,6 +26,8 @@ import s from './ContaAvle.module.css';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export type ResumoDaConta = {
+  /** O percentual da AVLE nos grupos novos da loja. */
+  percentualAvle?: number | null;
   lojaId: number;
   nomeLoja?: string;
   competencia: string;
@@ -169,13 +171,13 @@ export function FaixaDeAtivacao({
       texto = 'Enquanto isso, deixe o endereço completo e o faturamento preenchidos nas Configurações: é com eles que a conta é aberta.';
     } else {
       titulo = 'A loja ainda não tem conta no Asaas';
-      texto = 'É nela que caem os 90% de cada parcela. Complete o endereço e o faturamento nas Configurações para a AVLE abrir a conta.';
+      texto = 'É nela que cai a sua parte de cada parcela. Complete o endereço e o faturamento nas Configurações para a AVLE abrir a conta.';
     }
     if (aoIrParaConfiguracoes) botoes.push({ rotulo: 'Abrir Configurações', aoClicar: aoIrParaConfiguracoes, principal: true });
     if (aoAbrirSubconta) botoes.push({ rotulo: 'Abrir conta no Asaas agora', aoClicar: aoAbrirSubconta, principal: true });
   } else if (a.situacao === 'SEM_CHAVE') {
     titulo = 'Conecte a conta do Asaas para ver o saldo';
-    texto = 'O repasse dos 90% já cai na conta da loja. Falta conectar a chave de API para a Conta AVLE mostrar o saldo e sacar.';
+    texto = 'A sua parte já cai na conta da loja. Falta conectar a chave de API para a Conta AVLE mostrar o saldo e sacar.';
     if (aoAbrirConta) botoes.push({ rotulo: 'Conectar agora', aoClicar: aoAbrirConta, principal: true });
   } else {
     const recusada = a.situacao === 'RECUSADA';
@@ -256,13 +258,13 @@ export function ResumoNoPainel({
   }
 
   const blocos = [
-    { rotulo: 'Recebido no mês', valor: real(resumo.recebidoNoMes), nota: 'os 90% da loja' },
+    { rotulo: 'Recebido no mês', valor: real(resumo.recebidoNoMes), nota: 'a parte da loja' },
     {
       rotulo: 'A receber no mês',
       valor: real(resumo.aReceberNoMes),
       nota: `${resumo.parcelasEmAberto} parcela${resumo.parcelasEmAberto === 1 ? '' : 's'} em aberto`,
     },
-    { rotulo: 'Taxa AVLE no mês', valor: real(resumo.taxaAvleNoMes), nota: '10% das parcelas pagas' },
+    { rotulo: 'Taxa AVLE no mês', valor: real(resumo.taxaAvleNoMes), nota: 'comissão das parcelas pagas' },
   ];
 
   return (
@@ -614,10 +616,10 @@ export function TelaDaContaAvle({
                 id: 'taxa',
                 nome: 'Taxa',
                 resto: 'AVLE',
-                marca: '10%',
+                marca: resumo.percentualAvle != null ? `${Number(resumo.percentualAvle).toLocaleString('pt-BR')}%` : '—',
                 detalhe: `${real(resumo.taxaAvleNoMes)} no mês`,
                 valor: <ValorDoCartao valor={Number(resumo.taxaAvleNoMes)} />,
-                nota: '10% de cada parcela paga, retidos no split',
+                nota: 'comissão combinada de cada parcela paga, retida no split',
               },
             ]}
             rotuloEsquerda="Conta conectada"
@@ -631,9 +633,11 @@ export function TelaDaContaAvle({
                   rotulo: 'Taxa AVLE no mês',
                   valor: Number(resumo.taxaAvleNoMes),
                   variacao: variacao([Number(resumo.taxaAvleMesAnterior ?? 0), Number(resumo.taxaAvleNoMes)]),
-                  nota: '10% de cada parcela',
-                  // A taxa acompanha o que entra: 10% de cada parcela.
-                  serie: semanas.map((x) => Number(x.entradas || 0) * 0.1),
+                  nota: 'comissão de cada parcela',
+                  // A taxa acompanha o que entra, pelo percentual atual da loja.
+                  // É só o desenho da semana: o valor do mês vem do servidor,
+                  // somado parcela a parcela pelo percentual de cada grupo.
+                  serie: semanas.map((x) => Number(x.entradas || 0) * (Number(resumo.percentualAvle ?? 0) / 100)),
                 },
                 {
                   rotulo: 'Recebido no mês',
