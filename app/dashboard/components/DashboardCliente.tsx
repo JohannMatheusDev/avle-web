@@ -15,6 +15,7 @@ import {
 import { PassoDoTour, useTour } from './Tour';
 import CompletarCadastro from './CompletarCadastro';
 import ContratoDaCliente, { TermoDeAdesao, type Contrato } from '../../components/ContratoDaCliente';
+import TextoDosTermos from '../../components/TextoDosTermos';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -1943,6 +1944,11 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
                 <ContratoDaCliente usuarioId={usuario.id} />
               </div>
             )}
+            {/* Os documentos oficiais que ela aceitou, para consultar quando quiser. */}
+            <div className="pb-4 border-b border-stone-100 space-y-3">
+              <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Regulamento e Privacidade</h3>
+              <TextoDosTermos />
+            </div>
             <div>
               <h3 className="text-sm font-bold text-[#0B1E14] font-serif uppercase tracking-wide">Regulamento AVLE</h3>
               <p className="text-stone-400 mt-1">Confira as diretrizes da comunidade estruturada de compras programadas de móveis e decorações.</p>

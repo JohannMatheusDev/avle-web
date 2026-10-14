@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { EscolhaConsentimento, gravarConsentimento, lerConsentimento } from '../lib/consentimento';
+import DocumentoJuridico from '../documentos/DocumentoJuridico';
+import { politicaDePrivacidade } from '../documentos/preencher';
 
 export default function AvisoCookies() {
   // Comeca escondido e so aparece depois de montar: ler localStorage durante a
@@ -9,6 +11,9 @@ export default function AvisoCookies() {
   // quem ja respondeu seria pior que nao ter banner.
   const [visivel, setVisivel] = useState(false);
   const [detalhesAbertos, setDetalhesAbertos] = useState(false);
+  // A Política de Privacidade oficial, que é o documento de verdade por trás
+  // deste aviso.
+  const [politicaAberta, setPoliticaAberta] = useState(false);
 
   useEffect(() => {
     if (lerConsentimento() === null) setVisivel(true);
@@ -67,6 +72,15 @@ export default function AvisoCookies() {
                 Você pode mudar de ideia depois limpando os dados do site no seu navegador. Para pedir acesso ou
                 exclusão dos seus dados, fale com a loja parceira em que você está cadastrada.
               </p>
+              <button type="button" onClick={() => setPoliticaAberta(!politicaAberta)}
+                className="text-[10px] font-bold uppercase tracking-wider text-[#BD6B42] hover:underline cursor-pointer">
+                {politicaAberta ? 'Fechar a Política de Privacidade' : 'Ler a Política de Privacidade'}
+              </button>
+              {politicaAberta && (
+                <div className="max-h-[40vh] overflow-y-auto bg-white rounded-xl border border-[#DFD9CE] p-4">
+                  <DocumentoJuridico texto={politicaDePrivacidade()} />
+                </div>
+              )}
             </div>
           )}
 

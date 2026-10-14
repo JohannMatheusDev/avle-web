@@ -17,6 +17,9 @@ import { codigoDaIndicacao } from './lib/indicacao';
 import { entrarComSenha } from './lib/entrarComSenha';
 import EntradaPorCodigo from './components/EntradaPorCodigo';
 import TextoDosTermos from './components/TextoDosTermos';
+import ContratoDoLojista from './documentos/ContratoDoLojista';
+import DocumentoJuridico from './documentos/DocumentoJuridico';
+import { politicaDePrivacidade } from './documentos/preencher';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
@@ -85,6 +88,8 @@ function Autenticacao() {
   // entrava no sistema como "FULANO COMERCIO DE ROUPAS LTDA" e não tinha como
   // escrever o nome pelo qual as clientes a conhecem.
   const [razaoSocial, setRazaoSocial] = useState('');
+  // A sede como a Receita a tem, para o contrato que a loja aceita aqui.
+  const [enderecoSede, setEnderecoSede] = useState('');
   // O último nome sugerido pela consulta. Serve para saber se o campo ainda
   // está com a sugestão ou se a loja já escreveu o dela, e não apagar o que
   // ela digitou quando o CNPJ perde o foco de novo.
@@ -242,6 +247,11 @@ function Autenticacao() {
       // É sugestão: se a loja já escreveu o nome dela, fica o dela.
       const sugestao = String(data.nome_fantasia || data.razao_social || '').trim();
       setRazaoSocial(String(data.razao_social || '').trim());
+      const rua = [data.descricao_tipo_de_logradouro, data.logradouro].filter(Boolean).join(' ');
+      setEnderecoSede([rua, data.numero, data.complemento, data.bairro,
+        data.municipio && data.uf ? `${data.municipio}/${data.uf}` : data.municipio,
+        data.cep ? `CEP ${String(data.cep).replace(/^(\d{5})(\d{3})$/, '$1-$2')}` : null]
+        .map((p: unknown) => (p ? String(p).trim() : '')).filter(Boolean).join(', '));
       setNome((atual) => (!atual.trim() || atual === nomeSugerido ? sugestao : atual));
       setNomeSugerido(sugestao);
       if (data.cep) setCep(aplicarMascaraCep(data.cep.toString()));
@@ -361,6 +371,10 @@ function Autenticacao() {
               faturamento: tipoUsuario === 'LOJA' ? faturamentoNumerico : null,
               contaAsaas: tipoUsuario === 'LOJA' ? contaAsaas : null,
               asaasApiKey: tipoUsuario === 'LOJA' ? chaveAsaasInput.trim() : null,
+              // O contrato que a loja aceita nesta tela fica registrado.
+              aceitouTermos: tipoUsuario === 'LOJA' ? aceitouTermos : undefined,
+              razaoSocial: tipoUsuario === 'LOJA' ? razaoSocial || null : undefined,
+              enderecoSede: tipoUsuario === 'LOJA' ? enderecoSede || null : undefined,
               lojaId: tipoUsuario === 'CLIENTE' && conviteLojaId ? Number(conviteLojaId) : null,
               // Veio pelo link de uma afiliada desta loja: a cliente fica indicada por ela.
               codigoAfiliado: tipoUsuario === 'CLIENTE' && conviteLojaId ? codigoDaIndicacao(Number(conviteLojaId)) ?? null : null,
@@ -1081,8 +1095,8 @@ function Autenticacao() {
                     <div className="flex items-start space-x-3 p-3 bg-stone-50 border border-stone-200/60 rounded-xl mt-2 animate-fade-in">
                       <input type="checkbox" id="termos-loja" checked={aceitouTermos} onChange={(e) => setAceitouTermos(e.target.checked)} className="mt-0.5 w-4 h-4 accent-[#0B1E14] cursor-pointer" disabled={carregando} />
                       <label htmlFor="termos-loja" className="text-[10px] text-stone-500 leading-relaxed cursor-pointer select-none">
-                        Declaro que li e concordo com os{' '}
-                        <button type="button" onClick={(e) => { e.preventDefault(); setModalTermosAberto(true); }} className="text-[#BD6B42] font-bold underline cursor-pointer">termos de uso</button>{' '}da AVLE.
+                        Declaro que li e concordo com o{' '}
+                        <button type="button" onClick={(e) => { e.preventDefault(); setModalTermosAberto(true); }} className="text-[#BD6B42] font-bold underline cursor-pointer">Contrato AVLE x Lojista, o Anexo II e a Política de Privacidade</button>.
                       </label>
                     </div>
                   )}
@@ -1110,7 +1124,7 @@ function Autenticacao() {
           <div className="bg-white border border-[#DFD9CE] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
             <div className="flex justify-between items-center p-5 border-b border-stone-100">
               <h3 className="text-base font-serif font-bold text-[#0B1E14] uppercase tracking-wide">
-                {tipoUsuario === 'LOJA' && !isLogin ? 'Contrato de parceria' : 'Regulamento e Privacidade'}
+                {tipoUsuario === 'LOJA' && !isLogin ? 'Contrato com a AVLE' : 'Regulamento e Privacidade'}
               </h3>
               <button type="button" onClick={() => setModalTermosAberto(false)} className="text-stone-400 font-bold px-2 cursor-pointer">X</button>
             </div>
@@ -1119,11 +1133,19 @@ function Autenticacao() {
                 <TextoDosTermos />
               </div>
             ) : (
-            <div className="p-6 overflow-y-auto flex-1 text-xs text-stone-600 space-y-4 leading-relaxed bg-stone-50/30">
-              <p className="font-bold text-stone-800">1. DO OBJETO</p>
-              <p>Este documento estabelece as condições gerais para a utilização da AVLE pela LOJA PARCEIRA.</p>
-              <p className="font-bold text-stone-800 mt-4">2. DO REPASSE E SPLIT DE PAGAMENTOS</p>
-              <p>Fica acordado que a plataforma AVLE reterá automaticamente, em cada parcela, a comissão combinada com a loja e fixada no contrato dela.</p>
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 bg-stone-50/30">
+              {/* O mesmo contrato oficial do convite do lojista, preenchido com o
+                  que a loja digitou. O percentual de quem se cadastra sozinha é o
+                  padrão: o negociado entra pelo cadastro feito pela AVLE. */}
+              <ContratoDoLojista dados={{
+                lojaId: 0, nomeComercial: nome, razaoSocial: razaoSocial || nome || '[RAZÃO SOCIAL DO LOJISTA]',
+                cnpj: cpf.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') || '[A CONFIRMAR]',
+                enderecoSede: enderecoSede || null, percentualAvle: 10, versao: 'lojista-1.1',
+                exigido: false, aceito: false,
+              }} />
+              <div className="rounded-2xl border border-[#DFD9CE] bg-white p-5">
+                <DocumentoJuridico texto={politicaDePrivacidade()} />
+              </div>
             </div>
             )}
             <div className="p-4 border-t flex justify-end gap-3 bg-stone-50 rounded-b-2xl">
