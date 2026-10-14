@@ -78,7 +78,24 @@ export default function AuditoriaDoSplit() {
   const copiar = async () => {
     if (!resultado) return;
     try {
-      await navigator.clipboard.writeText(JSON.stringify(resultado, null, 2));
+      // Texto curto, só com o resumo e as cobranças com problema: o JSON
+      // inteiro de uma loja passa do tamanho que cabe numa mensagem.
+      const r = resultado.resumo;
+      const partes = [
+        `AUDITORIA ${resultado.loja} · ${new Date(resultado.conferidaEm).toLocaleString('pt-BR')}`,
+        `conta conectada: ${resultado.contaConectada ? 'sim' : 'não'} · cobranças ${r.cobrancas} · pagas ${r.pagasNoAsaas} · com problema ${r.comProblema} · graves ${r.graves} · pagas na conta da AVLE ${r.pagasNaContaDaAvle} · sem leitura ${r.semLeitura}`,
+        `AVLE deve à loja ${reais(r.devidoALojaPelaAvle)} · comissão não repassada ${reais(r.comissaoNaoRepassada)} · repasse parado na loja ${reais(r.repasseParadoNaLoja)}`,
+        '',
+        ...resultado.cobrancas.filter((l) => l.problemas.length > 0).map((l) =>
+          `${l.cliente} · ${l.grupo} · ${l.competencia} · ${reais(l.valor)} · AVLE ${l.statusNoAvle} · Asaas ${l.statusNoAsaas ?? '?'} · conta ${l.conta} · ${l.paymentId} · cota ${l.cotaId}\n` +
+          l.problemas.map((p) => `  [${p.gravidade}] ${p.texto}`).join('\n')),
+      ];
+      const fora = resultado.semRegistroNoAvle?.cobrancas ?? [];
+      if (fora.length > 0) {
+        partes.push('', 'NA CONTA DA LOJA SEM REGISTRO NO AVLE:',
+          ...fora.map((c) => `${c.paymentId} · ${c.status} · ${reais(c.valor)} · vence ${c.vencimento}`));
+      }
+      await navigator.clipboard.writeText(partes.join('\n'));
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2500);
     } catch {
