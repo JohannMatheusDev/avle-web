@@ -25,12 +25,18 @@ export default function CompletarCadastro({
   titulo,
   aoConcluir,
   aoFechar,
+  nomeDaCliente,
 }: {
   usuarioId: number;
   titulo?: string;
   aoConcluir: () => void;
   aoFechar: () => void;
+  // Preenchido quando é a loja que completa o cadastro da sorteada, no balcão.
+  // Aí o e-mail fica de fora: ele recebe avisos da conta, e quem decide qual é
+  // a própria cliente.
+  nomeDaCliente?: string;
 }) {
+  const pelaLoja = nomeDaCliente != null;
   const [cep, setCep] = useState('');
   const [logradouro, setLogradouro] = useState('');
   const [numero, setNumero] = useState('');
@@ -104,13 +110,15 @@ export default function CompletarCadastro({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          cep, logradouro, numeroEndereco: numero, complemento, bairro, cidade, uf, email: email.trim(),
+          cep, logradouro, numeroEndereco: numero, complemento, bairro, cidade, uf, email: pelaLoja ? '' : email.trim(),
         }),
       });
       const d = await r.json().catch(() => null);
       if (!r.ok) throw new Error(d?.erro || 'Não foi possível salvar agora. Tente de novo.');
 
-      const salva = localStorage.getItem('@avle:usuario');
+      // A sessão guardada é de quem está usando o aparelho: quando é a loja
+      // que preenche, ela não muda.
+      const salva = pelaLoja ? null : localStorage.getItem('@avle:usuario');
       if (salva) {
         localStorage.setItem('@avle:usuario', JSON.stringify({
           ...JSON.parse(salva), cadastroCompleto: true, email: d?.email ?? JSON.parse(salva).email,
@@ -135,10 +143,14 @@ export default function CompletarCadastro({
         className="bg-white w-full sm:max-w-lg sm:rounded-3xl rounded-t-3xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl text-left"
       >
         <div className="bg-[#0B1E14] px-6 py-6 shrink-0">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-[#BD6B42] font-bold">Falta pouco</p>
-          <h2 className="text-lg font-bold text-[#DFD9CE] mt-1">{titulo || 'Complete o seu cadastro'}</h2>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-[#BD6B42] font-bold">{pelaLoja ? 'Cadastro da cliente' : 'Falta pouco'}</p>
+          <h2 className="text-lg font-bold text-[#DFD9CE] mt-1">
+            {titulo || (pelaLoja ? `Completar o cadastro de ${nomeDaCliente}` : 'Complete o seu cadastro')}
+          </h2>
           <p className="text-xs text-[#DFD9CE]/70 mt-2 leading-relaxed">
-            A loja precisa do seu endereço para liberar o produto quando você for contemplada.
+            {pelaLoja
+              ? 'Confira o endereço com a cliente. Sem ele o produto não é liberado; com ele salvo, a retirada pode seguir.'
+              : 'A loja precisa do seu endereço para liberar o produto quando você for contemplada.'}
           </p>
         </div>
 
@@ -194,12 +206,12 @@ export default function CompletarCadastro({
                 onChange={(e) => setUf(e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase())} className={campo} />
             </div>
           </div>
-          <div>
+          {!pelaLoja && (<div>
             <label className={rotulo} htmlFor="cc-email">E-mail (opcional)</label>
             <input id="cc-email" type="email" autoComplete="email" placeholder="seu@email.com" value={email}
               onChange={(e) => setEmail(e.target.value)} className={campo} />
             <p className="text-[10px] text-stone-400 mt-1 leading-relaxed">Para receber os comprovantes e avisos do plano.</p>
-          </div>
+          </div>)}
           {erro && <p className="text-xs text-rose-600 font-medium">{erro}</p>}
         </div>
 
@@ -216,7 +228,7 @@ export default function CompletarCadastro({
             onClick={aoFechar}
             className="w-full text-stone-400 hover:text-stone-700 text-center font-bold text-xs py-1 cursor-pointer"
           >
-            Completar depois
+            {pelaLoja ? 'Cancelar' : 'Completar depois'}
           </button>
         </div>
       </form>

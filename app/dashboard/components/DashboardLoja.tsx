@@ -35,6 +35,7 @@ import { useAvisos } from '../../lib/avisos';
 import CadastrosIncompletos from './CadastrosIncompletos';
 import ComissaoDaLoja, { comissaoPorParcela } from './ComissaoDaLoja';
 import ContratoDaLojaNoPainel from './ContratoDaLojaNoPainel';
+import CompletarCadastro from './CompletarCadastro';
 import ContratoDaCliente from '../../components/ContratoDaCliente';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
@@ -152,6 +153,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   const [sorteiosDoGrupo, setSorteiosDoGrupo] = useState<SorteioResumo[]>([]);
   const [elegiveisDoGrupo, setElegiveisDoGrupo] = useState<CotaElegivel[]>([]);
   const [contemplacoesEmCurso, setContemplacoesEmCurso] = useState<CardContemplacao[]>([]);
+  // A sorteada cujo cadastro a loja está completando no balcão. Sem o
+  // endereço o produto não é liberado, e muita cliente resolve isso na loja.
+  const [cadastroDaSorteada, setCadastroDaSorteada] = useState<{ usuarioId: number; nome: string } | null>(null);
   const [processandoSorteio, setProcessandoSorteio] = useState(false);
   const [modalReprovaCredito, setModalReprovaCredito] = useState<{ aberto: boolean; cotaId: number | null }>({ aberto: false, cotaId: null });
   const [motivoReprovaCredito, setMotivoReprovaCredito] = useState('');
@@ -2215,6 +2219,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                     Corrigir data
                                   </button>
                                 </>
+                              ) : part.foiSorteada && part.cadastroCompleto === false ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setCadastroDaSorteada({ usuarioId: part.usuarioId, nome: part.nome }); }}
+                                  title="Falta o endereço: sem ele a retirada não é liberada"
+                                  className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 font-bold rounded-lg text-[9px] uppercase tracking-wider hover:bg-amber-100 transition-all cursor-pointer"
+                                >
+                                  Completar cadastro
+                                </button>
                               ) : part.foiSorteada ? (
                                 <button
                                   type="button"
@@ -3564,6 +3577,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                               {c.produtoEscolhido ? `Produto: ${c.produtoEscolhido}` : c.etapaDescricao}
                             </p>
 
+                            {c.cadastroCompleto === false && !c.concluido && (
+                              <p className="text-[10px] font-bold text-amber-700 mt-1">
+                                Endereço pendente: o produto só é liberado com o cadastro completo.
+                              </p>
+                            )}
+
                             {c.dataEntrega && (
                               <p className="text-[10px] text-emerald-700 font-bold mt-1">
                                 Retirado em {new Date(c.dataEntrega).toLocaleDateString('pt-BR')}
@@ -3572,6 +3591,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                           </div>
 
                           <div className="flex gap-2 flex-wrap">
+                            {c.cadastroCompleto === false && !c.concluido && c.usuarioId && (
+                              <button
+                                type="button"
+                                onClick={() => setCadastroDaSorteada({ usuarioId: c.usuarioId as number, nome: c.clienteNome || `Cota #${c.cotaId}` })}
+                                className="px-3 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer hover:bg-amber-100"
+                              >
+                                Completar cadastro
+                              </button>
+                            )}
                             {c.etapaAtual === 'ANALISE_CREDITO' && (
                               <>
                                 <button
@@ -5112,6 +5140,20 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             </div>
           </div>
         </div>
+      )}
+      {cadastroDaSorteada && (
+        <CompletarCadastro
+          usuarioId={cadastroDaSorteada.usuarioId}
+          nomeDaCliente={cadastroDaSorteada.nome}
+          aoFechar={() => setCadastroDaSorteada(null)}
+          aoConcluir={() => {
+            const nome = cadastroDaSorteada.nome;
+            setCadastroDaSorteada(null);
+            recarregarParticipantesDoGrupo();
+            if (grupoSorteioId) carregarPainelDeSorteio(grupoSorteioId);
+            mostrarAviso('Cadastro completo', `O endereço de ${nome} foi salvo. A retirada do produto já pode seguir.`, false);
+          }}
+        />
       )}
       {tour.elemento}
     </div>
