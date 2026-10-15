@@ -56,10 +56,10 @@ export default function EntradaPorCodigo({
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
   const [esperaReenvio, setEsperaReenvio] = useState(0);
 
-  // Com o WhatsApp desligado no servidor (o modelo da Meta em análise, por
-  // exemplo), o código só sai por e-mail - e aí o e-mail deixa de ser opcional.
-  // Na dúvida vale o WhatsApp: é o estado normal, e o servidor recusa com uma
-  // mensagem clara se não for.
+  // O código sai só pelo WhatsApp, nunca por e-mail. Com o WhatsApp desligado
+  // no servidor (o modelo da Meta em análise, por exemplo), a tela avisa em
+  // vez de prometer um código que não vai chegar. Na dúvida vale o WhatsApp:
+  // é o estado normal, e o servidor recusa com uma mensagem clara se não for.
   const [whatsappLigado, setWhatsappLigado] = useState(true);
 
   useEffect(() => {
@@ -98,7 +98,7 @@ export default function EntradaPorCodigo({
   // Celular com o 9: o código vai pelo WhatsApp, e fixo não recebe.
   const celularValido = telefoneValido(telefone) && somenteDigitos(telefone).length === 11;
   const emailPreenchido = email.trim().length > 0;
-  const emailOk = emailPreenchido ? regexEmail.test(email.trim()) : whatsappLigado;
+  const emailOk = emailPreenchido ? regexEmail.test(email.trim()) : true;
   const nomeCompleto = nome.trim().split(/\s+/).length >= 2;
 
   const cadastroValido = cpfValido(cpf) && nomeCompleto && celularValido && emailOk && aceitouTermos;
@@ -307,6 +307,11 @@ export default function EntradaPorCodigo({
           <h3 className="text-sm font-bold uppercase tracking-wider text-stone-600">Entrar na sua conta</h3>
           <p className="text-xs text-stone-500 mt-1">Digite o seu CPF ou celular. Enviamos um código pelo WhatsApp, sem senha.</p>
         </div>
+      {!whatsappLigado && (
+        <p className="p-3 rounded-xl text-xs font-bold border bg-amber-50 text-amber-800 border-amber-200">
+          O envio do código pelo WhatsApp está indisponível no momento. Tente de novo mais tarde ou fale com a loja.
+        </p>
+      )}
         {aviso}
         <div>
           <label className={rotulo} htmlFor="identificador">CPF ou celular</label>
@@ -346,6 +351,11 @@ export default function EntradaPorCodigo({
           Só o básico agora. O endereço você informa depois, para retirar o produto.
         </p>
       </div>
+      {!whatsappLigado && (
+        <p className="p-3 rounded-xl text-xs font-bold border bg-amber-50 text-amber-800 border-amber-200">
+          O envio do código pelo WhatsApp está indisponível no momento. Tente de novo mais tarde ou fale com a loja.
+        </p>
+      )}
       {aviso}
       <div>
         <div className="flex justify-between items-center mb-1">
@@ -371,16 +381,14 @@ export default function EntradaPorCodigo({
         <p className="text-[10px] text-stone-400 mt-1 leading-relaxed">
           {telefone.length > 0 && somenteDigitos(telefone).length >= 10 && !celularValido
             ? 'Informe um celular com DDD e o 9 na frente.'
-            : whatsappLigado ? 'É para este número que vai o código de acesso.' : 'É por ele que a loja fala com você.'}
+            : 'É para este número que vai o código de acesso, pelo WhatsApp.'}
         </p>
       </div>
       <div>
-        <label className={rotulo} htmlFor="cad-email">{whatsappLigado ? 'E-mail (opcional)' : 'E-mail *'}</label>
+        <label className={rotulo} htmlFor="cad-email">E-mail (opcional)</label>
         <input id="cad-email" type="email" autoComplete="email" placeholder="seu@email.com" value={email}
           onChange={(e) => setEmail(e.target.value)} className={campo} disabled={carregando} />
-        {!whatsappLigado && (
-          <p className="text-[10px] text-stone-400 mt-1 leading-relaxed">Por enquanto, o código de acesso chega por e-mail.</p>
-        )}
+
       </div>
 
       <p className="text-[11px] text-stone-600 leading-relaxed bg-[#F8F6F2] border border-[#DFD9CE] rounded-xl p-3">
