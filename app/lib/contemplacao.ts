@@ -23,6 +23,7 @@ export interface CardContemplacao {
   // sorteado. No painel da cliente sao ignorados: la a conta e dela.
   clienteNome: string | null;
   clienteTelefone: string | null;
+  usuarioId?: number | null;
   dataEntrega: string | null;
   grupoNome: string | null;
   dataContemplacao: string | null;
