@@ -36,6 +36,7 @@ import CadastrosIncompletos from './CadastrosIncompletos';
 import ComissaoDaLoja, { comissaoPorParcela } from './ComissaoDaLoja';
 import ContratoDaLojaNoPainel from './ContratoDaLojaNoPainel';
 import CompletarCadastro from './CompletarCadastro';
+import RelatorioAReceber from './RelatorioAReceber';
 import ContratoDaCliente from '../../components/ContratoDaCliente';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
@@ -102,7 +103,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   // rotas para ele; aqui a tela só deixa de oferecer o que ele não pode abrir.
   const ehColaborador = String(usuario?.tipoUsuario || '').toUpperCase() === 'COLABORADOR';
   
-  const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'conversas' | 'fila' | 'grupos' | 'sorteios' | 'afiliados' | 'configuracoes' | 'conta'>('geral');
+  const [abaLoja, setAbaLoja] = useState<'geral' | 'clientes' | 'aprovacoes' | 'conversas' | 'fila' | 'grupos' | 'sorteios' | 'afiliados' | 'relatorio' | 'configuracoes' | 'conta'>('geral');
   // O painel verde da tela inicial mostra os grupos, quem esta devendo ou o
   // resumo da Conta AVLE.
   const [painelVerde, setPainelVerde] = useState<'grupos' | 'inadimplentes' | 'conta'>('grupos');
@@ -1756,9 +1757,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     { id: 'conversas',  rotulo: 'Conversas',          icone: 'conversas',  contador: conversasNaoLidas, urgente: true },
     { id: 'fila',       rotulo: 'Fila de espera',     icone: 'fila',       contador: filaEspera.length, rotuloCurto: 'Fila' },
     { id: 'grupos',     rotulo: 'Grupos',             icone: 'grupos' },
+    // Logo depois de Grupos, onde cabe na barra: no fim ela era cortada.
+    // Dinheiro da loja: o colaborador não vê, como no resto do financeiro.
+    ...(ehColaborador ? [] : [{ id: 'relatorio', rotulo: 'Relatório', icone: 'financeiro' } as ItemDeNavegacao]),
     { id: 'sorteios',   rotulo: 'Sorteios / Entrega', icone: 'sorteios', rotuloCurto: 'Sorteios' },
     { id: 'afiliados',  rotulo: 'Afiliadas',          icone: 'link' },
   ];
+  // A barra do celular já tem nove itens; o relatório entra pelo menu de lá e
+  // pelo atalho da tela inicial, em vez de espremer um décimo ícone.
+  const secoesNoCelular = secoesDaLoja.filter((s) => s.id !== 'relatorio');
   const configuracoesDaLoja: ItemDeNavegacao = { id: 'configuracoes', rotulo: 'Configurações', icone: 'configuracoes', rotuloCurto: 'Ajustes' };
 
   // Sair da ficha de um grupo faz parte de trocar de seção: sem isso a pessoa
@@ -1891,6 +1898,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     ? `Ficha: ${grupoSelecionado.nome}`
     : secoesDaLoja.find((s) => s.id === abaLoja)?.rotulo
       ?? (abaLoja === 'configuracoes' ? 'Configurações da loja' : abaLoja === 'conta' ? 'Conta AVLE' : abaLoja);
+  const tituloDaPagina = abaLoja === 'relatorio' && !grupoSelecionado ? 'Relatório a receber' : tituloDaSecao;
 
   return (
     <div className="flex flex-col min-h-screen text-[#0B1E14] fundo-painel relative">
@@ -1903,6 +1911,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         principal={ehColaborador ? undefined : <BotaoDaConta ativo={!grupoSelecionado && abaLoja === 'conta'} aoClicar={() => irParaSecao('conta')} />}
         menuDoCelular={[
           { icone: 'ajuda', rotulo: 'Rever o passo a passo', aoClicar: tour.abrir },
+          ...(ehColaborador ? [] : [{ icone: 'financeiro' as const, rotulo: 'Relatório a receber', aoClicar: () => irParaSecao('relatorio') }]),
           { icone: 'link', rotulo: 'Copiar link da loja', aoClicar: handleCopiarLinkConvite },
           { icone: 'configuracoes', rotulo: 'Configurações', aoClicar: () => irParaSecao('configuracoes') },
           { icone: 'sair', rotulo: 'Sair', perigo: true, aoClicar: async () => { await encerrarSessao(); window.location.href = '/'; } },
@@ -1937,7 +1946,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
       <TrilhoDeNavegacao
         soCelular
-        itens={secoesDaLoja}
+        itens={secoesNoCelular}
         ativo={grupoSelecionado ? '' : abaLoja}
         aoEscolher={irParaSecao}
         aoSair={async () => { await encerrarSessao(); window.location.href = '/'; }}
@@ -1964,7 +1973,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
         )}
 
         <CabecalhoDaPagina
-          titulo={tituloDaSecao}
+          titulo={tituloDaPagina}
           descricao={`${nomeLojaReal || 'Unidade'} · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`}
           aoVoltar={
             grupoSelecionado
@@ -2353,6 +2362,17 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
 
               return (
               <div className="space-y-6 animate-fadeIn">
+
+                {!ehColaborador && (
+                  <button type="button" onClick={() => irParaSecao('relatorio')}
+                    className="w-full cartao-avle p-4 sm:p-5 flex items-center justify-between gap-4 text-left cursor-pointer hover:ring-2 hover:ring-painel-acento/40 transition-shadow">
+                    <span>
+                      <span className="block text-[14px] font-semibold text-painel-tinta">Relatório a receber</span>
+                      <span className="block text-[12px] text-stone-500 mt-0.5">Quanto falta receber de cada grupo, o que está vencido e a previsão mês a mês.</span>
+                    </span>
+                    <span className="h-9 px-4 rounded-full bg-painel-tinta text-white text-[12px] font-semibold flex items-center flex-shrink-0">Abrir</span>
+                  </button>
+                )}
 
                 {/* Enquanto a conta do Asaas nao estiver pronta, a loja ve aqui
                     o que falta - some sozinha quando a conta fica ativa. */}
@@ -2833,6 +2853,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
               </div>
               );
             })()}
+
+            {abaLoja === 'relatorio' && !ehColaborador && !grupoSelecionado && (
+              <RelatorioAReceber lojaId={Number(usuario?.lojaId || usuario?.id)} />
+            )}
 
             {abaLoja === 'conta' && !ehColaborador && (
               <PaginaContaAvle
