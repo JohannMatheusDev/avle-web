@@ -10,10 +10,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 export default function PainelAdminSaaS() {
   const router = useRouter();
-  // 🔄 Sistema expandido para 4 abas estilo SaaS
+  
   const [abaAtiva, setAbaAtiva] = useState<'visao' | 'lojas' | 'sorteio' | 'cadastro'>('visao');
   
-  // 🏪 Conexões SaaS: Lojas e Faturamento Global
+
   const [lojasPendentes, setLojasPendentes] = useState<any[]>([]);
   const [loadingLojas, setLoadingLojas] = useState(false);
   const [metricasSaaS, setMetricasSaaS] = useState({
@@ -150,7 +150,6 @@ export default function PainelAdminSaaS() {
     }
   };
 
-  // 🏪 SEU DISPARO DE CRIAÇÃO DE NOVO GRUPO ORIGINAL
   const criarGrupo = async (e: React.FormEvent) => {
     e.preventDefault();
     setErroGrupo('');

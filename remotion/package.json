@@ -1,0 +1,37 @@
+{
+  "name": "remotion-videos",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "remotion studio src/index.ts",
+    "preview": "remotion render src/index.ts SinapisDevIntro out/preview-frames --sequence --image-format=jpeg --scale=0.25 --log=error",
+    "frames": "remotion render src/index.ts SinapisDevIntro out/master-frames --sequence --image-format=png --log=error",
+    "stitch": "ffmpeg -y -loglevel error -framerate 30 -i out/master-frames/element-%03d.png -vf \"scale=out_color_matrix=bt709:out_range=tv,format=yuv420p\" -c:v libx264 -profile:v high -level 4.0 -preset veryslow -crf 10 -x264-params \"keyint=60:min-keyint=60:scenecut=0:colorprim=bt709:transfer=bt709:colormatrix=bt709\" -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv -movflags +faststart -an out/deliverables/sinapis-dev-intro-silent.mp4",
+    "cover": "remotion still src/index.ts SinapisDevCover out/deliverables/sinapis-dev-intro-cover.png --log=error",
+    "master": "npm run frames && npm run stitch && npm run cover",
+    "avle:frames": "remotion render src/index.ts AvleApresentacao out/avle-frames --sequence --image-format=jpeg --jpeg-quality=95 --log=error",
+    "avle:montar": "bash scripts/avle-montar.sh",
+    "avle:capa": "remotion still src/index.ts AvleCapa out/avle-capa.png --log=error",
+    "avle": "npm run avle:frames && npm run avle:montar && npm run avle:capa",
+    "avle-v2:ritmo": "node scripts/avle-v2-ritmo.mjs",
+    "avle-v2:frames": "remotion render src/index.ts AvleApresentacaoV2 out/avle-v2-frames --sequence --image-format=jpeg --jpeg-quality=95 --log=error",
+    "avle-v2:montar": "node scripts/avle-v2-montar.mjs",
+    "avle-v2:capa": "remotion still src/index.ts AvleCapaV2 out/avle-v2-capa.png --log=error",
+    "avle-v2": "npm run avle-v2:ritmo && npm run avle-v2:frames && npm run avle-v2:montar && npm run avle-v2:capa",
+    "upgrade": "remotion upgrade"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/urbanist": "5.3.0",
+    "@remotion/cli": "^4.0.300",
+    "@remotion/transitions": "4.0.532",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "^4.0.300"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.6.0"
+  }
+}
