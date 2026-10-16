@@ -128,7 +128,7 @@ export function Numero({ rotulo, valor, nota, destaque }: { rotulo: string; valo
   return (
     <div className={destaque ? 'cartao-avle-destaque p-5' : 'cartao-avle p-5'}>
       <span className={`block text-[12px] font-medium ${destaque ? 'text-white/60' : 'text-stone-500'}`}>{rotulo}</span>
-      <span className={`block text-[26px] font-semibold tracking-tight tabular-nums mt-2 ${destaque ? 'text-white' : 'text-painel-tinta'}`}>{valor}</span>
+      <span className={`block text-[22px] sm:text-[26px] font-semibold tracking-tight tabular-nums mt-2 break-words ${destaque ? 'text-white' : 'text-painel-tinta'}`}>{valor}</span>
       {nota && <span className={`block text-[11px] mt-1 ${destaque ? 'text-white/50' : 'text-stone-400'}`}>{nota}</span>}
     </div>
   );

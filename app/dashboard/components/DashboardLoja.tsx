@@ -1757,10 +1757,11 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     { id: 'conversas',  rotulo: 'Conversas',          icone: 'conversas',  contador: conversasNaoLidas, urgente: true },
     { id: 'fila',       rotulo: 'Fila de espera',     icone: 'fila',       contador: filaEspera.length, rotuloCurto: 'Fila' },
     { id: 'grupos',     rotulo: 'Grupos',             icone: 'grupos' },
-    { id: 'sorteios',   rotulo: 'Sorteios / Entrega', icone: 'sorteios', rotuloCurto: 'Sorteios' },
-    { id: 'afiliados',  rotulo: 'Afiliadas',          icone: 'link' },
+    // Logo depois de Grupos, onde cabe na barra: no fim ela era cortada.
     // Dinheiro da loja: o colaborador não vê, como no resto do financeiro.
     ...(ehColaborador ? [] : [{ id: 'relatorio', rotulo: 'Relatório', icone: 'financeiro' } as ItemDeNavegacao]),
+    { id: 'sorteios',   rotulo: 'Sorteios / Entrega', icone: 'sorteios', rotuloCurto: 'Sorteios' },
+    { id: 'afiliados',  rotulo: 'Afiliadas',          icone: 'link' },
   ];
   // A barra do celular já tem nove itens; o relatório entra pelo menu de lá e
   // pelo atalho da tela inicial, em vez de espremer um décimo ícone.

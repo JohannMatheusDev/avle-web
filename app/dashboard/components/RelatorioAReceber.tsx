@@ -117,7 +117,7 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
       </div>
 
       {/* ── Posição da carteira ── */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Numero destaque rotulo="Falta receber" valor={reais(r.aReceber)}
           nota={`${reais(r.parteDaLojaAReceber)} da loja · ${reais(r.comissaoAvleAReceber)} da AVLE`} />
         <Numero rotulo="Vencido, sem pagar" valor={<span className={Number(r.vencido) > 0 ? 'text-amber-700' : ''}>{reais(r.vencido)}</span>}
