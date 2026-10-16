@@ -118,13 +118,13 @@ const data = (v: unknown, comHora = false) => {
     : d.toLocaleDateString('pt-BR');
 };
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-function rotuloDoPonto(r: string) {
+export function rotuloDoPonto(r: string) {
   if (r.length === 10) return `${r.slice(8, 10)}/${r.slice(5, 7)}`;
   if (r.length === 7) return `${MESES[Number(r.slice(5, 7)) - 1]}/${r.slice(2, 4)}`;
   return r;
 }
 
-function Numero({ rotulo, valor, nota, destaque }: { rotulo: string; valor: React.ReactNode; nota?: React.ReactNode; destaque?: boolean }) {
+export function Numero({ rotulo, valor, nota, destaque }: { rotulo: string; valor: React.ReactNode; nota?: React.ReactNode; destaque?: boolean }) {
   return (
     <div className={destaque ? 'cartao-avle-destaque p-5' : 'cartao-avle p-5'}>
       <span className={`block text-[12px] font-medium ${destaque ? 'text-white/60' : 'text-stone-500'}`}>{rotulo}</span>
@@ -178,7 +178,7 @@ function MostrarMais({ resto, aoClicar }: { resto: number; aoClicar: () => void 
   );
 }
 
-function baixarPlanilha(nome: string, linhas: (string | number)[][]) {
+export function baixarPlanilha(nome: string, linhas: (string | number)[][]) {
   const csv = linhas.map((l) => l.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
   const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
   const a = document.createElement('a');
@@ -194,7 +194,7 @@ function baixarPlanilha(nome: string, linhas: (string | number)[][]) {
  * verde da marca e o terracota se confundem para quem não distingue
  * vermelho e verde.
  */
-function GraficoPorPeriodo({ pontos, cima, baixo, formatar = (n) => String(n) }: {
+export function GraficoPorPeriodo({ pontos, cima, baixo, formatar = (n) => String(n) }: {
   pontos: { rotulo: string; cima: number; baixo?: number; dica?: string }[];
   cima: string;
   baixo?: string;
