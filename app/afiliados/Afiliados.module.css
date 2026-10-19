@@ -149,3 +149,40 @@
 .chamada + .apoio {
   margin-top: var(--space-2);
 }
+
+/* O aviso de desligamento no painel da afiliada: o motivo escrito pela loja. */
+
+.desligada {
+  gap: var(--space-3);
+  border: 1px solid var(--negative);
+  background: var(--negative-soft);
+}
+
+.desligadaTopo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.desligadaData {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.desligadaTitulo {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  margin: 0;
+}
+
+.desligadaMotivo {
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: var(--space-1) solid var(--negative);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
