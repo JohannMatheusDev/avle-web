@@ -24,6 +24,8 @@ type Comissao = {
 };
 type Painel = {
   nome: string; codigo: string; ativo: boolean; chavePix: string; loja: string; regra: string | null;
+  /** Vêm preenchidos quando a loja desliga: é o texto escrito por ela. */
+  motivoDesligamento?: string | null; desligadaEm?: string | null;
   clientesIndicados: number; clientesQuePagaram: number; parcelasPagas: number;
   totalGanho: number; aReceber: number; recebido: number; aDefinir: number;
   indicadas: Indicada[]; comissoes: Comissao[];
@@ -133,6 +135,25 @@ export default function DashboardAfiliado({ usuario, aoAbrirPainelDaCliente }: {
           <div className={s.secao}>
             <PageHead title={`Olá, ${painel.nome.split(' ')[0]}`}
               sub={painel.ativo ? `Você divulga a ${painel.loja}` : `Seu link da ${painel.loja} foi desligado pela loja`} />
+
+            {/* Desligada: o aviso vem antes de tudo, com o motivo escrito pela loja. */}
+            {!painel.ativo && (
+              <Card className={s.desligada}>
+                <div className={s.desligadaTopo}>
+                  <Badge tone="negative" dot>Desligada</Badge>
+                  {painel.desligadaEm && <span className={s.desligadaData}>{dataCurta(painel.desligadaEm)}</span>}
+                </div>
+                <h3 className={s.desligadaTitulo}>A {painel.loja} desligou você das afiliadas</h3>
+                {painel.motivoDesligamento && (
+                  <p className={s.desligadaMotivo}>{painel.motivoDesligamento}</p>
+                )}
+                <p className={s.apoio}>
+                  Seu link parou de marcar clientes novas e as próximas parcelas não geram comissão. O que você já
+                  indicou continua aqui, e as comissões a receber seguem para pagamento. Para voltar a divulgar, fale
+                  com a {painel.loja}.
+                </p>
+              </Card>
+            )}
 
             <Card title="Seu link de indicação" subtitle="Quem se cadastrar por ele fica marcada como sua indicação">
               <div className={s.link}>
