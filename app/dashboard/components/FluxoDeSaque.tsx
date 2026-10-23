@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
+import { aplicarMascaraValor } from '../../lib/validacao';
 import { Icone } from './Casca';
 import { real } from './Indicadores';
 
@@ -335,16 +336,16 @@ export default function FluxoDeSaque({
                 <input
                   autoFocus
                   aria-label="Valor"
-                  inputMode="decimal"
+                  inputMode="numeric"
                   value={valor}
-                  onChange={(e) => setValor(e.target.value.replace(/[^\d,.]/g, ''))}
+                  onChange={(e) => setValor(aplicarMascaraValor(e.target.value))}
                   placeholder="0,00"
                   className="w-[220px] bg-transparent outline-none text-[44px] font-semibold tabular-nums text-painel-tinta placeholder:text-stone-300 text-center"
                 />
               </div>
               <div className="mt-2 text-center">
                 <span className="text-[12px] text-stone-500">Disponível {real(saldo)} · </span>
-                <button type="button" onClick={() => setValor(saldo.toFixed(2).replace('.', ','))} className="text-[12px] font-semibold text-painel-acento hover:underline cursor-pointer">
+                <button type="button" onClick={() => setValor(aplicarMascaraValor(saldo.toFixed(2)))} className="text-[12px] font-semibold text-painel-acento hover:underline cursor-pointer">
                   Usar tudo
                 </button>
               </div>
