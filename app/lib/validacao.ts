@@ -100,3 +100,14 @@ export const aplicarMascaraCep = (valor: string) => {
   if (digitos.length <= 5) return digitos;
   return `${digitos.slice(0, 5)}-${digitos.slice(5, 8)}`;
 };
+
+/**
+ * Dinheiro como no app do banco: os dígitos entram pelos centavos e o ponto e a
+ * vírgula aparecem sozinhos. 5 vira 0,05; 123456 vira 1.234,56. Sem o "R$", que
+ * nas telas já vem ao lado.
+ */
+export const aplicarMascaraValor = (valor: string) => {
+  const digitos = somenteDigitos(valor).slice(0, 11);
+  if (!digitos) return '';
+  return (Number(digitos) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
