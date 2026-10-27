@@ -65,6 +65,7 @@ const quando = (iso: string) =>
 
 export default function FluxoDeSaque({
   lojaId,
+  daContaDaAvle,
   saldo,
   chavePix,
   tipoChavePix,
@@ -72,6 +73,8 @@ export default function FluxoDeSaque({
   aoConcluir,
 }: {
   lojaId: number | undefined;
+  /** Saque da conta da própria AVLE, no painel do admin: outras rotas, sem lojaId. */
+  daContaDaAvle?: boolean;
   saldo: number;
   chavePix: string;
   tipoChavePix: string;
@@ -79,6 +82,8 @@ export default function FluxoDeSaque({
   /** Depois do comprovante: a Conta AVLE relê saldo, extrato e saques. */
   aoConcluir: () => void;
 }) {
+  // As rotas da AVLE espelham as da loja: muda o começo do caminho, e nada mais.
+  const conta = daContaDaAvle ? `${API_URL}/api/admin/conta` : `${API_URL}/api/lojas/${lojaId}/conta`;
   const [passo, setPasso] = useState<Passo>('carregando');
   const [historico, setHistorico] = useState<Passo[]>([]);
   const [situacao, setSituacao] = useState<SenhaDeSaque>({ definida: false, bloqueadaAte: null, liberaEm: null });
@@ -111,14 +116,14 @@ export default function FluxoDeSaque({
 
   const lerSituacao = useCallback(async () => {
     try {
-      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/senha-saque`);
+      const res = await apiFetch(`${conta}/senha-saque`);
       const s: SenhaDeSaque = res.ok ? await res.json() : { definida: false, bloqueadaAte: null, liberaEm: null };
       setSituacao(s);
       return s;
     } catch {
       return null;
     }
-  }, [lojaId]);
+  }, [conta]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- leitura inicial da senha de saque
@@ -137,7 +142,7 @@ export default function FluxoDeSaque({
     setErro('');
     try {
       const q = `chave=${encodeURIComponent(chaveAlvo)}&tipo=${encodeURIComponent(tipoAlvo)}`;
-      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/consultar-chave?${q}`);
+      const res = await apiFetch(`${conta}/consultar-chave?${q}`);
       if (!res.ok) throw new Error(await lerErro(res, 'Não foi possível conferir a chave agora.'));
       setTitular(await res.json());
       setDaLoja(doLoja);
@@ -161,7 +166,7 @@ export default function FluxoDeSaque({
     setPasso('enviando');
     setErro('');
     try {
-      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/saque`, {
+      const res = await apiFetch(`${conta}/saque`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -238,7 +243,7 @@ export default function FluxoDeSaque({
 
           {passo === 'criar-senha' && (
             <CriarSenha
-              lojaId={lojaId}
+              conta={conta}
               troca={situacao.definida}
               aoCriar={(s) => { setSituacao(s); setHistorico([]); setPasso('destino'); }}
             />
@@ -588,7 +593,7 @@ function Comprovante({ saque, titular, aoVoltar }: { saque: SaqueFeito; titular:
 }
 
 /** Criar ou trocar a senha de saque, dentro do fluxo. */
-function CriarSenha({ lojaId, troca, aoCriar }: { lojaId: number | undefined; troca: boolean; aoCriar: (s: SenhaDeSaque) => void }) {
+function CriarSenha({ conta, troca, aoCriar }: { conta: string; troca: boolean; aoCriar: (s: SenhaDeSaque) => void }) {
   const [senhaDoPainel, setSenhaDoPainel] = useState('');
   const [nova, setNova] = useState('');
   const [repetida, setRepetida] = useState('');
@@ -603,7 +608,7 @@ function CriarSenha({ lojaId, troca, aoCriar }: { lojaId: number | undefined; tr
     setEnviando(true);
     setErro('');
     try {
-      const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/senha-saque`, {
+      const res = await apiFetch(`${conta}/senha-saque`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ senhaDoPainel, novaSenha: nova }),
