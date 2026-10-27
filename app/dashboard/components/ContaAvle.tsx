@@ -736,18 +736,53 @@ type VisaoDoAdmin = {
 export function ContaAvleDoAdmin({ aoAbrirLoja }: { aoAbrirLoja?: (lojaId: number) => void }) {
   const [visao, setVisao] = useState<VisaoDoAdmin | null>(null);
   const [erro, setErro] = useState('');
+  const [aba, setAba] = useState<'extrato' | 'saques'>('extrato');
+  const [dias, setDias] = useState<7 | 30 | 90>(30);
+  const [extrato, setExtrato] = useState<{ lancamentos: Lancamento[]; temMais: boolean } | null>(null);
+  const [erroDosMovimentos, setErroDosMovimentos] = useState('');
+  const [saques, setSaques] = useState<Saque[]>([]);
+  const [modalSaque, setModalSaque] = useState(false);
+
+  const carregarVisao = useCallback(async () => {
+    try {
+      const res = await apiFetch(`${API_URL}/api/admin/conta-avle`);
+      if (!res.ok) throw new Error(await lerErro(res, 'Não foi possível carregar a Conta AVLE.'));
+      setVisao(await res.json());
+      setErro('');
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Não foi possível carregar a Conta AVLE.');
+    }
+  }, []);
+
+  // O extrato e os saques são da conta da própria AVLE: as rotas do admin
+  // espelham as da loja, com a chave da AVLE no lugar da chave da loja.
+  const carregarMovimentos = useCallback(async () => {
+    setErroDosMovimentos('');
+    try {
+      const [umExtrato, umaLista] = await Promise.all([
+        apiFetch(`${API_URL}/api/admin/conta/extrato?dias=${dias}&offset=0`),
+        apiFetch(`${API_URL}/api/admin/conta/saques`),
+      ]);
+      if (!umExtrato.ok) throw new Error(await lerErro(umExtrato, 'Não foi possível carregar o extrato.'));
+      setExtrato(await umExtrato.json());
+      setSaques(umaLista.ok ? await umaLista.json() : []);
+    } catch (e) {
+      setExtrato(null);
+      setErroDosMovimentos(e instanceof Error ? e.message : 'Não foi possível carregar o extrato.');
+    }
+  }, [dias]);
+
+  // A primeira carga sai depois da renderização: chamada direto no efeito, o
+  // estado mudaria em cascata (regra do React).
+  useEffect(() => {
+    const t = setTimeout(carregarVisao, 0);
+    return () => clearTimeout(t);
+  }, [carregarVisao]);
 
   useEffect(() => {
-    let ativo = true;
-    apiFetch(`${API_URL}/api/admin/conta-avle`)
-      .then(async (res) => {
-        if (!res.ok) throw new Error(await lerErro(res, 'Não foi possível carregar a Conta AVLE.'));
-        return res.json();
-      })
-      .then((dados) => { if (ativo) setVisao(dados); })
-      .catch((e) => { if (ativo) setErro(e instanceof Error ? e.message : 'Não foi possível carregar a Conta AVLE.'); });
-    return () => { ativo = false; };
-  }, []);
+    const t = setTimeout(carregarMovimentos, 0);
+    return () => clearTimeout(t);
+  }, [carregarMovimentos]);
 
   if (!visao) {
     return <div className="cartao-avle p-8 text-center text-[13px] text-stone-400">{erro || 'Carregando a Conta AVLE…'}</div>;
@@ -767,6 +802,12 @@ export function ContaAvleDoAdmin({ aoAbrirLoja }: { aoAbrirLoja?: (lojaId: numbe
               <span className="block text-[13px] text-amber-300">{visao.erroSaldoAvle || 'Saldo indisponível agora.'}</span>
             )}
             <span className="block text-[11px] text-white/50 mt-2">na conta da AVLE no Asaas</span>
+            {visao.saldoAvle != null && visao.saldoAvle > 0 && (
+              <button type="button" onClick={() => setModalSaque(true)}
+                className="mt-4 h-10 px-5 rounded-full bg-white text-painel-tinta text-[12px] font-semibold hover:bg-white/90 cursor-pointer">
+                Sacar via Pix
+              </button>
+            )}
           </div>
         </div>
         <div className="cartao-avle p-6 min-h-[180px] flex flex-col justify-between">
@@ -828,6 +869,107 @@ export function ContaAvleDoAdmin({ aoAbrirLoja }: { aoAbrirLoja?: (lojaId: numbe
           </table>
         </div>
       </div>
+
+      <div className="cartao-avle overflow-hidden">
+        <div className="px-5 py-4 border-b border-painel-borda/70 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Conta da AVLE</h3>
+            <p className="text-[11px] text-stone-400">o que entrou e saiu da conta da própria AVLE no Asaas</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex rounded-full bg-painel-papel p-0.5">
+              {(['extrato', 'saques'] as const).map((id) => (
+                <button key={id} type="button" onClick={() => setAba(id)}
+                  className={`h-8 px-4 rounded-full text-[12px] font-semibold cursor-pointer ${
+                    aba === id ? 'bg-painel-tinta text-white' : 'text-stone-500 hover:text-painel-tinta'
+                  }`}>
+                  {id === 'extrato' ? 'Extrato' : `Saques${saques.length > 0 ? ` (${saques.length})` : ''}`}
+                </button>
+              ))}
+            </div>
+            {aba === 'extrato' && (
+              <div className="flex rounded-full bg-painel-papel p-0.5">
+                {([7, 30, 90] as const).map((d) => (
+                  <button key={d} type="button" onClick={() => setDias(d)}
+                    className={`h-8 px-3 rounded-full text-[12px] font-semibold cursor-pointer ${
+                      dias === d ? 'bg-painel-tinta text-white' : 'text-stone-500 hover:text-painel-tinta'
+                    }`}>
+                    {d} dias
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {erroDosMovimentos ? (
+          <p className="px-5 py-6 text-[12px] text-rose-700">{erroDosMovimentos}</p>
+        ) : aba === 'extrato' ? (
+          !extrato ? (
+            <p className="px-5 py-6 text-[12px] text-stone-400">Carregando o extrato…</p>
+          ) : extrato.lancamentos.length === 0 ? (
+            <p className="px-5 py-6 text-[12px] text-stone-400">Nenhuma movimentação nos últimos {dias} dias.</p>
+          ) : (
+            <div className="divide-y divide-painel-borda/60">
+              {extrato.lancamentos.map((l) => (
+                <div key={l.id} className="px-5 py-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-painel-tinta">{l.titulo}</p>
+                    <p className="text-[11px] text-stone-400 truncate">
+                      {new Date(`${l.data.slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR')}
+                      {l.descricao ? ` · ${l.descricao}` : ''}
+                    </p>
+                  </div>
+                  <span className={`text-[13px] font-semibold tabular-nums ${
+                    Number(l.valor) < 0 ? 'text-rose-700' : 'text-emerald-700'
+                  }`}>
+                    {real(Number(l.valor))}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )
+        ) : saques.length === 0 ? (
+          <p className="px-5 py-6 text-[12px] text-stone-400">Nenhum saque pedido na conta da AVLE ainda.</p>
+        ) : (
+          <div className="divide-y divide-painel-borda/60">
+            {saques.map((q) => {
+              const situacao = SITUACAO_DO_SAQUE[q.status];
+              return (
+                <div key={q.id} className="px-5 py-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-painel-tinta">
+                      Saque via Pix
+                      <span className={`ml-2 h-5 px-2 rounded-full text-[10px] font-semibold inline-flex items-center ${
+                        situacao?.classe ?? 'bg-painel-papel text-stone-500'
+                      }`}>
+                        {situacao?.rotulo ?? q.status}
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-stone-400 truncate">
+                      {new Date(q.criadoEm).toLocaleString('pt-BR')} · {NOME_DO_TIPO[q.tipoChavePix] ?? q.tipoChavePix} {q.chavePix}
+                      {q.motivoFalha ? ` · ${q.motivoFalha}` : ''}
+                    </p>
+                  </div>
+                  <span className="text-[13px] font-semibold tabular-nums text-painel-tinta">{real(-Number(q.valor))}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {modalSaque && (
+        <FluxoDeSaque
+          lojaId={undefined}
+          daContaDaAvle
+          saldo={Number(visao.saldoAvle ?? 0)}
+          chavePix=""
+          tipoChavePix=""
+          aoFechar={() => setModalSaque(false)}
+          aoConcluir={() => { setModalSaque(false); carregarVisao(); carregarMovimentos(); }}
+        />
+      )}
     </div>
   );
 }
