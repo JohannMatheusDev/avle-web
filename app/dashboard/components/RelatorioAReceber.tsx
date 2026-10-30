@@ -89,6 +89,15 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
   const r = dados.resumo;
   const referencia = new Date(`${dados.dataReferencia}T12:00:00`).toLocaleDateString('pt-BR');
 
+  // A previsão do servidor começa no mês que vem, então o primeiro ponto é ele.
+  // É a pergunta que a loja faz primeiro: quanto entra no mês que vem, somando
+  // todos os grupos.
+  const proximo = dados.previsao[0];
+  const mesQueVem = proximo
+    ? new Date(`${proximo.competencia}-01T12:00:00`).toLocaleDateString('pt-BR', { month: 'long' })
+    : '';
+  const gruposQueEntram = dados.grupos.filter((g) => Number(g.previstoProximoMes) > 0).length;
+
   const planilha = () => baixarPlanilha(`a-receber-${dados.dataReferencia}.csv`, [
     ['Grupo', 'Cliente', 'Telefone', 'Parcelas pagas', 'Parcelas que já deviam estar pagas', 'Total de parcelas', 'Parcelas em atraso',
       'Situação', 'Recebido', 'Vencido', 'Falta receber', 'Contemplada', 'Retirou o produto'],
@@ -116,13 +125,38 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
         </div>
       </div>
 
+      {/* ── O mês que vem, em destaque ── */}
+      {proximo && (
+        <div className="cartao-avle-destaque p-6 sm:p-8">
+          <span className="block text-[11px] font-bold uppercase tracking-wider text-white/50">
+            Entra em {mesQueVem}
+          </span>
+          <span className="block text-[38px] sm:text-[52px] font-semibold tracking-tight tabular-nums leading-none mt-2 break-words">
+            {reais(proximo.valor)}
+          </span>
+          <span className="block text-[13px] text-white/60 mt-2">
+            {proximo.parcelas} parcela(s){gruposQueEntram > 0 && `, de ${gruposQueEntram} grupo(s)`}, se todas forem pagas em dia
+          </span>
+          <div className="mt-5 pt-4 border-t border-white/15 flex flex-wrap gap-x-8 gap-y-2">
+            <span className="block">
+              <span className="block text-[11px] text-white/50">Fica com a loja</span>
+              <span className="block text-[18px] font-semibold tabular-nums">{reais(proximo.parteDaLoja)}</span>
+            </span>
+            <span className="block">
+              <span className="block text-[11px] text-white/50">Comissão da AVLE</span>
+              <span className="block text-[18px] font-semibold tabular-nums text-white/70">{reais(proximo.comissaoAvle)}</span>
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* ── Posição da carteira ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Numero destaque rotulo="Falta receber" valor={reais(r.aReceber)}
           nota={`${reais(r.parteDaLojaAReceber)} da loja · ${reais(r.comissaoAvleAReceber)} da AVLE`} />
         <Numero rotulo="Vencido, sem pagar" valor={<span className={Number(r.vencido) > 0 ? 'text-amber-700' : ''}>{reais(r.vencido)}</span>}
           nota={`inadimplência de ${pct(r.inadimplencia)} · ${r.cotasEmAtraso} cota(s) em atraso`} />
-        <Numero rotulo="A vencer" valor={reais(r.aVencer)} nota={`${reais(r.previstoProximoMes)} previstos no mês que vem`} />
+        <Numero rotulo="A vencer" valor={reais(r.aVencer)} nota="parcelas que ainda vão vencer, até o fim dos grupos" />
         <Numero rotulo="Já recebido" valor={reais(r.recebido)} nota={`${pct(r.percentualRecebido)} do contratado (${reais(r.contratado)})`} />
       </div>
 
@@ -225,9 +259,12 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
               <th className={`${th} text-right`}>Parte da loja</th><th className={`${th} text-right`}>Parte da AVLE</th>
             </tr></thead>
             <tbody className="divide-y divide-painel-borda">
-              {dados.previsao.map((p) => (
-                <tr key={p.competencia}>
-                  <td className={`${td} font-semibold text-painel-tinta`}>{rotuloDoPonto(p.competencia)}</td>
+              {dados.previsao.map((p, i) => (
+                <tr key={p.competencia} className={i === 0 ? 'bg-painel-papel/70' : undefined}>
+                  <td className={`${td} font-semibold text-painel-tinta`}>
+                    {rotuloDoPonto(p.competencia)}
+                    {i === 0 && <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-painel-acento">mês que vem</span>}
+                  </td>
                   <td className={`${td} text-right tabular-nums`}>{p.parcelas}</td>
                   <td className={`${td} text-right tabular-nums font-semibold`}>{reais(p.valor)}</td>
                   <td className={`${td} text-right tabular-nums text-emerald-700`}>{reais(p.parteDaLoja)}</td>
