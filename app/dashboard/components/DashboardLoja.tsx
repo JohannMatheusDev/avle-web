@@ -10,6 +10,7 @@ import EquipeDaLoja from './EquipeDaLoja';
 import EmailDaConta from './EmailDaConta';
 import PedidosDaEquipe from './PedidosDaEquipe';
 import Conversas from './Conversas';
+import TrocarCelular from './TrocarCelular';
 import AfiliadosDaLoja from './AfiliadosDaLoja';
 import ContaAsaasDaLoja from './ContaAsaasDaLoja';
 import {
@@ -3013,6 +3014,12 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                    <td className="py-3 px-5">
                                      <span className="block font-bold text-[#0B1E14]">{cli.nome}</span>
                                      <span className="text-[10px] text-stone-400">{cli.email || 'Sem e-mail cadastrado'}</span>
+                                     <span className="block text-[10px] text-stone-400 font-mono">
+                                       {cli.telefone ? aplicarMascaraTelefone(String(cli.telefone)) : 'Sem celular'}
+                                     </span>
+                                     <TrocarCelular clienteId={cli.id} telefoneAtual={cli.telefone}
+                                       aoTrocar={(telefone) => setListaClientesLoja((atual) =>
+                                         atual.map((c) => (c.id === cli.id ? { ...c, telefone } : c)))} />
                                    </td>
                                    <td className="py-3 px-5 font-mono text-stone-500">
                                      {cli.cpf ? aplicarMascaraCpf(cli.cpf) : 'Não informado'}
