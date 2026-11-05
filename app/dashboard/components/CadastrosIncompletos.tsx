@@ -14,6 +14,7 @@
 
 import { useState } from 'react';
 import { apiFetch } from '../../lib/api';
+import TrocarCelular from './TrocarCelular';
 
 type Linha = {
   id: number;
@@ -142,6 +143,10 @@ export default function CadastrosIncompletos({ caminho, mostrarLoja = false, nom
                   <p className="text-[11px] text-stone-400">
                     {l.telefone || 'sem celular'}{l.email ? ` · ${l.email}` : ''}
                   </p>
+                  {/* Quem não confirmou o código muitas vezes digitou o celular errado. */}
+                  <TrocarCelular clienteId={l.id} telefoneAtual={l.telefone}
+                    aoTrocar={(telefone) => setLista((atual) =>
+                      (atual ?? []).map((x) => (x.id === l.id ? { ...x, telefone } : x)))} />
                 </div>
                 {link && (
                   <a href={link} target="_blank" rel="noreferrer"
