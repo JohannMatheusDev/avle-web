@@ -133,6 +133,10 @@ export function gerarPdf(nome: string, abas: Aba[], info: InfoDoRelatorio) {
       // O título da coluna de número acompanha o número, à direita.
       didParseCell: (d) => {
         if (d.section === 'head' && t.direita.includes(d.column.index)) d.cell.styles.halign = 'right';
+        // Linha de total em negrito, para não parecer só mais uma linha.
+        if (d.section === 'body' && t.aba.ultimaLinhaEhTotal && d.row.index === t.body.length - 1) {
+          d.cell.styles.fontStyle = 'bold';
+        }
       },
     });
     y = ((doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? y) + 9;

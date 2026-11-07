@@ -45,6 +45,12 @@ const pct = (v: unknown) => `${(Number(v) || 0).toLocaleString('pt-BR', { maximu
 const th = 'py-3 px-4 text-[10px] font-semibold uppercase tracking-wider text-stone-400 whitespace-nowrap';
 const td = 'py-3 px-4';
 
+// Parcelas que faltam, somando cliente por cliente: o total do plano menos
+// as já pagas. As vencidas são as que já deviam ter entrado até hoje.
+const parcelasQueFaltam = (g: GrupoAReceber) =>
+  g.clientes.reduce((t, c) => t + Math.max(0, c.parcelasTotal - c.parcelasPagas), 0);
+const parcelasVencidas = (g: GrupoAReceber) => g.clientes.reduce((t, c) => t + c.parcelasEmAtraso, 0);
+
 const SITUACAO: Record<string, { texto: string; classe: string }> = {
   EM_DIA: { texto: 'Em dia', classe: 'text-emerald-700' },
   ADIANTADA: { texto: 'Adiantada', classe: 'text-emerald-700' },
@@ -105,17 +111,44 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
     : '';
   const gruposQueEntram = dados.grupos.filter((g) => Number(g.previstoProximoMes) > 0).length;
 
+  const faltamNoTotal = dados.grupos.reduce((t, g) => t + parcelasQueFaltam(g), 0);
+  const vencidasNoTotal = dados.grupos.reduce((t, g) => t + parcelasVencidas(g), 0);
+
   const planilha = (formato: Formato) => baixarRelatorio(`a-receber-${dados.dataReferencia}`, [
     {
-      nome: 'Clientes',
-      decimais: [8, 9, 10],
-      // No PDF ficam de fora o telefone e as parcelas esperadas, para caber.
-      colunasNoPdf: [0, 1, 3, 5, 6, 7, 8, 9, 10, 11, 12],
+      // Um grupo por linha e o total geral no fim. Sem filtro: ordenar
+      // levaria a linha do total para o meio da tabela.
+      nome: 'Grupos',
+      decimais: [2, 7, 8, 9, 10, 11, 12, 13],
+      filtro: false,
+      ultimaLinhaEhTotal: true,
+      colunasNoPdf: [0, 1, 4, 5, 7, 8, 9, 10, 11, 12],
       linhas: [
-        ['Grupo', 'Cliente', 'Telefone', 'Parcelas pagas', 'Parcelas que já deviam estar pagas', 'Total de parcelas', 'Parcelas em atraso',
-          'Situação', 'Recebido (R$)', 'Vencido (R$)', 'Falta receber (R$)', 'Contemplada', 'Retirou o produto'],
+        ['Grupo', 'Cotas', 'Valor da parcela (R$)', 'Duração (meses)', 'Parcelas que faltam', 'Parcelas vencidas',
+          'Parcelas a vencer', 'Valor total do grupo (R$)', 'Recebido (R$)', 'Vencido (R$)', 'A vencer (R$)',
+          'Falta receber (R$)', 'Parte da loja (R$)', 'Comissão AVLE (R$)'],
+        ...dados.grupos.map((g) => [
+          g.nome, g.cotas, Number(g.valorParcela), g.duracaoMeses, parcelasQueFaltam(g), parcelasVencidas(g),
+          parcelasQueFaltam(g) - parcelasVencidas(g), Number(g.contratado), Number(g.recebido), Number(g.vencido),
+          Number(g.aVencer), Number(g.aReceber), Number(g.parteDaLojaAReceber), Number(g.comissaoAvleAReceber),
+        ]),
+        ['Total geral', r.cotas, null, null, faltamNoTotal, vencidasNoTotal, faltamNoTotal - vencidasNoTotal,
+          Number(r.contratado), Number(r.recebido), Number(r.vencido), Number(r.aVencer), Number(r.aReceber),
+          Number(r.parteDaLojaAReceber), Number(r.comissaoAvleAReceber)],
+      ],
+    },
+    {
+      nome: 'Clientes',
+      decimais: [9, 10, 11],
+      // No PDF ficam de fora o telefone, as parcelas esperadas e a entrega, para caber.
+      colunasNoPdf: [0, 1, 3, 5, 6, 7, 8, 9, 10, 11],
+      linhas: [
+        ['Grupo', 'Cliente', 'Telefone', 'Parcelas pagas', 'Parcelas que já deviam estar pagas', 'Total de parcelas',
+          'Parcelas que faltam', 'Parcelas em atraso', 'Situação', 'Recebido (R$)', 'Vencido (R$)', 'Falta receber (R$)',
+          'Contemplada', 'Retirou o produto'],
         ...dados.grupos.flatMap((g) => g.clientes.map((c) => [
-          g.nome, c.cliente, c.telefone ?? '', c.parcelasPagas, c.parcelasEsperadas, c.parcelasTotal, c.parcelasEmAtraso,
+          g.nome, c.cliente, c.telefone ?? '', c.parcelasPagas, c.parcelasEsperadas, c.parcelasTotal,
+          Math.max(0, c.parcelasTotal - c.parcelasPagas), c.parcelasEmAtraso,
           SITUACAO[c.situacao]?.texto ?? c.situacao, Number(c.recebido), Number(c.vencido), Number(c.aReceber),
           c.contemplada ? 'Sim' : 'Não', c.retirou ? 'Sim' : 'Não',
         ])),
@@ -183,11 +216,13 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
 
       {/* ── Por grupo ── */}
       <Secao titulo="Quanto falta receber de cada grupo"
-        descricao="Clique num grupo para ver cliente por cliente. Vencido é o que já devia ter sido pago até hoje; a vencer são as parcelas que ainda vão vencer até o fim do grupo.">
+        descricao="Clique num grupo para ver cliente por cliente. Valor total é o que o grupo vale inteiro; parcelas que faltam somam as de todas as cotas. Vencido é o que já devia ter sido pago até hoje; a vencer são as parcelas que ainda vão vencer até o fim do grupo.">
         <div className="cartao-avle overflow-x-auto">
           <table className="w-full text-left text-[12px]">
             <thead><tr className="border-b border-painel-borda">
-              <th className={th}>Grupo</th><th className={`${th} text-right`}>Cotas</th><th className={`${th} text-right`}>Recebido</th>
+              <th className={th}>Grupo</th><th className={`${th} text-right`}>Cotas</th>
+              <th className={`${th} text-right`}>Valor total</th><th className={`${th} text-right`}>Parcelas que faltam</th>
+              <th className={`${th} text-right`}>Recebido</th>
               <th className={`${th} text-right`}>Vencido</th><th className={`${th} text-right`}>A vencer</th>
               <th className={`${th} text-right`}>Falta receber</th><th className={`${th} text-right`}>Parte da loja</th>
               <th className={`${th} text-right`}>Mês que vem</th><th className={`${th} text-right`}>Inadimpl.</th>
@@ -205,6 +240,11 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
                       </span>
                     </td>
                     <td className={`${td} text-right tabular-nums`}>{g.cotas}{g.vagas ? <span className="text-stone-400">/{g.vagas}</span> : null}</td>
+                    <td className={`${td} text-right tabular-nums`}>{reais(g.contratado)}</td>
+                    <td className={`${td} text-right tabular-nums font-semibold text-painel-tinta`}>
+                      {parcelasQueFaltam(g)}
+                      {parcelasVencidas(g) > 0 && <span className="block text-[10px] font-normal text-amber-700">{parcelasVencidas(g)} vencida(s)</span>}
+                    </td>
                     <td className={`${td} text-right tabular-nums`}>
                       {reais(g.recebido)}<span className="block text-[10px] text-stone-400">{pct(g.percentualRecebido)}</span>
                     </td>
@@ -219,7 +259,7 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
                   </tr>
                   {aberto === g.grupoId && (
                     <tr>
-                      <td colSpan={9} className="bg-painel-papel/50 p-0">
+                      <td colSpan={11} className="bg-painel-papel/50 p-0">
                         {g.clientes.length === 0 ? (
                           <p className="p-5 text-[12px] text-stone-400">Nenhuma cota na carteira deste grupo.</p>
                         ) : (
@@ -258,6 +298,11 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
             </tbody>
             <tfoot><tr className="border-t-2 border-painel-borda font-semibold text-painel-tinta">
               <td className={td}>Total</td><td className={`${td} text-right tabular-nums`}>{r.cotas}</td>
+              <td className={`${td} text-right tabular-nums`}>{reais(r.contratado)}</td>
+              <td className={`${td} text-right tabular-nums`}>
+                {faltamNoTotal}
+                {vencidasNoTotal > 0 && <span className="block text-[10px] font-normal text-amber-700">{vencidasNoTotal} vencida(s)</span>}
+              </td>
               <td className={`${td} text-right tabular-nums`}>{reais(r.recebido)}</td><td className={`${td} text-right tabular-nums text-amber-700`}>{reais(r.vencido)}</td>
               <td className={`${td} text-right tabular-nums`}>{reais(r.aVencer)}</td><td className={`${td} text-right tabular-nums`}>{reais(r.aReceber)}</td>
               <td className={`${td} text-right tabular-nums text-emerald-700`}>{reais(r.parteDaLojaAReceber)}</td>
