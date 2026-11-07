@@ -89,10 +89,15 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
   const r = dados.resumo;
   const referencia = new Date(`${dados.dataReferencia}T12:00:00`).toLocaleDateString('pt-BR');
 
-  // A previsão do servidor começa no mês que vem, então o primeiro ponto é ele.
-  // É a pergunta que a loja faz primeiro: quanto entra no mês que vem, somando
-  // todos os grupos.
-  const proximo = dados.previsao[0];
+  // A previsão do servidor começa no mês corrente, para o que ainda vence
+  // este mês ter lugar na tabela. O destaque continua sendo o mês que vem: é
+  // a pergunta que a loja faz primeiro, quanto entra nele somando todos os
+  // grupos. Ele é achado pela competência, e não pela posição na lista.
+  const [anoRef, mesRef] = dados.dataReferencia.split('-').map(Number);
+  const competencia = (ano: number, mes: number) => `${ano}-${String(mes).padStart(2, '0')}`;
+  const esteMes = competencia(anoRef, mesRef);
+  const competenciaDoMesQueVem = mesRef === 12 ? competencia(anoRef + 1, 1) : competencia(anoRef, mesRef + 1);
+  const proximo = dados.previsao.find((p) => p.competencia === competenciaDoMesQueVem) ?? dados.previsao[0];
   const mesQueVem = proximo
     ? new Date(`${proximo.competencia}-01T12:00:00`).toLocaleDateString('pt-BR', { month: 'long' })
     : '';
@@ -248,7 +253,7 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
 
       {/* ── Previsão ── */}
       <Secao titulo="Previsão de recebimento, mês a mês"
-        descricao="As parcelas que vencem em cada um dos próximos 12 meses, se todas forem pagas em dia. O vencido não entra aqui: ele aparece no aging, abaixo.">
+        descricao="As parcelas que ainda vencem este mês e em cada um dos próximos 12 meses, se todas forem pagas em dia. O vencido não entra aqui: ele aparece no aging, abaixo.">
         <GraficoPorPeriodo cima="Previsto por mês" formatar={reais}
           pontos={dados.previsao.map((p) => ({ rotulo: p.competencia, cima: Number(p.valor),
             dica: `${rotuloDoPonto(p.competencia)}: ${reais(p.valor)} em ${p.parcelas} parcela(s) · loja ${reais(p.parteDaLoja)} · AVLE ${reais(p.comissaoAvle)}` }))} />
@@ -259,11 +264,12 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
               <th className={`${th} text-right`}>Parte da loja</th><th className={`${th} text-right`}>Parte da AVLE</th>
             </tr></thead>
             <tbody className="divide-y divide-painel-borda">
-              {dados.previsao.map((p, i) => (
-                <tr key={p.competencia} className={i === 0 ? 'bg-painel-papel/70' : undefined}>
+              {dados.previsao.map((p) => (
+                <tr key={p.competencia} className={p === proximo ? 'bg-painel-papel/70' : undefined}>
                   <td className={`${td} font-semibold text-painel-tinta`}>
                     {rotuloDoPonto(p.competencia)}
-                    {i === 0 && <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-painel-acento">mês que vem</span>}
+                    {p === proximo && <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-painel-acento">mês que vem</span>}
+                    {p.competencia === esteMes && <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-stone-400">este mês</span>}
                   </td>
                   <td className={`${td} text-right tabular-nums`}>{p.parcelas}</td>
                   <td className={`${td} text-right tabular-nums font-semibold`}>{reais(p.valor)}</td>
