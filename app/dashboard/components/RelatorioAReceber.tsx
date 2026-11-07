@@ -12,7 +12,9 @@
 
 import { Fragment, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
-import { GraficoPorPeriodo, Numero, baixarPlanilha, rotuloDoPonto } from './RelatoriosDoAdmin';
+import { GraficoPorPeriodo, Numero, rotuloDoPonto } from './RelatoriosDoAdmin';
+import { baixarPlanilha, type Formato } from '../../lib/planilha';
+import BotaoDePlanilha from './BotaoDePlanilha';
 
 type Totais = {
   contratado: number; recebido: number; aReceber: number; vencido: number; aVencer: number;
@@ -103,16 +105,30 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
     : '';
   const gruposQueEntram = dados.grupos.filter((g) => Number(g.previstoProximoMes) > 0).length;
 
-  const planilha = () => baixarPlanilha(`a-receber-${dados.dataReferencia}.csv`, [
-    ['Grupo', 'Cliente', 'Telefone', 'Parcelas pagas', 'Parcelas que já deviam estar pagas', 'Total de parcelas', 'Parcelas em atraso',
-      'Situação', 'Recebido', 'Vencido', 'Falta receber', 'Contemplada', 'Retirou o produto'],
-    ...dados.grupos.flatMap((g) => g.clientes.map((c) => [
-      g.nome, c.cliente, c.telefone ?? '', c.parcelasPagas, c.parcelasEsperadas, c.parcelasTotal, c.parcelasEmAtraso,
-      SITUACAO[c.situacao]?.texto ?? c.situacao, Number(c.recebido).toFixed(2).replace('.', ','),
-      Number(c.vencido).toFixed(2).replace('.', ','), Number(c.aReceber).toFixed(2).replace('.', ','),
-      c.contemplada ? 'Sim' : 'Não', c.retirou ? 'Sim' : 'Não',
-    ])),
-  ]);
+  const planilha = (formato: Formato) => baixarPlanilha(`a-receber-${dados.dataReferencia}`, [
+    {
+      nome: 'Clientes',
+      decimais: [8, 9, 10],
+      linhas: [
+        ['Grupo', 'Cliente', 'Telefone', 'Parcelas pagas', 'Parcelas que já deviam estar pagas', 'Total de parcelas', 'Parcelas em atraso',
+          'Situação', 'Recebido (R$)', 'Vencido (R$)', 'Falta receber (R$)', 'Contemplada', 'Retirou o produto'],
+        ...dados.grupos.flatMap((g) => g.clientes.map((c) => [
+          g.nome, c.cliente, c.telefone ?? '', c.parcelasPagas, c.parcelasEsperadas, c.parcelasTotal, c.parcelasEmAtraso,
+          SITUACAO[c.situacao]?.texto ?? c.situacao, Number(c.recebido), Number(c.vencido), Number(c.aReceber),
+          c.contemplada ? 'Sim' : 'Não', c.retirou ? 'Sim' : 'Não',
+        ])),
+      ],
+    },
+    {
+      nome: 'Previsão',
+      decimais: [2, 3, 4],
+      linhas: [
+        ['Mês', 'Parcelas', 'Previsto (R$)', 'Parte da loja (R$)', 'Parte da AVLE (R$)'],
+        ...dados.previsao.map((p) => [rotuloDoPonto(p.competencia), p.parcelas, Number(p.valor), Number(p.parteDaLoja), Number(p.comissaoAvle)]),
+        ...(Number(dados.previstoDepois) > 0 ? [['Depois disso', null, Number(dados.previstoDepois)]] : []),
+      ],
+    },
+  ], formato);
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -121,9 +137,7 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
           Posição de <strong className="text-painel-tinta">{referencia}</strong> · {r.cotas} cota(s) na carteira, em {dados.grupos.length} grupo(s)
         </p>
         <div className="flex gap-2">
-          <button type="button" onClick={planilha} className="h-9 px-4 rounded-full bg-painel-tinta text-white text-[12px] font-semibold cursor-pointer">
-            Baixar planilha
-          </button>
+          <BotaoDePlanilha aoEscolher={planilha} className="h-9 px-4 rounded-full bg-painel-tinta text-white text-[12px] font-semibold cursor-pointer" />
           <button type="button" onClick={() => window.print()} className="h-9 px-4 rounded-full ring-1 ring-painel-borda bg-white text-painel-tinta text-[12px] font-semibold cursor-pointer">
             Imprimir
           </button>

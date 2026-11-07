@@ -2,11 +2,13 @@
  * Planilha e PDF da auditoria do split, montados no navegador com o que a
  * conferência já trouxe: nada volta ao Asaas para baixar o relatório.
  *
- * A planilha é CSV, como o extrato da Conta AVLE: separada por ponto e
- * vírgula, com BOM e valores com vírgula decimal, para o Excel em português
- * abrir já em colunas e somar os valores. O PDF sai pela impressão do
- * navegador ("Salvar como PDF"), como os contratos, sem biblioteca nova.
+ * A planilha sai em Excel ou CSV, à escolha (app/lib/planilha.ts), com uma
+ * aba para as cobranças, outra para o que está fora do AVLE e o resumo. O
+ * PDF sai pela impressão do navegador ("Salvar como PDF"), como os
+ * contratos, sem biblioteca nova.
  */
+
+import { baixarPlanilha, type Aba, type Celula, type Formato } from '../../lib/planilha';
 
 export type Problema = { gravidade: 'ALTA' | 'MEDIA'; texto: string };
 export type Repasse = { destino: 'AVLE' | 'LOJA' | 'OUTRA'; carteira?: string; valor?: number; status?: string; motivo?: string };
@@ -83,73 +85,72 @@ const repassesEmTexto = (l: Linha) =>
 const gravidade = (l: Linha) =>
   l.problemas.some((p) => p.gravidade === 'ALTA') ? 'Grave' : l.problemas.length > 0 ? 'Atenção' : '';
 
-const nomeDoArquivo = (r: Resultado, extensao: string) => {
+const nomeDoArquivo = (r: Resultado) => {
   const loja = r.loja.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  return `auditoria-split-${loja || 'loja'}-${r.conferidaEm.slice(0, 10)}.${extensao}`;
+  return `auditoria-split-${loja || 'loja'}-${r.conferidaEm.slice(0, 10)}`;
 };
 
 /* ---------------------------------------------------------------- planilha */
 
-// Texto entre aspas, e o que começa com = + - @ ganha um apóstrofo: nome de
-// cliente vem de cadastro, e o Excel executaria uma fórmula escrita ali.
-const celula = (v: unknown) => {
-  let s = v == null ? '' : String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-  return `"${s.replace(/"/g, '""')}"`;
-};
-const numero = (v?: number | null) => (v == null ? '' : Number(v).toFixed(2).replace('.', ','));
+const num = (v?: number | null): Celula => (v == null ? null : Number(v));
 
-export function baixarPlanilha(r: Resultado) {
-  const linhas: string[] = [];
-  const linha = (...campos: string[]) => linhas.push(campos.join(';'));
+export function baixarPlanilhaDaAuditoria(r: Resultado, formato: Formato) {
+  const abas: Aba[] = [{
+    nome: 'Cobranças',
+    decimais: [5],
+    linhas: [
+      ['Cliente', 'Grupo', 'Cota', 'Competência', 'Vencimento', 'Valor (R$)', 'Situação', 'Status no AVLE',
+        'Status no Asaas', 'Paga em', 'Forma de pagamento', 'Conta', 'Repasses', 'Gravidade', 'Problemas',
+        'Cobrança no Asaas', 'Transação'],
+      ...r.cobrancas.map((l): Celula[] => [
+        l.cliente, l.grupo, l.cotaId, l.competencia, data(l.vencimento), num(l.valor), situacao(l), l.statusNoAvle,
+        l.statusNoAsaas ?? '', data(l.pagaEm), l.formaDePagamento, l.conta === 'AVLE' ? 'da AVLE' : 'da loja',
+        repassesEmTexto(l), gravidade(l), l.problemas.map((p) => `[${p.gravidade}] ${p.texto}`).join(' | '),
+        l.paymentId, l.transacaoId,
+      ]),
+    ],
+  }];
 
-  linha(...['Cliente', 'Grupo', 'Cota', 'Competência', 'Vencimento', 'Valor (R$)', 'Situação', 'Status no AVLE',
-    'Status no Asaas', 'Paga em', 'Forma de pagamento', 'Conta', 'Repasses', 'Gravidade', 'Problemas',
-    'Cobrança no Asaas', 'Transação'].map(celula));
-  for (const l of r.cobrancas) {
-    linha(celula(l.cliente), celula(l.grupo), celula(l.cotaId), celula(l.competencia), celula(data(l.vencimento)),
-      numero(l.valor), celula(situacao(l)), celula(l.statusNoAvle), celula(l.statusNoAsaas ?? ''), celula(data(l.pagaEm)),
-      celula(l.formaDePagamento), celula(l.conta === 'AVLE' ? 'da AVLE' : 'da loja'), celula(repassesEmTexto(l)),
-      celula(gravidade(l)), celula(l.problemas.map((p) => `[${p.gravidade}] ${p.texto}`).join(' | ')),
-      celula(l.paymentId), celula(l.transacaoId));
-  }
-
-  // O resumo e o que está fora do AVLE vão abaixo, separados por uma linha
-  // vazia, para o filtro do Excel pegar só a tabela de cima.
   const fora = r.semRegistroNoAvle?.cobrancas ?? [];
   if (fora.length > 0) {
-    linhas.push('');
-    linha(celula('Na conta da loja e sem registro no AVLE'));
-    linha(...['Cobrança no Asaas', 'Status no Asaas', 'Valor (R$)', 'Vencimento', 'Descrição'].map(celula));
-    for (const c of fora) linha(celula(c.paymentId), celula(c.status), numero(c.valor), celula(data(c.vencimento)), celula(c.descricao));
+    abas.push({
+      nome: 'Sem registro no AVLE',
+      decimais: [2],
+      linhas: [
+        ['Cobrança no Asaas', 'Status no Asaas', 'Valor (R$)', 'Vencimento', 'Descrição'],
+        ...fora.map((c): Celula[] => [c.paymentId, c.status, num(c.valor), data(c.vencimento), c.descricao]),
+      ],
+    });
   }
 
+  // Quantidade e valor em colunas separadas: assim a contagem não ganha
+  // casas decimais e o dinheiro sai sempre com duas.
   const s = r.resumo;
-  linhas.push('');
-  linha(celula('Resumo'), celula(`${r.loja} · conferida em ${new Date(r.conferidaEm).toLocaleString('pt-BR')}`));
-  const resumo: [string, string][] = [
-    ['Conta do Asaas conectada', celula(r.contaConectada ? 'sim' : 'não')],
-    ['Cobranças', String(s.cobrancas)],
-    ['Pagas no Asaas', String(s.pagasNoAsaas)],
-    ['Pagas no AVLE', String(contarPagasNoAvle(r))],
-    ...(s.pagasPeloSaldo != null ? [['Pagas pelo saldo, cobrança aberta no Asaas', String(s.pagasPeloSaldo)] as [string, string]] : []),
-    ['Com problema', String(s.comProblema)],
-    ['Graves', String(s.graves)],
-    ['Pagas na conta da AVLE', String(s.pagasNaContaDaAvle)],
-    ['Sem leitura no Asaas', String(s.semLeitura)],
-    ['A AVLE deve à loja (R$)', numero(s.devidoALojaPelaAvle)],
-    ['Comissão não repassada (R$)', numero(s.comissaoNaoRepassada)],
-    ['Repasse parado na loja (R$)', numero(s.repasseParadoNaLoja)],
-  ];
-  for (const [rotulo, valor] of resumo) linha(celula(rotulo), valor);
+  abas.push({
+    nome: 'Resumo',
+    decimais: [2],
+    filtro: false,
+    linhas: [
+      ['Item', 'Quantidade', 'Valor (R$)'],
+      ['Cobranças', s.cobrancas],
+      ['Pagas no Asaas', s.pagasNoAsaas],
+      ['Pagas no AVLE', contarPagasNoAvle(r)],
+      ...(s.pagasPeloSaldo != null ? [['Pagas pelo saldo, cobrança aberta no Asaas', s.pagasPeloSaldo] as Celula[]] : []),
+      ['Com problema', s.comProblema],
+      ['Graves', s.graves],
+      ['Pagas na conta da AVLE', s.pagasNaContaDaAvle],
+      ['Sem leitura no Asaas', s.semLeitura],
+      ['A AVLE deve à loja', null, num(s.devidoALojaPelaAvle)],
+      ['Comissão não repassada', null, num(s.comissaoNaoRepassada)],
+      ['Repasse parado na loja', null, num(s.repasseParadoNaLoja)],
+      [],
+      ['Loja', r.loja],
+      ['Conferida em', new Date(r.conferidaEm).toLocaleString('pt-BR')],
+      ['Conta do Asaas conectada', r.contaConectada ? 'sim' : 'não'],
+    ],
+  });
 
-  const blob = new Blob(['﻿' + linhas.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nomeDoArquivo(r, 'csv');
-  a.click();
-  URL.revokeObjectURL(url);
+  baixarPlanilha(nomeDoArquivo(r), abas, formato);
 }
 
 /* --------------------------------------------------------------------- PDF */
@@ -242,7 +243,7 @@ export function baixarPdf(r: Resultado, linhas: Linha[], soProblemas: boolean) {
     ${tabela}
     ${semRegistro}`;
 
-  imprimir(nomeDoArquivo(r, 'pdf').replace(/\.pdf$/, ''), corpo);
+  imprimir(nomeDoArquivo(r), corpo);
 }
 
 /**

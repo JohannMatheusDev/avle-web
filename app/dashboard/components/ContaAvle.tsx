@@ -12,6 +12,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
+import { baixarPlanilha, lerCsv, numeroBr, type Formato } from '../../lib/planilha';
+import BotaoDePlanilha from './BotaoDePlanilha';
 import { Icone } from './Casca';
 import FluxoDeSaque from './FluxoDeSaque';
 import ContaAsaasDaLoja from './ContaAsaasDaLoja';
@@ -349,17 +351,34 @@ export function PaginaContaAvle({
 
   // Planilha pelo fetch, e não por link direto: a sessão viaja no cookie, e
   // um <a href> para outra origem sairia sem ela.
-  const exportar = async (periodo: number = dias) => {
+  const exportar = async (formato: Formato, periodo: number = dias) => {
     setExportando(true);
     try {
       const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/conta/extrato.csv?dias=${periodo}`);
       if (!res.ok) throw new Error(await lerErro(res, 'Não foi possível gerar a planilha.'));
-      const url = URL.createObjectURL(await res.blob());
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `extrato-conta-avle-${periodo}-dias.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const nome = `extrato-conta-avle-${periodo}-dias`;
+      if (formato === 'csv') {
+        const url = URL.createObjectURL(await res.blob());
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${nome}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        // A API manda CSV; para o Excel, o valor e o saldo viram número e o
+        // apóstrofo que neutraliza fórmula sai (no .xlsx o texto é só texto).
+        const [cabecalho = [], ...linhas] = lerCsv(await res.text()).filter((l) => l.some((c) => c !== ''));
+        baixarPlanilha(nome, [{
+          nome: 'Extrato',
+          decimais: [3, 4],
+          linhas: [
+            cabecalho.map((c, i) => (i >= 3 ? `${c} (R$)` : c)),
+            ...linhas.map((l) => l.map((c, i) => (i >= 3 ? numeroBr(c)
+              : i === 0 ? c.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2/$1')
+              : c.replace(/^'(?=[=+\-@])/, '')))),
+          ],
+        }], 'xlsx');
+      }
     } catch (e) {
       mostrarAviso('Erro', e instanceof Error ? e.message : 'Não foi possível gerar a planilha.', true);
     } finally {
@@ -463,7 +482,7 @@ export function PaginaContaAvle({
         aoMudarSemanas={setSemanasDoPainel}
         podeSacar={podeSacar}
         exportando={exportando}
-        aoExportar={() => exportar()}
+        aoExportar={(formato) => exportar(formato)}
         aoSacar={() => setModalSaque(true)}
         aoIrParaConfiguracoes={aoIrParaConfiguracoes}
         aoCarregarMais={() => extrato && carregarExtrato(extrato.lancamentos.length)}
@@ -511,7 +530,7 @@ export function TelaDaContaAvle({
   aoMudarSemanas: (s: '4' | '12' | '26') => void;
   podeSacar: boolean;
   exportando?: boolean;
-  aoExportar: () => void;
+  aoExportar: (formato: Formato) => void;
   aoSacar: () => void;
   aoIrParaConfiguracoes?: () => void;
   aoCarregarMais: () => void;
@@ -561,10 +580,10 @@ export function TelaDaContaAvle({
                   {resumo.saqueEmAndamento ? 'Saque em andamento' : 'Sacar via Pix'}
                 </button>
               )}
-              <button type="button" className={s.acaoGrande} onClick={aoExportar} disabled={exportando}>
+              <BotaoDePlanilha className={s.acaoGrande} aoEscolher={aoExportar} disabled={exportando}>
                 <span className={s.acaoIcone}><Icon name="download" size={18} /></span>
                 {exportando ? 'Gerando…' : 'Extrato'}
-              </button>
+              </BotaoDePlanilha>
               {aoIrParaConfiguracoes && (
                 <button type="button" className={s.acaoGrande} onClick={aoIrParaConfiguracoes}>
                   <span className={s.acaoIcone}><Icon name="key-round" size={18} /></span>
