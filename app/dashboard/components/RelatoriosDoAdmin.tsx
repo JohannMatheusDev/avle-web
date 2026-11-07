@@ -13,6 +13,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../lib/api';
+import { baixarPlanilha } from '../../lib/planilha';
+import BotaoDePlanilha from './BotaoDePlanilha';
 
 // ── Período ─────────────────────────────────────────────────────────────────
 
@@ -176,16 +178,6 @@ function MostrarMais({ resto, aoClicar }: { resto: number; aoClicar: () => void 
       Mostrar mais ({resto} restantes)
     </button>
   );
-}
-
-export function baixarPlanilha(nome: string, linhas: (string | number)[][]) {
-  const csv = linhas.map((l) => l.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
-  const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nome;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 /**
@@ -355,10 +347,12 @@ export function RelatorioDeClientes({ periodo, aoMudarPeriodo, aoAbrirLoja, inco
                   <option value="todas">Todas as lojas</option>
                   {dados.lojas.map((l) => <option key={l.lojaId} value={l.lojaId}>{l.nome}</option>)}
                 </select>
-                <button type="button" onClick={() => baixarPlanilha(aba === 'entraram' ? 'clientes-que-entraram.csv' : 'clientes-que-sairam.csv',
-                  [['Cliente', 'Telefone', 'Loja', 'Grupo', aba === 'entraram' ? 'Entrou em' : 'Saiu em'],
-                    ...lista.map((p) => [p.nome, p.telefone ?? '', p.loja, p.grupo, p.data ? data(p.data) : (p.observacao ?? '')])])}
-                  className="h-9 px-4 rounded-full bg-painel-tinta text-white text-[12px] font-semibold cursor-pointer">Baixar planilha</button>
+                <BotaoDePlanilha aoEscolher={(formato) => baixarPlanilha(aba === 'entraram' ? 'clientes-que-entraram' : 'clientes-que-sairam', [{
+                  nome: aba === 'entraram' ? 'Entraram' : 'Saíram',
+                  linhas: [['Cliente', 'Telefone', 'Loja', 'Grupo', aba === 'entraram' ? 'Entrou em' : 'Saiu em'],
+                    ...lista.map((p) => [p.nome, p.telefone ?? '', p.loja, p.grupo, p.data ? data(p.data) : (p.observacao ?? '')])],
+                }], formato)}
+                  className="h-9 px-4 rounded-full bg-painel-tinta text-white text-[12px] font-semibold cursor-pointer" />
               </div>
               {lista.length === 0 ? (
                 <p className="p-8 text-center text-[12px] text-stone-400">Ninguém neste período.</p>
@@ -548,12 +542,14 @@ export function RelatorioDeReceita({ periodo, aoMudarPeriodo, aoAbrirLoja, abaIn
                   <option value="todas">Todas as lojas</option>
                   {dados.lojas.map((l) => <option key={l.lojaId} value={l.lojaId}>{l.nome}</option>)}
                 </select>
-                <button type="button" onClick={() => baixarPlanilha('pagamentos.csv',
-                  [['Data', 'Cliente', 'Loja', 'Grupo', 'Competência', 'Valor', 'Comissão AVLE', 'Parte da loja', 'Forma'],
+                <BotaoDePlanilha aoEscolher={(formato) => baixarPlanilha('pagamentos', [{
+                  nome: 'Pagamentos',
+                  decimais: [5, 6, 7],
+                  linhas: [['Data', 'Cliente', 'Loja', 'Grupo', 'Competência', 'Valor (R$)', 'Comissão AVLE (R$)', 'Parte da loja (R$)', 'Forma'],
                     ...pagamentos.map((p) => [data(p.data, true), p.cliente, p.loja, p.grupo, p.competencia ?? '',
-                      Number(p.valor).toFixed(2).replace('.', ','), Number(p.comissaoAvle).toFixed(2).replace('.', ','),
-                      Number(p.repasseLoja).toFixed(2).replace('.', ','), p.forma])])}
-                  className="h-9 px-4 rounded-full bg-painel-tinta text-white text-[12px] font-semibold cursor-pointer">Baixar planilha</button>
+                      Number(p.valor), Number(p.comissaoAvle), Number(p.repasseLoja), p.forma])],
+                }], formato)}
+                  className="h-9 px-4 rounded-full bg-painel-tinta text-white text-[12px] font-semibold cursor-pointer" />
                 <span className="w-full text-[11px] text-stone-500">
                   {pagamentos.length} pagamento(s) · {reais(somaFiltrada)}
                   {dados.totalDePagamentos > dados.listaDePagamentos.length && ` · mostrando os ${dados.listaDePagamentos.length} mais recentes de ${dados.totalDePagamentos}; escolha um período menor para ver todos`}
