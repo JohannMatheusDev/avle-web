@@ -13,8 +13,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../lib/api';
-import { baixarPlanilha } from '../../lib/planilha';
-import BotaoDePlanilha from './BotaoDePlanilha';
+import { baixarRelatorio } from '../../lib/planilha';
+import BotaoDeBaixar from './BotaoDeBaixar';
 
 // ── Período ─────────────────────────────────────────────────────────────────
 
@@ -347,11 +347,14 @@ export function RelatorioDeClientes({ periodo, aoMudarPeriodo, aoAbrirLoja, inco
                   <option value="todas">Todas as lojas</option>
                   {dados.lojas.map((l) => <option key={l.lojaId} value={l.lojaId}>{l.nome}</option>)}
                 </select>
-                <BotaoDePlanilha aoEscolher={(formato) => baixarPlanilha(aba === 'entraram' ? 'clientes-que-entraram' : 'clientes-que-sairam', [{
+                <BotaoDeBaixar aoEscolher={(formato) => baixarRelatorio(aba === 'entraram' ? 'clientes-que-entraram' : 'clientes-que-sairam', [{
                   nome: aba === 'entraram' ? 'Entraram' : 'Saíram',
                   linhas: [['Cliente', 'Telefone', 'Loja', 'Grupo', aba === 'entraram' ? 'Entrou em' : 'Saiu em'],
                     ...lista.map((p) => [p.nome, p.telefone ?? '', p.loja, p.grupo, p.data ? data(p.data) : (p.observacao ?? '')])],
-                }], formato)}
+                }], formato, {
+                  titulo: aba === 'entraram' ? 'Clientes que entraram' : 'Clientes que saíram',
+                  subtitulo: `${lista.length} cliente(s)${lojaFiltro === 'todas' ? ' · todas as lojas' : ` · ${dados.lojas.find((l) => l.lojaId === lojaFiltro)?.nome ?? ''}`}`,
+                })}
                   className="h-9 px-4 rounded-full bg-painel-tinta text-white text-[12px] font-semibold cursor-pointer" />
               </div>
               {lista.length === 0 ? (
@@ -542,13 +545,16 @@ export function RelatorioDeReceita({ periodo, aoMudarPeriodo, aoAbrirLoja, abaIn
                   <option value="todas">Todas as lojas</option>
                   {dados.lojas.map((l) => <option key={l.lojaId} value={l.lojaId}>{l.nome}</option>)}
                 </select>
-                <BotaoDePlanilha aoEscolher={(formato) => baixarPlanilha('pagamentos', [{
+                <BotaoDeBaixar aoEscolher={(formato) => baixarRelatorio('pagamentos', [{
                   nome: 'Pagamentos',
                   decimais: [5, 6, 7],
                   linhas: [['Data', 'Cliente', 'Loja', 'Grupo', 'Competência', 'Valor (R$)', 'Comissão AVLE (R$)', 'Parte da loja (R$)', 'Forma'],
                     ...pagamentos.map((p) => [data(p.data, true), p.cliente, p.loja, p.grupo, p.competencia ?? '',
                       Number(p.valor), Number(p.comissaoAvle), Number(p.repasseLoja), p.forma])],
-                }], formato)}
+                }], formato, {
+                  titulo: 'Pagamentos',
+                  subtitulo: `${pagamentos.length} pagamento(s) · ${reais(somaFiltrada)}${lojaFiltro === 'todas' ? ' · todas as lojas' : ` · ${dados.lojas.find((l) => l.lojaId === lojaFiltro)?.nome ?? ''}`}`,
+                })}
                   className="h-9 px-4 rounded-full bg-painel-tinta text-white text-[12px] font-semibold cursor-pointer" />
                 <span className="w-full text-[11px] text-stone-500">
                   {pagamentos.length} pagamento(s) · {reais(somaFiltrada)}

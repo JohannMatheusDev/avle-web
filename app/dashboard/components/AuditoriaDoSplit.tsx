@@ -8,15 +8,15 @@
  * cliente entrando e saindo de novo, e houve pagamento cujo repasse foi
  * cancelado sem ninguém ver. Só lê: não baixa, não cancela, não emite nada.
  * O "Copiar relatório" é para mandar o resultado inteiro para quem vai
- * analisar; a planilha e o PDF saem de relatorioDaAuditoria.ts.
+ * analisar; o "Baixar relatório" (Excel, PDF ou CSV) sai de relatorioDaAuditoria.ts.
  */
 
 import { useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import {
-  type Resultado, STATUS_DO_REPASSE, baixarPdf, baixarPlanilhaDaAuditoria, contarPagasNoAvle, reais, situacao,
+  type Resultado, STATUS_DO_REPASSE, baixarRelatorioDaAuditoria, contarPagasNoAvle, reais, situacao,
 } from './relatorioDaAuditoria';
-import BotaoDePlanilha from './BotaoDePlanilha';
+import BotaoDeBaixar from './BotaoDeBaixar';
 
 export default function AuditoriaDoSplit() {
   const [lojas, setLojas] = useState<{ id: number; nome: string }[] | null>(null);
@@ -126,15 +126,9 @@ export default function AuditoriaDoSplit() {
             </button>
           )}
           {resultado && (
-            <BotaoDePlanilha alinhar="esquerda" aoEscolher={(f) => baixarPlanilhaDaAuditoria(resultado, f)}
+            // A planilha leva todas as cobranças; o PDF sai como está na tela.
+            <BotaoDeBaixar alinhar="esquerda" aoEscolher={(f) => baixarRelatorioDaAuditoria(resultado, f, soProblemas)}
               className="h-10 px-5 rounded-full border border-stone-200 text-[12px] font-semibold text-painel-tinta hover:bg-painel-papel cursor-pointer" />
-          )}
-          {resultado && (
-            <button type="button" onClick={() => baixarPdf(resultado, linhas, soProblemas)}
-              title={soProblemas ? 'Sai com as cobranças com problema, como está na tela' : 'Sai com todas as cobranças'}
-              className="h-10 px-5 rounded-full border border-stone-200 text-[12px] font-semibold text-painel-tinta hover:bg-painel-papel cursor-pointer">
-              Baixar PDF
-            </button>
           )}
         </div>
       )}
