@@ -8,35 +8,14 @@
  * cliente entrando e saindo de novo, e houve pagamento cujo repasse foi
  * cancelado sem ninguém ver. Só lê: não baixa, não cancela, não emite nada.
  * O "Copiar relatório" é para mandar o resultado inteiro para quem vai
- * analisar.
+ * analisar; a planilha e o PDF saem de relatorioDaAuditoria.ts.
  */
 
 import { useState } from 'react';
 import { apiFetch } from '../../lib/api';
-
-type Problema = { gravidade: 'ALTA' | 'MEDIA'; texto: string };
-type Repasse = { destino: 'AVLE' | 'LOJA' | 'OUTRA'; carteira?: string; valor?: number; status?: string; motivo?: string };
-type Linha = {
-  transacaoId: number; cotaId?: number; cliente?: string; grupo?: string; competencia?: string; vencimento?: string;
-  valor?: number; statusNoAvle?: string; statusNoAsaas?: string | null; conta: 'AVLE' | 'LOJA'; paymentId: string;
-  formaDePagamento?: string; pagaEm?: string; repasses?: Repasse[]; problemas: Problema[];
-};
-type Resultado = {
-  loja: string; contaConectada: boolean; conferidaEm: string;
-  resumo: {
-    cobrancas: number; pagasNoAsaas: number; comProblema: number; graves: number; pagasNaContaDaAvle: number;
-    semLeitura: number; devidoALojaPelaAvle: number; repasseParadoNaLoja: number; comissaoNaoRepassada: number;
-  };
-  cobrancas: Linha[];
-  semRegistroNoAvle: { conferido: boolean; motivo?: string; cobrancas?: { paymentId: string; status: string; valor: number; vencimento: string; descricao?: string }[] };
-};
-
-const reais = (v?: number) => (v == null ? '—' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
-
-const STATUS_DO_REPASSE: Record<string, string> = {
-  DONE: 'feito', PENDING: 'pendente', AWAITING_CREDIT: 'aguardando crédito', CANCELLED: 'cancelado',
-  REFUSED: 'recusado', BLOCKED_BY_VALUE_DIVERGENCE: 'bloqueado',
-};
+import {
+  type Resultado, STATUS_DO_REPASSE, baixarPdf, baixarPlanilha, contarPagasNoAvle, reais, situacao,
+} from './relatorioDaAuditoria';
 
 export default function AuditoriaDoSplit() {
   const [lojas, setLojas] = useState<{ id: number; nome: string }[] | null>(null);
@@ -87,7 +66,7 @@ export default function AuditoriaDoSplit() {
         `AVLE deve à loja ${reais(r.devidoALojaPelaAvle)} · comissão não repassada ${reais(r.comissaoNaoRepassada)} · repasse parado na loja ${reais(r.repasseParadoNaLoja)}`,
         '',
         ...resultado.cobrancas.filter((l) => l.problemas.length > 0).map((l) =>
-          `${l.cliente} · ${l.grupo} · ${l.competencia} · ${reais(l.valor)} · AVLE ${l.statusNoAvle} · Asaas ${l.statusNoAsaas ?? '?'} · conta ${l.conta} · ${l.paymentId} · cota ${l.cotaId}\n` +
+          `${l.cliente} · ${l.grupo} · ${l.competencia} · ${reais(l.valor)} · ${situacao(l)} · AVLE ${l.statusNoAvle} · Asaas ${l.statusNoAsaas ?? '?'} · conta ${l.conta} · ${l.paymentId} · cota ${l.cotaId}\n` +
           l.problemas.map((p) => `  [${p.gravidade}] ${p.texto}`).join('\n')),
       ];
       const fora = resultado.semRegistroNoAvle?.cobrancas ?? [];
@@ -145,6 +124,19 @@ export default function AuditoriaDoSplit() {
               {copiado ? 'Relatório copiado' : 'Copiar relatório'}
             </button>
           )}
+          {resultado && (
+            <button type="button" onClick={() => baixarPlanilha(resultado)}
+              className="h-10 px-5 rounded-full border border-stone-200 text-[12px] font-semibold text-painel-tinta hover:bg-painel-papel cursor-pointer">
+              Baixar planilha
+            </button>
+          )}
+          {resultado && (
+            <button type="button" onClick={() => baixarPdf(resultado, linhas, soProblemas)}
+              title={soProblemas ? 'Sai com as cobranças com problema, como está na tela' : 'Sai com todas as cobranças'}
+              className="h-10 px-5 rounded-full border border-stone-200 text-[12px] font-semibold text-painel-tinta hover:bg-painel-papel cursor-pointer">
+              Baixar PDF
+            </button>
+          )}
         </div>
       )}
 
@@ -152,10 +144,12 @@ export default function AuditoriaDoSplit() {
 
       {resultado && (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {[
               { rotulo: 'Cobranças', valor: resultado.resumo.cobrancas },
               { rotulo: 'Pagas no Asaas', valor: resultado.resumo.pagasNoAsaas },
+              // Lado a lado com o Asaas: se os dois números diferem, há parcela paga de um lado só.
+              { rotulo: 'Pagas no AVLE', valor: contarPagasNoAvle(resultado) },
               { rotulo: 'Com problema', valor: resultado.resumo.comProblema, alerta: resultado.resumo.comProblema > 0 },
               { rotulo: 'Graves', valor: resultado.resumo.graves, alerta: resultado.resumo.graves > 0 },
               { rotulo: 'Pagas na conta da AVLE', valor: resultado.resumo.pagasNaContaDaAvle, alerta: resultado.resumo.pagasNaContaDaAvle > 0 },
@@ -188,6 +182,13 @@ export default function AuditoriaDoSplit() {
             </p>
           )}
 
+          {(resultado.resumo.pagasPeloSaldo ?? 0) > 0 && (
+            <p className="text-[12px] text-amber-800 bg-amber-50 rounded-xl p-3">
+              {resultado.resumo.pagasPeloSaldo} parcela(s) já pagas pelo saldo da cota (baixa manual ou balcão) seguem com a
+              cobrança aberta no Asaas. Se a cliente pagar, paga duas vezes.
+            </p>
+          )}
+
           {!resultado.contaConectada && (
             <p className="text-[12px] text-amber-800 bg-amber-50 rounded-xl p-3">
               {resultado.loja} não tem a conta do Asaas conectada: as cobranças novas dela nascem na conta da AVLE.
@@ -211,6 +212,7 @@ export default function AuditoriaDoSplit() {
                 <div className="flex flex-wrap justify-between gap-2">
                   <div>
                     <p className="text-[13px] font-semibold text-painel-tinta">{l.cliente || 'Sem nome'} · {l.grupo}</p>
+                    <p className="text-[11px] font-semibold text-stone-600">{situacao(l)}</p>
                     <p className="text-[11px] text-stone-500">
                       Parcela {l.competencia || '—'} · {reais(l.valor)} · no AVLE: {l.statusNoAvle} · no Asaas: {l.statusNoAsaas || '?'}
                       {l.pagaEm ? ` em ${new Date(`${l.pagaEm}T12:00:00`).toLocaleDateString('pt-BR')}` : ''}
