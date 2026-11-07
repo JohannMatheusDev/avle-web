@@ -26,6 +26,8 @@ export type Aba = {
   filtro?: boolean;
   /** Colunas que entram no PDF, quando a tabela é larga demais para a página. Padrão: todas. */
   colunasNoPdf?: number[];
+  /** A última linha é um total: sai em negrito, no Excel e no PDF. */
+  ultimaLinhaEhTotal?: boolean;
 };
 
 /** Título e linha de baixo do PDF; a planilha não usa. */
@@ -154,16 +156,19 @@ function nomesDasAbas(abas: Aba[]) {
   });
 }
 
-// Estilos: 0 normal, 1 cabeçalho em negrito, 2 número com duas casas.
+// Estilos: 0 normal, 1 texto em negrito, 2 número com duas casas, 3 o mesmo
+// em negrito, 4 número inteiro em negrito (linha de total).
 const ESTILOS = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
   + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
   + '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
   + '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'
   + '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
   + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-  + '<cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+  + '<cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
   + '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
-  + '<xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>'
+  + '<xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+  + '<xf numFmtId="4" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>'
+  + '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>'
   + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
   + '</styleSheet>';
 
@@ -180,13 +185,17 @@ function folha(aba: Aba) {
     })) + 2));
 
   const linhas = aba.linhas.map((l, i) => {
+    const negrito = (cabecalho && i === 0) || (aba.ultimaLinhaEhTotal === true && i === aba.linhas.length - 1);
     const celulas = l.map((c, j) => {
       if (c == null || c === '') return '';
       const ref = `${coluna(j)}${i + 1}`;
       if (typeof c === 'number' && Number.isFinite(c)) {
-        return `<c r="${ref}"${decimais.has(j) ? ' s="2"' : ''}><v>${c}</v></c>`;
+        // Dinheiro vai em centavos exatos: 129,9 × 30 não pode virar 3896,9999…
+        const v = decimais.has(j) ? Math.round(c * 100) / 100 : c;
+        const estilo = decimais.has(j) ? (negrito ? ' s="3"' : ' s="2"') : negrito ? ' s="4"' : '';
+        return `<c r="${ref}"${estilo}><v>${v}</v></c>`;
       }
-      const estilo = cabecalho && i === 0 ? ' s="1"' : '';
+      const estilo = negrito ? ' s="1"' : '';
       return `<c r="${ref}" t="inlineStr"${estilo}><is><t xml:space="preserve">${xml(String(c))}</t></is></c>`;
     }).join('');
     return `<row r="${i + 1}">${celulas}</row>`;
