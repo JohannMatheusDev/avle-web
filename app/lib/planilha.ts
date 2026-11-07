@@ -1,10 +1,11 @@
 /**
- * Planilha para baixar, em Excel (.xlsx) ou CSV, montada no navegador.
+ * Relatório para baixar, em Excel (.xlsx), CSV ou PDF, montado no navegador.
  *
  * O Excel é o padrão: abre direto, com os valores como número (soma e
  * filtra), o cabeçalho fixo e com filtro, e uma aba para cada parte do
  * relatório. O CSV fica para quem vai importar em outro sistema: ponto e
  * vírgula, BOM e vírgula decimal, que é o que o Excel em português espera.
+ * O PDF sai das mesmas abas, em pdfDeRelatorio.ts, carregado só no clique.
  *
  * O .xlsx é escrito aqui mesmo, sem biblioteca: é um zip (sem compressão)
  * com meia dúzia de XMLs. Uma biblioteca de planilha pesaria mais do que
@@ -12,7 +13,7 @@
  */
 
 export type Celula = string | number | null | undefined;
-export type Formato = 'xlsx' | 'csv';
+export type Formato = 'xlsx' | 'csv' | 'pdf';
 
 export type Aba = {
   nome: string;
@@ -23,16 +24,25 @@ export type Aba = {
   cabecalho?: boolean;
   /** Filtro no cabeçalho. Padrão: sim, quando há cabeçalho. */
   filtro?: boolean;
+  /** Colunas que entram no PDF, quando a tabela é larga demais para a página. Padrão: todas. */
+  colunasNoPdf?: number[];
 };
+
+/** Título e linha de baixo do PDF; a planilha não usa. */
+export type InfoDoRelatorio = { titulo: string; subtitulo?: string };
 
 export const FORMATOS: { formato: Formato; rotulo: string; ajuda: string }[] = [
   { formato: 'xlsx', rotulo: 'Excel (.xlsx)', ajuda: 'Abre direto, com colunas, filtros e valores somáveis' },
+  { formato: 'pdf', rotulo: 'PDF (.pdf)', ajuda: 'Para ler, imprimir ou mandar a alguém' },
   { formato: 'csv', rotulo: 'CSV (.csv)', ajuda: 'Texto simples, para importar em outro sistema' },
 ];
 
 /** Baixa as abas no formato escolhido. O nome vai sem extensão. */
-export function baixarPlanilha(nome: string, abas: Aba[], formato: Formato) {
-  if (formato === 'xlsx') {
+export async function baixarRelatorio(nome: string, abas: Aba[], formato: Formato, info?: InfoDoRelatorio) {
+  if (formato === 'pdf') {
+    const { gerarPdf } = await import('./pdfDeRelatorio');
+    gerarPdf(nome, abas, info ?? { titulo: nome });
+  } else if (formato === 'xlsx') {
     baixar(`${nome}.xlsx`, new Blob([xlsx(abas)],
       { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
   } else {
@@ -113,7 +123,7 @@ const numeroCsv = (v: number, decimal: boolean) =>
 
 // Coluna com algum valor quebrado também ganha duas casas: assim R$ 50 e
 // R$ 129,90 saem alinhados.
-function colunasDecimais(aba: Aba) {
+export function colunasDecimais(aba: Aba) {
   const d = new Set(aba.decimais ?? []);
   aba.linhas.forEach((l, i) => {
     if (i === 0 && aba.cabecalho !== false) return;

@@ -12,8 +12,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
-import { baixarPlanilha, lerCsv, numeroBr, type Formato } from '../../lib/planilha';
-import BotaoDePlanilha from './BotaoDePlanilha';
+import { baixarRelatorio, lerCsv, numeroBr, type Formato } from '../../lib/planilha';
+import BotaoDeBaixar from './BotaoDeBaixar';
 import { Icone } from './Casca';
 import FluxoDeSaque from './FluxoDeSaque';
 import ContaAsaasDaLoja from './ContaAsaasDaLoja';
@@ -365,10 +365,10 @@ export function PaginaContaAvle({
         a.click();
         URL.revokeObjectURL(url);
       } else {
-        // A API manda CSV; para o Excel, o valor e o saldo viram número e o
-        // apóstrofo que neutraliza fórmula sai (no .xlsx o texto é só texto).
+        // A API manda CSV; para o Excel e o PDF, o valor e o saldo viram
+        // número e o apóstrofo que neutraliza fórmula sai (lá o texto é só texto).
         const [cabecalho = [], ...linhas] = lerCsv(await res.text()).filter((l) => l.some((c) => c !== ''));
-        baixarPlanilha(nome, [{
+        await baixarRelatorio(nome, [{
           nome: 'Extrato',
           decimais: [3, 4],
           linhas: [
@@ -377,7 +377,7 @@ export function PaginaContaAvle({
               : i === 0 ? c.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2/$1')
               : c.replace(/^'(?=[=+\-@])/, '')))),
           ],
-        }], 'xlsx');
+        }], formato, { titulo: 'Extrato da Conta AVLE', subtitulo: `Últimos ${periodo} dias` });
       }
     } catch (e) {
       mostrarAviso('Erro', e instanceof Error ? e.message : 'Não foi possível gerar a planilha.', true);
@@ -580,10 +580,10 @@ export function TelaDaContaAvle({
                   {resumo.saqueEmAndamento ? 'Saque em andamento' : 'Sacar via Pix'}
                 </button>
               )}
-              <BotaoDePlanilha className={s.acaoGrande} aoEscolher={aoExportar} disabled={exportando}>
+              <BotaoDeBaixar className={s.acaoGrande} aoEscolher={aoExportar} disabled={exportando}>
                 <span className={s.acaoIcone}><Icon name="download" size={18} /></span>
                 {exportando ? 'Gerando…' : 'Extrato'}
-              </BotaoDePlanilha>
+              </BotaoDeBaixar>
               {aoIrParaConfiguracoes && (
                 <button type="button" className={s.acaoGrande} onClick={aoIrParaConfiguracoes}>
                   <span className={s.acaoIcone}><Icon name="key-round" size={18} /></span>

@@ -13,8 +13,8 @@
 import { Fragment, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { GraficoPorPeriodo, Numero, rotuloDoPonto } from './RelatoriosDoAdmin';
-import { baixarPlanilha, type Formato } from '../../lib/planilha';
-import BotaoDePlanilha from './BotaoDePlanilha';
+import { baixarRelatorio, type Formato } from '../../lib/planilha';
+import BotaoDeBaixar from './BotaoDeBaixar';
 
 type Totais = {
   contratado: number; recebido: number; aReceber: number; vencido: number; aVencer: number;
@@ -105,10 +105,12 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
     : '';
   const gruposQueEntram = dados.grupos.filter((g) => Number(g.previstoProximoMes) > 0).length;
 
-  const planilha = (formato: Formato) => baixarPlanilha(`a-receber-${dados.dataReferencia}`, [
+  const planilha = (formato: Formato) => baixarRelatorio(`a-receber-${dados.dataReferencia}`, [
     {
       nome: 'Clientes',
       decimais: [8, 9, 10],
+      // No PDF ficam de fora o telefone e as parcelas esperadas, para caber.
+      colunasNoPdf: [0, 1, 3, 5, 6, 7, 8, 9, 10, 11, 12],
       linhas: [
         ['Grupo', 'Cliente', 'Telefone', 'Parcelas pagas', 'Parcelas que já deviam estar pagas', 'Total de parcelas', 'Parcelas em atraso',
           'Situação', 'Recebido (R$)', 'Vencido (R$)', 'Falta receber (R$)', 'Contemplada', 'Retirou o produto'],
@@ -128,7 +130,7 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
         ...(Number(dados.previstoDepois) > 0 ? [['Depois disso', null, Number(dados.previstoDepois)]] : []),
       ],
     },
-  ], formato);
+  ], formato, { titulo: 'Relatório a receber', subtitulo: `Posição de ${referencia} · ${r.cotas} cota(s) em ${dados.grupos.length} grupo(s)` });
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -137,7 +139,7 @@ export default function RelatorioAReceber({ lojaId }: { lojaId: number }) {
           Posição de <strong className="text-painel-tinta">{referencia}</strong> · {r.cotas} cota(s) na carteira, em {dados.grupos.length} grupo(s)
         </p>
         <div className="flex gap-2">
-          <BotaoDePlanilha aoEscolher={planilha} className="h-9 px-4 rounded-full bg-painel-tinta text-white text-[12px] font-semibold cursor-pointer" />
+          <BotaoDeBaixar aoEscolher={planilha} className="h-9 px-4 rounded-full bg-painel-tinta text-white text-[12px] font-semibold cursor-pointer" />
           <button type="button" onClick={() => window.print()} className="h-9 px-4 rounded-full ring-1 ring-painel-borda bg-white text-painel-tinta text-[12px] font-semibold cursor-pointer">
             Imprimir
           </button>
