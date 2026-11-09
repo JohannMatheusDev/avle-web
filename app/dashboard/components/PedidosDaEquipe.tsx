@@ -29,9 +29,11 @@ const SITUACAO: Record<Pedido['status'], { rotulo: string; classe: string }> = {
   FALHOU: { rotulo: 'Aprovado, mas não deu certo', classe: 'bg-rose-50 text-rose-700' },
 };
 
-// O saque que o financeiro pede só sai com a senha de saque da loja mãe,
-// digitada na hora de aprovar (o mesmo rótulo de RegrasDoFinanceiro.java).
-const ehSaque = (p: Pedido) => p.tipo === 'Saque da Conta AVLE';
+// O saque e o pagamento de Pix que o financeiro pede só saem com a senha de
+// saque da loja mãe, digitada na hora de aprovar (os mesmos rótulos de
+// RegrasDoFinanceiro.java).
+const ehPagamentoPix = (p: Pedido) => p.tipo === 'Pagamento Pix da Conta AVLE';
+const ehSaque = (p: Pedido) => p.tipo === 'Saque da Conta AVLE' || ehPagamentoPix(p);
 
 const quando = (iso?: string) =>
   iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
@@ -229,10 +231,15 @@ export default function PedidosDaEquipe({
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
           <form className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl"
             onSubmit={(e) => { e.preventDefault(); if (senhaSaque) decidir(aprovandoSaque, true, undefined, senhaSaque); }}>
-            <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Aprovar o saque</h3>
+            <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">
+              {ehPagamentoPix(aprovandoSaque) ? 'Aprovar o pagamento Pix' : 'Aprovar o saque'}
+            </h3>
             {aprovandoSaque.descricao && <p className="text-[12px] text-stone-500 break-words">{aprovandoSaque.descricao}</p>}
             <p className="text-[12px] text-stone-500">
-              Pedido por {aprovandoSaque.quem || 'alguém da equipe'}. Confira o valor e a chave: com a senha de saque, o Pix sai na hora.
+              Pedido por {aprovandoSaque.quem || 'alguém da equipe'}.{' '}
+              {ehPagamentoPix(aprovandoSaque)
+                ? 'Confira o valor e quem recebe (lido do código Pix): com a senha de saque, o pagamento sai na hora.'
+                : 'Confira o valor e a chave: com a senha de saque, o Pix sai na hora.'}
             </p>
             <input type="password" inputMode="numeric" autoComplete="off" autoFocus value={senhaSaque}
               onChange={(e) => { setSenhaSaque(e.target.value); setErroSenha(''); }} placeholder="Senha de saque"

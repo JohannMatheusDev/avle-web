@@ -8,6 +8,10 @@
  *
  * A estrutura vem do app da Caixa, as cores são as da AVLE: o verde-tinta faz
  * a faixa e a terracota faz o botão.
+ *
+ * O mesmo fluxo paga um Pix copia e cola com o saldo: cola o código (ou lê o
+ * QR code de uma foto), o Asaas diz quem recebe e quanto, e segue a mesma
+ * revisão, a mesma senha de saque e o mesmo comprovante.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -20,8 +24,23 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.avle.com.br';
 
 type SenhaDeSaque = { definida: boolean; bloqueadaAte: string | null; liberaEm: string | null };
 type Titular = { chave: string; tipo: string; nome?: string | null; documento?: string | null; banco?: string | null };
+type PixLido = {
+  payload: string;
+  valor: number | null;
+  podeMudarValor: boolean;
+  nome?: string | null;
+  documento?: string | null;
+  banco?: string | null;
+  chavePix?: string | null;
+  descricao?: string | null;
+  vencimento?: string | null;
+};
 type SaqueFeito = {
   id: number;
+  tipo?: string;
+  descricao?: string | null;
+  documento?: string | null;
+  banco?: string | null;
   valor: number;
   chavePix: string;
   tipoChavePix: string;
@@ -31,7 +50,7 @@ type SaqueFeito = {
   criadoEm?: string;
 };
 
-type Passo = 'carregando' | 'criar-senha' | 'destino' | 'chave' | 'valor' | 'revisao' | 'senha' | 'enviando' | 'comprovante' | 'pedido';
+type Passo = 'carregando' | 'criar-senha' | 'destino' | 'chave' | 'colar' | 'valor' | 'revisao' | 'senha' | 'enviando' | 'comprovante' | 'pedido';
 
 const TIPOS: { id: string; rotulo: string; titulo: string; exemplo: string; teclado: 'numeric' | 'email' | 'text' | 'tel' }[] = [
   { id: 'CPF', rotulo: 'CPF', titulo: 'Digite o CPF', exemplo: '000.000.000-00', teclado: 'numeric' },
@@ -41,6 +60,34 @@ const TIPOS: { id: string; rotulo: string; titulo: string; exemplo: string; tecl
   { id: 'EVP', rotulo: 'Chave aleatória', titulo: 'Cole a chave aleatória', exemplo: '123e4567-e89b-12d3-a456-426614174000', teclado: 'text' },
 ];
 const nomeDoTipo = (id: string) => TIPOS.find((t) => t.id === id)?.rotulo ?? id;
+
+const SITUACAO_DO_PAGAMENTO: Record<string, { titulo: string; texto: string }> = {
+  CONCLUIDO: { titulo: 'Pix pago', texto: 'O pagamento já chegou a quem recebe.' },
+  PENDENTE: { titulo: 'Pagamento a caminho', texto: 'O Asaas aprovou o pagamento. Em instantes ele chega a quem recebe.' },
+  EM_PROCESSAMENTO: { titulo: 'Pagamento a caminho', texto: 'O banco está processando. Em instantes ele chega a quem recebe.' },
+  SOLICITANDO: { titulo: 'Pagamento pedido', texto: 'O pedido foi enviado ao Asaas. Acompanhe na lista da Conta AVLE.' },
+  AGUARDANDO_APROVACAO: { titulo: 'Pagamento aguardando aprovação', texto: 'O pagamento foi registrado e espera a aprovação no Asaas.' },
+};
+
+/**
+ * O QR code de uma foto ou print. A foto do celular é grande: reduz antes de
+ * ler, que é mais rápido e lê igual. O leitor só carrega quando é usado.
+ */
+async function lerQrDaFoto(arquivo: File): Promise<string | null> {
+  const { default: jsQR } = await import('jsqr');
+  const imagem = await createImageBitmap(arquivo);
+  const escala = Math.min(1, 1600 / Math.max(imagem.width, imagem.height));
+  const largura = Math.max(1, Math.round(imagem.width * escala));
+  const altura = Math.max(1, Math.round(imagem.height * escala));
+  const tela = document.createElement('canvas');
+  tela.width = largura;
+  tela.height = altura;
+  const ctx = tela.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(imagem, 0, 0, largura, altura);
+  const { data } = ctx.getImageData(0, 0, largura, altura);
+  return jsQR(data, largura, altura, { inversionAttempts: 'attemptBoth' })?.data ?? null;
+}
 
 const SITUACAO: Record<string, { titulo: string; texto: string }> = {
   CONCLUIDO: { titulo: 'Pix enviado', texto: 'O dinheiro já caiu na conta de destino.' },
@@ -101,6 +148,15 @@ export default function FluxoDeSaque({
   const [erro, setErro] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [feito, setFeito] = useState<SaqueFeito | null>(null);
+  // O pagamento de Pix copia e cola: o código colado, o que o Asaas leu nele
+  // e a descrição opcional ("aluguel de outubro").
+  const [modo, setModo] = useState<'saque' | 'pix'>('saque');
+  const [codigo, setCodigo] = useState('');
+  const [pix, setPix] = useState<PixLido | null>(null);
+  const [descricao, setDescricao] = useState('');
+  const fotoRef = useRef<HTMLInputElement>(null);
+  const ehPix = modo === 'pix';
+  const deQuem = daContaDaAvle ? 'Conta da AVLE' : 'Conta AVLE da loja';
 
   const temChaveDaLoja = !!chavePix && !!tipoChavePix;
   const numero = Number(valor.replace(/\./g, '').replace(',', '.'));
@@ -172,19 +228,88 @@ export default function FluxoDeSaque({
     }
   };
 
+  const lerPix = async (texto: string) => {
+    if (!texto.trim()) return;
+    setOcupado(true);
+    setErro('');
+    try {
+      const res = await apiFetch(`${conta}/pix/ler`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: texto.trim() }),
+      });
+      if (!res.ok) throw new Error(await lerErro(res, 'Não foi possível ler este Pix agora.'));
+      const lido: PixLido = await res.json();
+      setPix(lido);
+      setDescricao('');
+      if (lido.podeMudarValor) {
+        setValor(lido.valor ? aplicarMascaraValor(Number(lido.valor).toFixed(2)) : '');
+        irPara('valor');
+      } else {
+        setValor(aplicarMascaraValor(Number(lido.valor).toFixed(2)));
+        irPara('revisao');
+      }
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Não foi possível ler este Pix agora.');
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const colarDaAreaDeTransferencia = async () => {
+    try {
+      const texto = await navigator.clipboard.readText();
+      if (texto) { setCodigo(texto.trim()); setErro(''); }
+    } catch {
+      setErro('O navegador não deixou colar. Toque no campo e cole por lá.');
+    }
+  };
+
+  const lerFoto = async (arquivo: File | undefined) => {
+    if (!arquivo) return;
+    setOcupado(true);
+    setErro('');
+    try {
+      const lido = await lerQrDaFoto(arquivo);
+      if (!lido) {
+        setErro('Não achamos um QR code nesta imagem. Tente uma foto mais de perto, ou cole o código.');
+        return;
+      }
+      setCodigo(lido);
+      setOcupado(false);
+      await lerPix(lido);
+    } catch {
+      setErro('Não foi possível abrir esta imagem.');
+    } finally {
+      setOcupado(false);
+      if (fotoRef.current) fotoRef.current.value = '';
+    }
+  };
+
   const enviar = async (senha: string) => {
     setPasso('enviando');
     setErro('');
     try {
-      const res = await apiFetch(`${conta}/saque`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          valor: numero.toFixed(2),
-          ...(comoPedido ? {} : { senhaSaque: senha }),
-          ...(daLoja ? {} : { chavePix: chave.trim(), tipoChavePix: tipo }),
-        }),
-      });
+      const res = ehPix && pix
+        ? await apiFetch(`${conta}/pix/pagar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              payload: pix.payload,
+              valor: numero.toFixed(2),
+              ...(descricao.trim() ? { descricao: descricao.trim() } : {}),
+              ...(comoPedido ? {} : { senhaSaque: senha }),
+            }),
+          })
+        : await apiFetch(`${conta}/saque`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              valor: numero.toFixed(2),
+              ...(comoPedido ? {} : { senhaSaque: senha }),
+              ...(daLoja ? {} : { chavePix: chave.trim(), tipoChavePix: tipo }),
+            }),
+          });
       // O financeiro: o apiFetch devolve o "aguardando aprovação" como 409, e
       // isso aqui é o sucesso do pedido.
       if (comoPedido && res.status === 409) {
@@ -196,7 +321,7 @@ export default function FluxoDeSaque({
         }
       }
       if (!res.ok) {
-        const mensagem = await lerErro(res, 'Não foi possível fazer o saque.');
+        const mensagem = await lerErro(res, ehPix ? 'Não foi possível pagar este Pix.' : 'Não foi possível fazer o saque.');
         if (/senha de saque/i.test(mensagem)) {
           await lerSituacao();
           setPasso('senha');
@@ -212,7 +337,7 @@ export default function FluxoDeSaque({
       setPasso('comprovante');
     } catch {
       setPasso('revisao');
-      setErro('Não conseguimos falar com o servidor. O saque não foi feito. Tente de novo.');
+      setErro(`Não conseguimos falar com o servidor. ${ehPix ? 'O pagamento' : 'O saque'} não foi feito. Tente de novo.`);
     }
   };
 
@@ -221,6 +346,7 @@ export default function FluxoDeSaque({
     'criar-senha': situacao.definida ? 'Trocar senha de saque' : 'Senha de saque',
     destino: 'Pix',
     chave: 'Pix com chave',
+    colar: 'Pix copia e cola',
     valor: 'Valor',
     revisao: 'Revisão',
     senha: 'Senha de saque',
@@ -228,11 +354,11 @@ export default function FluxoDeSaque({
     comprovante: 'Comprovante',
     pedido: 'Pedido enviado',
   };
-  const ordem: Passo[] = ['destino', 'chave', 'valor', 'revisao', 'senha'];
+  const ordem: Passo[] = ehPix ? ['destino', 'colar', 'valor', 'revisao', 'senha'] : ['destino', 'chave', 'valor', 'revisao', 'senha'];
   const progresso = ordem.indexOf(passo);
 
   return (
-    <div className="fixed inset-0 z-[90] bg-painel-papel flex flex-col animate-fadeIn" role="dialog" aria-modal="true" aria-label="Saque via Pix">
+    <div className="fixed inset-0 z-[90] bg-painel-papel flex flex-col animate-fadeIn" role="dialog" aria-modal="true" aria-label="Pix da Conta AVLE">
       {/* Faixa do banco: voltar, o nome do passo e fechar. */}
       <header className="bg-painel-tinta text-white">
         <div className="max-w-md mx-auto w-full px-4 h-16 flex items-center gap-3">
@@ -289,7 +415,7 @@ export default function FluxoDeSaque({
                   <button
                     type="button"
                     disabled={ocupado}
-                    onClick={() => consultar(chavePix, tipoChavePix, true)}
+                    onClick={() => { setModo('saque'); consultar(chavePix, tipoChavePix, true); }}
                     className="w-full bg-white rounded-[20px] p-4 flex items-center gap-3 text-left shadow-[0_1px_0_rgba(0,0,0,0.04)] hover:ring-1 hover:ring-painel-acento/40 transition cursor-pointer disabled:opacity-60"
                   >
                     <span className="w-11 h-11 rounded-full bg-painel-tinta text-white flex items-center justify-center flex-shrink-0">
@@ -304,13 +430,29 @@ export default function FluxoDeSaque({
                 </>
               )}
 
+              <span className="block text-[12px] text-stone-400 mt-6 mb-2">Pagar uma cobrança</span>
+              <button
+                type="button"
+                onClick={() => { setModo('pix'); setCodigo(''); setPix(null); irPara('colar'); }}
+                className="w-full bg-white rounded-[20px] p-4 flex items-center gap-3 text-left hover:ring-1 hover:ring-painel-acento/40 transition cursor-pointer"
+              >
+                <span className="w-11 h-11 rounded-full bg-painel-papel text-painel-acento flex items-center justify-center flex-shrink-0">
+                  <Icone nome="cobranca" className="w-4 h-4" />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[14px] font-semibold text-painel-tinta">Pix copia e cola</span>
+                  <span className="block text-[12px] text-stone-500">Cole o código ou leia o QR code de uma foto</span>
+                </span>
+                <span className="text-stone-300 text-[18px]">›</span>
+              </button>
+
               <span className="block text-[12px] text-stone-400 mt-6 mb-2">Pix para outra chave</span>
               <div className="bg-white rounded-[20px] divide-y divide-painel-borda overflow-hidden">
                 {TIPOS.map((t) => (
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => { setTipo(t.id); setChave(''); irPara('chave'); }}
+                    onClick={() => { setModo('saque'); setTipo(t.id); setChave(''); irPara('chave'); }}
                     className="w-full px-4 h-[60px] flex items-center gap-3 text-left hover:bg-painel-papel/60 transition-colors cursor-pointer"
                   >
                     <span className="w-9 h-9 rounded-full bg-painel-papel text-painel-acento flex items-center justify-center text-[11px] font-bold flex-shrink-0">
@@ -349,10 +491,46 @@ export default function FluxoDeSaque({
             );
           })()}
 
+          {passo === 'colar' && (
+            <>
+              <h1 className="text-[22px] text-painel-tinta leading-tight" style={{ fontWeight: 600 }}>Cole o código do Pix</h1>
+              <p className="text-[13px] text-stone-500 mt-1">O código que vem embaixo do QR code, começando com 000201. Antes de pagar, você confere quem recebe e quanto.</p>
+              <textarea
+                autoFocus
+                aria-label="Código do Pix copia e cola"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                rows={5}
+                value={codigo}
+                onChange={(e) => { setCodigo(e.target.value); setErro(''); }}
+                placeholder="00020126…"
+                className="mt-6 w-full bg-white rounded-[20px] ring-1 ring-painel-borda focus:ring-2 focus:ring-painel-acento/50 outline-none p-4 text-[13px] text-painel-tinta placeholder:text-stone-300 break-all resize-none font-mono"
+              />
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button type="button" onClick={colarDaAreaDeTransferencia} disabled={ocupado}
+                  className="h-11 rounded-full bg-white ring-1 ring-painel-borda text-[13px] font-semibold text-painel-tinta hover:ring-painel-tinta/30 disabled:opacity-50 cursor-pointer">
+                  Colar
+                </button>
+                <button type="button" onClick={() => fotoRef.current?.click()} disabled={ocupado}
+                  className="h-11 rounded-full bg-white ring-1 ring-painel-borda text-[13px] font-semibold text-painel-tinta hover:ring-painel-tinta/30 disabled:opacity-50 cursor-pointer">
+                  Ler QR code de foto
+                </button>
+              </div>
+              <input ref={fotoRef} type="file" accept="image/*" className="hidden" aria-hidden="true" tabIndex={-1}
+                onChange={(e) => lerFoto(e.target.files?.[0])} />
+              {erro && <p className="text-[12px] text-rose-600 mt-3 leading-snug">{erro}</p>}
+            </>
+          )}
+
           {passo === 'valor' && (
             <>
-              <h1 className="text-[22px] text-painel-tinta leading-tight" style={{ fontWeight: 600 }}>Quanto você quer enviar?</h1>
-              {titular && (
+              <h1 className="text-[22px] text-painel-tinta leading-tight" style={{ fontWeight: 600 }}>{ehPix ? 'Quanto você vai pagar?' : 'Quanto você quer enviar?'}</h1>
+              {ehPix && pix ? (
+                <p className="text-[13px] text-stone-500 mt-1 truncate">
+                  Para <strong className="text-painel-tinta">{pix.nome || 'quem gerou o código'}</strong>
+                </p>
+              ) : titular && (
                 <p className="text-[13px] text-stone-500 mt-1 truncate">
                   Para <strong className="text-painel-tinta">{titular.nome || `${nomeDoTipo(titular.tipo)} ${titular.chave}`}</strong>
                 </p>
@@ -379,7 +557,37 @@ export default function FluxoDeSaque({
             </>
           )}
 
-          {passo === 'revisao' && titular && (
+          {passo === 'revisao' && ehPix && pix && (
+            <>
+              <h1 className="text-[22px] text-painel-tinta leading-tight" style={{ fontWeight: 600 }}>Confira o pagamento</h1>
+              <div className="bg-white rounded-[24px] mt-5 overflow-hidden">
+                <div className="px-5 py-5 text-center border-b border-dashed border-painel-borda">
+                  <span className="block text-[12px] text-stone-400">Valor</span>
+                  <span className="block text-[32px] font-semibold tabular-nums text-painel-tinta mt-1">{real(numero)}</span>
+                </div>
+                <Linha rotulo="Para" valor={pix.nome || 'Recebedor não informado pelo Asaas'} forte />
+                {pix.documento && <Linha rotulo="CPF/CNPJ" valor={pix.documento} />}
+                {pix.banco && <Linha rotulo="Instituição" valor={pix.banco} />}
+                {pix.chavePix && <Linha rotulo="Chave" valor={pix.chavePix} />}
+                {pix.descricao && <Linha rotulo="Cobrança" valor={pix.descricao} />}
+                {pix.vencimento && <Linha rotulo="Vencimento" valor={new Date(`${pix.vencimento.slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR')} />}
+                <Linha rotulo="De" valor={deQuem} />
+                <Linha rotulo="Quando" valor={comoPedido ? 'Depois que a loja aprovar' : 'Agora · Pix cai na hora'} ultima />
+              </div>
+              <label htmlFor="pix-descricao" className="block text-[12px] text-stone-500 mt-5 mb-1.5">Para que é este pagamento? (opcional)</label>
+              <input id="pix-descricao" value={descricao} maxLength={140} onChange={(e) => setDescricao(e.target.value)}
+                placeholder="Ex.: aluguel de outubro"
+                className="w-full h-12 px-5 bg-white ring-1 ring-painel-borda rounded-full text-[14px] text-painel-tinta placeholder:text-stone-300 focus:outline-none focus:ring-2 focus:ring-painel-acento/50" />
+              <p className="text-[11px] text-stone-500 leading-relaxed mt-3">
+                Confira o nome antes de seguir: Pix pago não volta sozinho.
+                {!pix.podeMudarValor && ' O valor é o do código e não muda.'}
+              </p>
+              {numero > saldo && <p className="text-[12px] text-rose-600 mt-3">O valor passa do saldo disponível ({real(saldo)}).</p>}
+              {erro && <p className="text-[12px] text-rose-600 mt-3 leading-snug">{erro}</p>}
+            </>
+          )}
+
+          {passo === 'revisao' && !ehPix && titular && (
             <>
               <h1 className="text-[22px] text-painel-tinta leading-tight" style={{ fontWeight: 600 }}>Confira os dados do Pix</h1>
               <div className="bg-white rounded-[24px] mt-5 overflow-hidden">
@@ -391,7 +599,7 @@ export default function FluxoDeSaque({
                 {titular.documento && <Linha rotulo="CPF/CNPJ" valor={titular.documento} />}
                 {titular.banco && <Linha rotulo="Instituição" valor={titular.banco} />}
                 <Linha rotulo="Chave" valor={`${nomeDoTipo(titular.tipo)} · ${daLoja ? chavePix : chave.trim()}`} />
-                <Linha rotulo="De" valor="Conta AVLE da loja" />
+                <Linha rotulo="De" valor={deQuem} />
                 <Linha rotulo="Quando" valor={comoPedido ? 'Depois que a loja aprovar' : 'Agora · Pix cai na hora'} ultima />
               </div>
               {!daLoja && (
@@ -416,16 +624,18 @@ export default function FluxoDeSaque({
           {passo === 'enviando' && (
             <div className="py-24 flex flex-col items-center gap-4">
               <span className="w-12 h-12 rounded-full border-4 border-painel-borda border-t-painel-acento animate-spin" />
-              <p className="text-[14px] text-painel-tinta font-medium">{comoPedido ? 'Enviando o pedido…' : 'Enviando o Pix…'}</p>
+              <p className="text-[14px] text-painel-tinta font-medium">{comoPedido ? 'Enviando o pedido…' : ehPix ? 'Pagando o Pix…' : 'Enviando o Pix…'}</p>
               <p className="text-[12px] text-stone-400">Não feche esta tela.</p>
             </div>
           )}
 
           {passo === 'pedido' && (
             <div className="py-16 text-center">
-              <h1 className="text-[22px] text-painel-tinta leading-tight" style={{ fontWeight: 600 }}>Pedido de saque enviado</h1>
+              <h1 className="text-[22px] text-painel-tinta leading-tight" style={{ fontWeight: 600 }}>
+                {ehPix ? 'Pedido de pagamento enviado' : 'Pedido de saque enviado'}
+              </h1>
               <p className="text-[13px] text-stone-500 mt-2 leading-relaxed">
-                {real(numero)} para {titular?.nome || (daLoja ? 'a conta da loja' : chave.trim())}. A loja aprova com a senha
+                {real(numero)} para {ehPix ? (pix?.nome || 'quem gerou o código') : (titular?.nome || (daLoja ? 'a conta da loja' : chave.trim()))}. A loja aprova com a senha
                 de saque, e só então o Pix sai. Você acompanha em Pedidos.
               </p>
               <button type="button" onClick={aoFechar}
@@ -436,20 +646,22 @@ export default function FluxoDeSaque({
           )}
 
           {passo === 'comprovante' && feito && (
-            <Comprovante saque={feito} titular={titular} aoVoltar={aoConcluir} />
+            <Comprovante saque={feito} titular={ehPix ? null : titular} de={deQuem} aoVoltar={aoConcluir} />
           )}
         </div>
       </main>
 
       {/* O botão de seguir fica embaixo, como no app do banco. */}
-      {(passo === 'chave' || passo === 'valor' || passo === 'revisao') && (
+      {(passo === 'chave' || passo === 'colar' || passo === 'valor' || passo === 'revisao') && (
         <footer className="bg-white border-t border-painel-borda">
           <div className="max-w-md mx-auto w-full px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
             <button
               type="button"
-              disabled={ocupado || (passo === 'chave' && !chave.trim()) || (passo === 'valor' && !valorOk)}
+              disabled={ocupado || (passo === 'chave' && !chave.trim()) || (passo === 'colar' && !codigo.trim())
+                || (passo === 'valor' && !valorOk) || (passo === 'revisao' && !valorOk)}
               onClick={() => {
                 if (passo === 'chave') consultar(chave.trim(), tipo, false);
+                else if (passo === 'colar') lerPix(codigo);
                 else if (passo === 'valor') irPara('revisao');
                 else if (comoPedido) enviar('');
                 else irPara('senha');
@@ -457,6 +669,7 @@ export default function FluxoDeSaque({
               className="w-full h-14 rounded-full bg-painel-acento text-white text-[15px] font-semibold shadow-[0_12px_24px_-14px_rgba(189,107,66,0.9)] hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
             >
               {passo === 'chave' ? (ocupado ? 'Conferindo a chave…' : 'Continuar')
+                : passo === 'colar' ? (ocupado ? 'Lendo o código…' : 'Continuar')
                 : passo === 'valor' ? 'Continuar'
                 : comoPedido ? 'Pedir aprovação da loja'
                 : 'Confirmar e digitar a senha'}
@@ -571,15 +784,19 @@ function TecladoDeSenha({
   );
 }
 
-function Comprovante({ saque, titular, aoVoltar }: { saque: SaqueFeito; titular: Titular | null; aoVoltar: () => void }) {
-  const s = SITUACAO[saque.status] ?? SITUACAO.SOLICITANDO;
+function Comprovante({ saque, titular, de, aoVoltar }: { saque: SaqueFeito; titular: Titular | null; de: string; aoVoltar: () => void }) {
+  const pagamento = saque.tipo === 'PAGAMENTO_PIX';
+  const tabela = pagamento ? SITUACAO_DO_PAGAMENTO : SITUACAO;
+  const s = tabela[saque.status] ?? tabela.SOLICITANDO;
+  const documento = titular?.documento ?? saque.documento;
+  const banco = titular?.banco ?? saque.banco;
   const concluido = saque.status === 'CONCLUIDO';
   const para = saque.nomeRecebedor || titular?.nome || null;
   const data = saque.criadoEm ? new Date(saque.criadoEm).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
 
   const compartilhar = () => {
-    const texto = `Pix de ${real(saque.valor)}${para ? ` para ${para}` : ''} · ${data} · Saque #${saque.id} · Conta AVLE`;
-    if (navigator.share) navigator.share({ title: 'Comprovante de saque', text: texto }).catch(() => {});
+    const texto = `Pix de ${real(saque.valor)}${para ? ` para ${para}` : ''} · ${data} · ${pagamento ? 'Pagamento' : 'Saque'} #${saque.id} · Conta AVLE`;
+    if (navigator.share) navigator.share({ title: pagamento ? 'Comprovante de pagamento' : 'Comprovante de saque', text: texto }).catch(() => {});
     else navigator.clipboard?.writeText(texto);
   };
 
@@ -599,12 +816,13 @@ function Comprovante({ saque, titular, aoVoltar }: { saque: SaqueFeito; titular:
           <span className="block text-[32px] font-semibold tabular-nums text-painel-tinta mt-1">{real(saque.valor)}</span>
         </div>
         {para && <Linha rotulo="Para" valor={para} forte />}
-        {titular?.documento && <Linha rotulo="CPF/CNPJ" valor={titular.documento} />}
-        {titular?.banco && <Linha rotulo="Instituição" valor={titular.banco} />}
-        <Linha rotulo="Chave" valor={`${nomeDoTipo(saque.tipoChavePix)} · ${saque.chavePix}`} />
-        <Linha rotulo="De" valor="Conta AVLE da loja" />
+        {documento && <Linha rotulo="CPF/CNPJ" valor={documento} />}
+        {banco && <Linha rotulo="Instituição" valor={banco} />}
+        <Linha rotulo="Chave" valor={pagamento ? saque.chavePix : `${nomeDoTipo(saque.tipoChavePix)} · ${saque.chavePix}`} />
+        {saque.descricao && <Linha rotulo="Descrição" valor={saque.descricao} />}
+        <Linha rotulo="De" valor={de} />
         <Linha rotulo="Data e hora" valor={data} />
-        <Linha rotulo="Saque" valor={`#${saque.id}`} ultima />
+        <Linha rotulo={pagamento ? 'Pagamento' : 'Saque'} valor={`#${saque.id}`} ultima />
       </div>
 
       <div className="mt-6 space-y-2">

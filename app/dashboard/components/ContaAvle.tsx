@@ -69,6 +69,10 @@ export type Lancamento = {
 
 export type Saque = {
   id: number;
+  /** SAQUE ou PAGAMENTO_PIX (um Pix copia e cola pago com o saldo). */
+  tipo?: string;
+  descricao?: string | null;
+  nomeRecebedor?: string | null;
   valor: number;
   chavePix: string;
   tipoChavePix: string;
@@ -86,6 +90,14 @@ const TOM_DO_SAQUE: Record<string, 'positive' | 'negative' | 'warning' | 'neutra
 const NOME_DO_TIPO: Record<string, string> = {
   CPF: 'CPF', CNPJ: 'CNPJ', EMAIL: 'E-mail', PHONE: 'Celular', EVP: 'Chave aleatória',
 };
+
+const ehPagamento = (q: Saque) => q.tipo === 'PAGAMENTO_PIX';
+const tituloDoMovimento = (q: Saque) => (ehPagamento(q) ? 'Pagamento Pix' : 'Saque via Pix');
+/** Para quem foi: no pagamento, o nome lido no código e a descrição; no saque, a chave. */
+const destinoDoMovimento = (q: Saque) =>
+  ehPagamento(q)
+    ? [q.nomeRecebedor || 'Pix copia e cola', q.descricao].filter(Boolean).join(' · ')
+    : `${NOME_DO_TIPO[q.tipoChavePix] ?? q.tipoChavePix} ${q.chavePix}`;
 
 const SITUACAO_DO_SAQUE: Record<string, { rotulo: string; classe: string }> = {
   SOLICITANDO: { rotulo: 'Enviando', classe: 'bg-painel-papel text-stone-500' },
@@ -573,8 +585,8 @@ export function TelaDaContaAvle({
         return {
           id: `saque-${q.id}`,
           data: q.criadoEm,
-          titulo: 'Saque via Pix',
-          subtitulo: `${NOME_DO_TIPO[q.tipoChavePix] ?? q.tipoChavePix} ${q.chavePix}${q.motivoFalha ? ` · ${q.motivoFalha}` : ''}`,
+          titulo: tituloDoMovimento(q),
+          subtitulo: `${destinoDoMovimento(q)}${q.motivoFalha ? ` · ${q.motivoFalha}` : ''}`,
           valor: -Number(q.valor),
           situacao: <Badge tone={TOM_DO_SAQUE[q.status] ?? 'neutral'}>{situacao?.rotulo ?? q.status}</Badge>,
         };
@@ -593,7 +605,7 @@ export function TelaDaContaAvle({
               {podeSacar && (
                 <button type="button" className={`${s.acaoGrande} ${s.acaoPrincipal}`} onClick={aoSacar} disabled={!podeSacarAgora}>
                   <span className={s.acaoIcone}><Icon name="arrow-up-from-line" size={18} /></span>
-                  {resumo.saqueEmAndamento ? 'Saque em andamento' : saqueComoPedido ? 'Pedir saque' : 'Sacar via Pix'}
+                  {resumo.saqueEmAndamento ? 'Pix em andamento' : saqueComoPedido ? 'Pedir saque ou pagamento' : 'Sacar ou pagar Pix'}
                 </button>
               )}
               <BotaoDeBaixar className={s.acaoGrande} aoEscolher={aoExportar} disabled={exportando}>
@@ -723,7 +735,7 @@ export function TelaDaContaAvle({
                       size="sm"
                       value={abaDeMovimentos}
                       onChange={(v) => setAbaDeMovimentos(v as 'extrato' | 'saques')}
-                      options={[{ value: 'extrato', label: 'Extrato' }, { value: 'saques', label: 'Saques' }]}
+                      options={[{ value: 'extrato', label: 'Extrato' }, { value: 'saques', label: 'Pix enviados' }]}
                     />
                     {abaDeMovimentos === 'extrato' && (
                       <Select
@@ -743,7 +755,7 @@ export function TelaDaContaAvle({
                 ) : (
                   <ListaDeMovimentos
                     itens={movimentos}
-                    vazio={abaDeMovimentos === 'extrato' ? `Nenhuma movimentação nos últimos ${dias} dias.` : 'Nenhum saque pedido ainda.'}
+                    vazio={abaDeMovimentos === 'extrato' ? `Nenhuma movimentação nos últimos ${dias} dias.` : 'Nenhum saque ou pagamento ainda.'}
                   />
                 )}
                 {abaDeMovimentos === 'extrato' && extrato?.temMais && (
@@ -840,7 +852,7 @@ export function ContaAvleDoAdmin({ aoAbrirLoja }: { aoAbrirLoja?: (lojaId: numbe
             {visao.saldoAvle != null && visao.saldoAvle > 0 && (
               <button type="button" onClick={() => setModalSaque(true)}
                 className="mt-4 h-10 px-5 rounded-full bg-white text-painel-tinta text-[12px] font-semibold hover:bg-white/90 cursor-pointer">
-                Sacar via Pix
+                Sacar ou pagar Pix
               </button>
             )}
           </div>
@@ -918,7 +930,7 @@ export function ContaAvleDoAdmin({ aoAbrirLoja }: { aoAbrirLoja?: (lojaId: numbe
                   className={`h-8 px-4 rounded-full text-[12px] font-semibold cursor-pointer ${
                     aba === id ? 'bg-painel-tinta text-white' : 'text-stone-500 hover:text-painel-tinta'
                   }`}>
-                  {id === 'extrato' ? 'Extrato' : `Saques${saques.length > 0 ? ` (${saques.length})` : ''}`}
+                  {id === 'extrato' ? 'Extrato' : `Pix enviados${saques.length > 0 ? ` (${saques.length})` : ''}`}
                 </button>
               ))}
             </div>
@@ -965,7 +977,7 @@ export function ContaAvleDoAdmin({ aoAbrirLoja }: { aoAbrirLoja?: (lojaId: numbe
             </div>
           )
         ) : saques.length === 0 ? (
-          <p className="px-5 py-6 text-[12px] text-stone-400">Nenhum saque pedido na conta da AVLE ainda.</p>
+          <p className="px-5 py-6 text-[12px] text-stone-400">Nenhum saque ou pagamento na conta da AVLE ainda.</p>
         ) : (
           <div className="divide-y divide-painel-borda/60">
             {saques.map((q) => {
@@ -974,7 +986,7 @@ export function ContaAvleDoAdmin({ aoAbrirLoja }: { aoAbrirLoja?: (lojaId: numbe
                 <div key={q.id} className="px-5 py-3 flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-[13px] font-semibold text-painel-tinta">
-                      Saque via Pix
+                      {tituloDoMovimento(q)}
                       <span className={`ml-2 h-5 px-2 rounded-full text-[10px] font-semibold inline-flex items-center ${
                         situacao?.classe ?? 'bg-painel-papel text-stone-500'
                       }`}>
@@ -982,7 +994,7 @@ export function ContaAvleDoAdmin({ aoAbrirLoja }: { aoAbrirLoja?: (lojaId: numbe
                       </span>
                     </p>
                     <p className="text-[11px] text-stone-400 truncate">
-                      {new Date(q.criadoEm).toLocaleString('pt-BR')} · {NOME_DO_TIPO[q.tipoChavePix] ?? q.tipoChavePix} {q.chavePix}
+                      {new Date(q.criadoEm).toLocaleString('pt-BR')} · {destinoDoMovimento(q)}
                       {q.motivoFalha ? ` · ${q.motivoFalha}` : ''}
                     </p>
                   </div>
