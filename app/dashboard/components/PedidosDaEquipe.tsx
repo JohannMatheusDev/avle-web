@@ -29,6 +29,10 @@ const SITUACAO: Record<Pedido['status'], { rotulo: string; classe: string }> = {
   FALHOU: { rotulo: 'Aprovado, mas não deu certo', classe: 'bg-rose-50 text-rose-700' },
 };
 
+// O saque que o financeiro pede só sai com a senha de saque da loja mãe,
+// digitada na hora de aprovar (o mesmo rótulo de RegrasDoFinanceiro.java).
+const ehSaque = (p: Pedido) => p.tipo === 'Saque da Conta AVLE';
+
 const quando = (iso?: string) =>
   iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
 
@@ -60,6 +64,9 @@ export default function PedidosDaEquipe({
   const [ocupado, setOcupado] = useState<number | null>(null);
   const [recusando, setRecusando] = useState<Pedido | null>(null);
   const [motivo, setMotivo] = useState('');
+  const [aprovandoSaque, setAprovandoSaque] = useState<Pedido | null>(null);
+  const [senhaSaque, setSenhaSaque] = useState('');
+  const [erroSenha, setErroSenha] = useState('');
 
   const carregar = useCallback(async () => {
     if (!lojaId) return;
@@ -84,21 +91,31 @@ export default function PedidosDaEquipe({
     return () => window.removeEventListener('avle:aguardando-aprovacao', aoPedir);
   }, [carregar]);
 
-  const decidir = async (p: Pedido, aprovar: boolean, motivoRecusa?: string) => {
+  const decidir = async (p: Pedido, aprovar: boolean, motivoRecusa?: string, senha?: string) => {
     setOcupado(p.id);
     try {
       const res = await apiFetch(`${API_URL}/api/lojas/${lojaId}/aprovacoes/${p.id}/${aprovar ? 'aprovar' : 'recusar'}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ motivo: motivoRecusa ?? null }),
+        body: JSON.stringify({ motivo: motivoRecusa ?? null, ...(senha ? { senhaSaque: senha } : {}) }),
       });
-      if (!res.ok) throw new Error(await lerErro(res, 'Não foi possível decidir agora.'));
+      if (!res.ok) {
+        const mensagem = await lerErro(res, 'Não foi possível decidir agora.');
+        // Senha de saque errada: a janela fica aberta para digitar de novo.
+        if (senha && /senha de saque/i.test(mensagem)) {
+          setErroSenha(mensagem);
+          setSenhaSaque('');
+          setOcupado(null);
+          return;
+        }
+        throw new Error(mensagem);
+      }
       const decidido: Pedido = await res.json();
       if (decidido.status === 'FALHOU') {
         mostrarAviso('O pedido não deu certo', decidido.falha || 'A ação foi recusada pelo sistema.', true);
       } else {
         mostrarAviso(aprovar ? 'Pedido aprovado' : 'Pedido recusado',
-          aprovar ? `${p.tipo}: feito.` : `${p.tipo}: o colaborador vai ver que foi recusado.`, false);
+          aprovar ? `${p.tipo}: feito.` : `${p.tipo}: quem pediu vai ver que foi recusado.`, false);
       }
       await carregar();
       if (aprovar) aoDecidir?.();
@@ -109,6 +126,9 @@ export default function PedidosDaEquipe({
       setRecusando(null);
       setMotivo('');
     }
+    setAprovandoSaque(null);
+    setSenhaSaque('');
+    setErroSenha('');
   };
 
   const pendentes = pedidos.filter((p) => p.status === 'PENDENTE');
@@ -136,7 +156,8 @@ export default function PedidosDaEquipe({
             className="h-9 px-4 rounded-full border border-painel-borda text-[12px] font-semibold text-stone-600 hover:bg-stone-50 disabled:opacity-40 cursor-pointer">
             Recusar
           </button>
-          <button type="button" disabled={ocupado === p.id} onClick={() => decidir(p, true)}
+          <button type="button" disabled={ocupado === p.id}
+            onClick={() => (ehSaque(p) ? (setAprovandoSaque(p), setSenhaSaque(''), setErroSenha('')) : decidir(p, true))}
             className="h-9 px-4 rounded-full bg-painel-tinta text-white text-[12px] font-semibold hover:bg-avle-verde disabled:opacity-40 cursor-pointer">
             {ocupado === p.id ? 'Fazendo…' : 'Aprovar'}
           </button>
@@ -204,13 +225,41 @@ export default function PedidosDaEquipe({
         </details>
       )}
 
+      {aprovandoSaque && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
+          <form className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl"
+            onSubmit={(e) => { e.preventDefault(); if (senhaSaque) decidir(aprovandoSaque, true, undefined, senhaSaque); }}>
+            <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Aprovar o saque</h3>
+            {aprovandoSaque.descricao && <p className="text-[12px] text-stone-500 break-words">{aprovandoSaque.descricao}</p>}
+            <p className="text-[12px] text-stone-500">
+              Pedido por {aprovandoSaque.quem || 'alguém da equipe'}. Confira o valor e a chave: com a senha de saque, o Pix sai na hora.
+            </p>
+            <input type="password" inputMode="numeric" autoComplete="off" autoFocus value={senhaSaque}
+              onChange={(e) => { setSenhaSaque(e.target.value); setErroSenha(''); }} placeholder="Senha de saque"
+              aria-label="Senha de saque"
+              className="w-full h-11 px-4 border border-painel-borda rounded-full text-[14px] tracking-widest focus:outline-none focus:border-painel-acento" />
+            {erroSenha && <p className="text-[12px] text-rose-600">{erroSenha}</p>}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setAprovandoSaque(null)}
+                className="flex-1 py-2.5 border rounded-full text-stone-500 font-semibold text-[12px] hover:bg-stone-50 cursor-pointer">
+                Voltar
+              </button>
+              <button type="submit" disabled={!senhaSaque || ocupado === aprovandoSaque.id}
+                className="flex-1 py-2.5 bg-painel-tinta text-white font-semibold rounded-full text-[12px] hover:bg-avle-verde disabled:opacity-40 cursor-pointer">
+                {ocupado === aprovandoSaque.id ? 'Sacando…' : 'Aprovar e sacar'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {recusando && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-left animate-fadeIn">
           <div className="cartao-avle w-full max-w-md p-6 space-y-4 shadow-xl">
             <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Recusar: {recusando.tipo}</h3>
             {recusando.descricao && <p className="text-[12px] text-stone-500">{recusando.descricao}</p>}
             <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3}
-              placeholder="Motivo (opcional). O colaborador vai ver."
+              placeholder="Motivo (opcional). Quem pediu vai ver."
               className="w-full border border-painel-borda rounded-xl px-3.5 py-2.5 text-[13px] focus:outline-none focus:border-painel-acento resize-none" />
             <div className="flex gap-2">
               <button type="button" onClick={() => setRecusando(null)}

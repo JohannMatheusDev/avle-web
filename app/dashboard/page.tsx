@@ -6,6 +6,7 @@ import DashboardAdmin from './components/DashboardAdmin';
 import DashboardLoja from './components/DashboardLoja';
 import DashboardCliente from './components/DashboardCliente';
 import DashboardAfiliado from './components/DashboardAfiliado';
+import DashboardFinanceiro from './components/DashboardFinanceiro';
 import AceiteDoContratoPendente from './components/AceiteDoContratoPendente';
 import BoasVindasTermos from './components/BoasVindasTermos';
 import { escolherPainel, painelEscolhido, type Painel } from '../lib/painelDaAfiliada';
@@ -87,6 +88,18 @@ export default function DashboardPage() {
       }
       return <DashboardLoja usuario={usuario} />;
     
+    // O financeiro da loja tem o painel dele: o dinheiro, sem a operação.
+    case 'FINANCEIRO':
+      if (usuario.contratoPendente) {
+        return (
+          <AceiteDoContratoPendente
+            usuario={usuario}
+            aoAceitar={() => setUsuario({ ...usuario, contratoPendente: false })}
+          />
+        );
+      }
+      return <DashboardFinanceiro usuario={usuario} />;
+
     // A afiliada também é cliente e alterna entre os dois painéis: o da
     // cliente é por onde ela mostra como o clube funciona.
     case 'CLIENTE':

@@ -31,7 +31,7 @@ type SaqueFeito = {
   criadoEm?: string;
 };
 
-type Passo = 'carregando' | 'criar-senha' | 'destino' | 'chave' | 'valor' | 'revisao' | 'senha' | 'enviando' | 'comprovante';
+type Passo = 'carregando' | 'criar-senha' | 'destino' | 'chave' | 'valor' | 'revisao' | 'senha' | 'enviando' | 'comprovante' | 'pedido';
 
 const TIPOS: { id: string; rotulo: string; titulo: string; exemplo: string; teclado: 'numeric' | 'email' | 'text' | 'tel' }[] = [
   { id: 'CPF', rotulo: 'CPF', titulo: 'Digite o CPF', exemplo: '000.000.000-00', teclado: 'numeric' },
@@ -66,6 +66,7 @@ const quando = (iso: string) =>
 export default function FluxoDeSaque({
   lojaId,
   daContaDaAvle,
+  comoPedido = false,
   saldo,
   chavePix,
   tipoChavePix,
@@ -75,6 +76,11 @@ export default function FluxoDeSaque({
   lojaId: number | undefined;
   /** Saque da conta da própria AVLE, no painel do admin: outras rotas, sem lojaId. */
   daContaDaAvle?: boolean;
+  /**
+   * O financeiro da loja: o saque vira pedido para a loja mãe, que aprova com
+   * a senha de saque. Sem passo de senha aqui, e o fim é "pedido enviado".
+   */
+  comoPedido?: boolean;
   saldo: number;
   chavePix: string;
   tipoChavePix: string;
@@ -126,9 +132,13 @@ export default function FluxoDeSaque({
   }, [conta]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- leitura inicial da senha de saque
+    if (comoPedido) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- o pedido não usa a senha de saque
+      setPasso('destino');
+      return;
+    }
     lerSituacao().then((s) => setPasso(s && !s.definida ? 'criar-senha' : 'destino'));
-  }, [lerSituacao]);
+  }, [lerSituacao, comoPedido]);
 
   // Na página inteira do saque, o fundo não rola por trás.
   useEffect(() => {
@@ -171,10 +181,20 @@ export default function FluxoDeSaque({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           valor: numero.toFixed(2),
-          senhaSaque: senha,
+          ...(comoPedido ? {} : { senhaSaque: senha }),
           ...(daLoja ? {} : { chavePix: chave.trim(), tipoChavePix: tipo }),
         }),
       });
+      // O financeiro: o apiFetch devolve o "aguardando aprovação" como 409, e
+      // isso aqui é o sucesso do pedido.
+      if (comoPedido && res.status === 409) {
+        const corpo = await res.clone().json().catch(() => null);
+        if (corpo?.aguardandoAprovacao) {
+          setHistorico([]);
+          setPasso('pedido');
+          return;
+        }
+      }
       if (!res.ok) {
         const mensagem = await lerErro(res, 'Não foi possível fazer o saque.');
         if (/senha de saque/i.test(mensagem)) {
@@ -206,6 +226,7 @@ export default function FluxoDeSaque({
     senha: 'Senha de saque',
     enviando: 'Enviando',
     comprovante: 'Comprovante',
+    pedido: 'Pedido enviado',
   };
   const ordem: Passo[] = ['destino', 'chave', 'valor', 'revisao', 'senha'];
   const progresso = ordem.indexOf(passo);
@@ -215,7 +236,7 @@ export default function FluxoDeSaque({
       {/* Faixa do banco: voltar, o nome do passo e fechar. */}
       <header className="bg-painel-tinta text-white">
         <div className="max-w-md mx-auto w-full px-4 h-16 flex items-center gap-3">
-          {passo !== 'enviando' && passo !== 'comprovante' ? (
+          {passo !== 'enviando' && passo !== 'comprovante' && passo !== 'pedido' ? (
             <button type="button" onClick={voltar} aria-label="Voltar" className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/15 flex items-center justify-center cursor-pointer">
               <Icone nome="voltar" className="w-4 h-4" />
             </button>
@@ -371,7 +392,7 @@ export default function FluxoDeSaque({
                 {titular.banco && <Linha rotulo="Instituição" valor={titular.banco} />}
                 <Linha rotulo="Chave" valor={`${nomeDoTipo(titular.tipo)} · ${daLoja ? chavePix : chave.trim()}`} />
                 <Linha rotulo="De" valor="Conta AVLE da loja" />
-                <Linha rotulo="Quando" valor="Agora · Pix cai na hora" ultima />
+                <Linha rotulo="Quando" valor={comoPedido ? 'Depois que a loja aprovar' : 'Agora · Pix cai na hora'} ultima />
               </div>
               {!daLoja && (
                 <p className="text-[11px] text-stone-500 leading-relaxed mt-3">
@@ -395,8 +416,22 @@ export default function FluxoDeSaque({
           {passo === 'enviando' && (
             <div className="py-24 flex flex-col items-center gap-4">
               <span className="w-12 h-12 rounded-full border-4 border-painel-borda border-t-painel-acento animate-spin" />
-              <p className="text-[14px] text-painel-tinta font-medium">Enviando o Pix…</p>
+              <p className="text-[14px] text-painel-tinta font-medium">{comoPedido ? 'Enviando o pedido…' : 'Enviando o Pix…'}</p>
               <p className="text-[12px] text-stone-400">Não feche esta tela.</p>
+            </div>
+          )}
+
+          {passo === 'pedido' && (
+            <div className="py-16 text-center">
+              <h1 className="text-[22px] text-painel-tinta leading-tight" style={{ fontWeight: 600 }}>Pedido de saque enviado</h1>
+              <p className="text-[13px] text-stone-500 mt-2 leading-relaxed">
+                {real(numero)} para {titular?.nome || (daLoja ? 'a conta da loja' : chave.trim())}. A loja aprova com a senha
+                de saque, e só então o Pix sai. Você acompanha em Pedidos.
+              </p>
+              <button type="button" onClick={aoFechar}
+                className="mt-8 h-12 px-8 rounded-full bg-painel-tinta text-white text-[14px] font-semibold hover:bg-avle-verde cursor-pointer">
+                Voltar à Conta AVLE
+              </button>
             </div>
           )}
 
@@ -416,12 +451,14 @@ export default function FluxoDeSaque({
               onClick={() => {
                 if (passo === 'chave') consultar(chave.trim(), tipo, false);
                 else if (passo === 'valor') irPara('revisao');
+                else if (comoPedido) enviar('');
                 else irPara('senha');
               }}
               className="w-full h-14 rounded-full bg-painel-acento text-white text-[15px] font-semibold shadow-[0_12px_24px_-14px_rgba(189,107,66,0.9)] hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
             >
               {passo === 'chave' ? (ocupado ? 'Conferindo a chave…' : 'Continuar')
                 : passo === 'valor' ? 'Continuar'
+                : comoPedido ? 'Pedir aprovação da loja'
                 : 'Confirmar e digitar a senha'}
             </button>
           </div>

@@ -324,12 +324,15 @@ export function ResumoNoPainel({
 export function PaginaContaAvle({
   lojaId,
   podeSacar,
+  sacarComoPedido = false,
   aoIrParaConfiguracoes,
   mostrarAviso,
 }: {
   lojaId: number | undefined;
   /** Só a própria loja saca; o admin vê a página sem o botão. */
   podeSacar: boolean;
+  /** O financeiro: o saque vira pedido para a loja mãe aprovar. */
+  sacarComoPedido?: boolean;
   aoIrParaConfiguracoes?: () => void;
   mostrarAviso: (titulo: string, texto: string, erro: boolean) => void;
   /** Não é mais usado: o AVLE não abre conta no Asaas para a loja. Fica para quem ainda passa. */
@@ -455,6 +458,15 @@ export function PaginaContaAvle({
 
   // Sem a conta do Asaas da loja conectada não há saldo nem extrato: o que a
   // página tem a dizer é como conectar.
+  if (!conectada && sacarComoPedido) {
+    return (
+      <div className="cartao-avle p-8 text-[13px] text-stone-500 max-w-xl">
+        A conta do Asaas da loja ainda não está conectada. Quem conecta é a loja; depois disso, o saldo e o extrato
+        aparecem aqui.
+      </div>
+    );
+  }
+
   if (!conectada) {
     return (
       <div className="space-y-4 max-w-xl">
@@ -481,6 +493,7 @@ export function PaginaContaAvle({
         semanasDoPainel={semanasDoPainel}
         aoMudarSemanas={setSemanasDoPainel}
         podeSacar={podeSacar}
+        saqueComoPedido={sacarComoPedido}
         exportando={exportando}
         aoExportar={(formato) => exportar(formato)}
         aoSacar={() => setModalSaque(true)}
@@ -492,6 +505,7 @@ export function PaginaContaAvle({
       {modalSaque && saldo != null && (
         <FluxoDeSaque
           lojaId={lojaId}
+          comoPedido={sacarComoPedido}
           saldo={saldo}
           chavePix={resumo.chavePix || ''}
           tipoChavePix={resumo.tipoChavePix || ''}
@@ -514,7 +528,7 @@ export function PaginaContaAvle({
  */
 export function TelaDaContaAvle({
   resumo, painel, extrato, erroExtrato, carregandoExtrato, saques, dias, aoMudarDias, semanasDoPainel, aoMudarSemanas,
-  podeSacar, exportando, aoExportar, aoSacar, aoIrParaConfiguracoes, aoCarregarMais, carteira,
+  podeSacar, saqueComoPedido = false, exportando, aoExportar, aoSacar, aoIrParaConfiguracoes, aoCarregarMais, carteira,
 }: {
   resumo: ResumoDaConta;
   /** O Wallet ID da conta do Asaas conectada, para o cartão da conta. */
@@ -529,6 +543,8 @@ export function TelaDaContaAvle({
   semanasDoPainel: '4' | '12' | '26';
   aoMudarSemanas: (s: '4' | '12' | '26') => void;
   podeSacar: boolean;
+  /** O botão diz "Pedir saque": quem saca é a loja mãe, ao aprovar. */
+  saqueComoPedido?: boolean;
   exportando?: boolean;
   aoExportar: (formato: Formato) => void;
   aoSacar: () => void;
@@ -577,7 +593,7 @@ export function TelaDaContaAvle({
               {podeSacar && (
                 <button type="button" className={`${s.acaoGrande} ${s.acaoPrincipal}`} onClick={aoSacar} disabled={!podeSacarAgora}>
                   <span className={s.acaoIcone}><Icon name="arrow-up-from-line" size={18} /></span>
-                  {resumo.saqueEmAndamento ? 'Saque em andamento' : 'Sacar via Pix'}
+                  {resumo.saqueEmAndamento ? 'Saque em andamento' : saqueComoPedido ? 'Pedir saque' : 'Sacar via Pix'}
                 </button>
               )}
               <BotaoDeBaixar className={s.acaoGrande} aoEscolher={aoExportar} disabled={exportando}>
