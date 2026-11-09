@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { API_URL, apiFetch } from '../../lib/api';
 
-type Convite = { nome: string; email: string; loja: string };
+type Convite = { nome: string; email: string; loja: string; papel?: 'COLABORADOR' | 'FINANCEIRO' };
 
 const lerErro = async (res: Response, padrao: string) => {
   const texto = await res.text().catch(() => '');
@@ -104,7 +104,7 @@ export default function AceitarConviteDeColaborador() {
         ) : (
           <>
             <h1 style={{ fontWeight: 600 }} className="text-[22px] text-painel-tinta mt-2 leading-tight">
-              Olá, {convite.nome.split(' ')[0]}! A {convite.loja} convidou você para a equipe.
+              Olá, {convite.nome.split(' ')[0]}! A {convite.loja} convidou você para {convite.papel === 'FINANCEIRO' ? 'cuidar do financeiro dela' : 'a equipe'}.
             </h1>
             <p className="text-[13px] text-stone-500 mt-2 leading-relaxed">
               Crie a sua senha para entrar no painel da loja com o e-mail <strong className="text-painel-tinta">{convite.email}</strong>.
