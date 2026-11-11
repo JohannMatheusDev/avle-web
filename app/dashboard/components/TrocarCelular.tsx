@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { somenteDigitos } from '../../lib/validacao';
 
-const mascara = (valor: string) => {
+export const mascaraCelular = (valor: string) => {
   const v = somenteDigitos(valor).slice(0, 11);
   if (v.length <= 2) return v;
   if (v.length <= 7) return `(${v.slice(0, 2)}) ${v.slice(2)}`;
@@ -31,7 +31,7 @@ export default function TrocarCelular({ clienteId, telefoneAtual, aoTrocar }: {
   const [erro, setErro] = useState('');
 
   const abrir = () => {
-    setNumero(mascara(telefoneAtual || ''));
+    setNumero(mascaraCelular(telefoneAtual || ''));
     setErro('');
     setAberto(true);
   };
@@ -74,7 +74,7 @@ export default function TrocarCelular({ clienteId, telefoneAtual, aoTrocar }: {
           aria-label="Novo celular da cliente"
           placeholder="(42) 99999-9999"
           value={numero}
-          onChange={(e) => setNumero(mascara(e.target.value))}
+          onChange={(e) => setNumero(mascaraCelular(e.target.value))}
           onKeyDown={(e) => { if (e.key === 'Enter') salvar(); if (e.key === 'Escape') setAberto(false); }}
           disabled={salvando}
           autoFocus
