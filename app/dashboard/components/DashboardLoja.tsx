@@ -11,6 +11,7 @@ import EmailDaConta from './EmailDaConta';
 import PedidosDaEquipe from './PedidosDaEquipe';
 import Conversas from './Conversas';
 import TrocarCelular from './TrocarCelular';
+import FichaDaCliente, { type ClienteDaLista } from './FichaDaCliente';
 import AfiliadosDaLoja from './AfiliadosDaLoja';
 import ContaAsaasDaLoja from './ContaAsaasDaLoja';
 import {
@@ -158,6 +159,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   // A sorteada cujo cadastro a loja está completando no balcão. Sem o
   // endereço o produto não é liberado, e muita cliente resolve isso na loja.
   const [cadastroDaSorteada, setCadastroDaSorteada] = useState<{ usuarioId: number; nome: string } | null>(null);
+  const [fichaDaCliente, setFichaDaCliente] = useState<ClienteDaLista | null>(null);
   const [processandoSorteio, setProcessandoSorteio] = useState(false);
   const [modalReprovaCredito, setModalReprovaCredito] = useState<{ aberto: boolean; cotaId: number | null }>({ aberto: false, cotaId: null });
   const [motivoReprovaCredito, setMotivoReprovaCredito] = useState('');
@@ -3012,7 +3014,9 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                                      {numeroDaCliente(cli.numeroCliente) ?? '—'}
                                    </td>
                                    <td className="py-3 px-5">
-                                     <span className="block font-bold text-[#0B1E14]">{cli.nome}</span>
+                                     <button type="button" onClick={() => setFichaDaCliente(cli)}
+                                       title="Ver e corrigir os dados da cliente"
+                                       className="block font-bold text-[#0B1E14] hover:underline cursor-pointer text-left">{cli.nome}</button>
                                      <span className="text-[10px] text-stone-400">{cli.email || 'Sem e-mail cadastrado'}</span>
                                      <span className="block text-[10px] text-stone-400 font-mono">
                                        {cli.telefone ? aplicarMascaraTelefone(String(cli.telefone)) : 'Sem celular'}
@@ -5171,6 +5175,16 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
             </div>
           </div>
         </div>
+      )}
+      {fichaDaCliente && (
+        <FichaDaCliente
+          cliente={fichaDaCliente}
+          aoFechar={() => setFichaDaCliente(null)}
+          aoSalvar={(dados) => {
+            setListaClientesLoja((atual) => atual.map((c) => (c.id === fichaDaCliente.id ? { ...c, ...dados } : c)));
+            setFichaDaCliente((atual) => (atual ? { ...atual, ...dados } : atual));
+          }}
+        />
       )}
       {cadastroDaSorteada && (
         <CompletarCadastro
