@@ -627,7 +627,9 @@ function Autenticacao() {
 
       if (!resposta.ok) throw new Error('Dados não localizados no ecossistema AVLE.');
 
-      setMensagem({ tipo: 'sucesso', texto: 'Código de redefinição enviado!' });
+      const retorno = await resposta.json().catch(() => null);
+      const onde = retorno?.destino === 'TELEFONE' ? ' pelo WhatsApp' : retorno?.destino === 'EMAIL' ? ' para o seu e-mail' : '';
+      setMensagem({ tipo: 'sucesso', texto: `Código de redefinição enviado${onde}!` });
 
       setTimeout(() => {
         setIsEsqueceuSenha(false);
