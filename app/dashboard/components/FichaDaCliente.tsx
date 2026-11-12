@@ -15,6 +15,7 @@ import { Badge, Button, Dialog, Input } from '@/design-system';
 import { apiFetch } from '../../lib/api';
 import { somenteDigitos } from '../../lib/validacao';
 import { mascaraCelular } from './TrocarCelular';
+import ContratoDaCliente from '../../components/ContratoDaCliente';
 
 export type ClienteDaLista = {
   id: number;
@@ -172,6 +173,8 @@ export default function FichaDaCliente({ cliente, aoFechar, aoSalvar }: {
             {linha('Endereço', endereco(perfil))}
             {linha('Cadastro', perfil == null ? '...' : perfil.cadastroCompleto
               ? <Badge tone="positive">Completo</Badge> : <Badge tone="warning">Falta o endereço</Badge>)}
+            <p style={{ fontWeight: 600, margin: 'var(--space-4) 0 var(--space-2)' }}>Contrato</p>
+            <ContratoDaCliente usuarioId={cliente.id} daLoja />
           </div>
         )}
         {erro && <p role="alert" style={{ color: 'var(--negative)', marginTop: 'var(--space-3)' }}>{erro}</p>}
