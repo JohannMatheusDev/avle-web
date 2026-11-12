@@ -56,7 +56,11 @@ const cpfVisivel = (cpf?: string) => {
  *
  * O mesmo componente serve à loja, na ficha da cliente.
  */
-export default function ContratoDaCliente({ usuarioId }: { usuarioId: number }) {
+export default function ContratoDaCliente({ usuarioId, daLoja = false }: {
+  usuarioId: number;
+  /** Aberto pela loja, na ficha da cliente: começa fechado e fala da cliente, não com ela. */
+  daLoja?: boolean;
+}) {
   const [contratos, setContratos] = useState<Contrato[] | null>(null);
   const [erro, setErro] = useState(false);
   const [aberto, setAberto] = useState<number | null>(null);
@@ -68,13 +72,13 @@ export default function ContratoDaCliente({ usuarioId }: { usuarioId: number }) 
       .then((lista: Contrato[]) => {
         if (!ativo) return;
         setContratos(lista);
-        if (lista.length === 1) setAberto(lista[0].cotaId);
+        if (lista.length === 1 && !daLoja) setAberto(lista[0].cotaId);
       })
       .catch(() => ativo && setErro(true));
     return () => {
       ativo = false;
     };
-  }, [usuarioId]);
+  }, [usuarioId, daLoja]);
 
   if (erro) {
     return <p className="text-xs text-rose-600">Não conseguimos carregar o contrato agora. Tente de novo em instantes.</p>;
@@ -83,7 +87,9 @@ export default function ContratoDaCliente({ usuarioId }: { usuarioId: number }) 
   if (contratos.length === 0) {
     return (
       <p className="text-xs text-stone-500 leading-relaxed">
-        O contrato aparece aqui quando você entra num grupo. Ele é o termo de adesão daquele grupo, com os seus dados.
+        {daLoja
+          ? 'A cliente ainda não entrou em nenhum grupo. O termo de adesão aparece aqui quando ela entrar.'
+          : 'O contrato aparece aqui quando você entra num grupo. Ele é o termo de adesão daquele grupo, com os seus dados.'}
       </p>
     );
   }

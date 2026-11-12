@@ -37,6 +37,7 @@ import { useAvisos } from '../../lib/avisos';
 import CadastrosIncompletos from './CadastrosIncompletos';
 import ComissaoDaLoja, { comissaoPorParcela } from './ComissaoDaLoja';
 import ContratoDaLojaNoPainel from './ContratoDaLojaNoPainel';
+import TextoDosTermos from '../../components/TextoDosTermos';
 import CompletarCadastro from './CompletarCadastro';
 import RelatorioAReceber from './RelatorioAReceber';
 import ContratoDaCliente from '../../components/ContratoDaCliente';
@@ -1917,6 +1918,10 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
           ...(ehColaborador ? [] : [{ icone: 'financeiro' as const, rotulo: 'Relatório a receber', aoClicar: () => irParaSecao('relatorio') }]),
           { icone: 'link', rotulo: 'Copiar link da loja', aoClicar: handleCopiarLinkConvite },
           { icone: 'configuracoes', rotulo: 'Configurações', aoClicar: () => irParaSecao('configuracoes') },
+          { icone: 'regras', rotulo: 'Contratos e termos', aoClicar: () => {
+            irParaSecao('configuracoes');
+            setTimeout(() => document.getElementById('contratos-e-termos')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+          } },
           { icone: 'sair', rotulo: 'Sair', perigo: true, aoClicar: async () => { await encerrarSessao(); window.location.href = '/'; } },
         ]}
         acoes={
@@ -3694,6 +3699,19 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                   <EquipeDaLoja lojaId={usuario?.lojaId || usuario?.id} mostrarAviso={mostrarAviso} />
                 )}
 
+                {/* Os termos que toda cliente aceita, para a loja consultar e mostrar no balcão.
+                    O termo de adesão de cada uma, com os dados dela, fica na ficha (Clientes > nome). */}
+                <div id="contratos-e-termos" className="cartao-avle p-6 space-y-3 text-left scroll-mt-24">
+                  <div>
+                    <h3 style={{ fontWeight: 600 }} className="text-[15px] text-painel-tinta">Termos da cliente</h3>
+                    <p className="text-[12px] text-stone-500 mt-0.5">
+                      O que toda cliente aceita no cadastro. O termo de adesão de cada uma, com os dados dela e do grupo,
+                      fica na ficha dela: aba Clientes, clique no nome.
+                    </p>
+                  </div>
+                  <TextoDosTermos />
+                </div>
+
               <div className="cartao-avle p-6 md:p-8 space-y-6">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-2">
@@ -4744,7 +4762,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                         {f.id && (
                           <div className="border-t border-[#DFD9CE] pt-4">
                             <Titulo>Contrato</Titulo>
-                            <ContratoDaCliente usuarioId={Number(f.id)} />
+                            <ContratoDaCliente usuarioId={Number(f.id)} daLoja />
                           </div>
                         )}
 
