@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CardContemplacao, CotaElegivel, SorteioResumo, ehSorteioAuditavel, mensagemDeErro } from '../../lib/contemplacao';
 import ParcelasDoPlano from './ParcelasDoPlano';
@@ -11,6 +11,7 @@ import EmailDaConta from './EmailDaConta';
 import PedidosDaEquipe from './PedidosDaEquipe';
 import Conversas from './Conversas';
 import TrocarCelular from './TrocarCelular';
+import { aplicarMascaraValor } from '../../lib/validacao';
 import FichaDaCliente, { type ClienteDaLista } from './FichaDaCliente';
 import AfiliadosDaLoja from './AfiliadosDaLoja';
 import ContaAsaasDaLoja from './ContaAsaasDaLoja';
@@ -797,8 +798,15 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     const { cotaId, sorteada } = modalQuitacao;
     if (!cotaId) return;
 
-    const valor = Number(valorQuitacao.replace(',', '.'));
-    const usaValor = valorQuitacao.trim() !== '' && !Number.isNaN(valor) && valor > 0;
+    // O campo usa a máscara de reais (1.299,00): tira os pontos de milhar
+    // antes de trocar a vírgula. Antes, "1.299,00" virava NaN e o sistema
+    // lançava 1 parcela calado, e "1.299" virava R$ 1,30.
+    const valor = Number(valorQuitacao.replace(/\./g, '').replace(',', '.'));
+    if (valorQuitacao.trim() !== '' && (Number.isNaN(valor) || valor <= 0)) {
+      mostrarAviso('Valor inválido', 'Confira o valor em reais, por exemplo 1.299,00.', true);
+      return;
+    }
+    const usaValor = valorQuitacao.trim() !== '';
     const parcelas = parseInt(parcelasQuitacao, 10);
 
     if (!usaValor && (Number.isNaN(parcelas) || parcelas <= 0)) {
@@ -936,9 +944,16 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
     if (Array.isArray(data)) setFilaEspera(data as ItemFilaEspera[]);
   };
 
+  // O grupo cuja lista foi pedida por último. Resposta atrasada de outro grupo
+  // é descartada: antes ela sobrescrevia a lista do grupo aberto, e os botões
+  // da linha agiam sobre a cota de outra pessoa.
+  const grupoDaListaPedida = useRef<number | null>(null);
   const recarregarParticipantesDoGrupo = async () => {
     if (!grupoSelecionado) return;
-    const data = await buscarJson<unknown[]>('Participantes do grupo', `${API_URL}/api/usuarios/comunidade/${grupoSelecionado.id}/participantes`, []);
+    const grupoId = grupoSelecionado.id;
+    grupoDaListaPedida.current = grupoId;
+    const data = await buscarJson<unknown[]>('Participantes do grupo', `${API_URL}/api/usuarios/comunidade/${grupoId}/participantes`, []);
+    if (grupoDaListaPedida.current !== grupoId) return;
     if (Array.isArray(data)) setParticipantesDoGrupo(data);
   };
 
@@ -966,6 +981,8 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
   }, [usuario?.lojaId, usuario?.id]);
 
   useEffect(() => {
+    // Limpa ao trocar de grupo: a lista do grupo anterior não aparece sob o novo.
+    setParticipantesDoGrupo([]);
     if (grupoSelecionado) recarregarParticipantesDoGrupo();
   }, [grupoSelecionado]);
 
@@ -4248,7 +4265,7 @@ export default function DashboardLoja({ usuario }: { usuario: any }) {
                 inputMode="decimal"
                 placeholder="Deixe em branco para usar as parcelas"
                 value={valorQuitacao}
-                onChange={(e) => setValorQuitacao(e.target.value)}
+                onChange={(e) => setValorQuitacao(aplicarMascaraValor(e.target.value))}
                 className="w-full h-[42px] px-3 bg-[#F5F2EB] border border-[#DFD9CE] rounded-xl text-sm font-mono focus:outline-none focus:border-[#BD6B42]"
               />
               <p className="text-[10px] text-stone-400 mt-1">

@@ -1,5 +1,6 @@
 'use client';
 
+import { parcelasPagas as contarParcelasPagas } from '../../lib/parcelas';
 import { useEffect, useState, useRef } from 'react';
 import { CardContemplacao, EtapaTrilha, mensagemDeErro } from '../../lib/contemplacao';
 import { aplicarMascaraCep } from '../../lib/validacao';
@@ -1854,9 +1855,9 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
                       {saldoPoupanca === 0 ? (
                         <tr><td colSpan={4} className="py-6 text-center text-stone-400 italic font-medium">Nenhum aporte financeiro registrado nesta cota contratual ainda.</td></tr>
                       ) : (
-                        Array.from({ length: Math.ceil(saldoPoupanca / valorMensalidade) }).map((_, index) => (
+                        Array.from({ length: contarParcelasPagas(saldoPoupanca, valorMensalidade) }).map((_, index) => (
                           <tr key={index} className="hover:bg-stone-50/50 transition-all">
-                            <td className="py-3.5 px-5 text-stone-400">Parcela 0{index + 1}</td>
+                            <td className="py-3.5 px-5 text-stone-400">Parcela {String(index + 1).padStart(2, '0')}</td>
                             <td className="py-3.5 px-5 text-[#0B1E14] font-bold">Aporte mensal coletivo</td>
                             <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">R$ {(valorMensalidade).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             <td className="py-3.5 px-5 text-center">
@@ -1902,7 +1903,8 @@ export default function DashboardCliente({ usuario: usuarioInicial, aoAbrirPaine
                     clubesAtivos.flatMap((clube) => {
                       const vMensalidade = Number(clube.grupo.valorParcela) || 0;
                       const sPoupanca = Number(clube.saldoPoupanca) || 0;
-                      const parcelasPagas = vMensalidade > 0 ? Math.ceil(sPoupanca / vMensalidade) : 0;
+                      // Parcela paga pela metade não é parcela paga: a mesma conta do painel da loja.
+                      const parcelasPagas = contarParcelasPagas(sPoupanca, vMensalidade);
 
                       if (parcelasPagas === 0) return [];
 
