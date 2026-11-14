@@ -130,8 +130,14 @@ export function formatarData(data: Date): string {
 }
 
 // ── Dias restantes até uma data ───────────────────────────────────────────────
+// Conta em dias de calendário: no dia do vencimento dá 0, no dia seguinte -1.
+// Antes só "hoje" ia para a meia-noite e o vencimento (gravado ao meio-dia)
+// não, então o Math.ceil dava 1 no dia e -0 no dia seguinte, e a parcela só
+// aparecia como vencida dois dias depois.
 export function diasAte(data: Date): number {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
-  return Math.ceil((data.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+  const alvo = new Date(data);
+  alvo.setHours(0, 0, 0, 0);
+  return Math.round((alvo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
 }
